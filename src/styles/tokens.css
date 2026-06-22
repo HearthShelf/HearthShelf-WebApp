@@ -1,0 +1,271 @@
+/* =====================================================================
+   HearthShelf Design System — Tokens (Colors & Type)
+   =====================================================================
+   A calmer, warmer Audiobookshelf web client. Dark is home; light is a
+   daytime option. Surfaces are warm near-neutrals (R≥G≥B by a hair) on
+   a #1b1a18 base — never navy, never muddy-brown. Brand color is the
+   hearth gold + shelf cream lockup; functional/interactive color is a
+   single ember accent that can also be driven dynamically by cover art.
+
+   Tokens are expressed as shadcn/ui role variables on :root (light) and
+   .dark (dark) so they drop straight into a shadcn + Tailwind build.
+   Production target: shadcn/ui + Tailwind CSS (see README → HANDOFF).
+   ===================================================================== */
+
+/* -------- Brand display face (self-hosted) ------------------------- */
+@font-face {
+  font-family: "Libre Baskerville";
+  src: url("fonts/LibreBaskerville-VariableFont_wght.ttf") format("truetype-variations");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* =====================================================================
+   shadcn role tokens — LIGHT (:root)
+   Light mode swaps the two brand anchors: cream #f0e6d6 becomes the
+   page, #1b1a18 becomes the ink.
+   ===================================================================== */
+:root {
+  --background:            #f0e6d6;
+  --foreground:            #1b1a18;
+  --card:                  #fbf6ee;
+  --card-foreground:       #1b1a18;
+  --popover:               #fffdf8;
+  --popover-foreground:    #1b1a18;
+
+  /* primary = the functional ember accent (NOT the brand gold).
+     Flip this one line to retheme every interactive surface.
+     (App-accent face-off pending: #e0654a coral vs #bd863f gold.) */
+  --primary:               #e0654a;
+  --primary-foreground:    #fffaf6;
+
+  --secondary:             #e7dcc9;
+  --secondary-foreground:  #2a2520;
+  --muted:                 #e7dcc9;
+  --muted-foreground:      #6f6557;
+
+  /* shadcn --accent is a NEUTRAL hover/selected surface, not the brand
+     accent. The brand accent lives in --primary / --ring. */
+  --accent:                #e7dcc9;
+  --accent-foreground:     #2a2520;
+
+  --destructive:           #c4463a;
+  --destructive-foreground:#fffaf6;
+
+  --border:                #dbceb8;
+  --input:                 #dbceb8;
+  --ring:                  #e0654a;
+
+  /* sidebar group (shadcn 0.8+) */
+  --sidebar:               #f7eee0;
+  --sidebar-foreground:    #1b1a18;
+  --sidebar-primary:       #e0654a;
+  --sidebar-primary-foreground: #fffaf6;
+  --sidebar-accent:        #ece0cd;
+  --sidebar-accent-foreground:  #2a2520;
+  --sidebar-border:        #dbceb8;
+  --sidebar-ring:          #e0654a;
+
+  /* charts — drawn from the cover-art palette */
+  --chart-1: #e0654a;  --chart-2: #4f9db0;  --chart-3: #7fa86b;
+  --chart-4: #5e76c4;  --chart-5: #bd863f;
+
+  /* extra HearthShelf surface depth (beyond shadcn's 3 levels) */
+  --elevated:      #e7dcc9;   /* tracks, pressed */
+  --hairline:      rgba(0,0,0,0.10);
+  --fill:          rgba(0,0,0,0.05);
+  --fill-strong:   rgba(0,0,0,0.09);
+
+  /* brand lockup — gold reads on both themes; "Shelf" must flip */
+  --brand-hearth:  #bd863f;   /* @kind color */
+  --brand-shelf:   #f0e6d6;   /* @kind color */
+  --wordmark-hearth: #bd863f;
+  --wordmark-shelf:  #1b1a18;  /* on cream bg, "Shelf" inks dark */
+
+  /* dynamic cover-glow (JS overrides --glow-accent live) */
+  --glow-accent:   var(--primary);
+  --glow-strength: 14; /* @kind other */
+
+  --shadow-lift:   0 18px 48px rgba(60,50,40,0.18);
+  --shadow-card:   0 2px 8px rgba(60,50,40,0.08);
+
+  color-scheme: light;
+}
+
+/* =====================================================================
+   shadcn role tokens — DARK (.dark)  ← the product default ("home")
+   The app shell mounts with class="dark".
+   ===================================================================== */
+.dark {
+  --background:            #1b1a18;
+  --foreground:            #f4f1ea;
+  --card:                  #2a2825;
+  --card-foreground:       #f4f1ea;
+  --popover:               #242220;
+  --popover-foreground:    #f4f1ea;
+
+  --primary:               #e0654a;
+  --primary-foreground:    #fffaf6;
+
+  --secondary:             #322f2b;
+  --secondary-foreground:  #f4f1ea;
+  --muted:                 #322f2b;
+  --muted-foreground:      #aba498;
+
+  --accent:                #322f2b;
+  --accent-foreground:     #f4f1ea;
+
+  --destructive:           #e0654a;
+  --destructive-foreground:#fffaf6;
+
+  --border:                #383530;
+  --input:                 #383530;
+  --ring:                  #e0654a;
+
+  --sidebar:               #131211;
+  --sidebar-foreground:    #f4f1ea;
+  --sidebar-primary:       #e0654a;
+  --sidebar-primary-foreground: #fffaf6;
+  --sidebar-accent:        #242220;
+  --sidebar-accent-foreground:  #f4f1ea;
+  --sidebar-border:        #2a2825;
+  --sidebar-ring:          #e0654a;
+
+  --chart-1: #e0654a;  --chart-2: #4f9db0;  --chart-3: #7fa86b;
+  --chart-4: #5e76c4;  --chart-5: #d9a45a;
+
+  --elevated:      #322f2b;
+  --hairline:      rgba(255,255,255,0.08);
+  --fill:          rgba(255,255,255,0.06);
+  --fill-strong:   rgba(255,255,255,0.10);
+
+  --brand-hearth:  #bd863f;
+  --brand-shelf:   #f0e6d6;
+  --wordmark-hearth: #bd863f;
+  --wordmark-shelf:  #f0e6d6;  /* on the dark base, "Shelf" is cream */
+
+  --glow-strength: 60; /* @kind other */
+
+  --shadow-lift:   0 18px 48px rgba(0,0,0,0.55);
+  --shadow-card:   0 1px 0 rgba(255,255,255,0.02);
+
+  color-scheme: dark;
+}
+
+/* =====================================================================
+   Non-themed tokens (geometry, spacing, type) — declared once on :root
+   ===================================================================== */
+:root {
+  /* Geometry — shadcn derives sm/md/lg from --radius via calc() */
+  --radius:        1rem;          /* 16px — cards & primary buttons */
+  --radius-sm:     calc(var(--radius) - 6px);   /* 10px — covers */
+  --radius-md:     calc(var(--radius) - 4px);   /* 12px — rows */
+  --radius-lg:     var(--radius);
+  --radius-xl:     calc(var(--radius) + 8px);   /* 24px — sheets */
+  --radius-pill:   999px;
+
+  /* Spacing — 4px cadence */
+  --space-1: 0.25rem;  --space-2: 0.5rem;  --space-3: 0.75rem;
+  --space-4: 1rem;     --space-5: 1.25rem; --space-6: 1.5rem;
+  --space-8: 2rem;     --space-10: 3rem;
+
+  /* Type families */
+  --font-sans:  "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono:  "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-brand: "Libre Baskerville", Georgia, "Times New Roman", serif;  /* logo / wordmark + editorial */
+
+  /* Type scale — generous, display-forward (vs Audplexus's dense ladder) */
+  --fs-eyebrow: 0.6875rem;  /* 11px — tracked uppercase kicker */
+  --fs-xs:      0.75rem;     /* 12px */
+  --fs-sm:      0.8125rem;   /* 13px — captions, chips */
+  --fs-base:    0.9rem;      /* ~14.5px — body */
+  --fs-md:      0.95rem;     /* 15px — buttons, list items */
+  --fs-lg:      1.0625rem;   /* 17px — section heading */
+  --fs-title:   1.5625rem;   /* 25px — sheet title */
+  --fs-h1:      2.125rem;    /* 34px — page title */
+  --fs-display: 4.75rem;     /* 76px — stat hero */
+
+  --lh-tight: 1.08;  /* @kind font */
+  --lh-body:  1.6;   /* @kind font */
+
+  --tracking-eyebrow:  0.32em;
+  --tracking-wordmark: -0.02em;
+  --tracking-title:    -0.02em;
+}
+
+/* =====================================================================
+   Typography utilities — the HearthShelf type roles. Use as classes or
+   copy the declarations inline.
+   ===================================================================== */
+.t-eyebrow {
+  font-family: var(--font-sans);
+  font-size: var(--fs-eyebrow);
+  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  color: var(--muted-foreground);
+}
+
+.t-h1 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-h1);
+  font-weight: 700;
+  letter-spacing: var(--tracking-title);
+  color: var(--foreground);
+  line-height: var(--lh-tight);
+}
+
+.t-h2 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+
+/* The wordmark: Libre Baskerville logo face — "Hearth" gold + "Shelf" ink/cream */
+.t-wordmark {
+  font-family: var(--font-brand);
+  font-size: var(--fs-lg);
+  letter-spacing: normal;
+  line-height: 1;
+}
+.t-wordmark .lt { font-weight: 400; color: var(--wordmark-hearth); }
+.t-wordmark .bd { font-weight: 700; color: var(--wordmark-shelf); }
+
+.t-body {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  color: var(--foreground);
+  line-height: var(--lh-body);
+}
+
+.t-muted {
+  color: var(--muted-foreground);
+  font-size: var(--fs-base);
+}
+
+.t-stat {
+  font-family: var(--font-sans);
+  font-size: var(--fs-display);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--foreground);
+  line-height: 1;
+}
+
+/* Editorial display — Libre Baskerville, for pull-quotes & book copy */
+.t-quote {
+  font-family: var(--font-brand);
+  font-size: 1.3rem;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--foreground);
+}
+
+.t-mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--muted-foreground);
+}
