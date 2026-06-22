@@ -10,7 +10,8 @@ export function AppLayout() {
   return (
     <div className="flex min-h-full flex-col">
       <header className="flex h-14 items-center justify-between border-b border-border bg-sidebar px-5">
-        <Link to="/" className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2.5">
+          <img src="/logo.svg" alt="" className="size-7" />
           <Wordmark />
         </Link>
         <span className="t-eyebrow">app.hearthshelf.com</span>
