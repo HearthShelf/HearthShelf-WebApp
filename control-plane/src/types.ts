@@ -14,6 +14,8 @@ export interface Env {
   // secrets (wrangler secret put)
   /** Private signing key as a JSON JWK string (EdDSA / Ed25519). */
   CP_SIGNING_JWK: string
+  /** Clerk secret key (sk_...), for backend Clerk API calls (invitations). */
+  CLERK_SECRET_KEY: string
 }
 
 /** A server linked to the authenticated user, as returned to the SPA. */

@@ -8,6 +8,7 @@ import {
   fetchLinkedServers,
   redeemPairingCode,
   unlinkServer,
+  inviteToServer,
 } from '@/api/controlPlane'
 import type { LinkedServer } from '@/types/server'
 
@@ -39,5 +40,12 @@ export function useUnlinkServer() {
   return useMutation({
     mutationFn: (serverId: string) => unlinkServer(serverId),
     onSuccess: () => qc.invalidateQueries({ queryKey: SERVERS_KEY }),
+  })
+}
+
+export function useInviteToServer(serverId: string) {
+  return useMutation({
+    mutationFn: ({ email, role }: { email: string; role?: 'admin' | 'user' }) =>
+      inviteToServer(serverId, email, role),
   })
 }

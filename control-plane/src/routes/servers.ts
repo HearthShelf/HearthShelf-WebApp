@@ -2,9 +2,11 @@
  * Server registry + grant minting.
  *
  * User-facing (Clerk-authenticated), called by the SPA:
- *   GET    /servers              - list this user's linked servers
- *   POST   /servers/:id/grant    - mint a short-TTL grant for one server
- *   DELETE /servers/:id          - unlink a server from this user
+ *   GET    /servers               - list linked servers (+ accept pending invites)
+ *   POST   /servers/:id/grant     - mint a short-TTL grant for one server
+ *   DELETE /servers/:id           - unlink a server from this user
+ *   POST   /servers/:id/invite    - invite someone by email (admin only)
+ *   GET    /servers/:id/invites   - list pending invites (admin only)
  *
  * Server-to-server (HS authenticates with its server secret), optional path:
  *   POST   /servers/grant        - reserved for a future server-pull model;
@@ -16,8 +18,20 @@
 import { Hono, type Context } from 'hono'
 import type { Env, LinkedServerDTO } from '../types'
 import { bearer, verifyClerk, AuthError, type ClerkIdentity } from '../lib/clerk'
-import { listLinksForUser, getLink, deleteLink, getServer } from '../lib/db'
+import {
+  listLinksForUser,
+  getLink,
+  deleteLink,
+  getServer,
+  createLink,
+  upsertInvite,
+  pendingInvitesForEmail,
+  pendingInvitesForServer,
+  markInviteAccepted,
+} from '../lib/db'
 import { mintGrant } from '../lib/signing'
+import { createClerkInvitation, ClerkApiError } from '../lib/clerkApi'
+import { uuid } from '../lib/ids'
 
 export const servers = new Hono<{ Bindings: Env }>()
 
@@ -33,9 +47,34 @@ async function requireUser(c: Context<{ Bindings: Env }>): Promise<ClerkIdentity
   }
 }
 
+/**
+ * Turn any pending invites for this verified email into real links. This is how
+ * an invitee gets connected without a pairing code: the admin invited their
+ * email; on their first authed call we match and materialize. Only acts on a
+ * VERIFIED email so an unverified address can't claim someone else's invite.
+ */
+async function acceptPendingInvites(c: Context<{ Bindings: Env }>, user: ClerkIdentity) {
+  if (!user.emailVerified) return
+  const invites = await pendingInvitesForEmail(c.env, user.email)
+  for (const inv of invites) {
+    await createLink(c.env, {
+      id: uuid(),
+      clerkUserId: user.userId,
+      serverId: inv.server_id,
+      email: user.email,
+      role: inv.role,
+      displayName: inv.server_name,
+    })
+    await markInviteAccepted(c.env, inv.id)
+  }
+}
+
 servers.get('/servers', async (c) => {
   const user = await requireUser(c)
   if (!user) return c.json({ error: 'unauthorized' }, 401)
+
+  // Materialize any invites waiting on this email before listing.
+  await acceptPendingInvites(c, user)
 
   const links = await listLinksForUser(c.env, user.userId)
   const out: LinkedServerDTO[] = links.map((l) => ({
@@ -78,6 +117,81 @@ servers.delete('/servers/:id', async (c) => {
   if (!user) return c.json({ error: 'unauthorized' }, 401)
   await deleteLink(c.env, user.userId, c.req.param('id'))
   return c.json({ ok: true })
+})
+
+const APP_ORIGIN = 'https://app.hearthshelf.com'
+
+function normalizeEmail(raw: unknown): string {
+  return typeof raw === 'string' ? raw.trim().toLowerCase() : ''
+}
+
+/**
+ * Invite someone by email to a server. Admin-only (the inviter must have an
+ * admin link to the server). Creates a Clerk invitation (emails a sign-up link)
+ * and records a pending invite that materializes into a link on the invitee's
+ * first sign-in. Re-inviting refreshes the existing pending row.
+ */
+servers.post('/servers/:id/invite', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return c.json({ error: 'unauthorized' }, 401)
+
+  const serverId = c.req.param('id')
+  const inviterLink = await getLink(c.env, user.userId, serverId)
+  if (!inviterLink) return c.json({ error: 'not_linked' }, 404)
+  if (inviterLink.role !== 'admin') return c.json({ error: 'forbidden', detail: 'admin only' }, 403)
+
+  let body: { email?: string; role?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const email = normalizeEmail(body.email)
+  if (!email || !email.includes('@')) return c.json({ error: 'invalid_email' }, 400)
+  const role: 'admin' | 'user' = body.role === 'admin' ? 'admin' : 'user'
+
+  // Create the Clerk invitation. If they already have a Clerk account, Clerk may
+  // 422 "duplicate" - that's fine; the pending invite still links them on next
+  // sign-in. We record the invite regardless.
+  let clerkInvitationId: string | null = null
+  try {
+    const inv = await createClerkInvitation(c.env, {
+      email,
+      redirectUrl: `${APP_ORIGIN}/sign-up`,
+      serverId,
+      role,
+    })
+    clerkInvitationId = inv.id
+  } catch (err) {
+    if (!(err instanceof ClerkApiError)) throw err
+    // Non-fatal: log via response detail; still record the pending invite so an
+    // existing user gets linked on next sign-in.
+    clerkInvitationId = null
+  }
+
+  await upsertInvite(c.env, {
+    id: uuid(),
+    email,
+    serverId,
+    role,
+    invitedBy: user.userId,
+    clerkInvitationId,
+  })
+
+  return c.json({ ok: true, email, role, emailed: clerkInvitationId !== null })
+})
+
+/** List pending invites for a server (admin-only). */
+servers.get('/servers/:id/invites', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return c.json({ error: 'unauthorized' }, 401)
+  const serverId = c.req.param('id')
+  const link = await getLink(c.env, user.userId, serverId)
+  if (!link || link.role !== 'admin') return c.json({ error: 'forbidden' }, 403)
+  const invites = await pendingInvitesForServer(c.env, serverId)
+  return c.json({
+    invites: invites.map((i) => ({ email: i.email, role: i.role, created_at: i.created_at })),
+  })
 })
 
 // Documented stub for the advertised grant_url. The shipping design mints

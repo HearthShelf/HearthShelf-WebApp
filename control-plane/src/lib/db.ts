@@ -159,3 +159,77 @@ export async function markPairingRedeemed(
     .bind(now(), clerkUserId, code)
     .run()
 }
+
+// --- pending invites -------------------------------------------------------
+
+export interface InviteRow {
+  id: string
+  email: string
+  server_id: string
+  role: 'admin' | 'user'
+  invited_by: string | null
+  clerk_invitation_id: string | null
+  status: 'pending' | 'accepted' | 'revoked'
+  created_at: number
+  accepted_at: number | null
+}
+
+export async function upsertInvite(
+  env: Env,
+  inv: {
+    id: string
+    email: string
+    serverId: string
+    role: 'admin' | 'user'
+    invitedBy: string | null
+    clerkInvitationId: string | null
+  }
+): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO pending_invites
+       (id, email, server_id, role, invited_by, clerk_invitation_id, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+     ON CONFLICT (email, server_id) DO UPDATE SET
+       role = excluded.role,
+       invited_by = excluded.invited_by,
+       clerk_invitation_id = excluded.clerk_invitation_id,
+       status = 'pending',
+       created_at = excluded.created_at,
+       accepted_at = NULL`
+  )
+    .bind(inv.id, inv.email, inv.serverId, inv.role, inv.invitedBy, inv.clerkInvitationId, now())
+    .run()
+}
+
+/** All pending invites for a (verified) email, with server details. */
+export async function pendingInvitesForEmail(
+  env: Env,
+  email: string
+): Promise<Array<InviteRow & { public_url: string; server_name: string | null }>> {
+  const r = await env.DB.prepare(
+    `SELECT i.*, s.public_url, s.name AS server_name
+       FROM pending_invites i JOIN servers s ON s.server_id = i.server_id
+      WHERE i.email = ? AND i.status = 'pending'`
+  )
+    .bind(email.toLowerCase())
+    .all<InviteRow & { public_url: string; server_name: string | null }>()
+  return r.results ?? []
+}
+
+export async function markInviteAccepted(env: Env, id: string): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE pending_invites SET status = 'accepted', accepted_at = ? WHERE id = ?`
+  )
+    .bind(now(), id)
+    .run()
+}
+
+/** Pending invites an admin can see for a server they manage. */
+export async function pendingInvitesForServer(env: Env, serverId: string): Promise<InviteRow[]> {
+  const r = await env.DB.prepare(
+    `SELECT * FROM pending_invites WHERE server_id = ? AND status = 'pending' ORDER BY created_at DESC`
+  )
+    .bind(serverId)
+    .all<InviteRow>()
+  return r.results ?? []
+}

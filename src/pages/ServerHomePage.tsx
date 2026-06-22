@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useServer } from '@/hooks/useServers'
+import { InvitePanel } from '@/components/InvitePanel'
 
 export function ServerHomePage() {
   const { serverId } = useParams()
@@ -26,6 +27,13 @@ export function ServerHomePage() {
         {/* TODO(connection): redeem the control-plane grant for a per-server
             token, then open the direct HTTP + Socket.io connection. */}
       </div>
+
+      {/* Invites are admin-only; the control plane enforces this too (403). */}
+      {server?.role === 'admin' && serverId && (
+        <div className="mt-6">
+          <InvitePanel serverId={serverId} />
+        </div>
+      )}
     </div>
   )
 }

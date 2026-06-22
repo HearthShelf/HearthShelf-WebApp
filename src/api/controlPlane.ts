@@ -82,3 +82,22 @@ export async function redeemPairingCode(
 export async function unlinkServer(serverId: string): Promise<void> {
   await request(`/servers/${encodeURIComponent(serverId)}`, { method: 'DELETE' })
 }
+
+interface InviteResponse {
+  ok: boolean
+  email: string
+  role: 'admin' | 'user'
+  emailed: boolean
+}
+
+/** Invite someone by email to a server (admin only). */
+export async function inviteToServer(
+  serverId: string,
+  email: string,
+  role: 'admin' | 'user' = 'user'
+): Promise<InviteResponse> {
+  return request<InviteResponse>(`/servers/${encodeURIComponent(serverId)}/invite`, {
+    method: 'POST',
+    body: JSON.stringify({ email, role }),
+  })
+}
