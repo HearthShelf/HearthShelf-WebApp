@@ -2,6 +2,8 @@ name = "hearthshelf-control-plane"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
+# Reachable only at its custom domain (api.hearthshelf.com), not workers.dev.
+workers_dev = false
 
 # The control plane is the brain behind app.hearthshelf.com: it answers "which
 # servers is this Clerk user linked to?", mints short-lived signed grant
@@ -12,8 +14,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "hearthshelf-control-plane"
-# Fill in after `wrangler d1 create hearthshelf-control-plane`.
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "a35534ef-b305-4226-9426-080201cfe115"
 migrations_dir = "migrations"
 
 [vars]
