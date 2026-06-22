@@ -31,6 +31,8 @@ export interface GrantClaims {
   aud: string // target server_id
   email: string
   email_verified: true
+  /** Clerk username; HS reconciles the ABS username to this. May be empty. */
+  username: string
   role: 'admin' | 'user'
   /** public_url of the target server, for convenience/sanity-check on HS. */
   server_url: string

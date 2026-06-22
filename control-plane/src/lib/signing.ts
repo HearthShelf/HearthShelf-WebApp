@@ -56,6 +56,7 @@ export async function mintGrant(
     serverId: string
     serverUrl: string
     email: string
+    username: string
     role: 'admin' | 'user'
   }
 ): Promise<string> {
@@ -68,6 +69,7 @@ export async function mintGrant(
     aud: params.serverId,
     email: params.email,
     email_verified: true,
+    username: params.username,
     role: params.role,
     server_url: params.serverUrl,
   }

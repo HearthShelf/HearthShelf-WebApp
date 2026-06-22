@@ -63,6 +63,7 @@ servers.post('/servers/:id/grant', async (c) => {
     serverId,
     serverUrl: server.public_url,
     email: link.email,
+    username: user.username,
     role: link.role,
   })
   return c.json({

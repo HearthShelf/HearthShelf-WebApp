@@ -21,11 +21,14 @@ import type { Env } from '../types'
 
 const EMAIL_CLAIM = 'email'
 const EMAIL_VERIFIED_CLAIM = 'email_verified'
+const USERNAME_CLAIM = 'username'
 
 export interface ClerkIdentity {
   userId: string
   email: string
   emailVerified: boolean
+  /** Clerk username, from the hearthshelf JWT template. May be empty. */
+  username: string
 }
 
 // Cache the remote JWKS per issuer URL across requests (Workers reuse isolates).
@@ -65,7 +68,9 @@ export async function verifyClerk(env: Env, token: string): Promise<ClerkIdentit
   const emailVerified = payload[EMAIL_VERIFIED_CLAIM] === true
   if (!email) throw new AuthError('no email claim - add it to the Clerk JWT template')
 
-  return { userId, email, emailVerified }
+  const username = typeof payload[USERNAME_CLAIM] === 'string' ? (payload[USERNAME_CLAIM] as string) : ''
+
+  return { userId, email, emailVerified, username }
 }
 
 /**
