@@ -22,8 +22,9 @@ migrations_dir = "migrations"
 # (${CP_ISSUER}/.well-known/jwks.json). Must be the Worker's hostname, NOT the
 # SPA's (app.hearthshelf.com). Set as a custom domain on this Worker in CF.
 CP_ISSUER = "https://api.hearthshelf.com"
-# Clerk's JWKS endpoint for verifying session tokens (set real value per env).
-CLERK_JWKS_URL = ""
+# Clerk's JWKS endpoint for verifying session tokens. The host is the Frontend
+# API domain (encoded in the publishable key); change per Clerk instance.
+CLERK_JWKS_URL = "https://clerk.hearthshelf.com/.well-known/jwks.json"
 # Grant assertion lifetime in seconds (short = revocation via expiry).
 GRANT_TTL_SECONDS = "300"
 # Pairing code lifetime in seconds.
