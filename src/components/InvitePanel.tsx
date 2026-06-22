@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { UserPlus, Check, AlertCircle } from 'lucide-react'
+import { UserPlus } from 'lucide-react'
 import { useInviteToServer } from '@/hooks/useServers'
 import { Button } from '@/components/ui/Button'
+import { notify } from '@/lib/notify'
 import { cn } from '@/lib/cn'
 
 /**
@@ -20,7 +21,15 @@ export function InvitePanel({ serverId }: { serverId: string }) {
     if (!trimmed) return
     invite.mutate(
       { email: trimmed, role },
-      { onSuccess: () => setEmail('') }
+      {
+        onSuccess: (r) => {
+          setEmail('')
+          notify.success(
+            r.emailed ? `Invited ${r.email} - email sent` : `Invited ${r.email}`
+          )
+        },
+        // Failures surface via the global mutation error toast.
+      }
     )
   }
 
@@ -60,20 +69,6 @@ export function InvitePanel({ serverId }: { serverId: string }) {
           {invite.isPending ? 'Sending...' : 'Send invite'}
         </Button>
       </form>
-
-      {invite.isSuccess && (
-        <p className="mt-3 inline-flex items-center gap-1.5 text-[13px] text-foreground">
-          <Check size={14} className="text-primary" />
-          Invited {invite.data.email}
-          {invite.data.emailed ? ' - email sent.' : ' - they can sign in to connect.'}
-        </p>
-      )}
-      {invite.isError && (
-        <p className="mt-3 inline-flex items-center gap-1.5 text-[13px] text-destructive">
-          <AlertCircle size={14} />
-          {invite.error instanceof Error ? invite.error.message : 'Invite failed'}
-        </p>
-      )}
     </div>
   )
 }

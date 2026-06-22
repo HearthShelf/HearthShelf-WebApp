@@ -17,6 +17,24 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Thrown when we held a token but the control plane rejected it (401) - i.e. the
+ * session expired or was revoked mid-use. Distinct from "never signed in" so the
+ * UI can react with a sign-out + message rather than a generic error toast.
+ */
+export class SessionExpiredError extends ApiError {
+  constructor() {
+    super(401, 'Your session expired - please sign in again')
+  }
+}
+
+// The API layer must not import Clerk directly; the app registers what to do
+// when a session expires (sign the user out + send them to /sign-in).
+let onSessionExpired: (() => void) | null = null
+export function setSessionExpiredHandler(fn: () => void): void {
+  onSessionExpired = fn
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await getAuthToken()
   const headers = new Headers(init?.headers)
@@ -25,6 +43,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   const res = await fetch(`${CONTROL_PLANE_URL}${path}`, { ...init, headers })
   if (!res.ok) {
+    // A 401 while we DID present a token means the session is no longer valid.
+    if (res.status === 401 && token) {
+      onSessionExpired?.()
+      throw new SessionExpiredError()
+    }
     let detail = res.statusText
     try {
       const body = (await res.json()) as { error?: string; detail?: string }
