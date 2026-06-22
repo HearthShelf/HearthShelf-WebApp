@@ -340,37 +340,71 @@ Verified against `C:\code\audiobookshelf\server` (v2.35.1) and live
 
 ---
 
-## Work breakdown (high level - not yet started)
+## Work breakdown + status
 
-Nothing below is built. Server-side items live in the **AGPL repo** and require
-explicit approval before editing that repo.
+Status as of the control-plane + hosted-mode build. `[x]` done & verified,
+`[~]` partial/seam in place, `[ ]` not started. Server-side items live in the
+**AGPL repo** (`C:\code\HearthShelf`, branch `hosted-mode`).
 
-**Control plane (this repo / CF Workers + D1):**
-1. Clerk integration (web; mobile-ready token model).
-2. D1 schema: `clerk_user_id -> linked servers`, grant records, invite tokens.
-3. Signing keypair + JWKS endpoint; mint short-TTL grant assertions.
-4. Pairing-code exchange endpoint (issues link, returns public key to HS).
-5. Invite issuance + invite email delivery.
+**Control plane (this repo, `control-plane/` - CF Worker + Hono + D1):**
+- `[x]` D1 schema: servers, links (`clerk_user_id -> server`), pairing codes,
+  signing keys. (`control-plane/migrations/0001_init.sql`)
+- `[x]` Signing keypair (EdDSA) + JWKS endpoint; mint short-TTL grant
+  assertions. (`src/lib/signing.ts`, `src/routes/well-known.ts`)
+- `[x]` Pairing-code exchange: `/pairing/start` (server-to-server) +
+  `/pairing/redeem` (Clerk). (`src/routes/pairing.ts`)
+- `[x]` Linked-servers + grant API: `GET /servers`, `POST /servers/:id/grant`,
+  `DELETE /servers/:id`. (`src/routes/servers.ts`)
+- `[~]` Clerk verification: implemented against Clerk's JWKS
+  (`src/lib/clerk.ts`); needs the real `CLERK_JWKS_URL` + a JWT template that
+  emits verified `email`/`email_verified`. **(YOU: Clerk wiring.)**
+- `[ ]` Invite issuance + invite email delivery (the Plex invite flow).
+- `[ ]` Deploy: `wrangler d1 create`, real `database_id`, `wrangler secret put
+  CP_SIGNING_JWK`, `wrangler deploy`. (See `control-plane/README.md`.)
 
-**SPA (this repo):**
-6. Vite + React 19 + TS scaffold; import design tokens; rebuild components.
-7. Front-door shell: server switcher, cross-server library aggregation.
-8. Per-server direct connection (HTTP + Socket.io straight to HS).
+**SPA (this repo, `src/`):**
+- `[x]` Vite + React 19 + TS + Tailwind v4 scaffold; design tokens imported;
+  base components + logo.
+- `[x]` Front-door shell: server picker (loading/empty/error), per-server view.
+- `[x]` Control-plane client + TanStack Query; auth-token seam
+  (`src/lib/authToken.ts`) ready for Clerk.
+- `[~]` Clerk provider + `setAuthTokenGetter` wiring. **(YOU: Clerk.)**
+- `[ ]` Pairing UI ("Link a server" -> `useLinkServer()`).
+- `[ ]` Per-server direct connection: redeem grant with HS, then HTTP +
+  Socket.io straight to the HS server.
 
-**HS server (AGPL repo - GATED on approval):**
-9. Implement `resolveHostedMode()` in `server/lib/context.js`: verify the
-   control-plane assertion offline with the pinned key.
-10. HS-as-OIDC-provider bridge; on setup, `PATCH /api/auth-settings` to
-    configure ABS (match-by-email, our issuer/client).
-11. Pairing-code generation + public-key pinning + JWKS cache.
-12. Pre-provision via `POST /api/users`; username-from-Clerk; temp-password
-    lifecycle (backup-password prompt -> set-and-forget or destroy).
-13. Per-user token minting for the held-by-client model.
+**HS server (AGPL repo `hosted-mode` branch - APPROVED, DCO-signed):**
+- `[x]` `resolveHostedContext()` verifies the control-plane grant offline via
+  JWKS, then resolves a per-user ABS credential.
+  (`server/lib/hosted.js`, wired in `server/lib/context.js`)
+- `[x]` Per-user ABS auth via **ABS API keys** (Option A, refined): match ABS
+  user by verified email, mint a per-user API key with the admin token, cache
+  it. No passwords stored. (`server/lib/hosted.js`)
+- `[x]` Pairing + key pinning: `/hs/hosted/pair` calls the control plane,
+  persists issuer/jwks/secret; JWKS cached by `jose`. (`server/routes/hosted.js`)
+- `[x]` DB: `hosted_config` + `hosted_user_keys`. (`server/db.js`)
+- `[ ]` HS-as-OIDC-provider bridge + `PATCH /api/auth-settings` to auto-config
+  ABS OIDC. NOTE: the shipped implementation uses **API-key minting** instead
+  of full OIDC federation - simpler, no ABS OIDC setup, and it stores no
+  passwords. The OIDC bridge remains a future option for true SSO into ABS's
+  own login page; revisit if/when needed.
+- `[ ]` Pre-provision / invite flow (`POST /api/users`, username-from-Clerk,
+  temp-password lifecycle) - pairs with control-plane invites above.
+- `[ ]` Setup UI in the HS SPA to drive `/hs/hosted/pair` and show the code.
+
+**Implementation note - API keys vs OIDC.** The plan described OIDC federation
+as the default. During the build we verified ABS exposes per-user **API keys**
+(`POST /api/api-keys`, bound to a userId, act as that user). That turned out to
+be the cleaner path for the hosted control-plane model: it needs no ABS OIDC
+configuration, stores no passwords, is revocable per user, and keeps ABS fully
+internal. So hosted mode ships with API-key minting. OIDC-into-ABS stays a
+viable future enhancement (e.g. if users want ABS's native login screen), not a
+prerequisite. This honors Spirit rules 3 (easy+secure) and 5 (minimal secrets).
 
 **Open items / to revisit:**
-- Final Worker framework choice (Hono vs. raw).
-- Key-rotation procedure specifics.
-- Whether to add an optional instant-revocation denylist later.
+- Key-rotation procedure specifics (schema + JWKS-by-kid support exist).
+- Optional instant-revocation denylist (short TTL is the default mechanism).
+- Whether to add the OIDC bridge later for native-ABS-login SSO.
 
 ---
 
