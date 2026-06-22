@@ -22,7 +22,10 @@ export async function createClerkInvitation(
   env: Env,
   params: { email: string; redirectUrl: string; serverId: string; role: 'admin' | 'user' }
 ): Promise<CreatedInvitation> {
-  if (!env.CLERK_SECRET_KEY) throw new Error('CLERK_SECRET_KEY not configured')
+  // Treat a missing key as a (non-fatal) ClerkApiError so callers record the
+  // pending invite anyway - the invitee still links on their next sign-in, they
+  // just don't get the email until the key is configured.
+  if (!env.CLERK_SECRET_KEY) throw new ClerkApiError(0, 'CLERK_SECRET_KEY not configured')
 
   const res = await fetch(`${CLERK_API}/invitations`, {
     method: 'POST',

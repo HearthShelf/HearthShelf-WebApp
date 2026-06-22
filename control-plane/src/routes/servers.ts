@@ -31,7 +31,7 @@ import {
 } from '../lib/db'
 import { mintGrant } from '../lib/signing'
 import { createClerkInvitation, ClerkApiError } from '../lib/clerkApi'
-import { uuid } from '../lib/ids'
+import { uuid, sha256Hex, timingSafeEqual } from '../lib/ids'
 
 export const servers = new Hono<{ Bindings: Env }>()
 
@@ -192,6 +192,60 @@ servers.get('/servers/:id/invites', async (c) => {
   return c.json({
     invites: invites.map((i) => ({ email: i.email, role: i.role, created_at: i.created_at })),
   })
+})
+
+/**
+ * Server-initiated invite. A paired HS server (whose own admin authorized this)
+ * invites someone, authenticating with its server_secret rather than a Clerk
+ * token. Same outcome as the user-facing invite: Clerk invitation + pending
+ * link. Lets admins invite from inside their self-hosted HS UI.
+ */
+servers.post('/servers/invite-from-server', async (c) => {
+  let body: { server_id?: string; server_secret?: string; email?: string; role?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const serverId = (body.server_id || '').trim()
+  const secret = body.server_secret || ''
+  if (!serverId || !secret) return c.json({ error: 'server_id and server_secret required' }, 400)
+
+  const server = await getServer(c.env, serverId)
+  if (!server) return c.json({ error: 'server_unknown' }, 404)
+  const presented = await sha256Hex(secret)
+  if (!timingSafeEqual(presented, server.server_secret_hash)) {
+    return c.json({ error: 'bad_server_secret' }, 401)
+  }
+
+  const email = normalizeEmail(body.email)
+  if (!email || !email.includes('@')) return c.json({ error: 'invalid_email' }, 400)
+  const role: 'admin' | 'user' = body.role === 'admin' ? 'admin' : 'user'
+
+  let clerkInvitationId: string | null = null
+  try {
+    const inv = await createClerkInvitation(c.env, {
+      email,
+      redirectUrl: `${APP_ORIGIN}/sign-up`,
+      serverId,
+      role,
+    })
+    clerkInvitationId = inv.id
+  } catch (err) {
+    if (!(err instanceof ClerkApiError)) throw err
+    clerkInvitationId = null
+  }
+
+  await upsertInvite(c.env, {
+    id: uuid(),
+    email,
+    serverId,
+    role,
+    invitedBy: 'server',
+    clerkInvitationId,
+  })
+
+  return c.json({ ok: true, email, role, emailed: clerkInvitationId !== null })
 })
 
 // Documented stub for the advertised grant_url. The shipping design mints
