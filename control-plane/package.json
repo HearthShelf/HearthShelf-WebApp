@@ -1,0 +1,28 @@
+{
+  "name": "hearthshelf-control-plane",
+  "version": "0.1.0",
+  "description": "The HearthShelf hosted control plane - a Cloudflare Worker that brokers identity (Clerk) and links users to their self-hosted HearthShelf servers.",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "db:migrate:local": "wrangler d1 migrations apply hearthshelf-control-plane --local",
+    "db:migrate:remote": "wrangler d1 migrations apply hearthshelf-control-plane --remote"
+  },
+  "dependencies": {
+    "hono": "^4.6.14",
+    "jose": "^5.9.6"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "typescript": "^5.7.2",
+    "wrangler": "^3.95.0"
+  },
+  "allowScripts": {
+    "esbuild@0.17.19": true,
+    "workerd@1.20250718.0": true
+  }
+}

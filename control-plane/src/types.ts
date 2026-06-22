@@ -1,0 +1,39 @@
+/**
+ * Cloudflare Worker bindings + env for the control plane.
+ * Bindings come from wrangler.toml; secrets from `wrangler secret put`.
+ */
+export interface Env {
+  DB: D1Database
+
+  // vars (wrangler.toml [vars])
+  CP_ISSUER: string
+  CLERK_JWKS_URL: string
+  GRANT_TTL_SECONDS: string
+  PAIRING_TTL_SECONDS: string
+
+  // secrets (wrangler secret put)
+  /** Private signing key as a JSON JWK string (EdDSA / Ed25519). */
+  CP_SIGNING_JWK: string
+}
+
+/** A server linked to the authenticated user, as returned to the SPA. */
+export interface LinkedServerDTO {
+  id: string
+  name: string
+  url: string
+  role: 'admin' | 'user'
+}
+
+/** Claims carried by a grant assertion (the JWT HS verifies offline). */
+export interface GrantClaims {
+  iss: string
+  sub: string // clerk user id
+  aud: string // target server_id
+  email: string
+  email_verified: true
+  role: 'admin' | 'user'
+  /** public_url of the target server, for convenience/sanity-check on HS. */
+  server_url: string
+  iat: number
+  exp: number
+}

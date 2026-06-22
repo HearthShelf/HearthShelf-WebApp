@@ -1,0 +1,32 @@
+name = "hearthshelf-control-plane"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# The control plane is the brain behind app.hearthshelf.com: it answers "which
+# servers is this Clerk user linked to?", mints short-lived signed grant
+# assertions the client redeems with an HS server directly, and runs the
+# pairing-code exchange. It never holds ABS credentials and is never in the
+# data path - see ../ARCHITECTURE.md.
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hearthshelf-control-plane"
+# Fill in after `wrangler d1 create hearthshelf-control-plane`.
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[vars]
+# Public issuer URL of this control plane (used as the JWT `iss` and in JWKS).
+# Override per-environment in the dashboard / `wrangler secret` as needed.
+CP_ISSUER = "https://app.hearthshelf.com"
+# Clerk's JWKS endpoint for verifying session tokens (set real value per env).
+CLERK_JWKS_URL = ""
+# Grant assertion lifetime in seconds (short = revocation via expiry).
+GRANT_TTL_SECONDS = "300"
+# Pairing code lifetime in seconds.
+PAIRING_TTL_SECONDS = "900"
+
+# Secrets (set via `wrangler secret put <NAME>`), never committed:
+#   CP_SIGNING_JWK   - the control plane's PRIVATE signing key (JSON JWK, EdDSA)
+# The matching public key is derived and served at /.well-known/jwks.json.
