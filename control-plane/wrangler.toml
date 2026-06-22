@@ -17,9 +17,10 @@ database_id = "REPLACE_WITH_D1_DATABASE_ID"
 migrations_dir = "migrations"
 
 [vars]
-# Public issuer URL of this control plane (used as the JWT `iss` and in JWKS).
-# Override per-environment in the dashboard / `wrangler secret` as needed.
-CP_ISSUER = "https://app.hearthshelf.com"
+# Public URL of THIS Worker - the JWT `iss` and the origin HS fetches JWKS from
+# (${CP_ISSUER}/.well-known/jwks.json). Must be the Worker's hostname, NOT the
+# SPA's (app.hearthshelf.com). Set as a custom domain on this Worker in CF.
+CP_ISSUER = "https://api.hearthshelf.com"
 # Clerk's JWKS endpoint for verifying session tokens (set real value per env).
 CLERK_JWKS_URL = ""
 # Grant assertion lifetime in seconds (short = revocation via expiry).
