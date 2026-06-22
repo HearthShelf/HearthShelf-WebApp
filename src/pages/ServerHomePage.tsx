@@ -1,10 +1,10 @@
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
-import { useServerStore } from '@/store/servers'
+import { useServer } from '@/hooks/useServers'
 
 export function ServerHomePage() {
   const { serverId } = useParams()
-  const server = useServerStore((s) => s.servers.find((x) => x.id === serverId))
+  const server = useServer(serverId)
 
   return (
     <div className="mx-auto max-w-5xl">
