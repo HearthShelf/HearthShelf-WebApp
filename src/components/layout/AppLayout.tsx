@@ -1,4 +1,5 @@
 import { Link, Outlet } from 'react-router-dom'
+import { UserButton } from '@clerk/clerk-react'
 import { Wordmark } from '@/components/Wordmark'
 
 /**
@@ -14,7 +15,7 @@ export function AppLayout() {
           <img src="/logo.svg" alt="" className="size-7" />
           <Wordmark />
         </Link>
-        <span className="t-eyebrow">app.hearthshelf.com</span>
+        <UserButton afterSignOutUrl="/sign-in" />
       </header>
       <main className="flex-1 px-5 py-8">
         <Outlet />

@@ -2,10 +2,23 @@ import { createBrowserRouter } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ServerPickerPage } from '@/pages/ServerPickerPage'
 import { ServerHomePage } from '@/pages/ServerHomePage'
+import { SignInPage } from '@/pages/SignInPage'
+import { SignUpPage } from '@/pages/SignUpPage'
+import { RequireAuth } from '@/auth/RequireAuth'
 
 export const router = createBrowserRouter([
+  // Public account routes (embedded Clerk components). Splat paths so Clerk can
+  // own its multi-step sub-routes (email verification, OAuth callback, etc.).
+  { path: '/sign-in/*', element: <SignInPage /> },
+  { path: '/sign-up/*', element: <SignUpPage /> },
+
+  // Everything else requires sign-in.
   {
-    element: <AppLayout />,
+    element: (
+      <RequireAuth>
+        <AppLayout />
+      </RequireAuth>
+    ),
     children: [
       { path: '/', element: <ServerPickerPage /> },
       { path: '/server/:serverId', element: <ServerHomePage /> },
