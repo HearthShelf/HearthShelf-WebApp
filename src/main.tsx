@@ -6,6 +6,7 @@ import { RouterProvider } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { router } from '@/router'
 import { ClerkTokenBridge } from '@/auth/ClerkTokenBridge'
+import { clerkAppearance } from '@/auth/clerkAppearance'
 import { notify } from '@/lib/notify'
 import { SessionExpiredError } from '@/api/controlPlane'
 import './styles/index.css'
@@ -32,7 +33,11 @@ createRoot(document.getElementById('root')!).render(
     {/* Toaster sits OUTSIDE ClerkProvider so notifications still render even if
         Clerk fails to initialize (e.g. a config/network problem). */}
     <Toaster theme="dark" position="bottom-right" richColors closeButton />
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/sign-in?signed_out=1">
+    <ClerkProvider
+      publishableKey={PUBLISHABLE_KEY}
+      afterSignOutUrl="/sign-in?signed_out=1"
+      appearance={clerkAppearance}
+    >
       {/* Keeps the control-plane API client pointed at Clerk's token getter. */}
       <ClerkTokenBridge />
       <QueryClientProvider client={queryClient}>
