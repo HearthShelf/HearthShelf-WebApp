@@ -40,12 +40,13 @@ Verified locally end-to-end: `/health`, JWKS, `/pairing/start`, auth gating, and
 the grant sign -> JWKS-verify chain (including tamper + wrong-audience
 rejection).
 
-## Production setup (TODO, needs Cloudflare + Clerk accounts)
+## One-time production setup (needs Cloudflare + Clerk accounts)
+
+These run once by hand; ongoing deploys are automated (see below).
 
 1. **Create the D1 database** and paste its id into `wrangler.toml`:
    ```bash
    wrangler d1 create hearthshelf-control-plane
-   npm run db:migrate:remote
    ```
 2. **Signing key secret**:
    ```bash
@@ -57,7 +58,26 @@ rejection).
    `email` and `email_verified` claims (the grant matches the ABS user by
    verified email). If your claim names differ, adjust `src/lib/clerk.ts`.
 4. **CP_ISSUER**: set to the deployed Worker's public URL.
-5. `wrangler deploy`.
+
+## CI/CD (GitHub Actions)
+
+Deploys are automated - no more manual `wrangler deploy`.
+
+- **`.github/workflows/control-plane-ci.yml`** - typechecks the Worker on every
+  PR that touches `control-plane/**`.
+- **`.github/workflows/control-plane-deploy.yml`** - on push to `main` touching
+  `control-plane/**` (or manual run): typecheck -> apply D1 migrations
+  (`--remote`) -> `wrangler deploy`.
+
+**Required GitHub repo secrets** (Settings -> Secrets and variables -> Actions):
+
+| Secret | What |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with **Workers Scripts: Edit** and **D1: Edit** on the account |
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account id |
+
+`CP_SIGNING_JWK` stays a **Worker secret** (`wrangler secret put`), not a GitHub
+secret - the pipeline never touches it.
 
 ## Notes
 
