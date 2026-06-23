@@ -10,7 +10,7 @@ export function SignUpPage() {
     <div className="flex min-h-full flex-col items-center justify-center gap-8 px-5 py-16">
       <div className="flex items-center gap-2.5">
         <img src="/flame.png" alt="" className="w-[4em]" />
-        <Wordmark className="text-[3em]" />
+        <Wordmark style={{ fontSize: '3em' }} />
       </div>
       <SignUp
         routing="path"

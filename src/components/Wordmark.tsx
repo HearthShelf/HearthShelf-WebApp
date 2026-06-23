@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { cn } from '@/lib/cn'
 
 /**
@@ -5,9 +6,15 @@ import { cn } from '@/lib/cn'
  * inking dark on light / cream on dark. Mirrors the design system's
  * .t-wordmark role.
  */
-export function Wordmark({ className }: { className?: string }) {
+export function Wordmark({
+  className,
+  style,
+}: {
+  className?: string
+  style?: CSSProperties
+}) {
   return (
-    <span className={cn('t-wordmark select-none', className)}>
+    <span className={cn('t-wordmark select-none', className)} style={style}>
       <span className="lt">Hearth</span>
       <span className="bd">Shelf</span>
     </span>
