@@ -31,7 +31,7 @@ export function SignInPage() {
   return (
     <div className="flex min-h-full flex-col items-center justify-center gap-8 px-5 py-16">
       <div className="flex items-center gap-2.5">
-        <img src="/logo.svg" alt="" className="size-8" />
+        <img src="/flame.png" alt="" className="size-7" />
         <Wordmark className="text-xl" />
       </div>
       <SignIn

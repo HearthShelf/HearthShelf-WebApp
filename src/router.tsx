@@ -4,6 +4,7 @@ import { ServerPickerPage } from '@/pages/ServerPickerPage'
 import { ServerHomePage } from '@/pages/ServerHomePage'
 import { SignInPage } from '@/pages/SignInPage'
 import { SignUpPage } from '@/pages/SignUpPage'
+import { ErrorPage } from '@/pages/ErrorPage'
 import { RequireAuth } from '@/auth/RequireAuth'
 
 export const router = createBrowserRouter([
@@ -19,9 +20,13 @@ export const router = createBrowserRouter([
         <AppLayout />
       </RequireAuth>
     ),
+    errorElement: <ErrorPage />,
     children: [
       { path: '/', element: <ServerPickerPage /> },
       { path: '/server/:serverId', element: <ServerHomePage /> },
     ],
   },
+
+  // Unmatched paths.
+  { path: '*', element: <ErrorPage /> },
 ])
