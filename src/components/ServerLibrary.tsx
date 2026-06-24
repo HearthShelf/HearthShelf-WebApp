@@ -12,6 +12,7 @@ import { type AbsTarget } from '@/api/absLibrary'
 import { Button } from '@/components/ui/Button'
 import { ItemGrid } from '@/components/ItemGrid'
 import { ShelfRow } from '@/components/ShelfRow'
+import { WebAppMediaUIProvider } from '@/components/shared/WebAppMediaUI'
 import { cn } from '@/lib/cn'
 
 // Home shelves we surface, in display order.
@@ -98,7 +99,7 @@ function ConnectedLibrary({ target }: { target: AbsTarget }) {
   const current = activeLib ?? libraries[0].id
 
   return (
-    <div>
+    <WebAppMediaUIProvider target={target}>
       <div className="mb-5 flex flex-wrap items-center gap-2">
         {libraries.map((lib) => (
           <button
@@ -151,7 +152,7 @@ function ConnectedLibrary({ target }: { target: AbsTarget }) {
           <LibraryGrid target={target} libraryId={current} />
         </>
       )}
-    </div>
+    </WebAppMediaUIProvider>
   )
 }
 
@@ -166,7 +167,7 @@ function HomeShelves({ target, libraryId }: { target: AbsTarget; libraryId: stri
   return (
     <div className="mb-2">
       {ordered.map((s) => (
-        <ShelfRow key={s.id} target={target} label={s.label} items={s.items} />
+        <ShelfRow key={s.id} label={s.label} items={s.items} />
       ))}
     </div>
   )
@@ -198,7 +199,7 @@ function SearchResults({
   if (!data || data.length === 0) {
     return <p className="t-muted p-6 text-[13px]">No results for "{debounced.trim()}".</p>
   }
-  return <ItemGrid target={target} items={data} />
+  return <ItemGrid items={data} />
 }
 
 function LibraryGrid({ target, libraryId }: { target: AbsTarget; libraryId: string }) {
@@ -226,7 +227,7 @@ function LibraryGrid({ target, libraryId }: { target: AbsTarget; libraryId: stri
 
   return (
     <div>
-      <ItemGrid target={target} items={data.items} />
+      <ItemGrid items={data.items} />
 
       {totalPages > 1 && (
         <div className="mt-6 flex items-center justify-center gap-3">
