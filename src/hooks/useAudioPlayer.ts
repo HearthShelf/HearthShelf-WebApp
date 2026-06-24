@@ -38,6 +38,9 @@ export function useAudioPlayer({
   const [playing, setPlaying] = useState(false)
   const [positionSec, setPositionSec] = useState(startAtSec)
   const [ready, setReady] = useState(false)
+  const [rate, setRateState] = useState(1)
+  /** Sleep timer: epoch ms when playback should auto-pause, or null. */
+  const [sleepAt, setSleepAt] = useState<number | null>(null)
   const currentTrackRef = useRef<number>(-1)
   const lastSaveRef = useRef<number>(0)
 
@@ -46,6 +49,17 @@ export function useAudioPlayer({
     audioRef.current = new Audio()
     audioRef.current.preload = 'metadata'
   }
+
+  // Apply playback rate to the element whenever it changes.
+  const setRate = useCallback((r: number) => {
+    setRateState(r)
+    if (audioRef.current) audioRef.current.playbackRate = r
+  }, [])
+
+  // Sleep timer: pause when the deadline passes. setSleepMinutes(null) cancels.
+  const setSleepMinutes = useCallback((minutes: number | null) => {
+    setSleepAt(minutes == null ? null : Date.now() + minutes * 60_000)
+  }, [])
 
   // Load a given track and seek to a local offset, optionally autoplaying.
   const loadTrack = useCallback(
@@ -57,13 +71,14 @@ export function useAudioPlayer({
       audio.src = track.url
       const onMeta = () => {
         audio.currentTime = Math.max(0, Math.min(localOffsetSec, audio.duration || localOffsetSec))
+        audio.playbackRate = rate
         if (autoplay) void audio.play().catch(() => setPlaying(false))
         audio.removeEventListener('loadedmetadata', onMeta)
       }
       audio.addEventListener('loadedmetadata', onMeta)
       audio.load()
     },
-    [tracks]
+    [tracks, rate]
   )
 
   // Seek to a global book position.
@@ -156,5 +171,49 @@ export function useAudioPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tracks])
 
-  return { playing, positionSec, ready, togglePlay, seekTo, skip }
+  // Sleep timer: when the deadline passes, pause. Checked on a 1s tick while
+  // armed and playing.
+  useEffect(() => {
+    if (sleepAt == null) return
+    const id = window.setInterval(() => {
+      if (Date.now() >= sleepAt) {
+        audioRef.current?.pause()
+        setSleepAt(null)
+      }
+    }, 1000)
+    return () => window.clearInterval(id)
+  }, [sleepAt])
+
+  // Media Session: lock-screen / media-key controls and metadata.
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return
+    const ms = navigator.mediaSession
+    ms.setActionHandler('play', () => audioRef.current?.play())
+    ms.setActionHandler('pause', () => audioRef.current?.pause())
+    ms.setActionHandler('seekbackward', () => skip(-15))
+    ms.setActionHandler('seekforward', () => skip(15))
+    ms.playbackState = playing ? 'playing' : 'paused'
+    return () => {
+      ms.setActionHandler('play', null)
+      ms.setActionHandler('pause', null)
+      ms.setActionHandler('seekbackward', null)
+      ms.setActionHandler('seekforward', null)
+    }
+  }, [playing, skip])
+
+  const sleepRemainingMs = sleepAt == null ? null : Math.max(0, sleepAt - Date.now())
+
+  return {
+    playing,
+    positionSec,
+    ready,
+    rate,
+    setRate,
+    togglePlay,
+    seekTo,
+    skip,
+    setSleepMinutes,
+    sleepArmed: sleepAt != null,
+    sleepRemainingMs,
+  }
 }

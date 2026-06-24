@@ -1,9 +1,21 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Loader2, Link2, AlertCircle, BookOpen } from 'lucide-react'
-import { useConnect, useLibraries, useLibraryItems } from '@/hooks/useLibrary'
-import { itemCoverUrl, type AbsTarget } from '@/api/absLibrary'
+import { Loader2, Link2, AlertCircle, Search, X, BookOpen } from 'lucide-react'
+import {
+  useConnect,
+  useLibraries,
+  useLibraryItems,
+  useLibrarySearch,
+  useShelves,
+  useDebounced,
+} from '@/hooks/useLibrary'
+import { type AbsTarget } from '@/api/absLibrary'
 import { Button } from '@/components/ui/Button'
+import { ItemGrid } from '@/components/ItemGrid'
+import { ShelfRow } from '@/components/ShelfRow'
+import { cn } from '@/lib/cn'
+
+// Home shelves we surface, in display order.
+const HOME_SHELVES = ['continue-listening', 'recently-added']
 
 /**
  * The library surface for one connected server. First it gates on connection
@@ -57,6 +69,7 @@ export function ServerLibrary({ target }: { target: AbsTarget }) {
 function ConnectedLibrary({ target }: { target: AbsTarget }) {
   const { data: libraries, isLoading, isError } = useLibraries(target, true)
   const [activeLib, setActiveLib] = useState<string | undefined>(undefined)
+  const [query, setQuery] = useState('')
 
   if (isLoading) {
     return (
@@ -86,25 +99,106 @@ function ConnectedLibrary({ target }: { target: AbsTarget }) {
 
   return (
     <div>
-      <div className="mb-5 flex flex-wrap gap-2">
+      <div className="mb-5 flex flex-wrap items-center gap-2">
         {libraries.map((lib) => (
           <button
             key={lib.id}
-            onClick={() => setActiveLib(lib.id)}
-            className={
-              'rounded-lg px-3 py-1.5 text-[14px] font-medium transition-colors ' +
-              (lib.id === current
+            onClick={() => {
+              setActiveLib(lib.id)
+              setQuery('')
+            }}
+            className={cn(
+              'rounded-lg px-3 py-1.5 text-[14px] font-medium transition-colors',
+              lib.id === current
                 ? 'bg-secondary text-secondary-foreground'
-                : 'text-muted-foreground hover:bg-accent')
-            }
+                : 'text-muted-foreground hover:bg-accent'
+            )}
           >
             {lib.name}
           </button>
         ))}
+        <div className="relative ml-auto">
+          <Search
+            size={15}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search this library"
+            className={cn(
+              'h-9 w-56 rounded-lg border border-input bg-background pl-9 pr-8',
+              'text-[14px] text-foreground placeholder:text-muted-foreground',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+            )}
+          />
+          {query && (
+            <button
+              onClick={() => setQuery('')}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X size={15} />
+            </button>
+          )}
+        </div>
       </div>
-      <LibraryGrid target={target} libraryId={current} />
+      {query.trim() ? (
+        <SearchResults target={target} libraryId={current} query={query} />
+      ) : (
+        <>
+          <HomeShelves target={target} libraryId={current} />
+          <LibraryGrid target={target} libraryId={current} />
+        </>
+      )}
     </div>
   )
+}
+
+function HomeShelves({ target, libraryId }: { target: AbsTarget; libraryId: string }) {
+  const { data: shelves } = useShelves(target, libraryId, true)
+  if (!shelves) return null
+  // Render only the shelves we care about, in our order, that have items.
+  const ordered = HOME_SHELVES.map((id) => shelves.find((s) => s.id === id)).filter(
+    (s): s is NonNullable<typeof s> => Boolean(s && s.items.length > 0)
+  )
+  if (ordered.length === 0) return null
+  return (
+    <div className="mb-2">
+      {ordered.map((s) => (
+        <ShelfRow key={s.id} target={target} label={s.label} items={s.items} />
+      ))}
+    </div>
+  )
+}
+
+function SearchResults({
+  target,
+  libraryId,
+  query,
+}: {
+  target: AbsTarget
+  libraryId: string
+  query: string
+}) {
+  const debounced = useDebounced(query, 300)
+  const { data, isLoading, isError } = useLibrarySearch(target, libraryId, debounced, true)
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 p-6 text-muted-foreground">
+        <Loader2 className="animate-spin" size={18} />
+        <span className="t-body">Searching...</span>
+      </div>
+    )
+  }
+  if (isError) {
+    return <p className="t-muted p-6 text-[13px]">Search failed. Try again.</p>
+  }
+  if (!data || data.length === 0) {
+    return <p className="t-muted p-6 text-[13px]">No results for "{debounced.trim()}".</p>
+  }
+  return <ItemGrid target={target} items={data} />
 }
 
 function LibraryGrid({ target, libraryId }: { target: AbsTarget; libraryId: string }) {
@@ -132,36 +226,7 @@ function LibraryGrid({ target, libraryId }: { target: AbsTarget; libraryId: stri
 
   return (
     <div>
-      <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-        {data.items.map((it) => {
-          const cover = itemCoverUrl(target, it.id)
-          return (
-            <li key={it.id}>
-              <Link to={`/server/${target.serverId}/item/${it.id}`} className="group block">
-                <div className="aspect-square overflow-hidden rounded-lg border border-border bg-secondary transition-colors group-hover:border-primary">
-                  {cover ? (
-                    // eslint-disable-next-line jsx-a11y/img-redundant-alt
-                    <img
-                      src={cover}
-                      alt={it.title}
-                      loading="lazy"
-                      className="size-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex size-full items-center justify-center text-muted-foreground">
-                      <BookOpen size={24} />
-                    </div>
-                  )}
-                </div>
-                <p className="mt-2 line-clamp-2 text-[13px] font-medium text-card-foreground">
-                  {it.title}
-                </p>
-                {it.author && <p className="t-muted line-clamp-1 text-[12px]">{it.author}</p>}
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
+      <ItemGrid target={target} items={data.items} />
 
       {totalPages > 1 && (
         <div className="mt-6 flex items-center justify-center gap-3">

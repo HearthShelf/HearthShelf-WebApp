@@ -90,6 +90,93 @@ export function itemCoverUrl(t: AbsTarget, itemId: string, width = 240): string 
   return absMediaUrl(t, `/api/items/${encodeURIComponent(itemId)}/cover?width=${width}`)
 }
 
+// --- personalized shelves (home) -------------------------------------------
+
+interface RawShelf {
+  id: string
+  label: string
+  entities?: RawListItem[]
+}
+
+export interface Shelf {
+  id: string
+  label: string
+  items: AbsListItem[]
+}
+
+function mapRawItems(raw: RawListItem[]): AbsListItem[] {
+  return raw.map((r) => ({
+    id: r.id,
+    title: r.media?.metadata?.title || 'Untitled',
+    author: r.media?.metadata?.authorName || '',
+    mediaType: r.mediaType,
+    durationSec: r.media?.duration ?? 0,
+  }))
+}
+
+/**
+ * Personalized home shelves for one library (continue-listening, recently-added,
+ * etc.). One call returns full item data per shelf. We surface the shelves we
+ * render; callers pick by id.
+ */
+export async function getPersonalizedShelves(
+  t: AbsTarget,
+  libraryId: string,
+  limit = 12
+): Promise<Shelf[]> {
+  const raw = await absGet<RawShelf[]>(
+    t,
+    `/api/libraries/${encodeURIComponent(libraryId)}/personalized?limit=${limit}`
+  )
+  return (raw ?? []).map((s) => ({
+    id: s.id,
+    label: s.label,
+    items: mapRawItems(s.entities ?? []),
+  }))
+}
+
+// --- search ----------------------------------------------------------------
+
+interface SearchEntry {
+  libraryItem?: RawListItem
+}
+
+interface SearchResponse {
+  book?: SearchEntry[]
+  podcast?: SearchEntry[]
+}
+
+/**
+ * Search a library by title/author. ABS returns results keyed by media type,
+ * each wrapping the same minified item shape we use elsewhere. We flatten
+ * book+podcast hits into AbsListItem. Empty query returns no results without
+ * hitting the server (ABS 400s on an empty q).
+ */
+export async function searchLibrary(
+  t: AbsTarget,
+  libraryId: string,
+  query: string,
+  limit = 24
+): Promise<AbsListItem[]> {
+  const q = query.trim()
+  if (!q) return []
+  const data = await absGet<SearchResponse>(
+    t,
+    `/api/libraries/${encodeURIComponent(libraryId)}/search?q=${encodeURIComponent(q)}&limit=${limit}`
+  )
+  const entries = [...(data.book ?? []), ...(data.podcast ?? [])]
+  return entries
+    .map((e) => e.libraryItem)
+    .filter((i): i is RawListItem => Boolean(i))
+    .map((r) => ({
+      id: r.id,
+      title: r.media?.metadata?.title || 'Untitled',
+      author: r.media?.metadata?.authorName || '',
+      mediaType: r.mediaType,
+      durationSec: r.media?.duration ?? 0,
+    }))
+}
+
 // --- item detail + playback ------------------------------------------------
 
 /** One audio track in a book, with its cumulative offset from book start. */
@@ -102,6 +189,13 @@ export interface AbsTrack {
   url: string | null
 }
 
+export interface AbsChapter {
+  id: number
+  title: string
+  startSec: number
+  endSec: number
+}
+
 export interface AbsItemDetail {
   id: string
   title: string
@@ -111,6 +205,7 @@ export interface AbsItemDetail {
   durationSec: number
   coverUrl: string | null
   tracks: AbsTrack[]
+  chapters: AbsChapter[]
   /** Saved position for this user, if any. */
   progress: { currentTimeSec: number; isFinished: boolean } | null
 }
@@ -121,6 +216,13 @@ interface RawTrack {
   startOffset: number
   duration: number
   contentUrl: string
+}
+
+interface RawChapter {
+  id: number
+  title?: string
+  start?: number
+  end?: number
 }
 
 interface RawItemDetail {
@@ -134,6 +236,7 @@ interface RawItemDetail {
       description?: string
     }
     tracks?: RawTrack[]
+    chapters?: RawChapter[]
   }
   userMediaProgress?: { currentTime?: number; isFinished?: boolean } | null
 }
@@ -161,6 +264,12 @@ export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsIt
     durationSec: r.media?.duration ?? 0,
     coverUrl: itemCoverUrl(t, r.id, 480),
     tracks,
+    chapters: (r.media?.chapters ?? []).map((c) => ({
+      id: c.id,
+      title: c.title || `Chapter ${c.id + 1}`,
+      startSec: c.start ?? 0,
+      endSec: c.end ?? 0,
+    })),
     progress: r.userMediaProgress
       ? {
           currentTimeSec: r.userMediaProgress.currentTime ?? 0,

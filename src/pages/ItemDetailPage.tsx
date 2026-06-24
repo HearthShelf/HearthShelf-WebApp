@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { ArrowLeft, Loader2, AlertCircle, BookOpen } from 'lucide-react'
@@ -29,6 +30,20 @@ export function ItemDetailPage() {
     mutationFn: (currentTimeSec: number) =>
       saveProgress(target as AbsTarget, itemId as string, currentTimeSec, data?.durationSec ?? 0),
   })
+
+  // Lock-screen / media-key metadata. Action handlers live in the player hook.
+  useEffect(() => {
+    if (!data || !('mediaSession' in navigator)) return
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: data.title,
+      artist: data.author,
+      album: data.narrator ? `Narrated by ${data.narrator}` : undefined,
+      artwork: data.coverUrl ? [{ src: data.coverUrl, sizes: '480x480' }] : undefined,
+    })
+    return () => {
+      navigator.mediaSession.metadata = null
+    }
+  }, [data])
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -90,6 +105,7 @@ export function ItemDetailPage() {
             <div className="mt-8">
               <AudioPlayer
                 tracks={data.tracks}
+                chapters={data.chapters}
                 totalDurationSec={data.durationSec}
                 startAtSec={data.progress?.currentTimeSec ?? 0}
                 onSaveProgress={(s) => progress.mutate(s)}
