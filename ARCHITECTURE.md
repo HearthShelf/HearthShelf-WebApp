@@ -108,9 +108,9 @@ username/password internally if the admin wants.
   price, performance, and ops burden.
 - **Workers caveat we design around:** Workers do not hold long-lived
   WebSocket connections well. That is fine here because the live playback
-  Socket.io connection is **browser -> HS server directly**, never through the
-  Worker. The Worker only does control-plane work (auth brokering, the server
-  registry, invite emails).
+  Socket.io connection is **browser -> the server's ABS directly** (ABS owns the
+  socket), never through the Worker. The Worker only does control-plane work
+  (auth brokering, the server registry, invite emails).
 
 ---
 
@@ -149,31 +149,40 @@ Mirror the HS server so patterns transfer (but never the source):
 
 ## Identity & auth (the heart of the design)
 
+> **Canonical auth spec: see [`docs/hosted-oidc-design.md`](docs/hosted-oidc-design.md).**
+> That document is the authoritative, contract-verified design for the OIDC
+> federation path described below. The API-key-minting path that shipped in the
+> AGPL repo was a build-time drift and is superseded for the browser/data path
+> (see the implementation note at the end of the work breakdown).
+
 ### The model in one paragraph
 
 The user signs into **Clerk** once for `app.hs.com`. The **control plane**
-knows which HS servers that Clerk identity is linked to. For each linked server,
-the client obtains a short-lived, signed **grant assertion** and talks to that
-HS server **directly**. The HS server verifies the assertion **offline** and,
-in the default path, federates the user into ABS via **OIDC** (HS acting as the
-OIDC provider, ABS configured to trust it). ABS scopes data to the matched
-per-user account. No second auth screen; no centrally stored ABS passwords.
+knows which HS servers that Clerk identity is linked to. To reach a linked
+server, ABS on that server is configured (by the control plane, at pairing) to
+trust a **dedicated per-server Clerk OAuth client** as its OIDC provider,
+matching by **verified email**. The SPA sends the browser through that server's
+own `/auth/openid` flow; ABS runs OIDC (PKCE + nonce) against Clerk and mints an
+**ABS-native token**, handed back to the SPA, which then calls that server's
+`/api/*` **directly**. ABS scopes data to the matched per-user account. No
+second auth screen; no centrally stored ABS passwords; control plane never in
+the data path. (Clerk is the IdP directly - not HS-as-OIDC-provider.)
 
 ```
                   sign in once
-   You (browser) ----------------> Clerk  (identity for app.hs.com)
+   You (browser) ----------------> Clerk  (identity for app.hs.com; also the IdP)
         |
         | "which servers am I linked to?"
         v
-   CF Worker (control plane)  --  D1: clerk_user_id -> [ {server, grant} ... ]
-        |
-        | short-lived SIGNED assertion:
-        | "Clerk user X, verified email, linked to server Y, exp 5m"
+   CF Worker (control plane)  --  D1: clerk_user_id -> [ {server, oauth client} ... ]
+        |   at pairing: provisions a per-server Clerk OAuth client and pushes
+        |   ABS auth-settings so that server's ABS trusts Clerk (verified email)
         v
-   Your HS server (HS_MODE=hosted)
-        |  - verifies assertion offline with pinned control-plane public key
-        |  - federates user into ABS via OIDC (default) -> per-user ABS session
-        |  - ABS stays internal, on un/pw, never exposed
+   Browser -> https://<server-Y>/auth/openid   (ABS runs OIDC against Clerk)
+        |  - ABS verifies the Clerk ID token offline via cached JWKS
+        |  - matches/auto-registers the user by verified email
+        |  - mints an ABS-native token, returns it to the SPA
+        |  - ABS stays internal; SPA then calls <server-Y>/api/* directly
         +-- ABS (internal only)
 ```
 
@@ -193,10 +202,14 @@ never encouraged.
 
 ### Why this is both easiest and most secure
 
-The whole ABS OIDC config is settable in **one authenticated API call** the
-gateway makes for the admin, so the admin never touches ABS's OIDC screen. And
-because it is federated, the default path stores no ABS password anywhere. Easy
-and secure are the *same* path here, not a trade-off.
+The whole ABS OIDC config is settable in **one authenticated API call**
+(`PATCH /api/auth-settings`) the control plane makes for the admin at pairing, so
+the admin never touches ABS's OIDC screen. Each server gets its **own** Clerk
+OAuth client, so a leaked secret is contained to one server and unlinking revokes
+just that client. Because it is federated, the default path stores **no ABS
+password anywhere** and the client secret never reaches the browser. Easy and
+secure are the *same* path here, not a trade-off. (Full spec + threat model:
+`docs/hosted-oidc-design.md`.)
 
 ---
 
@@ -291,6 +304,14 @@ First connect to her library:
 ```
 
 ### The temp password lifecycle (deliberate, minimal footprint)
+
+> **Superseded by OIDC auto-register.** The verified ABS contract shows
+> `authOpenIDAutoRegister: true` **creates the user on first OIDC login** matched
+> by verified email (no `username`+`password` pre-provisioning required). So the
+> pre-provision + temp-password dance below is **not needed** in the OIDC design;
+> ABS never demands a password for a federated user. Kept here only as the record
+> of the original reasoning and for the un/pw **fallback** path. See
+> `docs/hosted-oidc-design.md`.
 
 The temp password exists **only** between invite and first login - it satisfies
 ABS's "username + password required" on user creation and lets us call
@@ -399,19 +420,33 @@ Status as of the control-plane + hosted-mode build. `[x]` done & verified,
   links to `app.hs.com/pair?code=...`. (`src/pages/config/ConfigHosted.tsx`,
   `src/api/hosted.ts`, `src/pages/OnboardingPage.tsx` in the AGPL repo.)
 
-**Implementation note - API keys vs OIDC.** The plan described OIDC federation
-as the default. During the build we verified ABS exposes per-user **API keys**
-(`POST /api/api-keys`, bound to a userId, act as that user). That turned out to
-be the cleaner path for the hosted control-plane model: it needs no ABS OIDC
-configuration, stores no passwords, is revocable per user, and keeps ABS fully
-internal. So hosted mode ships with API-key minting. OIDC-into-ABS stays a
-viable future enhancement (e.g. if users want ABS's native login screen), not a
-prerequisite. This honors Spirit rules 3 (easy+secure) and 5 (minimal secrets).
+**Implementation note - API keys vs OIDC (CORRECTED).** During the initial build
+the HS server drifted to per-user **API-key minting** (`POST /api/api-keys`)
+instead of the ratified OIDC federation. That shortcut only ever worked for the
+HS `/hs/*` feature routes - it does **not** let a browser reach the actual
+library, which lives in ABS's native `/api/*`, `/s/*`, and Socket.io (forwarded
+straight to ABS by nginx, where an API key minted by HS is irrelevant because
+the browser would need an ABS-issued credential it can present itself). The
+result was a server picker that could link a server but never open it.
+
+The corrected, canonical path is **OIDC federation with Clerk as the IdP
+directly**, fully specified in [`docs/hosted-oidc-design.md`](docs/hosted-oidc-design.md):
+each server's ABS is configured at pairing to trust a **dedicated per-server
+Clerk OAuth client** (verified-email match); the browser does OIDC against that
+server's own ABS and receives an ABS-native token to call `/api/*` directly.
+This is the most-secure posture (per-server secret isolation, revoke-on-unlink,
+secret never in the browser) and honors Spirit rules 2, 3, 5, 6, 7. The API-key
+code in the AGPL repo is superseded for the browser path; retire it unless a
+machine-to-machine path still needs it.
 
 **Open items / to revisit:**
+- Confirm Clerk free-tier allows creating OAuth applications (else fall back to
+  one shared confidential client; see the design doc, section 11).
+- Cross-origin CORS for `app.hearthshelf.com` on paired servers (design doc, 6).
+- ABS-token refresh via silent OIDC re-bounce; 401 refresh-retry in the player
+  and socket reconnect (design doc, 7).
 - Key-rotation procedure specifics (schema + JWKS-by-kid support exist).
 - Optional instant-revocation denylist (short TTL is the default mechanism).
-- Whether to add the OIDC bridge later for native-ABS-login SSO.
 
 ---
 
@@ -423,13 +458,13 @@ prerequisite. This honors Spirit rules 3 (easy+secure) and 5 (minimal secrets).
 | Design system | Reuse tokens, rebuild components locally. No new system. |
 | Hosting | CF Pages (SPA) + Workers + D1 (control plane). |
 | Front-door identity | Clerk (web + future mobile, identical math). |
-| SSO into ABS (default) | HS as OIDC provider, federated from Clerk; ABS set via `PATCH /api/auth-settings`. |
-| Fallback auth | ABS un/pw with one extra screen; HS stores that user's token encrypted. Not default. |
-| Provisioning | Pre-provision ABS user (control username + password lifecycle), match by verified email. |
-| Invites | Control plane sends invite email -> Clerk signup -> federated/provisioned ABS user. |
-| Temp password | Transient; set-and-forget on opt-in, destroyed on opt-out. Zero stored passwords in steady state. |
-| Server linking | Pairing code from HS setup; bootstraps the trust public key. |
-| Tokens | HS mints short-lived per-user; client holds; direct browser/app <-> HS. |
-| Trust | Pinned control-plane public key + JWKS cache + short-TTL signed assertions, verified offline. |
-| Signing key scope | One keypair per control plane (not per server), with rotation support. |
-| Socket.io | Direct browser <-> HS, never through the Worker. |
+| SSO into ABS (default) | **Clerk as OIDC IdP directly**; ABS trusts a per-server Clerk OAuth client, set via `PATCH /api/auth-settings` at pairing; match by verified email. See `docs/hosted-oidc-design.md`. |
+| OIDC client scope | **One dedicated Clerk OAuth client per server** (own id/secret, one redirect_uri); revoke on unlink. Most-secure posture. |
+| Fallback auth | ABS un/pw with one extra screen; not the default, not encouraged. |
+| Provisioning | OIDC auto-register on first login, matched by verified email (username from Clerk `preferred_username`). Control-plane invites seed the email. |
+| Invites | Control plane sends invite email -> Clerk signup -> OIDC-federated ABS user. |
+| Server linking | Pairing code from HS setup; bootstraps trust (control-plane public key) AND provisions the per-server OIDC client. |
+| Tokens (data path) | **ABS mints its own per-user token via OIDC; the SPA holds it and calls ABS `/api/*` directly.** The control-plane grant only authorizes the OIDC bounce, not data access. |
+| Trust (grant) | Pinned control-plane public key + JWKS cache + short-TTL signed grants, verified offline (for the bounce-authorization path). |
+| Signing key scope | One control-plane signing keypair (not per server), with rotation support. |
+| Socket.io | Direct browser <-> **ABS** (ABS owns the socket; there is no HS-owned socket), never through the Worker. |
