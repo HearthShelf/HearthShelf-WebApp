@@ -3,6 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { ServerPickerPage } from '@/pages/ServerPickerPage'
 import { ServerHomePage } from '@/pages/ServerHomePage'
 import { ConnectedPage } from '@/pages/ConnectedPage'
+import { InvitePage } from '@/pages/InvitePage'
 import { ItemDetailPage } from '@/pages/ItemDetailPage'
 import { AuthorDetailPage } from '@/pages/AuthorDetailPage'
 import { CollectionDetailPage } from '@/pages/CollectionDetailPage'
@@ -34,6 +35,9 @@ export const router = createBrowserRouter([
       // Deep link from a HS server's "Connect" flow: /pair?code=XXXX-XXXX.
       // Same picker, but it auto-opens the link dialog prefilled with the code.
       { path: '/pair', element: <ServerPickerPage /> },
+      // Deeplink from the branded invite email: /invite?server=ID. Waits for the
+      // pending invite to materialize, then lands on that server's library.
+      { path: '/invite', element: <InvitePage /> },
       { path: '/server/:serverId', element: <ServerHomePage /> },
       { path: '/server/:serverId/item/:itemId', element: <ItemDetailPage /> },
       { path: '/server/:serverId/author/:authorId', element: <AuthorDetailPage /> },

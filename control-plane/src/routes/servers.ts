@@ -247,7 +247,7 @@ servers.post('/servers/:id/invite', async (c) => {
     const server = await getServer(c.env, serverId)
     const { subject, html, text } = renderInviteEmail({
       serverName: server?.name ?? null,
-      acceptUrl: `${APP_ORIGIN}/sign-up`,
+      acceptUrl: `${APP_ORIGIN}/invite?server=${encodeURIComponent(serverId)}`,
     })
     await sendEmail(c.env, { to: email, subject, html, text })
     branded = true
