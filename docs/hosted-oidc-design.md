@@ -246,16 +246,35 @@ The entire OIDC bounce (§4.2) and data path (§4.3) run **browser → that serv
 own origin**, so if the browser can't reach the origin over valid HTTPS, none of
 the auth design can execute. This is a peer problem to auth, not a footnote.
 
-### How Plex solves it (reference)
+### How Plex solves it (reference) — DNS is free, the cert is the work
 
-Plex runs wildcard DNS: a hostname like
-`192-168-1-7.<server-hash>.plex.direct` resolves to the embedded IP, and each
-server is issued a **Let's Encrypt wildcard cert for `*.<server-hash>.plex.direct`**.
-The browser then connects to `https://192-168-1-7.<hash>.plex.direct:32400` with
-a valid cert, no per-user cert management, even for a LAN/dynamic IP. Plex also
-operates a **bandwidth-capped relay** as a fallback when direct connection fails
+The mechanism splits into two halves with very different costs, and it is worth
+being precise because it scopes what an `hs.direct` would actually cost us:
+
+1. **DNS = stateless hostname-encoding, no records written.** A hostname like
+   `192-168-1-7.<server-hash>.plex.direct` has the IP *encoded in the left label*.
+   A single wildcard responder parses `192-168-1-7` and **synthesizes** the
+   answer `192.168.1.7`. Plex writes **no** per-user/per-server/per-IP record;
+   any IP resolves instantly with zero provisioning. (This corrects the common
+   "Plex makes an A record per user" mental model — nothing is provisioned at the
+   DNS layer.)
+2. **Cert = per-server wildcard, server-held key — this is the real cost.** Each
+   server is issued **one** Let's Encrypt wildcard cert for
+   `*.<server-hash>.plex.direct` at claim time, covering all its possible IPs
+   (LAN, WAN, dynamic) because they share the hash subdomain. **The media server
+   holds its own private key**; plex.tv never holds it. The browser connects to
+   `https://192-168-1-7.<hash>.plex.direct:32400` and the wildcard cert validates.
+
+Plex also operates a **bandwidth-capped relay** fallback for when direct fails
 (CGNAT/firewall), and the central registry returns *all* candidate connection
 URIs (local, remote-direct, relay) for the client to try in order.
+
+**Emby/Jellyfin do NOT solve this.** Emby Connect unifies the account but has no
+plex.direct equivalent; Jellyfin removed Emby Connect entirely and tells users to
+run a reverse proxy + their own Let's Encrypt. So "require a real HTTPS origin"
+(Option A below) is literally what the entire Jellyfin/Emby ecosystem does — it
+is a legitimate, well-precedented MVP, not a cop-out. A `plex.direct` equivalent
+is the differentiator only Plex currently has.
 
 ### Our options (decision deferred; design now)
 
@@ -268,13 +287,45 @@ it). Zero new infra for us; fine for power users; **excludes** the "just runs on
 my LAN" crowd Plex serves. This is the natural MVP and what the rest of this doc
 already assumes.
 
-**Option B — an `hs.direct` equivalent (parity with Plex).**
-We run wildcard DNS (`*.<hash>.hs.direct` → embedded address) and provision a
-per-server Let's Encrypt wildcard cert at pairing, so any server gets browser-
-valid HTTPS with no user cert work. Highest UX parity; real operational cost
-(DNS infra, ACME automation, cert storage/rotation on each server, the documented
-**DNS-rebinding caveat** Plex carries). The per-server cert provisioning could
-piggyback on the pairing step that already provisions the per-server OIDC client.
+**Option B — an `hs.direct`-style service (parity with Plex). PLANNED follow-up.**
+Two parts, per the cost split above:
+- **DNS (cheap):** a stateless wildcard responder that parses the hyphenated IP
+  from `<ip>.<hash>.<zone>` and synthesizes the A record. No per-server
+  provisioning, no zone writes. Small always-on service (a CF Worker won't do raw
+  DNS; use a tiny VM/container or managed authoritative-DNS-with-synthesis).
+- **Cert (the real work):** mint a per-server Let's Encrypt **wildcard** cert for
+  `*.<hash>.<zone>` at pairing and get the **private key onto that HS container**
+  (**DNS-01** challenge — required for wildcards). This means ACME automation,
+  per-server key generation + storage, and renewal/rotation on every server.
+  Carries the documented **DNS-rebinding caveat** (a synthesized name can point
+  at a private IP). The cert step can piggyback on the pairing step that already
+  provisions the per-server OIDC client.
+
+Highest UX parity (matches Plex; beats Emby/Jellyfin); ops cost concentrated in
+the cert half.
+
+**Domain decision (locked 2026-06-23):**
+- **A separate registrable domain is NOT technically required** — `.direct` is
+  Plex branding, not a requirement. The mechanism needs only (a) a DNS zone we
+  control for wildcard synthesis and (b) DNS-01 wildcard certs, both of which work
+  on a delegated **subdomain of `hearthshelf.com`**.
+- **Plan: POC on a subdomain, production on a dedicated `.app` domain.**
+  - **POC:** delegate e.g. `d.hearthshelf.com` to the synthesis service; certs for
+    `*.<hash>.d.hearthshelf.com`. Zero new spend; proves the flow.
+  - **Production:** register a dedicated **`.app`** domain via **Cloudflare**
+    (lean: **`hearthshelf.app`**; alt: `hsdirect.app`) and swap the synthesis zone
+    + cert base over. ~$14/yr. Server hostnames become
+    `192-168-1-7.<hash>.hearthshelf.app`.
+- **Why a separate registrable domain for production (security):** it sits on a
+  different Public Suffix List entry from `hearthshelf.com`, so the rebinding-prone
+  synthesized hostnames (which resolve to private IPs) and any cookies are
+  **isolated** from `app.hearthshelf.com` / `clerk.hearthshelf.com`. `.app` is
+  **HSTS-preloaded** (HTTPS enforced at the TLD), a genuine plus here. Note:
+  `hearthshelf.app` vs `hsdirect.app` give **identical** isolation (different
+  registrable domain from `.com` either way) — the choice is pure branding.
+- **Registrar:** Cloudflare (pairs with CF DNS + ACME DNS-01 automation).
+- The POC→production swap is a hostname/zone change in the synthesis service and
+  the cert base; the per-server pairing flow that issues certs is unchanged.
 
 **Option C — relay fallback (for CGNAT / unreachable servers).**
 For servers with no inbound path, proxy the connection through an
@@ -344,29 +395,44 @@ Spirit-rule check: **2** (no second auth screen — silent Clerk bounce) ✓,
 **6** (offline trust — ABS verifies Clerk JWTs via cached JWKS, no control-plane
 callback) ✓, **7** (mobile — see §11) ✓.
 
-### How this compares to Plex (the reference implementation)
+### How this compares to Plex / Emby / Jellyfin (the reference implementations)
 
-Plex is the canonical "one account, many self-hosted servers" system, but it is a
-**proprietary central token broker**, not OIDC. plex.tv issues an opaque
-`X-Plex-Token`, a central registry (`plex.tv/api/resources`) maps users to
-servers + per-share tokens, and **the media server validates the token by calling
-back to plex.tv** (with a cache fallback). Where our design is deliberately
-**stronger**:
+The three media servers that solved "one account, many self-hosted servers"
+each take a different stance, and the comparison validates our choices:
 
-| Dimension | Plex | This design |
-|---|---|---|
-| Token validation | PMS phones home to plex.tv (or trusts cache) | ABS verifies the Clerk JWT **offline via JWKS** (Spirit rule 6) |
-| CORS | PMS returns `Access-Control-Allow-Origin: *` (Tenable TRA-2020-35) | scoped to `app.hearthshelf.com`, Bearer not cookies |
-| Token transport | often in URL query strings | fragment / postMessage, never query |
-| Credentials at rest | plex.tv stores each server's admin token (breached 2024/25) | control plane stores **no** ABS credential |
+- **Plex** — proprietary central **token broker**. plex.tv issues an opaque
+  `X-Plex-Token`; a registry (`plex.tv/api/resources`) maps users to servers +
+  per-share tokens; the server **validates by calling back to plex.tv** (cache
+  fallback). Central, not federated.
+- **Emby** — *Emby Connect* central account (unifies credentials) but **no OIDC**
+  and **no plex.direct equivalent**; sparsely documented.
+- **Jellyfin** — **removed** Emby Connect on forking; each server is an **auth
+  island**. But the community **`jellyfin-plugin-sso`** adds **OIDC login to a
+  self-hosted Jellyfin server** — i.e. exactly the pattern we are putting on ABS.
+  It is an open-source, readable precedent for federating a self-hosted media
+  server to an external OIDC IdP (study the flow/contract; do **not** copy code —
+  arm's-length boundary). Jellyfin's **Quick Connect** (6-char code device link)
+  is also a clean reference for our pairing-code UX.
+
+Where our design is deliberately **stronger** than all three:
+
+| Dimension | Plex | Emby / Jellyfin | This design |
+|---|---|---|---|
+| Token validation | phones home to plex.tv (or cache) | opaque, **server-stateful** session lookup | ABS verifies the Clerk JWT **offline via JWKS** (Spirit rule 6) |
+| CORS | `Access-Control-Allow-Origin: *` (Tenable TRA-2020-35) | per-deployment (often reverse proxy) | scoped to `app.hearthshelf.com`, Bearer not cookies |
+| Token transport | often in URL query strings | header or `api_key` query param | fragment / postMessage, never query |
+| Credentials at rest | plex.tv stores each server's admin token (breached 2024/25) | per-server only (no central store) | control plane stores **no** ABS credential |
+| Identity model | central broker | per-server islands (Jellyfin) | **federated OIDC** (central identity, autonomous offline verification) |
 
 Where Plex is **ahead** and we owe parity work: **reachability** — Plex's
-`*.plex.direct` wildcard-DNS + per-server cert and its relay fallback solve
-cross-origin HTTPS to home servers, which §7 addresses as the main gap; and
-**instant revocation** — Plex's central validation kills access immediately, while
-our offline-JWKS model revokes within the token TTL (the accepted trade for
-offline trust). Net: our identity layer is more secure than Plex's broker; our
-reachability story (§7) is the part that must catch up.
+`*.plex.direct` wildcard-DNS + per-server cert and relay solve cross-origin HTTPS
+to home servers (§7). **Emby and Jellyfin do not solve this either** — they punt
+to a user-run reverse proxy — which is why §7 Option A (require a real HTTPS
+origin) is well-precedented as the MVP. The other Plex edge is **instant
+revocation** (central validation); our offline-JWKS model revokes within the
+token TTL (the accepted trade for offline trust). Net: our identity layer is more
+secure than all three; reachability (§7) is the one place we must catch up to
+Plex, and we are no worse than Emby/Jellyfin there today.
 
 ---
 
@@ -410,9 +476,12 @@ handoff) block mobile. (Spirit rule 7.)
    `X-Forwarded-Host`/`X-Forwarded-Proto` so the redirect_uri equals the public
    URL we allowlisted on the Clerk client. (nginx `abs_proxy.conf` already sets
    these — verify it matches `PUBLIC_URL`.)
-4. **Reachability (§7)**: decide MVP = Option A (require a CA-valid HTTPS
-   `public_url`, validated at pairing). Scope `hs.direct` (Option B) as the
-   follow-up. Without this, the OIDC flow can't reach a typical home server.
+4. **Reachability (§7) — DECIDED**: MVP = Option A (require a CA-valid HTTPS
+   `public_url`, validated at pairing). Option B (`hs.direct`-style) is the
+   planned follow-up: **POC on `d.hearthshelf.com` subdomain, production on a
+   dedicated `.app` domain** (lean `hearthshelf.app`, registered via Cloudflare,
+   ~$14/yr) for PSL isolation + HSTS-preload. No domain purchase needed for MVP or
+   POC. Without reachability the OIDC flow can't reach a typical home server.
 
 ---
 
