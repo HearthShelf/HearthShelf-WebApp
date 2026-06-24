@@ -4,6 +4,8 @@ import { ServerPickerPage } from '@/pages/ServerPickerPage'
 import { ServerHomePage } from '@/pages/ServerHomePage'
 import { ConnectedPage } from '@/pages/ConnectedPage'
 import { ItemDetailPage } from '@/pages/ItemDetailPage'
+import { AuthorDetailPage } from '@/pages/AuthorDetailPage'
+import { CollectionDetailPage } from '@/pages/CollectionDetailPage'
 import { SignInPage } from '@/pages/SignInPage'
 import { SignUpPage } from '@/pages/SignUpPage'
 import { ErrorPage } from '@/pages/ErrorPage'
@@ -33,6 +35,8 @@ export const router = createBrowserRouter([
       { path: '/pair', element: <ServerPickerPage /> },
       { path: '/server/:serverId', element: <ServerHomePage /> },
       { path: '/server/:serverId/item/:itemId', element: <ItemDetailPage /> },
+      { path: '/server/:serverId/author/:authorId', element: <AuthorDetailPage /> },
+      { path: '/server/:serverId/collection/:collectionId', element: <CollectionDetailPage /> },
       // Full-page fallback landing for the OIDC connect bounce (popup-blocked).
       { path: '/connected', element: <ConnectedPage /> },
     ],

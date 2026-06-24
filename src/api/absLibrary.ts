@@ -177,6 +177,125 @@ export async function searchLibrary(
     }))
 }
 
+// --- browse: series / author / collections ---------------------------------
+
+/** A bare ABS library item (as returned inside author/collection/series lists). */
+interface RawBareItem {
+  id: string
+  mediaType?: 'book' | 'podcast'
+  media?: { metadata?: { title?: string; authorName?: string }; duration?: number }
+}
+
+function mapBareItem(r: RawBareItem): AbsListItem {
+  return {
+    id: r.id,
+    title: r.media?.metadata?.title || 'Untitled',
+    author: r.media?.metadata?.authorName || '',
+    mediaType: r.mediaType || 'book',
+    durationSec: r.media?.duration ?? 0,
+  }
+}
+
+/** base64 (browser btoa) for ABS's filter param values. */
+function b64(s: string): string {
+  return typeof btoa !== 'undefined' ? btoa(s) : s
+}
+
+export interface SeriesSummary {
+  id: string
+  name: string
+}
+
+/** List the series in a library (for a series index). */
+export async function getSeriesList(t: AbsTarget, libraryId: string): Promise<SeriesSummary[]> {
+  const data = await absGet<{ results?: Array<{ id: string; name: string }> }>(
+    t,
+    `/api/libraries/${encodeURIComponent(libraryId)}/series?limit=0`
+  )
+  return (data.results ?? []).map((s) => ({ id: s.id, name: s.name }))
+}
+
+/** Ordered books in a series, via the items filter (filter value is base64). */
+export async function getSeriesItems(
+  t: AbsTarget,
+  libraryId: string,
+  seriesId: string
+): Promise<{ name: string; items: AbsListItem[] }> {
+  const data = await absGet<{ results?: RawBareItem[] }>(
+    t,
+    `/api/libraries/${encodeURIComponent(libraryId)}/items?minified=1&limit=0&filter=series.${encodeURIComponent(b64(seriesId))}`
+  )
+  const items = (data.results ?? []).map(mapBareItem)
+  return { name: '', items }
+}
+
+export interface AuthorDetail {
+  id: string
+  name: string
+  description: string
+  items: AbsListItem[]
+}
+
+/** An author with their books (expanded). */
+export async function getAuthor(t: AbsTarget, authorId: string): Promise<AuthorDetail> {
+  const data = await absGet<{
+    id: string
+    name?: string
+    description?: string
+    libraryItems?: RawBareItem[]
+  }>(t, `/api/authors/${encodeURIComponent(authorId)}?include=items`)
+  return {
+    id: data.id,
+    name: data.name || 'Unknown author',
+    description: data.description || '',
+    items: (data.libraryItems ?? []).map(mapBareItem),
+  }
+}
+
+export interface CollectionSummary {
+  id: string
+  name: string
+  itemCount: number
+}
+
+/** List collections in a library. */
+export async function getCollections(
+  t: AbsTarget,
+  libraryId: string
+): Promise<CollectionSummary[]> {
+  const data = await absGet<{
+    results?: Array<{ id: string; name: string; books?: unknown[] }>
+  }>(t, `/api/libraries/${encodeURIComponent(libraryId)}/collections?limit=0`)
+  return (data.results ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    itemCount: Array.isArray(c.books) ? c.books.length : 0,
+  }))
+}
+
+export interface CollectionDetail {
+  id: string
+  name: string
+  description: string
+  items: AbsListItem[]
+}
+
+/** One collection with its items (expanded). */
+export async function getCollection(t: AbsTarget, collectionId: string): Promise<CollectionDetail> {
+  const data = await absGet<{
+    id: string
+    name?: string
+    description?: string
+    books?: RawBareItem[]
+  }>(t, `/api/collections/${encodeURIComponent(collectionId)}`)
+  return {
+    id: data.id,
+    name: data.name || 'Collection',
+    description: data.description || '',
+    items: (data.books ?? []).map(mapBareItem),
+  }
+}
+
 // --- item detail + playback ------------------------------------------------
 
 /** One audio track in a book, with its cumulative offset from book start. */

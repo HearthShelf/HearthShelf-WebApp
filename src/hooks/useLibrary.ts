@@ -15,11 +15,17 @@ import {
   getLibraryItems,
   searchLibrary,
   getPersonalizedShelves,
+  getAuthor,
+  getCollections,
+  getCollection,
   type AbsTarget,
   type LibraryItemsPage,
   type AbsLibrary,
   type AbsListItem,
   type Shelf,
+  type AuthorDetail,
+  type CollectionSummary,
+  type CollectionDetail,
 } from '@/api/absLibrary'
 
 export type ConnectState = 'idle' | 'connecting' | 'connected' | 'error'
@@ -55,6 +61,33 @@ export function useShelves(target: AbsTarget, libraryId: string | undefined, ena
     queryKey: ['abs-shelves', target.serverId, libraryId],
     queryFn: () => getPersonalizedShelves(target, libraryId as string),
     enabled: enabled && Boolean(libraryId),
+    staleTime: 60 * 1000,
+  })
+}
+
+export function useAuthor(target: AbsTarget, authorId: string | undefined, enabled: boolean) {
+  return useQuery<AuthorDetail>({
+    queryKey: ['abs-author', target.serverId, authorId],
+    queryFn: () => getAuthor(target, authorId as string),
+    enabled: enabled && Boolean(authorId),
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useCollections(target: AbsTarget, libraryId: string | undefined, enabled: boolean) {
+  return useQuery<CollectionSummary[]>({
+    queryKey: ['abs-collections', target.serverId, libraryId],
+    queryFn: () => getCollections(target, libraryId as string),
+    enabled: enabled && Boolean(libraryId),
+    staleTime: 60 * 1000,
+  })
+}
+
+export function useCollection(target: AbsTarget, collectionId: string | undefined, enabled: boolean) {
+  return useQuery<CollectionDetail>({
+    queryKey: ['abs-collection', target.serverId, collectionId],
+    queryFn: () => getCollection(target, collectionId as string),
+    enabled: enabled && Boolean(collectionId),
     staleTime: 60 * 1000,
   })
 }

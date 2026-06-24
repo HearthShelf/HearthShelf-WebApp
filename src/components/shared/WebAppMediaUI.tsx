@@ -62,9 +62,9 @@ export function WebAppMediaUIProvider({
           qc.invalidateQueries({ queryKey: ['abs-item', target.serverId, itemId] })
         })
       },
-      // The WebApp has no dedicated author/series/narrator/genre browse routes
-      // yet, so these return null and the shared components render plain text.
-      authorHref: () => null,
+      // Author has a detail route now; series/narrator/genre browse routes don't
+      // exist yet (those render as plain text until they do).
+      authorHref: (authorId) => `/server/${target.serverId}/author/${authorId}`,
       seriesHref: () => null,
       narratorHref: () => null,
       genreHref: () => null,
