@@ -26,7 +26,15 @@ export function AppLayout() {
           />
           <Wordmark />
         </Link>
-        <UserButton afterSignOutUrl="/sign-in" />
+        <div className="flex items-center gap-4">
+          <Link
+            to="/account"
+            className="t-muted text-[13px] hover:text-foreground"
+          >
+            Account
+          </Link>
+          <UserButton afterSignOutUrl="/sign-in" />
+        </div>
       </header>
       <main className="flex-1 px-5 py-8">
         <Outlet />
