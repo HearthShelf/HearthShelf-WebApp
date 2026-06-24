@@ -8,6 +8,7 @@ import { SignInPage } from '@/pages/SignInPage'
 import { SignUpPage } from '@/pages/SignUpPage'
 import { ErrorPage } from '@/pages/ErrorPage'
 import { RequireAuth } from '@/auth/RequireAuth'
+import { PlayerProvider } from '@/player/PlayerProvider'
 
 export const router = createBrowserRouter([
   // Public account routes (embedded Clerk components). Splat paths so Clerk can
@@ -19,7 +20,9 @@ export const router = createBrowserRouter([
   {
     element: (
       <RequireAuth>
-        <AppLayout />
+        <PlayerProvider>
+          <AppLayout />
+        </PlayerProvider>
       </RequireAuth>
     ),
     errorElement: <ErrorPage />,

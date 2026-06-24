@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Play, Pause, RotateCcw, RotateCw, Moon, List, Gauge } from 'lucide-react'
-import { useAudioPlayer } from '@/hooks/useAudioPlayer'
-import type { AbsTrack, AbsChapter } from '@/api/absLibrary'
+import { usePlayer } from '@/player/PlayerProvider'
+import type { AbsChapter } from '@/api/absLibrary'
 import { cn } from '@/lib/cn'
 
 function fmt(sec: number): string {
@@ -23,17 +23,11 @@ const SLEEP_OPTIONS = [15, 30, 45, 60]
  * and a sleep timer. Keyboard: space=play/pause, arrows=skip.
  */
 export function AudioPlayer({
-  tracks,
   chapters,
   totalDurationSec,
-  startAtSec,
-  onSaveProgress,
 }: {
-  tracks: AbsTrack[]
   chapters: AbsChapter[]
   totalDurationSec: number
-  startAtSec: number
-  onSaveProgress: (currentTimeSec: number) => void
 }) {
   const {
     playing,
@@ -46,7 +40,7 @@ export function AudioPlayer({
     setSleepMinutes,
     sleepArmed,
     sleepRemainingMs,
-  } = useAudioPlayer({ tracks, totalDurationSec, startAtSec, onSaveProgress })
+  } = usePlayer()
 
   const [showChapters, setShowChapters] = useState(false)
   const currentChapter = chapters.find((c) => positionSec >= c.startSec && positionSec < c.endSec)

@@ -1,6 +1,7 @@
 import { Link, Outlet } from 'react-router-dom'
 import { UserButton } from '@clerk/clerk-react'
 import { Wordmark } from '@/components/Wordmark'
+import { MiniPlayer } from '@/player/MiniPlayer'
 
 // AGPL-3.0 source offer (License section 13): the complete source of this hosted
 // app must be available to its network users. Override at build time with
@@ -30,6 +31,7 @@ export function AppLayout() {
       <main className="flex-1 px-5 py-8">
         <Outlet />
       </main>
+      <MiniPlayer />
       <footer className="border-t border-border px-5 py-4 text-center">
         <p className="t-muted text-[12px]">
           HearthShelf is free software under{' '}

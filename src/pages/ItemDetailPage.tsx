@@ -1,13 +1,14 @@
 import { useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react'
 import { useServer } from '@/hooks/useServers'
-import { getItemDetail, saveProgress, type AbsTarget } from '@/api/absLibrary'
+import { getItemDetail, type AbsTarget } from '@/api/absLibrary'
 import { hasAbsToken } from '@/lib/absTokens'
 import { AudioPlayer } from '@/components/AudioPlayer'
 import { BookHeader } from '@/components/shared/BookHeader'
 import { WebAppMediaUIProvider } from '@/components/shared/WebAppMediaUI'
+import { usePlayer } from '@/player/PlayerProvider'
 
 /**
  * Item detail + player. Loads the expanded item (tracks + saved progress) and
@@ -22,18 +23,38 @@ export function ItemDetailPage() {
     serverId && server ? { serverId, serverUrl: server.url } : null
   const connected = serverId ? hasAbsToken(serverId) : false
 
+  const player = usePlayer()
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ['abs-item', serverId, itemId],
     queryFn: () => getItemDetail(target as AbsTarget, itemId as string),
     enabled: Boolean(target && itemId && connected),
   })
 
-  const progress = useMutation({
-    mutationFn: (currentTimeSec: number) =>
-      saveProgress(target as AbsTarget, itemId as string, currentTimeSec, data?.durationSec ?? 0),
-  })
+  // Load this book into the GLOBAL player when it opens (paused at the saved
+  // position), unless it's already the now-playing book - so navigating back to
+  // a playing book doesn't restart it. The global player keeps playing as the
+  // user moves around; the docked mini-player reflects it.
+  const alreadyPlaying = player.now?.itemId === itemId && player.now?.serverId === serverId
+  useEffect(() => {
+    if (!data || !target || alreadyPlaying) return
+    player.play({
+      serverId: target.serverId,
+      serverUrl: target.serverUrl,
+      itemId: data.id,
+      title: data.title,
+      author: data.author,
+      coverUrl: data.coverUrl,
+      tracks: data.tracks,
+      chapters: data.chapters,
+      totalDurationSec: data.durationSec,
+      startAtSec: data.progress?.currentTimeSec ?? 0,
+    })
+    // Only re-run when the loaded book changes, not on every player tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, target?.serverId, target?.serverUrl])
 
-  // Lock-screen / media-key metadata. Action handlers live in the player hook.
+  // Lock-screen / media-key metadata.
   useEffect(() => {
     if (!data || !('mediaSession' in navigator)) return
     navigator.mediaSession.metadata = new MediaMetadata({
@@ -101,13 +122,7 @@ export function ItemDetailPage() {
 
           {data.tracks.length > 0 ? (
             <div className="mt-8">
-              <AudioPlayer
-                tracks={data.tracks}
-                chapters={data.chapters}
-                totalDurationSec={data.durationSec}
-                startAtSec={data.progress?.currentTimeSec ?? 0}
-                onSaveProgress={(s) => progress.mutate(s)}
-              />
+              <AudioPlayer chapters={data.chapters} totalDurationSec={data.durationSec} />
             </div>
           ) : (
             <p className="t-muted mt-8 text-[13px]">No audio tracks on this title.</p>
