@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "The hosted HearthShelf web application - a unified front door (app.hearthshelf.com) for reaching any HearthShelf / AudiobookShelf server you have access to.",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "engines": {
     "node": ">=22"

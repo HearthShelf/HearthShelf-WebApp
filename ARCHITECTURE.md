@@ -18,15 +18,15 @@ break by accident if you only follow the letter and miss the intent.
 These are the load-bearing intentions. When a future decision is ambiguous,
 decide in favor of these.
 
-1. **The arm's-length boundary is the whole ballgame, legally.** This repo is
-   proprietary and closed-source. It can only stay that way because it never
-   touches the AGPL-licensed HearthShelf source - it is a *client* of that
-   server's public HTTP/Socket API, no different from any third-party client.
-   The moment this codebase imports, vendors, links against, or copies AGPL
-   source, AGPL's network clause (Section 13) would force this hosted app open.
-   Knowledge crosses the boundary as **API contracts only** - request/response
-   shapes - never as shared code. You may reimplement a behavior that looks
-   identical; you may not copy the file that does it. See `AGENTS.md`.
+1. **Both repos are AGPL-3.0; reuse over re-implementation.** This app and the
+   HearthShelf server are both AGPL-3.0, so code may be **shared between them**.
+   The earlier "arm's-length, never touch AGPL source" rule is retired - it
+   existed only to keep this repo closed-source, which is no longer a goal.
+   Prefer reusing/sharing HearthShelf UI and utilities over maintaining a second
+   copy. Anything reused stays AGPL with notices intact. AGPL §13 still applies:
+   running this as a hosted service requires offering this app's complete source
+   to its network users (you may still charge to operate the service). See
+   `AGENTS.md`.
 
 2. **The user authenticates once and never sees another auth screen.** This is
    the Plex promise and the product's reason to exist. Every auth decision is
@@ -72,7 +72,7 @@ decide in favor of these.
 
 | Repo | License | Role |
 |---|---|---|
-| `HearthShelf-WebApp` (this) | **Proprietary** | The hosted front door SPA + control plane. Talks to HS servers over their public API only. |
+| `HearthShelf-WebApp` (this) | **AGPL-3.0** | The hosted front door SPA + control plane. Talks to HS servers over their public API; may share UI/code with the HS repo (both AGPL). |
 | `HearthShelf` | AGPL-3.0 | The self-hostable server: an SPA + a Node backend ("QuestGiver") that acts as an API **gateway** in front of an internal, unexposed ABS. This is where hosted-mode server code lives. |
 | `audiobookshelf` (ABS) | AGPL-3.0 | The actual library server. Runs internal-only in Docker (`http://abs:13378`). HS proxies to it. Source mirror at `C:\code\audiobookshelf` for API reference. |
 | `HearthShelf-Website` | AGPL (implied) | Marketing/docs site (VitePress, on Cloudflare Pages). |
@@ -87,14 +87,18 @@ username/password internally if the admin wants.
 
 ## Licensing (resolved)
 
-- This repo stays **proprietary** by never importing AGPL source. Confirmed
-  clean; the boundary in `AGENTS.md` is the enforcement.
-- Server-side hosted-mode code (the OIDC provider bridge, pairing endpoints,
-  the fallback token store) lives in the **AGPL `HearthShelf` repo**, not here.
-  That is correct and intentional - it ships with the self-hostable server.
-- Minor housekeeping for the open-source side (not blockers): add
-  `"license": "AGPL-3.0"` to `HearthShelf` and `HearthShelf-Website`
-  `package.json`, and a `LICENSE.md` to the Website and DesignSystem.
+- This repo is **AGPL-3.0**, same as the HearthShelf server. It was originally
+  planned as proprietary (with an arm's-length no-import boundary), but that was
+  dropped: open source serves the homelab-trust goal, AGPL still allows charging
+  to operate the hosted service, and a security audit confirmed nothing in the
+  auth code depends on being secret. So the WebApp may **reuse/share UI and code
+  with the HS repo** instead of maintaining a duplicate library UI.
+- **AGPL §13 obligation:** running this as a network service requires offering
+  its complete corresponding source to users (a "Source" link in the app to the
+  public repo). The public repo must stay current with what's deployed.
+- Server-side hosted-mode code (OIDC setup, pairing, the connect relay) lives in
+  the `HearthShelf` repo and ships with the self-hostable server; the per-server
+  OIDC client provisioning + grant signing live here in `control-plane/`.
 
 ---
 
@@ -476,7 +480,7 @@ machine-to-machine path still needs it.
 
 | Concern | Decision |
 |---|---|
-| Licensing | Proprietary; arm's-length API client; server code in AGPL repo. |
+| Licensing | AGPL-3.0 (both repos); reuse/share UI with HS; monetize via the hosted service; §13 source offer in-app. |
 | Design system | Reuse tokens, rebuild components locally. No new system. |
 | Hosting | CF Pages (SPA) + Workers + D1 (control plane). |
 | Front-door identity | Clerk (web + future mobile, identical math). |

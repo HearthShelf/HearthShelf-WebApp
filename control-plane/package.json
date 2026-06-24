@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "The HearthShelf hosted control plane - a Cloudflare Worker that brokers identity (Clerk) and links users to their self-hosted HearthShelf servers.",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
