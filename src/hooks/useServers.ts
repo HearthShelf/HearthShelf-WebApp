@@ -6,9 +6,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   fetchLinkedServers,
+  fetchServerStatus,
   redeemPairingCode,
   unlinkServer,
   inviteToServer,
+  type ServerStatusResponse,
 } from '@/api/controlPlane'
 import type { LinkedServer } from '@/types/server'
 
@@ -24,6 +26,22 @@ export function useServers() {
 export function useServer(serverId: string | undefined) {
   const { data } = useServers()
   return data?.find((s) => s.id === serverId)
+}
+
+/**
+ * Live reachability for one server, for the picker's status dot. Probed lazily
+ * per server; cached briefly so re-renders don't re-probe, and refetched on a
+ * slow interval so a server coming back online updates without a reload.
+ */
+export function useServerStatus(serverId: string | undefined) {
+  return useQuery<ServerStatusResponse>({
+    queryKey: ['server-status', serverId],
+    queryFn: () => fetchServerStatus(serverId as string),
+    enabled: Boolean(serverId),
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+    retry: false,
+  })
 }
 
 export function useLinkServer() {

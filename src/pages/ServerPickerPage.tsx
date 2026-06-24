@@ -4,13 +4,8 @@ import { Plus, Server, AlertCircle, Loader2 } from 'lucide-react'
 import { useServers } from '@/hooks/useServers'
 import { Button } from '@/components/ui/Button'
 import { LinkServerDialog } from '@/components/LinkServerDialog'
+import { ServerStatusDot } from '@/components/ServerStatusDot'
 import { cn } from '@/lib/cn'
-
-const STATUS_DOT: Record<string, string> = {
-  online: 'bg-primary',
-  offline: 'bg-destructive',
-  unknown: 'bg-muted-foreground',
-}
 
 export function ServerPickerPage() {
   const { data: servers, isLoading, isError, error } = useServers()
@@ -94,10 +89,7 @@ export function ServerPickerPage() {
                   <span className="block font-medium text-card-foreground">{s.name}</span>
                   <span className="t-mono block">{s.url}</span>
                 </span>
-                <span className="flex items-center gap-2">
-                  <span className={cn('size-2 rounded-full', STATUS_DOT[s.status])} />
-                  <span className="t-muted text-[13px] capitalize">{s.status}</span>
-                </span>
+                <ServerStatusDot serverId={s.id} />
               </Link>
             </li>
           ))}

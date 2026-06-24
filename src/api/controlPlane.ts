@@ -85,6 +85,23 @@ export async function mintGrant(serverId: string): Promise<GrantResponse> {
   })
 }
 
+export interface ServerStatusResponse {
+  status: 'online' | 'offline'
+  /** False when the stored public URL can never be reached from a browser. */
+  reachable: boolean
+  /** Why the URL is unreachable (when reachable === false). */
+  reason?: string
+  http_status?: number
+  detail?: string
+}
+
+/** Live reachability of one linked server (control plane probes its health). */
+export async function fetchServerStatus(serverId: string): Promise<ServerStatusResponse> {
+  return request<ServerStatusResponse>(
+    `/servers/${encodeURIComponent(serverId)}/status`
+  )
+}
+
 interface RedeemResponse {
   ok: boolean
   server: { id: string; url: string; name: string | null }

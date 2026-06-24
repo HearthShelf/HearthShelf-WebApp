@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ServerPickerPage } from '@/pages/ServerPickerPage'
 import { ServerHomePage } from '@/pages/ServerHomePage'
+import { ConnectedPage } from '@/pages/ConnectedPage'
 import { SignInPage } from '@/pages/SignInPage'
 import { SignUpPage } from '@/pages/SignUpPage'
 import { ErrorPage } from '@/pages/ErrorPage'
@@ -27,6 +28,8 @@ export const router = createBrowserRouter([
       // Same picker, but it auto-opens the link dialog prefilled with the code.
       { path: '/pair', element: <ServerPickerPage /> },
       { path: '/server/:serverId', element: <ServerHomePage /> },
+      // Full-page fallback landing for the OIDC connect bounce (popup-blocked).
+      { path: '/connected', element: <ConnectedPage /> },
     ],
   },
 
