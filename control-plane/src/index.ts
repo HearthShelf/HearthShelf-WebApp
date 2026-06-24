@@ -23,16 +23,22 @@ import { servers } from './routes/servers'
 const app = new Hono<{ Bindings: Env }>()
 
 // The SPA (app.hearthshelf.com) calls this API with the Clerk bearer token.
-// Allow the app origin; pairing/start is server-to-server and unaffected by CORS.
-app.use(
-  '*',
-  cors({
-    origin: (origin) => origin, // reflect; tighten to the app origin in prod vars
-    allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+// Allow only the configured app origin(s); never reflect arbitrary origins.
+// APP_ORIGINS is a comma-separated allowlist (prod + any preview/localhost);
+// defaults to the production app. Server-to-server endpoints (pairing/start,
+// invite-from-server, oidc-config) don't rely on CORS and are unaffected.
+app.use('*', (c, next) => {
+  const allowed = (c.env.APP_ORIGINS || 'https://app.hearthshelf.com')
+    .split(',')
+    .map((o) => o.trim().replace(/\/$/, ''))
+    .filter(Boolean)
+  return cors({
+    origin: (origin) => (origin && allowed.includes(origin.replace(/\/$/, '')) ? origin : null),
+    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Authorization', 'Content-Type'],
     maxAge: 86400,
-  })
-)
+  })(c, next)
+})
 
 app.get('/health', (c) => c.json({ ok: true }))
 

@@ -36,6 +36,8 @@ import {
 } from '../lib/db'
 import { mintGrant } from '../lib/signing'
 import { createClerkInvitation, ClerkApiError } from '../lib/clerkApi'
+import { sendEmail, EmailError } from '../lib/email'
+import { renderInviteEmail } from '../lib/emailTemplates'
 import { deleteOAuthClient, clerkOidcEndpoints } from '../lib/clerkOAuth'
 import { uuid, sha256Hex, timingSafeEqual } from '../lib/ids'
 import { probeServer, validatePublicUrl } from '../lib/reachability'
@@ -236,7 +238,25 @@ servers.post('/servers/:id/invite', async (c) => {
     clerkInvitationId,
   })
 
-  return c.json({ ok: true, email, role, emailed: clerkInvitationId !== null })
+  // Branded companion invite via Resend. Clerk's email carries the actual
+  // sign-up link; this one explains HearthShelf and which library they're
+  // joining. Non-fatal: a send failure (or unconfigured key) never blocks the
+  // invite, which already works via the pending_invites row on next sign-in.
+  let branded = false
+  try {
+    const server = await getServer(c.env, serverId)
+    const { subject, html, text } = renderInviteEmail({
+      serverName: server?.name ?? null,
+      acceptUrl: `${APP_ORIGIN}/sign-up`,
+    })
+    await sendEmail(c.env, { to: email, subject, html, text })
+    branded = true
+  } catch (err) {
+    if (!(err instanceof EmailError)) throw err
+    branded = false
+  }
+
+  return c.json({ ok: true, email, role, emailed: clerkInvitationId !== null, branded })
 })
 
 /** List pending invites for a server (admin-only). */

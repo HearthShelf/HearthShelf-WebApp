@@ -29,7 +29,15 @@ CLERK_JWKS_URL = "https://clerk.hearthshelf.com/.well-known/jwks.json"
 GRANT_TTL_SECONDS = "300"
 # Pairing code lifetime in seconds.
 PAIRING_TTL_SECONDS = "900"
+# Default From: address for outbound email sent via Resend.
+EMAIL_FROM = "no-reply@hearthshelf.com"
+# CORS allowlist of SPA origin(s) permitted to call this API (comma-separated).
+# Pinned - the API never reflects arbitrary origins. Add localhost/preview here
+# during dev, e.g. "https://app.hearthshelf.com,http://localhost:5173".
+APP_ORIGINS = "https://app.hearthshelf.com"
 
 # Secrets (set via `wrangler secret put <NAME>`), never committed:
 #   CP_SIGNING_JWK   - the control plane's PRIVATE signing key (JSON JWK, EdDSA)
+#   CLERK_SECRET_KEY - Clerk backend key (sk_...), for creating invitations
+#   RESEND_API_KEY   - Resend key (re_...), for sending email from hearthshelf.com
 # The matching public key is derived and served at /.well-known/jwks.json.

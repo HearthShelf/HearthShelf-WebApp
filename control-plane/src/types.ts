@@ -10,12 +10,21 @@ export interface Env {
   CLERK_JWKS_URL: string
   GRANT_TTL_SECONDS: string
   PAIRING_TTL_SECONDS: string
+  /** Default From: address for outbound email, e.g. "no-reply@hearthshelf.com". */
+  EMAIL_FROM: string
+  /**
+   * Comma-separated CORS allowlist of SPA origins (prod + any preview/localhost).
+   * Optional; defaults to https://app.hearthshelf.com when unset.
+   */
+  APP_ORIGINS?: string
 
   // secrets (wrangler secret put)
   /** Private signing key as a JSON JWK string (EdDSA / Ed25519). */
   CP_SIGNING_JWK: string
   /** Clerk secret key (sk_...), for backend Clerk API calls (invitations). */
   CLERK_SECRET_KEY: string
+  /** Resend API key (re_...), for sending email from hearthshelf.com. */
+  RESEND_API_KEY: string
 }
 
 /** A server linked to the authenticated user, as returned to the SPA. */
