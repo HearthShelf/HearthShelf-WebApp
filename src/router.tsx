@@ -23,6 +23,9 @@ export const router = createBrowserRouter([
     errorElement: <ErrorPage />,
     children: [
       { path: '/', element: <ServerPickerPage /> },
+      // Deep link from a HS server's "Connect" flow: /pair?code=XXXX-XXXX.
+      // Same picker, but it auto-opens the link dialog prefilled with the code.
+      { path: '/pair', element: <ServerPickerPage /> },
       { path: '/server/:serverId', element: <ServerHomePage /> },
     ],
   },

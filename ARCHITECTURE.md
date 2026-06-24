@@ -369,7 +369,10 @@ Status as of the control-plane + hosted-mode build. `[x]` done & verified,
 - `[x]` Control-plane client + TanStack Query; auth-token seam
   (`src/lib/authToken.ts`) ready for Clerk.
 - `[~]` Clerk provider + `setAuthTokenGetter` wiring. **(YOU: Clerk.)**
-- `[ ]` Pairing UI ("Link a server" -> `useLinkServer()`).
+- `[x]` Pairing UI ("Link a server" -> `useLinkServer()`): dialog with AIO
+  setup steps + code entry (`src/components/LinkServerDialog.tsx`), plus a
+  `/pair?code=...` deep-link route that opens it prefilled (the target of HS
+  onboarding's "Open app.hearthshelf.com").
 - `[ ]` Per-server direct connection: redeem grant with HS, then HTTP +
   Socket.io straight to the HS server.
 
@@ -390,7 +393,11 @@ Status as of the control-plane + hosted-mode build. `[x]` done & verified,
   own login page; revisit if/when needed.
 - `[ ]` Pre-provision / invite flow (`POST /api/users`, username-from-Clerk,
   temp-password lifecycle) - pairs with control-plane invites above.
-- `[ ]` Setup UI in the HS SPA to drive `/hs/hosted/pair` and show the code.
+- `[x]` Setup UI in the HS SPA to drive `/hs/hosted/pair` and show the code:
+  "HearthShelf Connect" settings page (Settings -> Features) plus a first-run
+  onboarding step (esp. AIO). Both pair and surface the code; onboarding deep-
+  links to `app.hs.com/pair?code=...`. (`src/pages/config/ConfigHosted.tsx`,
+  `src/api/hosted.ts`, `src/pages/OnboardingPage.tsx` in the AGPL repo.)
 
 **Implementation note - API keys vs OIDC.** The plan described OIDC federation
 as the default. During the build we verified ABS exposes per-user **API keys**

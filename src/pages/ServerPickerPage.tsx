@@ -1,7 +1,9 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Plus, Server, AlertCircle, Loader2 } from 'lucide-react'
 import { useServers } from '@/hooks/useServers'
 import { Button } from '@/components/ui/Button'
+import { LinkServerDialog } from '@/components/LinkServerDialog'
 import { cn } from '@/lib/cn'
 
 const STATUS_DOT: Record<string, string> = {
@@ -12,6 +14,21 @@ const STATUS_DOT: Record<string, string> = {
 
 export function ServerPickerPage() {
   const { data: servers, isLoading, isError, error } = useServers()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // A code in the URL means we arrived from a HS "Connect" deep link
+  // (/pair?code=... or /?code=...). Open the link dialog prefilled with it.
+  const codeFromUrl = searchParams.get('code') ?? ''
+  const [linkOpen, setLinkOpen] = useState(Boolean(codeFromUrl))
+
+  function closeLink() {
+    setLinkOpen(false)
+    // Drop the code from the URL so a refresh doesn't reopen the dialog.
+    if (searchParams.has('code')) {
+      searchParams.delete('code')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -50,6 +67,12 @@ export function ServerPickerPage() {
             Link your HearthShelf server with the pairing code shown in its setup
             to reach your library from here.
           </p>
+          <div className="mt-5">
+            <Button onClick={() => setLinkOpen(true)}>
+              <Plus size={16} />
+              Link a server
+            </Button>
+          </div>
         </div>
       )}
 
@@ -81,13 +104,16 @@ export function ServerPickerPage() {
         </ul>
       )}
 
-      <div className="mt-6">
-        {/* TODO(pairing): launch the pairing-code link flow -> useLinkServer(). */}
-        <Button variant="secondary">
-          <Plus size={16} />
-          Link a server
-        </Button>
-      </div>
+      {servers && servers.length > 0 && (
+        <div className="mt-6">
+          <Button variant="secondary" onClick={() => setLinkOpen(true)}>
+            <Plus size={16} />
+            Link a server
+          </Button>
+        </div>
+      )}
+
+      {linkOpen && <LinkServerDialog initialCode={codeFromUrl} onClose={closeLink} />}
     </div>
   )
 }
