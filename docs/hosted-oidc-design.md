@@ -76,7 +76,7 @@ Feasibility (verified): Clerk creates OAuth clients via
 auth), **OAuth applications are unlimited on the free plan**, and per-client
 secret rotation + revocation are supported. The one open confirmation item:
 get written confirmation from Clerk that "Clerk-as-OAuth-provider" is included on
-the free tier (docs imply yes; not explicit). Tracked in §9.
+the free tier (docs imply yes; not explicit). Tracked in §12.
 
 ---
 
@@ -228,7 +228,84 @@ cross-origin request. ABS/nginx set **no CORS headers today**. Required:
 
 ---
 
-## 7. Token lifecycle & refresh (must-design, currently absent)
+## 7. Reachability & cross-origin HTTPS (the Plex `.plex.direct` problem)
+
+CORS is necessary but **not sufficient**. Before the browser can make any
+cross-origin call to a server, it must be able to open an **HTTPS connection with
+a valid TLS certificate** to that server's public URL. For a self-hoster this is
+frequently the hard part, and our OIDC flow silently assumes it works. It often
+won't:
+
+- A server at `https://192.168.1.7:13378` or a bare dynamic IP has **no CA-valid
+  cert** → the browser refuses the connection (and `app.hearthshelf.com` is
+  HTTPS, so a plain-HTTP server is **mixed-content blocked** outright).
+- A server behind CGNAT / no port-forward is **not reachable** from the public
+  internet at all.
+
+The entire OIDC bounce (§4.2) and data path (§4.3) run **browser → that server's
+own origin**, so if the browser can't reach the origin over valid HTTPS, none of
+the auth design can execute. This is a peer problem to auth, not a footnote.
+
+### How Plex solves it (reference)
+
+Plex runs wildcard DNS: a hostname like
+`192-168-1-7.<server-hash>.plex.direct` resolves to the embedded IP, and each
+server is issued a **Let's Encrypt wildcard cert for `*.<server-hash>.plex.direct`**.
+The browser then connects to `https://192-168-1-7.<hash>.plex.direct:32400` with
+a valid cert, no per-user cert management, even for a LAN/dynamic IP. Plex also
+operates a **bandwidth-capped relay** as a fallback when direct connection fails
+(CGNAT/firewall), and the central registry returns *all* candidate connection
+URIs (local, remote-direct, relay) for the client to try in order.
+
+### Our options (decision deferred; design now)
+
+**Option A — self-hoster brings their own domain + valid TLS (MVP).**
+The server must be published at a real HTTPS origin the self-hoster controls
+(`https://books.example.com`), with a CA-valid cert (reverse proxy / Caddy /
+Cloudflare Tunnel). The pairing flow already records `public_url`; we just
+**require it to be a reachable HTTPS origin** and validate that at pairing (probe
+it). Zero new infra for us; fine for power users; **excludes** the "just runs on
+my LAN" crowd Plex serves. This is the natural MVP and what the rest of this doc
+already assumes.
+
+**Option B — an `hs.direct` equivalent (parity with Plex).**
+We run wildcard DNS (`*.<hash>.hs.direct` → embedded address) and provision a
+per-server Let's Encrypt wildcard cert at pairing, so any server gets browser-
+valid HTTPS with no user cert work. Highest UX parity; real operational cost
+(DNS infra, ACME automation, cert storage/rotation on each server, the documented
+**DNS-rebinding caveat** Plex carries). The per-server cert provisioning could
+piggyback on the pairing step that already provisions the per-server OIDC client.
+
+**Option C — relay fallback (for CGNAT / unreachable servers).**
+For servers with no inbound path, proxy the connection through an
+HS-operated relay. This **reintroduces the control plane (or a relay) into the
+data path** — in tension with Spirit rule (direct browser↔server) and with the
+CF-Workers "no long-lived sockets" caveat. Treat as a later, opt-in degraded
+mode, never the default; bandwidth and cost implications must be scoped first.
+
+### How reachability gates the connect flow
+
+Make reachability an explicit precondition the SPA checks **before** starting the
+OIDC bounce, so the failure mode is a clear message, not a cryptic cert error:
+
+1. At **pairing**, the control plane probes `public_url` for a valid HTTPS
+   response; refuse to pair (or warn) if it is HTTP-only, IP-only, or
+   unreachable. Record a `reachable: true/false` signal.
+2. The server picker shows real per-server **status** (this is the
+   `status: 'unknown'` placeholder in `fetchLinkedServers` today — wire it to an
+   actual probe). Offline/unreachable servers are visibly non-openable.
+3. On **Connect**, if the origin isn't reachable over valid HTTPS, surface
+   "this server isn't reachable from the internet — see setup" instead of letting
+   the OIDC popup fail opaquely.
+
+**Recommendation:** ship **Option A** for MVP (require a real HTTPS origin,
+validated at pairing + probed for status), and keep **Option B (`hs.direct`)** as
+the planned UX-parity follow-up once the auth path is proven end-to-end. Option C
+only if real demand from CGNAT users appears.
+
+---
+
+## 8. Token lifecycle & refresh (must-design, currently absent)
 
 - **ABS access token**: JWT, short-ish; ABS also issues a **refresh_token**
   cookie (`SameSite=lax`, 30d) — but that cookie is **cross-site** from the SPA's
@@ -247,7 +324,7 @@ cross-origin request. ABS/nginx set **no CORS headers today**. Required:
 
 ---
 
-## 8. Security properties & threat model
+## 9. Security properties & threat model
 
 | Threat | Mitigation |
 |---|---|
@@ -265,11 +342,35 @@ cross-origin request. ABS/nginx set **no CORS headers today**. Required:
 Spirit-rule check: **2** (no second auth screen — silent Clerk bounce) ✓,
 **3** (easy+secure same path) ✓, **5** (zero stored ABS secrets steady-state) ✓,
 **6** (offline trust — ABS verifies Clerk JWTs via cached JWKS, no control-plane
-callback) ✓, **7** (mobile — see §10) ✓.
+callback) ✓, **7** (mobile — see §11) ✓.
+
+### How this compares to Plex (the reference implementation)
+
+Plex is the canonical "one account, many self-hosted servers" system, but it is a
+**proprietary central token broker**, not OIDC. plex.tv issues an opaque
+`X-Plex-Token`, a central registry (`plex.tv/api/resources`) maps users to
+servers + per-share tokens, and **the media server validates the token by calling
+back to plex.tv** (with a cache fallback). Where our design is deliberately
+**stronger**:
+
+| Dimension | Plex | This design |
+|---|---|---|
+| Token validation | PMS phones home to plex.tv (or trusts cache) | ABS verifies the Clerk JWT **offline via JWKS** (Spirit rule 6) |
+| CORS | PMS returns `Access-Control-Allow-Origin: *` (Tenable TRA-2020-35) | scoped to `app.hearthshelf.com`, Bearer not cookies |
+| Token transport | often in URL query strings | fragment / postMessage, never query |
+| Credentials at rest | plex.tv stores each server's admin token (breached 2024/25) | control plane stores **no** ABS credential |
+
+Where Plex is **ahead** and we owe parity work: **reachability** — Plex's
+`*.plex.direct` wildcard-DNS + per-server cert and its relay fallback solve
+cross-origin HTTPS to home servers, which §7 addresses as the main gap; and
+**instant revocation** — Plex's central validation kills access immediately, while
+our offline-JWKS model revokes within the token TTL (the accepted trade for
+offline trust). Net: our identity layer is more secure than Plex's broker; our
+reachability story (§7) is the part that must catch up.
 
 ---
 
-## 9. What shipped vs. what we're building
+## 10. What shipped vs. what we're building
 
 | Piece | Shipped (drift) | This design |
 |---|---|---|
@@ -285,7 +386,7 @@ server provisioning); otherwise retire it in cleanup.
 
 ---
 
-## 10. Mobile (forward-compatible, no work now)
+## 11. Mobile (forward-compatible, no work now)
 
 ABS already supports a mobile OIDC variant: `/auth/openid/mobile-redirect` with
 `authOpenIDMobileRedirectURIs` allowlisting custom schemes (e.g.
@@ -296,7 +397,7 @@ handoff) block mobile. (Spirit rule 7.)
 
 ---
 
-## 11. Open confirmation items (do before/with build)
+## 12. Open confirmation items (do before/with build)
 
 1. **Clerk free-tier**: written confirmation that creating OAuth applications
    (Clerk as provider) is free-plan. If gated to Pro, fall back to one shared
@@ -309,11 +410,19 @@ handoff) block mobile. (Spirit rule 7.)
    `X-Forwarded-Host`/`X-Forwarded-Proto` so the redirect_uri equals the public
    URL we allowlisted on the Clerk client. (nginx `abs_proxy.conf` already sets
    these — verify it matches `PUBLIC_URL`.)
+4. **Reachability (§7)**: decide MVP = Option A (require a CA-valid HTTPS
+   `public_url`, validated at pairing). Scope `hs.direct` (Option B) as the
+   follow-up. Without this, the OIDC flow can't reach a typical home server.
 
 ---
 
-## 12. Implementation order (once design is approved)
+## 13. Implementation order (once design is approved)
 
+0. **Reachability gate (§7, MVP Option A)**: validate `public_url` is a
+   CA-valid, reachable HTTPS origin at pairing; wire the server picker's
+   per-server `status` to a real probe (replace the `status: 'unknown'`
+   placeholder). Do this first — the rest can't be tested against an unreachable
+   server.
 1. **Control plane**: per-server Clerk OAuth client provisioning at
    `/pairing/redeem`; store `client_id` (+ secret reference) per server; revoke on
    `DELETE /servers/:id`. (`control-plane/src/routes/pairing.ts`,

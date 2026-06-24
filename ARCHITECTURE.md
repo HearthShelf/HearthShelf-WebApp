@@ -440,13 +440,20 @@ code in the AGPL repo is superseded for the browser path; retire it unless a
 machine-to-machine path still needs it.
 
 **Open items / to revisit:**
+- **Reachability / cross-origin HTTPS to home servers** (design doc, 7): the
+  browser must reach `https://<server>` with a CA-valid cert. MVP = require a real
+  HTTPS `public_url` (validated at pairing); `hs.direct` wildcard-DNS + per-server
+  cert is the Plex-parity follow-up; relay for CGNAT is later/opt-in. This gates
+  the whole OIDC flow against typical home setups.
 - Confirm Clerk free-tier allows creating OAuth applications (else fall back to
-  one shared confidential client; see the design doc, section 11).
+  one shared confidential client; see the design doc, section 12).
 - Cross-origin CORS for `app.hearthshelf.com` on paired servers (design doc, 6).
 - ABS-token refresh via silent OIDC re-bounce; 401 refresh-retry in the player
-  and socket reconnect (design doc, 7).
+  and socket reconnect (design doc, 8).
+- Per-server status probe (replace `status: 'unknown'` in `fetchLinkedServers`).
 - Key-rotation procedure specifics (schema + JWKS-by-kid support exist).
-- Optional instant-revocation denylist (short TTL is the default mechanism).
+- Optional instant-revocation denylist (short TTL is the default mechanism;
+  Plex's central-validation model is the instant-kill counterpoint).
 
 ---
 
