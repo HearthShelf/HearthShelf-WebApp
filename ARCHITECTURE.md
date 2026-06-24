@@ -376,10 +376,17 @@ Status as of the control-plane + hosted-mode build. `[x]` done & verified,
   `/pairing/redeem` (Clerk). (`src/routes/pairing.ts`)
 - `[x]` Linked-servers + grant API: `GET /servers`, `POST /servers/:id/grant`,
   `DELETE /servers/:id`. (`src/routes/servers.ts`)
-- `[~]` Clerk verification: implemented against Clerk's JWKS
-  (`src/lib/clerk.ts`); needs the real `CLERK_JWKS_URL` + a JWT template that
-  emits verified `email`/`email_verified`. **(YOU: Clerk wiring.)**
-- `[ ]` Invite issuance + invite email delivery (the Plex invite flow).
+- `[x]` Clerk verification: offline against Clerk's JWKS (`src/lib/clerk.ts`);
+  `CLERK_JWKS_URL` set in wrangler.toml. Needs a Clerk JWT template emitting
+  verified `email`/`email_verified` (dashboard config, not code).
+- `[x]` Invite issuance + invite email delivery (the Plex invite flow): Clerk
+  invitations (`src/lib/clerkApi.ts`), `POST /servers/:id/invite` +
+  `/servers/invite-from-server`, pending-invite rows that materialize into links
+  on first sign-in. (Email send is gated on `CLERK_SECRET_KEY` being set.)
+- `[x]` Per-server OIDC client provisioning + reachability gate:
+  `POST /v1/oauth_applications` at pairing (`src/lib/clerkOAuth.ts`), revoke on
+  last-link-out, `POST /servers/oidc-config` pull, `GET /servers/:id/status`
+  probe, HTTPS `public_url` validation. (`src/lib/reachability.ts`)
 - `[ ]` Deploy: `wrangler d1 create`, real `database_id`, `wrangler secret put
   CP_SIGNING_JWK`, `wrangler deploy`. (See `control-plane/README.md`.)
 
@@ -389,13 +396,19 @@ Status as of the control-plane + hosted-mode build. `[x]` done & verified,
 - `[x]` Front-door shell: server picker (loading/empty/error), per-server view.
 - `[x]` Control-plane client + TanStack Query; auth-token seam
   (`src/lib/authToken.ts`) ready for Clerk.
-- `[~]` Clerk provider + `setAuthTokenGetter` wiring. **(YOU: Clerk.)**
+- `[x]` Clerk provider + `setAuthTokenGetter` wiring
+  (`src/auth/ClerkTokenBridge.tsx`, JWT template `hearthshelf`).
 - `[x]` Pairing UI ("Link a server" -> `useLinkServer()`): dialog with AIO
   setup steps + code entry (`src/components/LinkServerDialog.tsx`), plus a
   `/pair?code=...` deep-link route that opens it prefilled (the target of HS
   onboarding's "Open app.hearthshelf.com").
-- `[ ]` Per-server direct connection: redeem grant with HS, then HTTP +
-  Socket.io straight to the HS server.
+- `[x]` Per-server direct connection (OIDC path): connect bounce via popup +
+  postMessage (`src/lib/connectServer.ts`), in-memory ABS token
+  (`src/lib/absTokens.ts`), direct ABS client with 401 refresh-retry
+  (`src/api/absClient.ts`), library browsing (`src/components/ServerLibrary.tsx`)
+  and the audiobook player (`src/pages/ItemDetailPage.tsx`,
+  `src/hooks/useAudioPlayer.ts`). Talks straight to the server's ABS over HTTP;
+  progress via PATCH (no Socket.io realtime yet).
 
 **HS server (AGPL repo `hosted-mode` branch - APPROVED, DCO-signed):**
 - `[x]` `resolveHostedContext()` verifies the control-plane grant offline via
@@ -407,13 +420,15 @@ Status as of the control-plane + hosted-mode build. `[x]` done & verified,
 - `[x]` Pairing + key pinning: `/hs/hosted/pair` calls the control plane,
   persists issuer/jwks/secret; JWKS cached by `jose`. (`server/routes/hosted.js`)
 - `[x]` DB: `hosted_config` + `hosted_user_keys`. (`server/db.js`)
-- `[ ]` HS-as-OIDC-provider bridge + `PATCH /api/auth-settings` to auto-config
-  ABS OIDC. NOTE: the shipped implementation uses **API-key minting** instead
-  of full OIDC federation - simpler, no ABS OIDC setup, and it stores no
-  passwords. The OIDC bridge remains a future option for true SSO into ABS's
-  own login page; revisit if/when needed.
-- `[ ]` Pre-provision / invite flow (`POST /api/users`, username-from-Clerk,
-  temp-password lifecycle) - pairs with control-plane invites above.
+- `[x]` OIDC federation into ABS (the corrected canonical path - supersedes the
+  API-key drift): `server/lib/oidc-setup.js` pulls the per-server Clerk OAuth
+  client and writes ABS `PATCH /api/auth-settings` (Clerk as IdP directly, match
+  by verified email, auto-register); `POST /hs/hosted/configure-oidc` to apply,
+  `GET /hs/hosted/connect-return` token relay, hosted-mode CORS. The API-key
+  minting below is superseded for the browser path.
+- `[~]` Pre-provision flow not needed under OIDC: `authOpenIDAutoRegister`
+  creates the ABS user on first login (matched by verified email), so no
+  `POST /api/users` + temp-password lifecycle. Kept only for the un/pw fallback.
 - `[x]` Setup UI in the HS SPA to drive `/hs/hosted/pair` and show the code:
   "HearthShelf Connect" settings page (Settings -> Features) plus a first-run
   onboarding step (esp. AIO). Both pair and surface the code; onboarding deep-
