@@ -307,3 +307,14 @@ export async function saveProgress(
     duration: durationSec,
   })
 }
+
+/** Mark an item finished or not finished. */
+export async function setItemFinished(
+  t: AbsTarget,
+  itemId: string,
+  finished: boolean
+): Promise<void> {
+  await absPatch(t, `/api/me/progress/${encodeURIComponent(itemId)}`, {
+    isFinished: finished,
+  })
+}

@@ -16,6 +16,8 @@ interface UsePlayerArgs {
   tracks: AbsTrack[]
   totalDurationSec: number
   startAtSec: number
+  /** Start playing as soon as the track set loads (vs. load paused). */
+  autoplayOnLoad?: boolean
   /** Called (throttled) to persist the current global position. */
   onSaveProgress: (currentTimeSec: number) => void
 }
@@ -32,6 +34,7 @@ export function useAudioPlayer({
   tracks,
   totalDurationSec,
   startAtSec,
+  autoplayOnLoad = false,
   onSaveProgress,
 }: UsePlayerArgs) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -43,6 +46,9 @@ export function useAudioPlayer({
   const [sleepAt, setSleepAt] = useState<number | null>(null)
   const currentTrackRef = useRef<number>(-1)
   const lastSaveRef = useRef<number>(0)
+  // Read by the [tracks] init effect without making autoplay a dependency.
+  const autoplayRef = useRef(autoplayOnLoad)
+  autoplayRef.current = autoplayOnLoad
 
   // Lazily create the single audio element.
   if (!audioRef.current && typeof Audio !== 'undefined') {
@@ -155,9 +161,9 @@ export function useAudioPlayer({
     audio.addEventListener('ended', onEnded)
     audio.addEventListener('canplay', onCanPlay)
 
-    // Initial load at the saved position.
+    // Initial load at the saved position; autoplay if the caller requested it.
     const idx = trackIndexForPosition(tracks, startAtSec)
-    loadTrack(idx, startAtSec - tracks[idx].startOffsetSec, false)
+    loadTrack(idx, startAtSec - tracks[idx].startOffsetSec, autoplayRef.current)
 
     return () => {
       audio.removeEventListener('timeupdate', onTime)

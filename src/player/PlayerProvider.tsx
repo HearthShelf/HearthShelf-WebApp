@@ -21,6 +21,8 @@ export interface NowPlaying {
   chapters: AbsChapter[]
   totalDurationSec: number
   startAtSec: number
+  /** Start playing immediately on load (vs. load paused). */
+  autoplay?: boolean
 }
 
 interface PlayerApi {
@@ -52,6 +54,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     tracks: now?.tracks ?? [],
     totalDurationSec: now?.totalDurationSec ?? 0,
     startAtSec: now?.startAtSec ?? 0,
+    autoplayOnLoad: now?.autoplay ?? false,
     onSaveProgress: useCallback(
       (sec: number) => {
         if (target && now) void saveProgress(target, now.itemId, sec, now.totalDurationSec)
