@@ -1,11 +1,13 @@
 import { useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { ArrowLeft, Loader2, AlertCircle, BookOpen } from 'lucide-react'
+import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react'
 import { useServer } from '@/hooks/useServers'
 import { getItemDetail, saveProgress, type AbsTarget } from '@/api/absLibrary'
 import { hasAbsToken } from '@/lib/absTokens'
 import { AudioPlayer } from '@/components/AudioPlayer'
+import { BookHeader } from '@/components/shared/BookHeader'
+import { WebAppMediaUIProvider } from '@/components/shared/WebAppMediaUI'
 
 /**
  * Item detail + player. Loads the expanded item (tracks + saved progress) and
@@ -78,28 +80,24 @@ export function ItemDetailPage() {
         </div>
       )}
 
-      {connected && data && (
-        <div>
-          <div className="flex flex-col gap-6 sm:flex-row">
-            <div className="mx-auto w-48 shrink-0 sm:mx-0">
-              <div className="aspect-square overflow-hidden rounded-xl border border-border bg-secondary">
-                {data.coverUrl ? (
-                  <img src={data.coverUrl} alt={data.title} className="size-full object-cover" />
-                ) : (
-                  <div className="flex size-full items-center justify-center text-muted-foreground">
-                    <BookOpen size={32} />
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex-1">
-              <h1 className="t-h1">{data.title}</h1>
-              {data.author && <p className="t-body mt-1 text-muted-foreground">{data.author}</p>}
-              {data.narrator && (
-                <p className="t-muted mt-1 text-[13px]">Narrated by {data.narrator}</p>
-              )}
-            </div>
-          </div>
+      {connected && data && target && (
+        <WebAppMediaUIProvider target={target}>
+          <BookHeader
+            data={{
+              id: data.id,
+              title: data.title,
+              subtitle: data.subtitle,
+              author: data.author,
+              authorId: data.authorId ?? undefined,
+              narrator: data.narrator,
+              series: data.series ?? undefined,
+              genre: data.genre,
+              publishedYear: data.publishedYear,
+              durationSec: data.durationSec,
+              chapterCount: data.chapters.length,
+              description: data.description,
+            }}
+          />
 
           {data.tracks.length > 0 ? (
             <div className="mt-8">
@@ -114,14 +112,7 @@ export function ItemDetailPage() {
           ) : (
             <p className="t-muted mt-8 text-[13px]">No audio tracks on this title.</p>
           )}
-
-          {data.description && (
-            <div className="mt-8">
-              <h2 className="t-h2 mb-2">About</h2>
-              <p className="t-body whitespace-pre-line text-muted-foreground">{data.description}</p>
-            </div>
-          )}
-        </div>
+        </WebAppMediaUIProvider>
       )}
     </div>
   )

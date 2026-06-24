@@ -199,8 +199,13 @@ export interface AbsChapter {
 export interface AbsItemDetail {
   id: string
   title: string
+  subtitle: string
   author: string
+  authorId: string | null
   narrator: string
+  genre: string
+  publishedYear: string
+  series: { id: string; name: string; sequence?: string } | null
   description: string
   durationSec: number
   coverUrl: string | null
@@ -231,8 +236,13 @@ interface RawItemDetail {
     duration?: number
     metadata?: {
       title?: string
+      subtitle?: string
       authorName?: string
+      authors?: Array<{ id: string; name: string }>
       narratorName?: string
+      genres?: string[]
+      publishedYear?: string
+      series?: Array<{ id: string; name: string; sequence?: string }>
       description?: string
     }
     tracks?: RawTrack[]
@@ -255,11 +265,17 @@ export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsIt
     // contentUrl is "/api/items/{id}/file/{ino}"; add the auth token for <audio>.
     url: absMediaUrl(t, tr.contentUrl),
   }))
+  const firstSeries = md?.series?.[0]
   return {
     id: r.id,
     title: md?.title || 'Untitled',
+    subtitle: md?.subtitle || '',
     author: md?.authorName || '',
+    authorId: md?.authors?.[0]?.id ?? null,
     narrator: md?.narratorName || '',
+    genre: md?.genres?.[0] || '',
+    publishedYear: md?.publishedYear || '',
+    series: firstSeries ? { id: firstSeries.id, name: firstSeries.name, sequence: firstSeries.sequence } : null,
     description: md?.description || '',
     durationSec: r.media?.duration ?? 0,
     coverUrl: itemCoverUrl(t, r.id, 480),

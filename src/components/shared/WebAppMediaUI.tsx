@@ -30,8 +30,13 @@ export function WebAppMediaUIProvider({
       openItem: (itemId) => navigate(`/server/${target.serverId}/item/${itemId}`),
       // The WebApp player lives on the item page; "play" opens it (autoplay TBD).
       playItem: (itemId) => navigate(`/server/${target.serverId}/item/${itemId}`),
-      // WebApp has no dedicated author page yet.
+      // The WebApp has no dedicated author/series/narrator/genre browse routes
+      // yet, so these return null and the shared components render plain text.
+      // They light up automatically once those routes exist.
       authorHref: () => null,
+      seriesHref: () => null,
+      narratorHref: () => null,
+      genreHref: () => null,
       // markFinished intentionally omitted until the WebApp wires the mutation;
       // the shared tile hides the control when this is undefined.
     }),

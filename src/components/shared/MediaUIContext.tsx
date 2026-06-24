@@ -26,6 +26,12 @@ export interface MediaUI {
   playItem: (itemId: string) => void
   /** Optional: href for an author page, or null if the app doesn't have one. */
   authorHref?: (authorId: string) => string | null
+  /** Optional: href for a series page, or null. */
+  seriesHref?: (seriesId: string) => string | null
+  /** Optional: href for a library view filtered to a narrator, or null. */
+  narratorHref?: (narrator: string) => string | null
+  /** Optional: href for a library view filtered to a genre, or null. */
+  genreHref?: (genre: string) => string | null
   /** Optional: mark finished/unfinished; omitted if the app doesn't support it. */
   markFinished?: (itemId: string, finished: boolean) => void
 }
