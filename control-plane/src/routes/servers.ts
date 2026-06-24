@@ -22,16 +22,23 @@ import {
   listLinksForUser,
   getLink,
   deleteLink,
+  countLinksForServer,
   getServer,
+  touchServer,
   createLink,
   upsertInvite,
   pendingInvitesForEmail,
   pendingInvitesForServer,
   markInviteAccepted,
+  getOAuthClient,
+  markOAuthClientApplied,
+  deleteOAuthClientRow,
 } from '../lib/db'
 import { mintGrant } from '../lib/signing'
 import { createClerkInvitation, ClerkApiError } from '../lib/clerkApi'
+import { deleteOAuthClient, clerkOidcEndpoints } from '../lib/clerkOAuth'
 import { uuid, sha256Hex, timingSafeEqual } from '../lib/ids'
+import { probeServer, validatePublicUrl } from '../lib/reachability'
 
 export const servers = new Hono<{ Bindings: Env }>()
 
@@ -112,10 +119,61 @@ servers.post('/servers/:id/grant', async (c) => {
   })
 })
 
+/**
+ * Live reachability of one linked server, for the picker's status dot. Probes
+ * the server's public health endpoint from the edge. Requires the caller to be
+ * linked (so we don't expose an open prober). Returns online/offline plus the
+ * url-validity reason when the stored URL can't be browser-reached at all.
+ */
+servers.get('/servers/:id/status', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return c.json({ error: 'unauthorized' }, 401)
+
+  const serverId = c.req.param('id')
+  const link = await getLink(c.env, user.userId, serverId)
+  if (!link) return c.json({ error: 'not_linked' }, 404)
+  const server = await getServer(c.env, serverId)
+  if (!server) return c.json({ error: 'server_unknown' }, 404)
+
+  const urlCheck = validatePublicUrl(server.public_url)
+  if (!urlCheck.ok || !urlCheck.origin) {
+    // The stored URL can never be reached from a browser; report offline with why.
+    return c.json({ status: 'offline', reachable: false, reason: urlCheck.reason })
+  }
+
+  const probe = await probeServer(urlCheck.origin)
+  if (probe.status === 'online') {
+    // Best-effort liveness bookkeeping; ignore failures.
+    c.executionCtx?.waitUntil?.(touchServer(c.env, serverId).catch(() => {}))
+  }
+  return c.json({
+    status: probe.status,
+    reachable: true,
+    http_status: probe.httpStatus,
+    detail: probe.detail,
+  })
+})
+
 servers.delete('/servers/:id', async (c) => {
   const user = await requireUser(c)
   if (!user) return c.json({ error: 'unauthorized' }, 401)
-  await deleteLink(c.env, user.userId, c.req.param('id'))
+  const serverId = c.req.param('id')
+  await deleteLink(c.env, user.userId, serverId)
+
+  // Last user out revokes the server's dedicated OAuth client (no one can reach
+  // it anymore, so the federation client should not linger). Best-effort: a
+  // Clerk failure shouldn't fail the unlink; the client can be cleaned up later.
+  if ((await countLinksForServer(c.env, serverId)) === 0) {
+    const oauth = await getOAuthClient(c.env, serverId)
+    if (oauth) {
+      try {
+        await deleteOAuthClient(c.env, oauth.clerk_app_id)
+      } catch {
+        // ignore - revocation is best-effort on unlink
+      }
+      await deleteOAuthClientRow(c.env, serverId)
+    }
+  }
   return c.json({ ok: true })
 })
 
@@ -246,6 +304,67 @@ servers.post('/servers/invite-from-server', async (c) => {
   })
 
   return c.json({ ok: true, email, role, emailed: clerkInvitationId !== null })
+})
+
+/**
+ * OIDC config pull (server-to-server). A paired HS server fetches the OIDC
+ * settings it must write into its ABS to trust Clerk as the IdP: the per-server
+ * client_id + the one-time client_secret, the Clerk issuer/endpoint URLs, and
+ * the pinned redirect_uri. Authenticated with the server_secret (the secret
+ * never goes near the browser). The client_secret is returned ONCE; on success
+ * the server calls back to confirm (or we clear it when it reports applied).
+ *
+ * Returns 409 if no OAuth client has been provisioned yet (pairing not redeemed
+ * by an admin), or 410 if the secret was already consumed (re-pair to rotate).
+ */
+servers.post('/servers/oidc-config', async (c) => {
+  let body: { server_id?: string; server_secret?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const serverId = (body.server_id || '').trim()
+  const secret = body.server_secret || ''
+  if (!serverId || !secret) return c.json({ error: 'server_id and server_secret required' }, 400)
+
+  const server = await getServer(c.env, serverId)
+  if (!server) return c.json({ error: 'server_unknown' }, 404)
+  const presented = await sha256Hex(secret)
+  if (!timingSafeEqual(presented, server.server_secret_hash)) {
+    return c.json({ error: 'bad_server_secret' }, 401)
+  }
+
+  const oauth = await getOAuthClient(c.env, serverId)
+  if (!oauth) {
+    return c.json(
+      { error: 'oidc_not_provisioned', detail: 'have an admin redeem the pairing code first' },
+      409
+    )
+  }
+  if (!oauth.client_secret) {
+    return c.json(
+      { error: 'secret_consumed', detail: 're-pair to rotate the OIDC client secret' },
+      410
+    )
+  }
+
+  const endpoints = clerkOidcEndpoints(c.env)
+  // The server is about to apply this; clear the one-time secret so it isn't
+  // re-served. (If the server fails to apply, a re-pair rotates a fresh client.)
+  await markOAuthClientApplied(c.env, serverId)
+
+  return c.json({
+    issuer: endpoints.issuer,
+    authorization_url: endpoints.authorizationUrl,
+    token_url: endpoints.tokenUrl,
+    userinfo_url: endpoints.userInfoUrl,
+    jwks_url: endpoints.jwksUrl,
+    client_id: oauth.client_id,
+    client_secret: oauth.client_secret,
+    redirect_uri: oauth.redirect_uri,
+    scopes: 'openid email profile',
+  })
 })
 
 // Documented stub for the advertised grant_url. The shipping design mints

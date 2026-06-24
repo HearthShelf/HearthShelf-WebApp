@@ -25,8 +25,12 @@ import {
   markPairingRedeemed,
   upsertServer,
   createLink,
+  getOAuthClient,
+  upsertOAuthClient,
 } from '../lib/db'
 import { pairingCode, serverSecret, sha256Hex, uuid, now } from '../lib/ids'
+import { validatePublicUrl } from '../lib/reachability'
+import { createOAuthClient, absRedirectUri } from '../lib/clerkOAuth'
 
 export const pairing = new Hono<{ Bindings: Env }>()
 
@@ -111,6 +115,24 @@ pairing.post('/pairing/redeem', async (c) => {
   if (row.redeemed_at) return c.json({ error: 'code_already_used' }, 409)
   if (row.expires_at < now()) return c.json({ error: 'code_expired' }, 410)
 
+  // Reachability gate (design doc 7, Option A): the browser will connect to this
+  // server's public origin directly for OIDC + data, so it must be a real
+  // CA-valid HTTPS host - not plain HTTP, not a bare IP, not a dotless LAN name.
+  // Reject early with an actionable error rather than linking a server the user
+  // could never open.
+  const urlCheck = validatePublicUrl(row.public_url)
+  if (!urlCheck.ok) {
+    return c.json(
+      {
+        error: 'public_url_not_reachable',
+        reason: urlCheck.reason,
+        detail:
+          'This server must be published at a public HTTPS address with a valid certificate before it can be linked. A bare IP or http:// URL will not work from app.hearthshelf.com.',
+      },
+      422
+    )
+  }
+
   // Materialise the server and the link. The first redeemer is treated as the
   // server's admin owner; later redeemers (invitees) default to 'user'.
   await upsertServer(c.env, {
@@ -129,8 +151,37 @@ pairing.post('/pairing/redeem', async (c) => {
   })
   await markPairingRedeemed(c.env, code, identity.userId)
 
+  // Provision the dedicated per-server Clerk OAuth client (hosted OIDC). Only
+  // on first pairing of this server - re-pairs / invitee redeems reuse it. The
+  // client_secret is held until the HS server pulls it to configure ABS. A
+  // failure here is non-fatal to linking: the link is valid and OIDC config can
+  // be retried; we report it so the UI can prompt a re-pair if needed.
+  let oidcProvisioned = false
+  try {
+    const existing = await getOAuthClient(c.env, row.server_id)
+    if (!existing) {
+      const redirectUri = absRedirectUri(urlCheck.origin as string)
+      const client = await createOAuthClient(c.env, {
+        name: `HearthShelf server ${row.name || row.server_id}`,
+        redirectUri,
+      })
+      await upsertOAuthClient(c.env, {
+        serverId: row.server_id,
+        clerkAppId: client.appId,
+        clientId: client.clientId,
+        clientSecret: client.clientSecret ?? null,
+        redirectUri,
+      })
+    }
+    oidcProvisioned = true
+  } catch (err) {
+    // Swallow: linking already succeeded. Surface a soft signal in the response.
+    oidcProvisioned = false
+  }
+
   return c.json({
     ok: true,
     server: { id: row.server_id, url: row.public_url, name: row.name },
+    oidc_provisioned: oidcProvisioned,
   })
 })

@@ -1,0 +1,132 @@
+/**
+ * Clerk OAuth-application management (Clerk acting as our OIDC provider).
+ *
+ * Per the most-secure design (docs/hosted-oidc-design.md sec 3): each paired
+ * server gets a dedicated Clerk OAuth client. ABS on that server is configured
+ * to trust this client as its OIDC provider, matching users by verified email.
+ * A leaked secret is contained to one server; unlinking revokes just that client.
+ *
+ * Contract verified against the Clerk Backend API reference (mid-2026):
+ *   POST   /v1/oauth_applications          create (secret returned ONCE here)
+ *   GET    /v1/oauth_applications/{id}      read (never returns the secret)
+ *   DELETE /v1/oauth_applications/{id}      revoke the client entirely
+ * Scopes are a space-separated string; redirect_uris is an array of exact URLs.
+ */
+import type { Env } from '../types'
+import { ClerkApiError } from './clerkApi'
+
+const CLERK_API = 'https://api.clerk.com/v1'
+
+/** Scopes ABS needs to federate + match by verified email. */
+export const OIDC_SCOPES = 'openid email profile'
+
+export interface ClerkOAuthClient {
+  /** Clerk application id (oauthapp_...), for rotate/delete. */
+  appId: string
+  clientId: string
+  /** Returned ONLY on create; undefined on reads. */
+  clientSecret?: string
+  redirectUri: string
+}
+
+/**
+ * The OIDC issuer + endpoint URLs for this Clerk instance. ABS auto-discovers
+ * from the issuer (GET <issuer>/.well-known/openid-configuration), but we also
+ * carry the explicit endpoints as a fallback for ABS's config push, since
+ * Clerk's primary discovery doc is the OAuth-AS metadata path.
+ *
+ * The issuer is the Clerk Frontend API origin (e.g. https://clerk.hearthshelf.com),
+ * which we derive from the configured CLERK_JWKS_URL so there's a single source
+ * of truth and no second env var to drift.
+ */
+export function clerkOidcEndpoints(env: Env): {
+  issuer: string
+  authorizationUrl: string
+  tokenUrl: string
+  userInfoUrl: string
+  jwksUrl: string
+} {
+  // CLERK_JWKS_URL is e.g. https://clerk.hearthshelf.com/.well-known/jwks.json
+  const issuer = new URL(env.CLERK_JWKS_URL).origin
+  return {
+    issuer,
+    authorizationUrl: `${issuer}/oauth/authorize`,
+    tokenUrl: `${issuer}/oauth/token`,
+    userInfoUrl: `${issuer}/oauth/userinfo`,
+    jwksUrl: `${issuer}/.well-known/jwks.json`,
+  }
+}
+
+/** Build the single redirect URI ABS will use for a given server public origin. */
+export function absRedirectUri(serverPublicUrl: string): string {
+  // ABS builds <origin>/auth/openid/callback (default subfolder = ''), from the
+  // Host header. We pin exactly that on the Clerk client. See design doc sec 5.
+  return `${serverPublicUrl.replace(/\/$/, '')}/auth/openid/callback`
+}
+
+function authHeaders(env: Env): HeadersInit {
+  if (!env.CLERK_SECRET_KEY) throw new ClerkApiError(0, 'CLERK_SECRET_KEY not configured')
+  return {
+    Authorization: `Bearer ${env.CLERK_SECRET_KEY}`,
+    'Content-Type': 'application/json',
+  }
+}
+
+interface ClerkOAuthAppResponse {
+  id: string
+  client_id: string
+  client_secret?: string
+  redirect_uris?: string[]
+}
+
+/**
+ * Create a dedicated OAuth client for one server. `name` is human-facing in the
+ * Clerk dashboard; `redirectUri` is the server's ABS callback (exact match,
+ * https). PKCE is required (confidential client + require_pkce) for defense in
+ * depth even though ABS also holds the secret. Returns the secret ONCE.
+ */
+export async function createOAuthClient(
+  env: Env,
+  params: { name: string; redirectUri: string }
+): Promise<ClerkOAuthClient> {
+  const res = await fetch(`${CLERK_API}/oauth_applications`, {
+    method: 'POST',
+    headers: authHeaders(env),
+    body: JSON.stringify({
+      name: params.name,
+      redirect_uris: [params.redirectUri],
+      scopes: OIDC_SCOPES,
+      public: false,
+      require_pkce: true,
+    }),
+  })
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new ClerkApiError(res.status, detail.slice(0, 300))
+  }
+  const data = (await res.json()) as ClerkOAuthAppResponse
+  if (!data.client_secret) {
+    // Should never happen on create; guard so we never persist a half-made client.
+    throw new ClerkApiError(502, 'clerk did not return client_secret on create')
+  }
+  return {
+    appId: data.id,
+    clientId: data.client_id,
+    clientSecret: data.client_secret,
+    redirectUri: params.redirectUri,
+  }
+}
+
+/**
+ * Delete (revoke) a server's OAuth client. Idempotent from our side: a 404 means
+ * it's already gone, which is fine for unlink. Other errors propagate.
+ */
+export async function deleteOAuthClient(env: Env, appId: string): Promise<void> {
+  const res = await fetch(`${CLERK_API}/oauth_applications/${encodeURIComponent(appId)}`, {
+    method: 'DELETE',
+    headers: authHeaders(env),
+  })
+  if (res.ok || res.status === 404) return
+  const detail = await res.text().catch(() => '')
+  throw new ClerkApiError(res.status, detail.slice(0, 300))
+}

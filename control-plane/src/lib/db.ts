@@ -120,6 +120,73 @@ export async function deleteLink(env: Env, clerkUserId: string, serverId: string
     .run()
 }
 
+/** How many users are still linked to a server (to decide last-one-out cleanup). */
+export async function countLinksForServer(env: Env, serverId: string): Promise<number> {
+  const r = await env.DB.prepare(`SELECT COUNT(*) AS n FROM links WHERE server_id = ?`)
+    .bind(serverId)
+    .first<{ n: number }>()
+  return r?.n ?? 0
+}
+
+// --- per-server OAuth clients (hosted OIDC) --------------------------------
+
+export interface OAuthClientRow {
+  server_id: string
+  clerk_app_id: string
+  client_id: string
+  client_secret: string | null
+  redirect_uri: string
+  applied_at: number | null
+  created_at: number
+}
+
+export async function upsertOAuthClient(
+  env: Env,
+  c: {
+    serverId: string
+    clerkAppId: string
+    clientId: string
+    clientSecret: string | null
+    redirectUri: string
+  }
+): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO oauth_clients
+       (server_id, clerk_app_id, client_id, client_secret, redirect_uri, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT (server_id) DO UPDATE SET
+       clerk_app_id = excluded.clerk_app_id,
+       client_id = excluded.client_id,
+       client_secret = excluded.client_secret,
+       redirect_uri = excluded.redirect_uri,
+       applied_at = NULL`
+  )
+    .bind(c.serverId, c.clerkAppId, c.clientId, c.clientSecret, c.redirectUri, now())
+    .run()
+}
+
+export async function getOAuthClient(
+  env: Env,
+  serverId: string
+): Promise<OAuthClientRow | null> {
+  return env.DB.prepare(`SELECT * FROM oauth_clients WHERE server_id = ?`)
+    .bind(serverId)
+    .first<OAuthClientRow>()
+}
+
+/** Clear the one-time secret once the server has applied its OIDC config. */
+export async function markOAuthClientApplied(env: Env, serverId: string): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE oauth_clients SET client_secret = NULL, applied_at = ? WHERE server_id = ?`
+  )
+    .bind(now(), serverId)
+    .run()
+}
+
+export async function deleteOAuthClientRow(env: Env, serverId: string): Promise<void> {
+  await env.DB.prepare(`DELETE FROM oauth_clients WHERE server_id = ?`).bind(serverId).run()
+}
+
 // --- pairing codes ---------------------------------------------------------
 
 export async function createPairing(
