@@ -1,0 +1,112 @@
+import { useParams, Link } from 'react-router-dom'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { ArrowLeft, Loader2, AlertCircle, BookOpen } from 'lucide-react'
+import { useServer } from '@/hooks/useServers'
+import { getItemDetail, saveProgress, type AbsTarget } from '@/api/absLibrary'
+import { hasAbsToken } from '@/lib/absTokens'
+import { AudioPlayer } from '@/components/AudioPlayer'
+
+/**
+ * Item detail + player. Loads the expanded item (tracks + saved progress) and
+ * mounts the audio player. Requires an active connection to the server (the
+ * library grid is the entry point, so a token already exists); if not, points
+ * the user back to connect.
+ */
+export function ItemDetailPage() {
+  const { serverId, itemId } = useParams()
+  const server = useServer(serverId)
+  const target: AbsTarget | null =
+    serverId && server ? { serverId, serverUrl: server.url } : null
+  const connected = serverId ? hasAbsToken(serverId) : false
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['abs-item', serverId, itemId],
+    queryFn: () => getItemDetail(target as AbsTarget, itemId as string),
+    enabled: Boolean(target && itemId && connected),
+  })
+
+  const progress = useMutation({
+    mutationFn: (currentTimeSec: number) =>
+      saveProgress(target as AbsTarget, itemId as string, currentTimeSec, data?.durationSec ?? 0),
+  })
+
+  return (
+    <div className="mx-auto max-w-3xl">
+      <Link
+        to={serverId ? `/server/${serverId}` : '/'}
+        className="t-muted mb-6 inline-flex items-center gap-1.5 text-[13px] hover:text-foreground"
+      >
+        <ArrowLeft size={14} />
+        Back to library
+      </Link>
+
+      {!connected && (
+        <div className="rounded-xl border border-border bg-card p-8 text-center">
+          <p className="t-body text-card-foreground">Connect to this server first.</p>
+          <Link to={serverId ? `/server/${serverId}` : '/'} className="t-muted mt-2 inline-block text-[13px] underline">
+            Go to the library
+          </Link>
+        </div>
+      )}
+
+      {connected && isLoading && (
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-6 text-muted-foreground">
+          <Loader2 className="animate-spin" size={18} />
+          <span className="t-body">Loading...</span>
+        </div>
+      )}
+
+      {connected && isError && (
+        <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-6">
+          <AlertCircle className="mt-0.5 shrink-0 text-destructive" size={18} />
+          <p className="t-body text-card-foreground">Couldn't load this title.</p>
+        </div>
+      )}
+
+      {connected && data && (
+        <div>
+          <div className="flex flex-col gap-6 sm:flex-row">
+            <div className="mx-auto w-48 shrink-0 sm:mx-0">
+              <div className="aspect-square overflow-hidden rounded-xl border border-border bg-secondary">
+                {data.coverUrl ? (
+                  <img src={data.coverUrl} alt={data.title} className="size-full object-cover" />
+                ) : (
+                  <div className="flex size-full items-center justify-center text-muted-foreground">
+                    <BookOpen size={32} />
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex-1">
+              <h1 className="t-h1">{data.title}</h1>
+              {data.author && <p className="t-body mt-1 text-muted-foreground">{data.author}</p>}
+              {data.narrator && (
+                <p className="t-muted mt-1 text-[13px]">Narrated by {data.narrator}</p>
+              )}
+            </div>
+          </div>
+
+          {data.tracks.length > 0 ? (
+            <div className="mt-8">
+              <AudioPlayer
+                tracks={data.tracks}
+                totalDurationSec={data.durationSec}
+                startAtSec={data.progress?.currentTimeSec ?? 0}
+                onSaveProgress={(s) => progress.mutate(s)}
+              />
+            </div>
+          ) : (
+            <p className="t-muted mt-8 text-[13px]">No audio tracks on this title.</p>
+          )}
+
+          {data.description && (
+            <div className="mt-8">
+              <h2 className="t-h2 mb-2">About</h2>
+              <p className="t-body whitespace-pre-line text-muted-foreground">{data.description}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

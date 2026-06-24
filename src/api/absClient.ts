@@ -47,6 +47,22 @@ export async function absGet<T>(t: AbsTarget, path: string): Promise<T> {
   return absRequest<T>(t, path, { method: 'GET' })
 }
 
+/**
+ * Authenticated JSON PATCH (e.g. progress sync). Tolerates an empty/non-JSON
+ * 200 body (ABS returns no body on a progress PATCH).
+ */
+export async function absPatch<T = unknown>(
+  t: AbsTarget,
+  path: string,
+  body: unknown
+): Promise<T | null> {
+  return absRequest<T | null>(t, path, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
 async function absRequest<T>(
   t: AbsTarget,
   path: string,
@@ -82,7 +98,9 @@ async function absRequest<T>(
     }
     throw new AbsError(res.status, detail)
   }
-  return res.json() as Promise<T>
+  // Some endpoints (progress PATCH) return 200 with no body; tolerate that.
+  const text = await res.text()
+  return (text ? JSON.parse(text) : null) as T
 }
 
 /**

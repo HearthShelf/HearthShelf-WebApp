@@ -5,7 +5,7 @@
  * minified item form for lists (denormalized title/authorName, cover via the
  * item's /cover endpoint). Only the fields we render are typed.
  */
-import { absGet, absMediaUrl } from './absClient'
+import { absGet, absPatch, absMediaUrl } from './absClient'
 
 export interface AbsTarget {
   serverId: string
@@ -88,4 +88,97 @@ export async function getLibraryItems(
 /** Tokenized cover URL for an item (for <img src>), or null if not connected. */
 export function itemCoverUrl(t: AbsTarget, itemId: string, width = 240): string | null {
   return absMediaUrl(t, `/api/items/${encodeURIComponent(itemId)}/cover?width=${width}`)
+}
+
+// --- item detail + playback ------------------------------------------------
+
+/** One audio track in a book, with its cumulative offset from book start. */
+export interface AbsTrack {
+  ino: string
+  index: number
+  startOffsetSec: number
+  durationSec: number
+  /** Tokenized URL the <audio> element streams. Null if not connected. */
+  url: string | null
+}
+
+export interface AbsItemDetail {
+  id: string
+  title: string
+  author: string
+  narrator: string
+  description: string
+  durationSec: number
+  coverUrl: string | null
+  tracks: AbsTrack[]
+  /** Saved position for this user, if any. */
+  progress: { currentTimeSec: number; isFinished: boolean } | null
+}
+
+interface RawTrack {
+  ino: string
+  index: number
+  startOffset: number
+  duration: number
+  contentUrl: string
+}
+
+interface RawItemDetail {
+  id: string
+  media?: {
+    duration?: number
+    metadata?: {
+      title?: string
+      authorName?: string
+      narratorName?: string
+      description?: string
+    }
+    tracks?: RawTrack[]
+  }
+  userMediaProgress?: { currentTime?: number; isFinished?: boolean } | null
+}
+
+export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsItemDetail> {
+  const r = await absGet<RawItemDetail>(
+    t,
+    `/api/items/${encodeURIComponent(itemId)}?expanded=1&include=progress`
+  )
+  const md = r.media?.metadata
+  const tracks: AbsTrack[] = (r.media?.tracks ?? []).map((tr) => ({
+    ino: tr.ino,
+    index: tr.index,
+    startOffsetSec: tr.startOffset ?? 0,
+    durationSec: tr.duration ?? 0,
+    // contentUrl is "/api/items/{id}/file/{ino}"; add the auth token for <audio>.
+    url: absMediaUrl(t, tr.contentUrl),
+  }))
+  return {
+    id: r.id,
+    title: md?.title || 'Untitled',
+    author: md?.authorName || '',
+    narrator: md?.narratorName || '',
+    description: md?.description || '',
+    durationSec: r.media?.duration ?? 0,
+    coverUrl: itemCoverUrl(t, r.id, 480),
+    tracks,
+    progress: r.userMediaProgress
+      ? {
+          currentTimeSec: r.userMediaProgress.currentTime ?? 0,
+          isFinished: Boolean(r.userMediaProgress.isFinished),
+        }
+      : null,
+  }
+}
+
+/** Save listening progress (stateless; no play session needed). */
+export async function saveProgress(
+  t: AbsTarget,
+  itemId: string,
+  currentTimeSec: number,
+  durationSec: number
+): Promise<void> {
+  await absPatch(t, `/api/me/progress/${encodeURIComponent(itemId)}`, {
+    currentTime: currentTimeSec,
+    duration: durationSec,
+  })
 }
