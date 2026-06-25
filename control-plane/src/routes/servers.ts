@@ -38,13 +38,13 @@ import {
   getServerCert,
 } from '../lib/db'
 import { mintGrant } from '../lib/signing'
-import { mintCertGrant } from '../lib/certBroker'
+import { mintCertGrant, hsDirectZone } from '../lib/certBroker'
 import { createClerkInvitation, ClerkApiError } from '../lib/clerkApi'
 import { sendEmail, EmailError } from '../lib/email'
 import { renderInviteEmail } from '../lib/emailTemplates'
 import { deleteOAuthClient, clerkOidcEndpoints } from '../lib/clerkOAuth'
 import { uuid, sha256Hex, timingSafeEqual } from '../lib/ids'
-import { probeServer, validatePublicUrl } from '../lib/reachability'
+import { probeServer, validatePublicUrl, type ProbeStatus } from '../lib/reachability'
 
 export const servers = new Hono<{ Bindings: Env }>()
 
@@ -89,13 +89,23 @@ servers.get('/servers', async (c) => {
   // Materialize any invites waiting on this email before listing.
   await acceptPendingInvites(c, user)
 
+  const zone = hsDirectZone(c.env)
   const links = await listLinksForUser(c.env, user.userId)
-  const out: LinkedServerDTO[] = links.map((l) => ({
-    id: l.server_id,
-    name: l.display_name || l.server_name || l.public_url,
-    url: l.public_url,
-    role: l.role,
-  }))
+  const out: LinkedServerDTO[] = links.map((l) => {
+    // The hs.direct fallback host, when this server has an active cert. `url` is
+    // the PREFERRED address (the user's own domain if they set one, else the
+    // hs.direct URL stored as public_url). If the preferred URL is already the
+    // hs.direct host, fallback equals it (harmless). The SPA tries url, then
+    // fallback - hs.direct is the always-valid, monitored backup connection.
+    const fallback = l.cert_hash ? `https://${l.cert_hash}.${zone}` : undefined
+    return {
+      id: l.server_id,
+      name: l.display_name || l.server_name || l.public_url,
+      url: l.public_url,
+      ...(fallback ? { fallback_url: fallback } : {}),
+      role: l.role,
+    }
+  })
   return c.json({ servers: out })
 })
 
@@ -126,10 +136,10 @@ servers.post('/servers/:id/grant', async (c) => {
 })
 
 /**
- * Live reachability of one linked server, for the picker's status dot. Probes
- * the server's public health endpoint from the edge. Requires the caller to be
- * linked (so we don't expose an open prober). Returns online/offline plus the
- * url-validity reason when the stored URL can't be browser-reached at all.
+ * Live reachability of one linked server, for the picker's status dot AND for
+ * preferred-domain -> hs.direct failover. Probes the PREFERRED url first; if it's
+ * offline and the server has an hs.direct cert, probes that fallback too and tells
+ * the SPA which URL to actually connect to. Requires the caller to be linked.
  */
 servers.get('/servers/:id/status', async (c) => {
   const user = await requireUser(c)
@@ -141,22 +151,54 @@ servers.get('/servers/:id/status', async (c) => {
   const server = await getServer(c.env, serverId)
   if (!server) return c.json({ error: 'server_unknown' }, 404)
 
-  const urlCheck = validatePublicUrl(server.public_url)
-  if (!urlCheck.ok || !urlCheck.origin) {
-    // The stored URL can never be reached from a browser; report offline with why.
-    return c.json({ status: 'offline', reachable: false, reason: urlCheck.reason })
+  // The hs.direct fallback host, if this server has an active cert. Reachable even
+  // when the user's own domain is down/misconfigured, because we control it.
+  const cert = await getServerCert(c.env, serverId)
+  const fallbackUrl =
+    cert?.status === 'active' ? `https://${cert.hash}.${hsDirectZone(c.env)}` : null
+
+  const preferredCheck = validatePublicUrl(server.public_url)
+  // Probe the preferred URL when it's a valid browser origin.
+  let preferred: { status: ProbeStatus; httpStatus?: number; detail?: string } | null = null
+  if (preferredCheck.ok && preferredCheck.origin) {
+    preferred = await probeServer(preferredCheck.origin)
   }
 
-  const probe = await probeServer(urlCheck.origin)
-  if (probe.status === 'online') {
-    // Best-effort liveness bookkeeping; ignore failures.
+  // If preferred is online, we're done - use it.
+  if (preferred?.status === 'online') {
     c.executionCtx?.waitUntil?.(touchServer(c.env, serverId).catch(() => {}))
+    return c.json({
+      status: 'online',
+      reachable: true,
+      connect_url: server.public_url,
+      via: 'preferred',
+      http_status: preferred.httpStatus,
+    })
   }
+
+  // Preferred is down (or not a valid origin). Try the hs.direct fallback.
+  if (fallbackUrl && fallbackUrl !== server.public_url) {
+    const fb = await probeServer(fallbackUrl)
+    if (fb.status === 'online') {
+      c.executionCtx?.waitUntil?.(touchServer(c.env, serverId).catch(() => {}))
+      return c.json({
+        status: 'online',
+        reachable: true,
+        connect_url: fallbackUrl,
+        via: 'hsdirect_fallback',
+        http_status: fb.httpStatus,
+        preferred_detail: preferred?.detail ?? preferredCheck.reason ?? 'unreachable',
+      })
+    }
+  }
+
+  // Nothing reachable.
   return c.json({
-    status: probe.status,
-    reachable: true,
-    http_status: probe.httpStatus,
-    detail: probe.detail,
+    status: 'offline',
+    reachable: false,
+    connect_url: null,
+    reason: preferred ? preferred.detail : preferredCheck.reason,
+    fallback_tried: Boolean(fallbackUrl),
   })
 })
 

@@ -37,7 +37,14 @@ export interface Env {
 export interface LinkedServerDTO {
   id: string
   name: string
+  /** The PREFERRED address to reach this server: the user's own domain if they
+   *  set one, otherwise the hs.direct host. The SPA connects here first. */
   url: string
+  /** The hs.direct fallback host (`https://<hash>.<zone>`), present when this
+   *  server has a hs.direct cert provisioned. The SPA falls back to this if `url`
+   *  is unreachable. Equal to (or the same as) `url` when the server has no own
+   *  domain. Absent when the server has never provisioned hs.direct. */
+  fallback_url?: string
   role: 'admin' | 'user'
 }
 

@@ -70,16 +70,20 @@ export async function touchServer(env: Env, serverId: string): Promise<void> {
 // --- links -----------------------------------------------------------------
 
 export async function listLinksForUser(env: Env, clerkUserId: string): Promise<
-  Array<LinkRow & { public_url: string; server_name: string | null }>
+  Array<LinkRow & { public_url: string; server_name: string | null; cert_hash: string | null }>
 > {
+  // LEFT JOIN server_certs so we know each server's hs.direct hash (when it has
+  // provisioned one), to expose the fallback URL alongside the preferred one.
   const r = await env.DB.prepare(
-    `SELECT l.*, s.public_url, s.name AS server_name
-       FROM links l JOIN servers s ON s.server_id = l.server_id
+    `SELECT l.*, s.public_url, s.name AS server_name, c.hash AS cert_hash
+       FROM links l
+       JOIN servers s ON s.server_id = l.server_id
+       LEFT JOIN server_certs c ON c.server_id = l.server_id AND c.status = 'active'
       WHERE l.clerk_user_id = ?
       ORDER BY l.created_at ASC`
   )
     .bind(clerkUserId)
-    .all<LinkRow & { public_url: string; server_name: string | null }>()
+    .all<LinkRow & { public_url: string; server_name: string | null; cert_hash: string | null }>()
   return r.results ?? []
 }
 
