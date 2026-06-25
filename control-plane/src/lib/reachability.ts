@@ -43,6 +43,40 @@ export function validatePublicUrl(raw: string): UrlValidation {
   return { ok: true, origin: u.origin }
 }
 
+/**
+ * Refuse hs.direct hostnames whose ENCODED IP is in a private/reserved range.
+ *
+ * A synthesized hs.direct name `<a-b-c-d>.<hash>.<zone>` resolves (by design) to
+ * `a.b.c.d`, which may be a private LAN address - that is the feature, but it is
+ * also textbook DNS-rebinding/SSRF shape. Because the IP is IN the name, we can
+ * reject a private target *without resolving DNS at all*: parse the first label's
+ * four octets and check the range. Any server-side fetch of a synthesized host
+ * (e.g. probeServer) calls this first so the control plane can never be steered
+ * at internal space. See docs/hs-direct-implementation.md sec 1.1 (rebinding
+ * caveat) and build step 5.
+ *
+ * Returns the private IP string if the host encodes a private/reserved address
+ * (caller should refuse), or null if the host is safe to fetch (public IP label,
+ * or not a synthesized name at all - a normal public domain).
+ */
+export function privateIpInSynthesizedHost(host: string): string | null {
+  const label = host.toLowerCase().split('.')[0]
+  const m = /^(\d{1,3})-(\d{1,3})-(\d{1,3})-(\d{1,3})$/.exec(label)
+  if (!m) return null // not an IP-bearing synthesized label; nothing to refuse here
+  const o = m.slice(1).map((n) => Number(n))
+  if (o.some((n) => n > 255)) return null // malformed; let normal validation handle
+  const [a, b] = o
+  const isPrivate =
+    a === 10 || // 10.0.0.0/8
+    (a === 172 && b >= 16 && b <= 31) || // 172.16.0.0/12
+    (a === 192 && b === 168) || // 192.168.0.0/16
+    a === 127 || // loopback
+    (a === 169 && b === 254) || // link-local
+    a === 0 || // "this network"
+    a >= 224 // multicast / reserved
+  return isPrivate ? o.join('.') : null
+}
+
 export type ProbeStatus = 'online' | 'offline'
 
 export interface ProbeResult {
@@ -63,6 +97,21 @@ export interface ProbeResult {
  * cert, HTTP-only).
  */
 export async function probeServer(origin: string, timeoutMs = 4000): Promise<ProbeResult> {
+  // SSRF guard: if this is an hs.direct synthesized host encoding a private IP,
+  // refuse without fetching. The Worker's egress can't reach private space anyway,
+  // but failing fast here is explicit and avoids a misleading timeout. A LAN-only
+  // server reads as offline from the internet, which is the correct advisory.
+  let host = ''
+  try {
+    host = new URL(origin).hostname
+  } catch {
+    return { status: 'offline', detail: 'bad_origin' }
+  }
+  const priv = privateIpInSynthesizedHost(host)
+  if (priv) {
+    return { status: 'offline', detail: 'private_ip' }
+  }
+
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
