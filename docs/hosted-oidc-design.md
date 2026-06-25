@@ -465,12 +465,22 @@ handoff) block mobile. (Spirit rule 7.)
 
 ## 12. Open confirmation items (do before/with build)
 
-1. **Clerk free-tier**: written confirmation that creating OAuth applications
-   (Clerk as provider) is free-plan. If gated to Pro, fall back to one shared
-   confidential client with per-server redirect URIs (§3 row 2) — less isolation,
-   still no browser-exposed secret.
-2. **Clerk OAuth app fields**: confirm the exact `POST /v1/oauth_applications`
-   body (scopes format, public/confidential flag, PKCE enforcement toggle).
+1. **Clerk free-tier — CONFIRMED 2026-06-24**: creating OAuth applications works
+   on the **free** plan. Verified live: `POST /v1/oauth_applications` returned
+   `200` with `client_id` + `client_secret` on the free dev instance. The §3
+   per-server-confidential-client design stands; no fallback to the shared-client
+   posture needed.
+2. **Clerk OAuth app fields — CONFIRMED 2026-06-24 (with corrections)**: verified
+   the exact `POST /v1/oauth_applications` body live. Findings:
+   - `scopes` is a **space-separated string** (`"openid email profile"`) ✓. Clerk
+     **auto-appends `offline_access`**, so the stored value is a superset.
+   - PKCE enforcement field is **`pkce_required: true`** — NOT `require_pkce`.
+     Clerk **silently ignores** the wrong name and leaves PKCE off, so the original
+     code was not enforcing PKCE. Fixed in `clerkOAuth.ts`.
+   - `consent_screen_enabled` defaults to **`true`** — every silent bounce would
+     hit a consent screen, breaking Spirit rule 2. Set **`false`** at creation.
+     Fixed in `clerkOAuth.ts`.
+   - `public: false` (confidential client) ✓.
 3. **ABS behind the gateway — VERIFIED 2026-06-24**: ABS builds redirect_uri from
    the `Host` header (OidcAuthStrategy.js:292-293, :327). `abs_proxy.conf` sets
    `Host`/`X-Forwarded-Host` to `$host` (the **raw inbound Host**), not

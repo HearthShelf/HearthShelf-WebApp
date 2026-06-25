@@ -82,8 +82,18 @@ interface ClerkOAuthAppResponse {
 /**
  * Create a dedicated OAuth client for one server. `name` is human-facing in the
  * Clerk dashboard; `redirectUri` is the server's ABS callback (exact match,
- * https). PKCE is required (confidential client + require_pkce) for defense in
- * depth even though ABS also holds the secret. Returns the secret ONCE.
+ * https). PKCE is required (confidential client + pkce_required) for defense in
+ * depth even though ABS also holds the secret. The consent screen is disabled so
+ * the per-session OIDC bounce stays silent (design sec 4.2 / Spirit rule 2) -
+ * the user already consented to app.hearthshelf.com at sign-in, and ABS is a
+ * first-party server we provisioned, so a per-server consent prompt is friction
+ * with no security value here. Returns the secret ONCE.
+ *
+ * Field names verified live against the Clerk Backend API 2026-06-24: the
+ * enforcement flag is `pkce_required` (NOT `require_pkce`, which Clerk silently
+ * ignores), and `consent_screen_enabled` toggles the consent step. Clerk also
+ * auto-appends `offline_access` to the stored scopes (enables refresh tokens),
+ * so the persisted scope string is a superset of OIDC_SCOPES.
  */
 export async function createOAuthClient(
   env: Env,
@@ -97,7 +107,8 @@ export async function createOAuthClient(
       redirect_uris: [params.redirectUri],
       scopes: OIDC_SCOPES,
       public: false,
-      require_pkce: true,
+      pkce_required: true,
+      consent_screen_enabled: false,
     }),
   })
   if (!res.ok) {
