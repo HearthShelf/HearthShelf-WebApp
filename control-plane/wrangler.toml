@@ -36,6 +36,18 @@ EMAIL_FROM = "no-reply@hearthshelf.com"
 # during dev, e.g. "https://app.hearthshelf.com,http://localhost:5173".
 APP_ORIGINS = "https://app.hearthshelf.com"
 
+# --- hs.direct (automatic HTTPS for self-hosters) ---
+# Base zone for hs.direct hostnames (POC). Production swaps to "hearthshelf.app".
+# When unset, the cert-grant endpoint reports hsdirect_not_configured. Also gates
+# the OIDC redirect-pinning to the stable <hash>.<zone> host.
+HSDIRECT_ZONE = "d.hearthshelf.com"
+# Public base URL of the VPS cert broker (resolves to the RackNerd box via the
+# ns1.d glue record). The HS box POSTs its CSR + a CP grant here to get a cert.
+HSDIRECT_BROKER_URL = "https://ns1.d.hearthshelf.com:8443"
+# Cert-broker grant lifetime in seconds (short = the box must request right
+# before issuing). Defaults to 300 when unset.
+CERT_GRANT_TTL_SECONDS = "300"
+
 # Secrets (set via `wrangler secret put <NAME>`), never committed:
 #   CP_SIGNING_JWK   - the control plane's PRIVATE signing key (JSON JWK, EdDSA)
 #   CLERK_SECRET_KEY - Clerk backend key (sk_...), for creating invitations
