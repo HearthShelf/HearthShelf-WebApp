@@ -130,6 +130,15 @@ covering all of that server's possible IPs (they share the hash subdomain). The
 - **Challenge:** **DNS-01 is required** for wildcards (HTTP-01 cannot issue
   wildcards). The ACME client proves control of `<hash>.<zone>` by writing the
   `_acme-challenge.<hash>.<zone>` TXT record.
+- **Challenge-alias (REQUIRED under Option A - verified 2026-06-24):** because
+  `<zone>` is delegated to the synthesis responder, the responder (not Cloudflare)
+  is authoritative for `_acme-challenge.<hash>.<zone>`, and it only synthesizes A
+  records - so a TXT written to Cloudflare there is **unreachable** and validation
+  fails. Fix: the responder **CNAMEs** every `_acme-challenge.*.<zone>` to a name
+  Cloudflare still serves (`_acme-challenge.hearthshelf.com`), and the broker runs
+  `acme.sh --challenge-alias hearthshelf.com` so it writes the TXT there and Let's
+  Encrypt follows the CNAME. This keeps the responder stateless. Without it, no
+  wildcard issues. (This is the standard delegated-zone ACME pattern.)
 - **Who runs ACME — DECIDED 2026-06-24: a broker service on the VPS.** The `<zone>`
   is ours, and a full ACME flow (order → DNS-01 → poll → finalize → download) is a
   durable, multi-minute state machine that a free Cloudflare Worker cannot host
