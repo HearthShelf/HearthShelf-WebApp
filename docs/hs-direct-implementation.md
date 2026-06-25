@@ -32,10 +32,64 @@ scale independently.
 
 | Half | What it does | Cost | State |
 | --- | --- | --- | --- |
-| **DNS** | Resolve `<ip>.<hash>.<zone>` to `<ip>` by parsing the label | cheap | **stateless** — no records written |
+| **DNS** | Map an hs.direct hostname to the server's IP | cheap | see §1.1 (depends on approach) |
 | **Cert** | Give each server a wildcard cert for `*.<hash>.<zone>` | the real work | per-server key + renewal |
 
-### 1.1 DNS half — stateless wildcard synthesis
+> **DNS approach — DECIDED 2026-06-24 (Option B active, Option A shelved).**
+> The DNS half has two viable shapes. **Option A** (stateless synthesis responder)
+> is the *ideal* design — true Plex parity, zero records, any IP resolves
+> instantly — but it makes us operate an authoritative DNS server (a VPS, UDP/53
+> attack surface, ideally two boxes for redundancy, and a hard dependency every
+> server's HTTPS rides on). **Option B** (per-server A record via the Cloudflare
+> DNS API) deletes all of that: Cloudflare stays authoritative, the control-plane
+> Worker writes one A record per server at pairing — which it must touch the CF
+> API for *anyway* to run the DNS-01 cert challenge — so there's no new server to
+> run, no UDP surface, no VPS cost, and CF's anycast reliability instead of a $5
+> box. **We are building Option B now and shelving Option A.** §1.1 documents both;
+> the rest of this doc (cert, pairing, build order) is identical either way.
+
+### 1.1 DNS half
+
+#### Option B — per-server A record via the Cloudflare DNS API (ACTIVE)
+
+Cloudflare is authoritative for `<zone>`. At pairing (and whenever the server's
+IP changes), the control-plane Worker calls the **Cloudflare DNS API** to upsert a
+single record:
+
+```
+<hash>.<zone>                         ->  A <server-current-ip>
+```
+
+Note the host is the **stable** `<hash>.<zone>` (no IP label) — this is the same
+canonical host the cert wildcard covers and the Clerk redirect pins (§2.4), so the
+hostname never changes as the IP changes; only the A record's *value* is rewritten.
+A dynamic-IP server refreshes its A record by re-announcing its IP to the control
+plane (the same channel it uses to keep the cert valid).
+
+- **State:** one A record per server in the CF zone (proxied = OFF / "DNS only",
+  so the real origin IP is returned and TLS terminates on the server, not CF).
+- **Who writes it:** the control plane, via `control-plane/src/lib/cfDns.ts`
+  (new) — the same module that writes the `_acme-challenge` TXT for DNS-01 (§1.2).
+- **Runtime we operate:** none. No VPS, no UDP/53, no synthesis service.
+- **Tradeoff vs. A:** we provision one record per server (not "zero records"), and
+  a dynamic-IP server must re-announce on IP change. In return: zero DNS ops, no
+  attack surface, CF anycast.
+
+**DNS-rebinding caveat still applies:** the A record can point at a private IP
+(that's the LAN-reachability feature). Mitigations live at the consumers exactly
+as in Option A — `probeServer` runs from the Worker (public egress), and any
+server-side fetch of an hs.direct host must refuse private-range answers (§5,
+build step 5). The CF record being proxied-OFF does not change this.
+
+**Zone delegation (POC):** the zone is `d.hearthshelf.com`, delegated to
+Cloudflare (or a CF-managed subdomain zone). Server hostnames become
+`<hash>.d.hearthshelf.com`; production swaps to `<hash>.hearthshelf.app` (§3).
+
+#### Option A — stateless wildcard synthesis (SHELVED, the ideal)
+
+> Retained as the north-star design. Revisit if per-record CF API limits, dynamic-
+> IP churn, or a desire for exact Plex "zero-provisioning" parity ever justify
+> operating DNS infrastructure. Not being built now.
 
 A hostname encodes the target IP in its left label, hyphen-separated:
 
@@ -46,24 +100,23 @@ A hostname encodes the target IP in its left label, hyphen-separated:
 
 The responder parses the first label, validates it is four 0-255 octets, and
 **synthesizes** the A answer. No per-server, per-IP, or per-user record is ever
-written — any IP resolves instantly with zero provisioning. (This is the point
-design §7 stresses: nothing is provisioned at the DNS layer.)
+written — any IP resolves instantly with zero provisioning.
 
 IPv6 variant (optional, later): encode with a reversible scheme in the label and
-synthesize a AAAA. Not required for the POC.
+synthesize a AAAA.
 
-**Runtime:** a Cloudflare Worker **cannot** serve raw DNS (UDP/53). This half
-needs one of:
-- a small always-on authoritative DNS service we run (tiny VM/container running
-  e.g. CoreDNS with a synthesis plugin, or a ~100-line custom UDP responder), or
-- a managed authoritative DNS that supports answer synthesis.
+**Runtime:** a Cloudflare Worker **cannot** serve raw DNS (UDP/53). Option A needs
+an always-on authoritative DNS service we run (a small VPS running a ~100-line
+custom UDP responder, or CoreDNS with a synthesis plugin). It holds **no state**
+and does **no I/O** beyond parsing — trivially scalable, cache-friendly — but it is
+a server *we operate*, with the ops burden the banner above describes.
 
-It holds **no state** and does **no I/O** beyond parsing — trivially horizontally
-scalable, cache-friendly (long TTL on the synthesized answer).
-
-**Zone delegation (POC):** delegate `d.hearthshelf.com` to the synthesis service
-via `NS` records in the `hearthshelf.com` zone (design §7 POC plan). Server
-hostnames become `192-168-1-7.<hash>.d.hearthshelf.com`.
+With synthesis, the IP lives in the hostname's left label, so the host
+`<ip-label>.<hash>.<zone>` changes as the IP changes — which is exactly the source
+of the §2.4 redirect_uri subtlety. Option B sidesteps that at the DNS layer (stable
+host, value-only updates), but §2.4's nginx `Host` override is still required
+because the browser may reach the server by IP-bearing names in other paths; keep
+the §2.4 fix regardless of DNS approach.
 
 **DNS-rebinding caveat (must document + mitigate downstream):** a synthesized
 name can resolve to a **private IP** (that's the feature — LAN reachability).
@@ -159,6 +212,16 @@ hs.direct produces a `public_url`; everything downstream is unchanged.
    This makes §2.4 and §5 (§12.3) the **same fix**: route ABS's notion of its own
    host through the stable `PUBLIC_URL` host, not the inbound `$host`.
 
+   **Note under Option B (active DNS approach):** the hs.direct hostname is the
+   stable `<hash>.<zone>` and only the A record's *value* changes on IP change, so
+   the browser normally connects to the stable host and ABS's inbound `Host` is
+   already stable — the redirect_uri is correct without the override in the common
+   case. Keep the nginx `Host` override anyway: it is cheap, it makes the redirect
+   deterministic regardless of how the browser reached the box (e.g. a stale cached
+   IP-bearing name, a future Option-A revival, or a direct-IP hairpin), and it
+   costs nothing for Option A bring-your-own-domain servers since it is gated on
+   hs.direct mode.
+
 ---
 
 ## 3. POC → production
@@ -166,13 +229,13 @@ hs.direct produces a `public_url`; everything downstream is unchanged.
 Per design §7 (locked):
 
 - **POC:** zone `d.hearthshelf.com`, certs `*.<hash>.d.hearthshelf.com`. Zero new
-  spend, proves DNS synthesis + DNS-01 + nginx cert loading end-to-end.
+  spend, proves CF-DNS record write + DNS-01 + nginx cert loading end-to-end.
 - **Production:** dedicated **`.app`** domain (lean `hearthshelf.app`) registered
   via **Cloudflare**, for Public-Suffix-List isolation from `hearthshelf.com` /
-  `clerk.hearthshelf.com` (the rebinding-prone synthesized names and any cookies
-  sit on a different registrable domain) and `.app`'s HSTS-preload. ~$14/yr.
-- **The swap is a config change:** the synthesis service's `<zone>` and the cert
-  base. The per-server pairing/issuance flow is identical. No code fork.
+  `clerk.hearthshelf.com` (the rebinding-prone hs.direct names and any cookies sit
+  on a different registrable domain) and `.app`'s HSTS-preload. ~$14/yr.
+- **The swap is a config change:** the `<zone>` env (CF zone id + base domain) and
+  the cert base. The per-server pairing/issuance flow is identical. No code fork.
 
 ---
 
@@ -180,23 +243,30 @@ Per design §7 (locked):
 
 0. **Prereq:** Option A auth path proven end-to-end (design §13 steps 1-3) —
    reachability check is already shipped.
-1. **DNS synthesis service** + delegate `d.hearthshelf.com`. Verifiable in
-   isolation: `dig 192-168-1-7.test.d.hearthshelf.com` returns `192.168.1.7`.
+1. **CF DNS module** (`control-plane/src/lib/cfDns.ts`): upsert/delete an A record
+   `<hash>.<zone> -> <ip>` (proxied OFF) and the `_acme-challenge` TXT, via the
+   Cloudflare DNS API. Pure unit-testable wrapper; one module serves both the A
+   record (DNS half) and the DNS-01 TXT (cert half). Verify against a CF test zone.
 2. **DNS-01 broker** in the control plane: per-server ACME order + TXT write
-   against our zone; issue a wildcard for `*.<hash>.d.hearthshelf.com`. Verify a
-   cert issues for a throwaway hash.
+   (via cfDns) against our zone; issue a wildcard for `*.<hash>.d.hearthshelf.com`.
+   Build against **Let's Encrypt staging**. Verify a (staging) cert issues for a
+   throwaway hash.
 3. **Server cert custody + nginx serving:** the HS/AIO container generates its
    key, obtains the cert (via the broker), and nginx serves HTTPS on it. Verify
-   `curl https://<ip>.<hash>.d.hearthshelf.com/healthcheck` from off-LAN.
-4. **Pairing integration:** compute hostname → `PUBLIC_URL`; pin the per-server
-   Clerk redirect to the **stable** hs.direct host (§2.4); **and** override
-   `Host`/`X-Forwarded-Host` in nginx to that stable host for hs.direct mode (§5 /
-   §12.3 — verified required, not optional: ABS builds redirect_uri from the
-   inbound Host, which is the changing IP label otherwise). Run the existing
-   reachability check against it.
-5. **Renewal automation** (~60-day) + **private-IP refusal** on any server-side
-   fetch of a synthesized host (§1.1 caveat).
-6. **Production swap** to `hearthshelf.app` (config-only).
+   `curl https://<hash>.d.hearthshelf.com/healthcheck` resolves (CF A record) and
+   serves the wildcard cert.
+4. **Pairing integration:** compute the stable hostname `<hash>.<zone>` →
+   `PUBLIC_URL`; write the A record (cfDns); pin the per-server Clerk redirect to
+   that host (§2.4); **and** override `Host`/`X-Forwarded-Host` in nginx to that
+   stable host for hs.direct mode (§5 / §12.3 — verified required: ABS builds
+   redirect_uri from the inbound Host). Run the existing reachability check.
+5. **Renewal automation** (~60-day) + **dynamic-IP A-record refresh** (server
+   re-announces IP → cfDns rewrites the A value) + **private-IP refusal** on any
+   server-side fetch of an hs.direct host (§1.1 caveat).
+6. **Production swap** to `hearthshelf.app` (config-only: CF zone id + base
+   domain + cert base).
+7. **(Shelved) Option A** synthesis responder — only if §1.1's revisit triggers
+   fire. Not part of this build.
 
 ---
 
@@ -225,6 +295,10 @@ Per design §7 (locked):
 
 ## 6. Out of scope here
 
+- **Option A synthesis DNS responder** — shelved (§1.1); the ideal design, not
+  being built. Revisit only if CF per-record limits / dynamic-IP churn / exact
+  Plex parity ever justify operating DNS infrastructure on a VPS.
 - **Relay fallback (design §7 Option C)** for CGNAT servers with no inbound path
   — reintroduces a hop into the data path; separate decision, separate doc.
-- IPv6 label encoding (add once the IPv4 POC is proven).
+- IPv6 (add an AAAA record alongside the A once the IPv4 path is proven; trivial
+  under Option B — one more record write).
