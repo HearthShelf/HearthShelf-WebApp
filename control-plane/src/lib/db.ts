@@ -187,6 +187,76 @@ export async function deleteOAuthClientRow(env: Env, serverId: string): Promise<
   await env.DB.prepare(`DELETE FROM oauth_clients WHERE server_id = ?`).bind(serverId).run()
 }
 
+// --- hs.direct cert status -------------------------------------------------
+
+export interface ServerCertRow {
+  server_id: string
+  hash: string
+  status: 'pending' | 'active' | 'failed'
+  acme_env: string | null
+  last_issued_at: number | null
+  not_after: number | null
+  last_error: string | null
+  created_at: number
+  updated_at: number
+}
+
+/** Record (or refresh) that a cert grant was minted for a server. */
+export async function upsertServerCertPending(
+  env: Env,
+  c: { serverId: string; hash: string }
+): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO server_certs (server_id, hash, status, created_at, updated_at)
+     VALUES (?, ?, 'pending', ?, ?)
+     ON CONFLICT (server_id) DO UPDATE SET
+       hash = excluded.hash,
+       updated_at = excluded.updated_at`
+  )
+    .bind(c.serverId, c.hash, now(), now())
+    .run()
+}
+
+/** The server reports the outcome of an issue/renew (active or failed). */
+export async function recordServerCertResult(
+  env: Env,
+  c: {
+    serverId: string
+    status: 'active' | 'failed'
+    acmeEnv?: string | null
+    notAfter?: number | null
+    lastError?: string | null
+  }
+): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE server_certs SET
+       status = ?,
+       acme_env = COALESCE(?, acme_env),
+       last_issued_at = CASE WHEN ? = 'active' THEN ? ELSE last_issued_at END,
+       not_after = COALESCE(?, not_after),
+       last_error = ?,
+       updated_at = ?
+     WHERE server_id = ?`
+  )
+    .bind(
+      c.status,
+      c.acmeEnv ?? null,
+      c.status,
+      now(),
+      c.notAfter ?? null,
+      c.status === 'failed' ? (c.lastError ?? null) : null,
+      now(),
+      c.serverId
+    )
+    .run()
+}
+
+export async function getServerCert(env: Env, serverId: string): Promise<ServerCertRow | null> {
+  return env.DB.prepare(`SELECT * FROM server_certs WHERE server_id = ?`)
+    .bind(serverId)
+    .first<ServerCertRow>()
+}
+
 // --- pairing codes ---------------------------------------------------------
 
 export async function createPairing(

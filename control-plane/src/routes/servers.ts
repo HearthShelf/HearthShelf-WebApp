@@ -33,8 +33,12 @@ import {
   getOAuthClient,
   markOAuthClientApplied,
   deleteOAuthClientRow,
+  upsertServerCertPending,
+  recordServerCertResult,
+  getServerCert,
 } from '../lib/db'
 import { mintGrant } from '../lib/signing'
+import { mintCertGrant } from '../lib/certBroker'
 import { createClerkInvitation, ClerkApiError } from '../lib/clerkApi'
 import { sendEmail, EmailError } from '../lib/email'
 import { renderInviteEmail } from '../lib/emailTemplates'
@@ -385,6 +389,96 @@ servers.post('/servers/oidc-config', async (c) => {
     redirect_uri: oauth.redirect_uri,
     scopes: 'openid email profile',
   })
+})
+
+/**
+ * hs.direct cert-broker grant (server-to-server). A paired HS box, about to
+ * obtain or renew its hs.direct wildcard cert, asks the control plane to
+ * authorize the request. We authenticate with the server_secret (same pattern as
+ * the other server-to-server endpoints), mint a short-TTL EdDSA grant scoped to
+ * this server's `<hash>`, and return it along with the broker URL + the stable
+ * host. The HS box then POSTs its CSR + this grant to the VPS broker, which
+ * verifies the grant against our JWKS and runs ACME. The control plane never
+ * runs ACME and never sees a private key. See docs/hs-direct-implementation.md
+ * sec 1.2.
+ */
+servers.post('/servers/cert-grant', async (c) => {
+  let body: { server_id?: string; server_secret?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const serverId = (body.server_id || '').trim()
+  const secret = body.server_secret || ''
+  if (!serverId || !secret) return c.json({ error: 'server_id and server_secret required' }, 400)
+
+  const server = await getServer(c.env, serverId)
+  if (!server) return c.json({ error: 'server_unknown' }, 404)
+  const presented = await sha256Hex(secret)
+  if (!timingSafeEqual(presented, server.server_secret_hash)) {
+    return c.json({ error: 'bad_server_secret' }, 401)
+  }
+
+  if (!c.env.HSDIRECT_BROKER_URL) {
+    return c.json({ error: 'hsdirect_not_configured', detail: 'broker URL unset' }, 501)
+  }
+
+  const { token, hash, host } = await mintCertGrant(c.env, { serverId })
+  await upsertServerCertPending(c.env, { serverId, hash })
+
+  return c.json({
+    cert_grant: token,
+    broker_url: c.env.HSDIRECT_BROKER_URL,
+    hash,
+    host, // stable <hash>.<zone>; cert wildcard is *.<hash>.<zone>
+    zone: host.slice(hash.length + 1), // the <zone> portion, for the box to compose names
+    expires_in: Number(c.env.CERT_GRANT_TTL_SECONDS || '300'),
+  })
+})
+
+/**
+ * The HS box reports the outcome of an issue/renew so the picker/admin UI can
+ * reflect real cert status. Server-secret authenticated. Pure bookkeeping - it
+ * does not gate anything (the cert already lives on the box either way).
+ */
+servers.post('/servers/cert-status', async (c) => {
+  let body: {
+    server_id?: string
+    server_secret?: string
+    status?: string
+    acme_env?: string
+    not_after?: number
+    error?: string
+  }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const serverId = (body.server_id || '').trim()
+  const secret = body.server_secret || ''
+  if (!serverId || !secret) return c.json({ error: 'server_id and server_secret required' }, 400)
+
+  const server = await getServer(c.env, serverId)
+  if (!server) return c.json({ error: 'server_unknown' }, 404)
+  const presented = await sha256Hex(secret)
+  if (!timingSafeEqual(presented, server.server_secret_hash)) {
+    return c.json({ error: 'bad_server_secret' }, 401)
+  }
+
+  const status = body.status === 'active' ? 'active' : body.status === 'failed' ? 'failed' : null
+  if (!status) return c.json({ error: 'status must be active|failed' }, 400)
+
+  await recordServerCertResult(c.env, {
+    serverId,
+    status,
+    acmeEnv: body.acme_env ?? null,
+    notAfter: typeof body.not_after === 'number' ? body.not_after : null,
+    lastError: typeof body.error === 'string' ? body.error.slice(0, 500) : null,
+  })
+  const cert = await getServerCert(c.env, serverId)
+  return c.json({ ok: true, status: cert?.status })
 })
 
 // Documented stub for the advertised grant_url. The shipping design mints

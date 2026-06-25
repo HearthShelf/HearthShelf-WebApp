@@ -30,7 +30,7 @@ import {
 } from '../lib/db'
 import { pairingCode, serverSecret, sha256Hex, uuid, now } from '../lib/ids'
 import { validatePublicUrl, probeServer } from '../lib/reachability'
-import { createOAuthClient, absRedirectUri } from '../lib/clerkOAuth'
+import { createOAuthClient, absRedirectUriForServer } from '../lib/clerkOAuth'
 
 export const pairing = new Hono<{ Bindings: Env }>()
 
@@ -230,7 +230,7 @@ pairing.post('/pairing/redeem', async (c) => {
   try {
     const existing = await getOAuthClient(c.env, row.server_id)
     if (!existing) {
-      const redirectUri = absRedirectUri(urlCheck.origin as string)
+      const redirectUri = absRedirectUriForServer(urlCheck.origin as string, c.env.HSDIRECT_ZONE)
       const client = await createOAuthClient(c.env, {
         name: `HearthShelf server ${row.name || row.server_id}`,
         redirectUri,

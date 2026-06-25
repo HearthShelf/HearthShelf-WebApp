@@ -64,6 +64,48 @@ export function absRedirectUri(serverPublicUrl: string): string {
   return `${serverPublicUrl.replace(/\/$/, '')}/auth/openid/callback`
 }
 
+/**
+ * The redirect URI to pin for a server, accounting for hs.direct.
+ *
+ * For a bring-your-own-domain server we pin its public origin directly. For an
+ * hs.direct server the public_url's host is the IP-bearing
+ * `<ip-label>.<hash>.<zone>`, which CHANGES when the server's IP changes - but
+ * the Clerk client allowlists exactly one redirect_uri. So we pin the STABLE
+ * `https://<hash>.<zone>/auth/openid/callback` instead, and the HS container's
+ * nginx forces ABS to see that stable host (hsdirect_abs_proxy.conf). The cert is
+ * a wildcard over `*.<hash>.<zone>`, so it validates the IP-bearing name too.
+ * See docs/hs-direct-implementation.md sec 2.4 / sec 5.
+ *
+ * `hsDirectZone` is the configured base zone (e.g. "d.hearthshelf.com"); when a
+ * server's public_url host ends with `.<zone>` we treat it as hs.direct and
+ * derive the stable host as the last THREE-or-more labels `<hash>.<zone>`.
+ */
+export function absRedirectUriForServer(
+  serverPublicUrl: string,
+  hsDirectZone: string | undefined
+): string {
+  if (hsDirectZone) {
+    const zone = hsDirectZone.replace(/\.+$/, '').toLowerCase()
+    let host: string
+    try {
+      host = new URL(serverPublicUrl).hostname.toLowerCase()
+    } catch {
+      return absRedirectUri(serverPublicUrl)
+    }
+    if (host === zone || host.endsWith('.' + zone)) {
+      // host is <...labels...>.<zone>; the stable host is the SINGLE label
+      // immediately left of the zone joined to the zone: <hash>.<zone>.
+      const prefix = host.slice(0, host.length - zone.length).replace(/\.+$/, '')
+      const labels = prefix.split('.').filter(Boolean)
+      const hash = labels[labels.length - 1] // the <hash> label
+      if (hash) {
+        return `https://${hash}.${zone}/auth/openid/callback`
+      }
+    }
+  }
+  return absRedirectUri(serverPublicUrl)
+}
+
 function authHeaders(env: Env): HeadersInit {
   if (!env.CLERK_SECRET_KEY) throw new ClerkApiError(0, 'CLERK_SECRET_KEY not configured')
   return {
