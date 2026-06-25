@@ -174,6 +174,19 @@ covering all of that server's possible IPs (they share the hash subdomain). The
 
 hs.direct produces a `public_url`; everything downstream is unchanged.
 
+> **Activation (DECIDED 2026-06-25): automatic once paired, no env var.** On the
+> AIO image hs.direct is **on by default** — cert acquisition lives in the HS
+> backend (`server/lib/hsdirect.js`), triggered right after `/hs/hosted/pair`
+> persists the `server_secret` (the control-plane credentials only exist after
+> pairing, so the entrypoint is the wrong place). It also refreshes on boot for an
+> already-paired box. It is the **consolidated, monitored connection point** — a
+> core reason HearthShelf exists — so it stays on even when the user also has their
+> own domain (which is *preferred* for the hosted link; hs.direct is the always-
+> valid fallback, see §2.2/§2.3 and the control-plane preference logic). Opt-out is
+> explicit only: `HSDIRECT_DISABLED=true` or the WebUI toggle. Setting your own
+> `PUBLIC_URL` does **not** disable it. The old `HSDIRECT_ENABLED` opt-in flag and
+> the entrypoint shell script are retired.
+
 1. **Hostname → `PUBLIC_URL`.** At claim time the server computes its hostname
    `<current-ip>.<hash>.<zone>` and sets `PUBLIC_URL=https://<that host>`. For a
    server with multiple/changing IPs, the *hash subdomain* is stable; the IP
