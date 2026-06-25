@@ -471,11 +471,15 @@ handoff) block mobile. (Spirit rule 7.)
    still no browser-exposed secret.
 2. **Clerk OAuth app fields**: confirm the exact `POST /v1/oauth_applications`
    body (scopes format, public/confidential flag, PKCE enforcement toggle).
-3. **ABS behind the gateway**: ABS builds redirect_uri from the `Host` header
-   (OidcAuthStrategy.js:292) — confirm the HS container forwards
-   `X-Forwarded-Host`/`X-Forwarded-Proto` so the redirect_uri equals the public
-   URL we allowlisted on the Clerk client. (nginx `abs_proxy.conf` already sets
-   these — verify it matches `PUBLIC_URL`.)
+3. **ABS behind the gateway — VERIFIED 2026-06-24**: ABS builds redirect_uri from
+   the `Host` header (OidcAuthStrategy.js:292-293, :327). `abs_proxy.conf` sets
+   `Host`/`X-Forwarded-Host` to `$host` (the **raw inbound Host**), not
+   `PUBLIC_URL`'s host. For Option A (fixed bring-your-own domain) these are equal,
+   so the redirect_uri matches the allowlisted value — **no action for MVP**. For
+   Option B (hs.direct) the inbound host is the changing IP-bearing label and
+   diverges from the pinned stable host, so nginx must override these to the
+   canonical `PUBLIC_URL` host. Tracked + resolved in
+   `hs-direct-implementation.md` §2.4 / §5.
 4. **Reachability (§7) — DECIDED**: MVP = Option A (require a CA-valid HTTPS
    `public_url`, validated at pairing). Option B (`hs.direct`-style) is the
    planned follow-up: **POC on `d.hearthshelf.com` subdomain, production on a

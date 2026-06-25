@@ -29,10 +29,33 @@ import {
   upsertOAuthClient,
 } from '../lib/db'
 import { pairingCode, serverSecret, sha256Hex, uuid, now } from '../lib/ids'
-import { validatePublicUrl } from '../lib/reachability'
+import { validatePublicUrl, probeServer } from '../lib/reachability'
 import { createOAuthClient, absRedirectUri } from '../lib/clerkOAuth'
 
 export const pairing = new Hono<{ Bindings: Env }>()
+
+// --- pre-flight reachability check -----------------------------------------
+
+// Best-effort per-IP rate limit for the unauthenticated /reachability/check
+// endpoint, which triggers an outbound fetch. This bucket lives in the isolate's
+// memory, so it only dampens abuse from a single warm isolate - it is NOT a hard
+// global limit (Workers run many isolates). It is enough to stop a trivial flood;
+// upgrade to a CF rate-limit binding or a D1/KV counter if stronger guarantees
+// are needed. The real SSRF control is validate-then-probe-origin below.
+const RL_WINDOW_MS = 60_000
+const RL_MAX = 20
+const rlHits = new Map<string, { count: number; resetAt: number }>()
+
+function rateLimited(ip: string): boolean {
+  const t = now()
+  const cur = rlHits.get(ip)
+  if (!cur || cur.resetAt < t) {
+    rlHits.set(ip, { count: 1, resetAt: t + RL_WINDOW_MS })
+    return false
+  }
+  cur.count++
+  return cur.count > RL_MAX
+}
 
 // --- HS server initiates ---------------------------------------------------
 
@@ -81,6 +104,53 @@ pairing.post('/pairing/start', async (c) => {
     issuer: c.env.CP_ISSUER,
     jwks_url: `${c.env.CP_ISSUER}/.well-known/jwks.json`,
     grant_url: `${c.env.CP_ISSUER}/servers/grant`,
+  })
+})
+
+// --- pre-flight reachability check (called before pairing) -----------------
+
+// The self-hosted setup wizard calls this (via its own backend proxy) to learn,
+// BEFORE committing to pairing, whether its public URL is a valid HTTPS host and
+// reachable from the public internet. The check must run here on the Worker, not
+// on the box: the box can reach itself on the LAN even when the internet can't.
+// Advisory only - the hard gate stays at /pairing/redeem. Always 200; valid/
+// reachable false are normal results, not errors.
+pairing.post('/reachability/check', async (c) => {
+  const ip = c.req.header('CF-Connecting-IP') || 'unknown'
+  if (rateLimited(ip)) return c.json({ error: 'rate_limited' }, 429)
+
+  let body: { public_url?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const publicUrl = (body.public_url || '').trim()
+  if (!publicUrl) return c.json({ error: 'public_url required' }, 400)
+
+  // Validate first. Only probe the NORMALIZED origin, and only when valid - this
+  // is the load-bearing SSRF control (validatePublicUrl rejects bare IPs, dotless
+  // hosts, and non-https, so the probe can never target an internal address).
+  const check = validatePublicUrl(publicUrl)
+  if (!check.ok) {
+    return c.json({
+      valid: false,
+      validReason: check.reason ?? null,
+      reachable: null,
+      probeStatus: null,
+      probeDetail: null,
+      httpStatus: null,
+    })
+  }
+
+  const probe = await probeServer(check.origin as string)
+  return c.json({
+    valid: true,
+    validReason: null,
+    reachable: probe.status === 'online',
+    probeStatus: probe.status,
+    probeDetail: probe.detail ?? null,
+    httpStatus: probe.httpStatus ?? null,
   })
 })
 
