@@ -34,3 +34,6 @@ pnpm-debug.log*
 .env
 .env.local
 .env.*.local
+
+# Local-only agent notes
+CLAUDE.local.md
