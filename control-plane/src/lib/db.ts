@@ -301,6 +301,19 @@ export async function markPairingRedeemed(
     .run()
 }
 
+// Update a pairing's public_url before it is redeemed. Used by the HS box to swap
+// the placeholder it sent at /pairing/start for its real hs.direct hostname once
+// the cert is provisioned, so /pairing/redeem validates the reachable address.
+export async function updatePairingPublicUrl(
+  env: Env,
+  code: string,
+  publicUrl: string
+): Promise<void> {
+  await env.DB.prepare(`UPDATE pairing_codes SET public_url = ? WHERE code = ?`)
+    .bind(publicUrl, code)
+    .run()
+}
+
 // --- pending invites -------------------------------------------------------
 
 export interface InviteRow {

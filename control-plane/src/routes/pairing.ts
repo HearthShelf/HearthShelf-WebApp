@@ -23,12 +23,13 @@ import {
   createPairing,
   getPairing,
   markPairingRedeemed,
+  updatePairingPublicUrl,
   upsertServer,
   createLink,
   getOAuthClient,
   upsertOAuthClient,
 } from '../lib/db'
-import { pairingCode, serverSecret, sha256Hex, uuid, now } from '../lib/ids'
+import { pairingCode, serverSecret, sha256Hex, timingSafeEqual, uuid, now } from '../lib/ids'
 import { validatePublicUrl, probeServer } from '../lib/reachability'
 import { createOAuthClient, absRedirectUriForServer } from '../lib/clerkOAuth'
 
@@ -105,6 +106,49 @@ pairing.post('/pairing/start', async (c) => {
     jwks_url: `${c.env.CP_ISSUER}/.well-known/jwks.json`,
     grant_url: `${c.env.CP_ISSUER}/servers/grant`,
   })
+})
+
+// --- HS server updates its public URL (post-cert) --------------------------
+
+// Called by the HS box after /pairing/start, once it has provisioned its
+// hs.direct certificate and knows its real public hostname. At start the box
+// only has a placeholder (it can't know the hs.direct address until it holds the
+// server_secret), so it swaps it in here BEFORE the user redeems - so the redeem
+// reachability gate validates the real address. Authenticated with the
+// server_secret (the box never had a Clerk token), and only while the code is
+// still live and unredeemed.
+pairing.post('/pairing/update-url', async (c) => {
+  let body: { code?: string; server_secret?: string; public_url?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const code = (body.code || '').trim().toUpperCase()
+  const secret = body.server_secret || ''
+  const publicUrl = (body.public_url || '').trim()
+  if (!code || !secret || !publicUrl) {
+    return c.json({ error: 'code, server_secret and public_url required' }, 400)
+  }
+  try {
+    const u = new URL(publicUrl)
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error('scheme')
+  } catch {
+    return c.json({ error: 'public_url must be an absolute http(s) URL' }, 400)
+  }
+
+  const row = await getPairing(c.env, code)
+  if (!row) return c.json({ error: 'invalid_code' }, 404)
+  if (row.redeemed_at) return c.json({ error: 'code_already_used' }, 409)
+  if (row.expires_at < now()) return c.json({ error: 'code_expired' }, 410)
+
+  const presented = await sha256Hex(secret)
+  if (!timingSafeEqual(presented, row.server_secret_hash)) {
+    return c.json({ error: 'bad_server_secret' }, 401)
+  }
+
+  await updatePairingPublicUrl(c.env, code, publicUrl)
+  return c.json({ ok: true })
 })
 
 // --- pre-flight reachability check (called before pairing) -----------------
