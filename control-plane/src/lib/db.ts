@@ -67,6 +67,18 @@ export async function touchServer(env: Env, serverId: string): Promise<void> {
     .run()
 }
 
+// Update a server's display name after pairing (the box pushes this when the
+// admin renames it in Server Settings). No-op if the server row doesn't exist.
+export async function setServerName(
+  env: Env,
+  serverId: string,
+  name: string
+): Promise<void> {
+  await env.DB.prepare(`UPDATE servers SET name = ?, last_seen_at = ? WHERE server_id = ?`)
+    .bind(name, now(), serverId)
+    .run()
+}
+
 // --- links -----------------------------------------------------------------
 
 export async function listLinksForUser(env: Env, clerkUserId: string): Promise<

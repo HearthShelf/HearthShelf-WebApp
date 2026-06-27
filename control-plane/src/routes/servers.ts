@@ -25,6 +25,7 @@ import {
   countLinksForServer,
   getServer,
   touchServer,
+  setServerName,
   createLink,
   upsertInvite,
   pendingInvitesForEmail,
@@ -316,6 +317,35 @@ servers.get('/servers/:id/invites', async (c) => {
   return c.json({
     invites: invites.map((i) => ({ email: i.email, role: i.role, created_at: i.created_at })),
   })
+})
+
+/**
+ * Update the server's display name (server-to-server, server_secret authed). The
+ * box pushes this when the admin renames it in Server Settings, so the name shown
+ * in the hosted app stays in sync rather than being frozen at pairing time.
+ */
+servers.post('/servers/name', async (c) => {
+  let body: { server_id?: string; server_secret?: string; name?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const serverId = (body.server_id || '').trim()
+  const secret = body.server_secret || ''
+  const name = (body.name || '').trim()
+  if (!serverId || !secret) return c.json({ error: 'server_id and server_secret required' }, 400)
+  if (name.length < 2) return c.json({ error: 'name_too_short' }, 400)
+
+  const server = await getServer(c.env, serverId)
+  if (!server) return c.json({ error: 'server_unknown' }, 404)
+  const presented = await sha256Hex(secret)
+  if (!timingSafeEqual(presented, server.server_secret_hash)) {
+    return c.json({ error: 'bad_server_secret' }, 401)
+  }
+
+  await setServerName(c.env, serverId, name)
+  return c.json({ ok: true, name })
 })
 
 /**
