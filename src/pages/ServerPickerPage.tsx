@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Server, AlertCircle, Loader2 } from 'lucide-react'
 import { useServers } from '@/hooks/useServers'
 import { Button } from '@/components/ui/Button'
 import { LinkServerDialog } from '@/components/LinkServerDialog'
-import { ServerStatusDot } from '@/components/ServerStatusDot'
-import { cn } from '@/lib/cn'
+import { ServerRow } from '@/components/ServerRow'
 
 export function ServerPickerPage() {
   const { data: servers, isLoading, isError, error } = useServers()
@@ -74,24 +73,7 @@ export function ServerPickerPage() {
       {servers && servers.length > 0 && (
         <ul className="grid gap-3">
           {servers.map((s) => (
-            <li key={s.id}>
-              <Link
-                to={`/server/${s.id}`}
-                className={cn(
-                  'flex items-center gap-4 rounded-lg border border-border bg-card p-4',
-                  'transition-colors hover:bg-elevated'
-                )}
-              >
-                <span className="flex size-10 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
-                  <Server size={18} />
-                </span>
-                <span className="flex-1">
-                  <span className="block font-medium text-card-foreground">{s.name}</span>
-                  <span className="t-mono block">{s.url}</span>
-                </span>
-                <ServerStatusDot serverId={s.id} />
-              </Link>
-            </li>
+            <ServerRow key={s.id} server={s} />
           ))}
         </ul>
       )}
