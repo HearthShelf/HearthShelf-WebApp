@@ -79,6 +79,23 @@ export async function setServerName(
     .run()
 }
 
+// Rotate an already-registered server's secret hash at /pairing/start, so the
+// fresh secret the box receives validates immediately against the servers row
+// (cert-grant + the server_secret-authed routes read servers, not the pairing
+// row). Without this, re-pairing drifted the box's secret from the row until the
+// next redeem rewrote it - the bad_server_secret bug. No-op if the row is absent.
+export async function setServerSecretHash(
+  env: Env,
+  serverId: string,
+  secretHash: string
+): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE servers SET server_secret_hash = ?, last_seen_at = ? WHERE server_id = ?`
+  )
+    .bind(secretHash, now(), serverId)
+    .run()
+}
+
 // --- links -----------------------------------------------------------------
 
 export async function listLinksForUser(env: Env, clerkUserId: string): Promise<

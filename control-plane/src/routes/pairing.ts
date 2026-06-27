@@ -22,6 +22,8 @@ import { bearer, verifyClerk, AuthError } from '../lib/clerk'
 import {
   createPairing,
   getPairing,
+  getServer,
+  setServerSecretHash,
   markPairingRedeemed,
   updatePairingPublicUrl,
   getOwnerLinkForServer,
@@ -82,8 +84,22 @@ pairing.post('/pairing/start', async (c) => {
     return c.json({ error: 'public_url must be an absolute http(s) URL' }, 400)
   }
 
+  // Secret lifecycle: always issue a FRESH secret (the box stores it). For an
+  // ALREADY-REGISTERED server we also rotate the servers-row hash NOW, so the
+  // box's new secret validates immediately against the row that cert-grant and
+  // the server_secret-authed routes read - no drift window. (Rotating without
+  // updating the row was the bad_server_secret bug: a re-pair left the box's
+  // secret out of sync with the row until the next redeem rewrote it.) This
+  // self-heals a box whose stored secret had drifted. Redeem stays the ownership
+  // gate; rotating an existing row's secret only helps whoever already holds the
+  // box, which is the legitimate self-hoster.
   const secret = serverSecret()
   const secretHash = await sha256Hex(secret)
+  const existing = await getServer(c.env, serverId)
+  if (existing) {
+    await setServerSecretHash(c.env, serverId, secretHash)
+  }
+
   const code = pairingCode()
   const ttl = Number(c.env.PAIRING_TTL_SECONDS || '900')
   const expiresAt = now() + ttl * 1000
@@ -97,8 +113,8 @@ pairing.post('/pairing/start', async (c) => {
     expiresAt,
   })
 
-  // Return everything HS needs to finish setup: the code to display, the secret
-  // to keep (only chance to see it), and our key endpoints to pin.
+  // Return what HS needs: the code to display, the secret to keep, and our key
+  // endpoints to pin.
   return c.json({
     code,
     expires_at: expiresAt,
