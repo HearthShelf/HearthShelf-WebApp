@@ -412,3 +412,35 @@ export async function pendingInvitesForServer(env: Env, serverId: string): Promi
     .all<InviteRow>()
   return r.results ?? []
 }
+
+// --- email send metering ---------------------------------------------------
+
+/** Start of the current UTC calendar month, as a millisecond epoch. The bucket
+ *  key for monthly send quotas; a new month is simply a new row. */
+export function monthWindowStart(): number {
+  const d = new Date(now())
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)
+}
+
+/** How many emails a server has sent in the current monthly window. */
+export async function emailSentThisWindow(env: Env, serverId: string): Promise<number> {
+  const r = await env.DB.prepare(
+    `SELECT sent FROM email_quota WHERE server_id = ? AND window_start = ?`
+  )
+    .bind(serverId, monthWindowStart())
+    .first<{ sent: number }>()
+  return r?.sent ?? 0
+}
+
+/** Increment a server's send count for the current window (creating the row). */
+export async function incrementEmailSent(env: Env, serverId: string): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO email_quota (server_id, window_start, sent, updated_at)
+     VALUES (?, ?, 1, ?)
+     ON CONFLICT (server_id, window_start) DO UPDATE SET
+       sent = sent + 1,
+       updated_at = excluded.updated_at`
+  )
+    .bind(serverId, monthWindowStart(), now())
+    .run()
+}

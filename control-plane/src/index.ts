@@ -19,6 +19,7 @@ import type { Env } from './types'
 import { wellKnown } from './routes/well-known'
 import { pairing } from './routes/pairing'
 import { servers } from './routes/servers'
+import { email } from './routes/email'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -45,6 +46,7 @@ app.get('/health', (c) => c.json({ ok: true }))
 app.route('/', wellKnown)
 app.route('/', pairing)
 app.route('/', servers)
+app.route('/', email)
 
 app.notFound((c) => c.json({ error: 'not_found' }, 404))
 app.onError((err, c) => {

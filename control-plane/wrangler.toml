@@ -31,6 +31,10 @@ GRANT_TTL_SECONDS = "300"
 PAIRING_TTL_SECONDS = "900"
 # Default From: address for outbound email sent via Resend.
 EMAIL_FROM = "no-reply@hearthshelf.com"
+# Per-server monthly send cap for the hosted email relay (POST /email/send).
+# A generous free allowance; the paid tier later raises this per server. The box
+# can deliver e-reader books + test mail through us without its own SMTP.
+EMAIL_RELAY_MONTHLY_CAP = "500"
 # CORS allowlist of SPA origin(s) permitted to call this API (comma-separated).
 # Pinned - the API never reflects arbitrary origins. Add localhost/preview here
 # during dev, e.g. "https://app.hearthshelf.com,http://localhost:5173".

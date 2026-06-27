@@ -18,6 +18,8 @@ export interface Env {
   CERT_GRANT_TTL_SECONDS?: string
   /** Default From: address for outbound email, e.g. "no-reply@hearthshelf.com". */
   EMAIL_FROM: string
+  /** Per-server monthly send cap for the hosted email relay. Defaults to 500. */
+  EMAIL_RELAY_MONTHLY_CAP?: string
   /**
    * Comma-separated CORS allowlist of SPA origins (prod + any preview/localhost).
    * Optional; defaults to https://app.hearthshelf.com when unset.
