@@ -24,6 +24,7 @@ import {
   getPairing,
   markPairingRedeemed,
   updatePairingPublicUrl,
+  getOwnerLinkForServer,
   upsertServer,
   createLink,
   getOAuthClient,
@@ -149,6 +150,45 @@ pairing.post('/pairing/update-url', async (c) => {
 
   await updatePairingPublicUrl(c.env, code, publicUrl)
   return c.json({ ok: true })
+})
+
+// --- HS server polls for the claim ----------------------------------------
+
+// The box polls this after showing the code, to learn when a signed-in user has
+// redeemed it (claimed ownership). Lets the box stop showing the code and move on
+// to diagnostics without the admin having to come back and click "finish".
+// Authenticated with the server_secret (the box has no Clerk token). Returns the
+// claim state + who claimed it + the stored name, so the box can say
+// "Connected as <name>, owned by <email>".
+pairing.post('/pairing/status', async (c) => {
+  let body: { code?: string; server_secret?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const code = (body.code || '').trim().toUpperCase()
+  const secret = body.server_secret || ''
+  if (!code || !secret) {
+    return c.json({ error: 'code and server_secret required' }, 400)
+  }
+
+  const row = await getPairing(c.env, code)
+  if (!row) return c.json({ error: 'invalid_code' }, 404)
+
+  const presented = await sha256Hex(secret)
+  if (!timingSafeEqual(presented, row.server_secret_hash)) {
+    return c.json({ error: 'bad_server_secret' }, 401)
+  }
+
+  const claimed = !!row.redeemed_at
+  const owner = claimed ? await getOwnerLinkForServer(c.env, row.server_id) : null
+  return c.json({
+    claimed,
+    expired: !claimed && row.expires_at < now(),
+    name: row.name,
+    claimedByEmail: owner?.email ?? null,
+  })
 })
 
 // --- pre-flight reachability check (called before pairing) -----------------

@@ -132,6 +132,19 @@ export async function countLinksForServer(env: Env, serverId: string): Promise<n
   return r?.n ?? 0
 }
 
+// The first (owner/admin) link for a server, used by /pairing/status to tell the
+// box who claimed it. Earliest-created link = the admin who redeemed first.
+export async function getOwnerLinkForServer(
+  env: Env,
+  serverId: string
+): Promise<{ email: string; role: string } | null> {
+  return env.DB.prepare(
+    `SELECT email, role FROM links WHERE server_id = ? ORDER BY created_at ASC LIMIT 1`
+  )
+    .bind(serverId)
+    .first<{ email: string; role: string }>()
+}
+
 // --- per-server OAuth clients (hosted OIDC) --------------------------------
 
 export interface OAuthClientRow {
