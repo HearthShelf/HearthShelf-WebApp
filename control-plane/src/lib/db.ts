@@ -79,6 +79,13 @@ export async function setServerName(
     .run()
 }
 
+// Remove a server entirely (box-initiated disconnect). All dependents - links,
+// invites, oauth_clients, server_certs - cascade via their ON DELETE CASCADE FKs,
+// so the server fully vanishes from the hosted app. No-op if absent.
+export async function deleteServer(env: Env, serverId: string): Promise<void> {
+  await env.DB.prepare(`DELETE FROM servers WHERE server_id = ?`).bind(serverId).run()
+}
+
 // Rotate an already-registered server's secret hash at /pairing/start, so the
 // fresh secret the box receives validates immediately against the servers row
 // (cert-grant + the server_secret-authed routes read servers, not the pairing

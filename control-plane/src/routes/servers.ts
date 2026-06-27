@@ -26,6 +26,7 @@ import {
   getServer,
   touchServer,
   setServerName,
+  deleteServer,
   createLink,
   upsertInvite,
   pendingInvitesForEmail,
@@ -346,6 +347,45 @@ servers.post('/servers/name', async (c) => {
 
   await setServerName(c.env, serverId, name)
   return c.json({ ok: true, name })
+})
+
+/**
+ * Box-initiated disconnect (server_secret authed). The self-hosted box tears down
+ * its own registration: revoke the dedicated Clerk OAuth client, then delete the
+ * server row (links / invites / oauth / certs cascade). After this the server is
+ * fully gone from the hosted app - it no longer appears in anyone's list. The box
+ * also clears its local trust state. Idempotent: an unknown server returns ok.
+ */
+servers.post('/servers/deregister', async (c) => {
+  let body: { server_id?: string; server_secret?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const serverId = (body.server_id || '').trim()
+  const secret = body.server_secret || ''
+  if (!serverId || !secret) return c.json({ error: 'server_id and server_secret required' }, 400)
+
+  const server = await getServer(c.env, serverId)
+  if (!server) return c.json({ ok: true }) // already gone - idempotent
+  const presented = await sha256Hex(secret)
+  if (!timingSafeEqual(presented, server.server_secret_hash)) {
+    return c.json({ error: 'bad_server_secret' }, 401)
+  }
+
+  // Revoke the dedicated Clerk OAuth client (best-effort), then delete the server
+  // row - dependents cascade.
+  const oauth = await getOAuthClient(c.env, serverId)
+  if (oauth) {
+    try {
+      await deleteOAuthClient(c.env, oauth.clerk_app_id)
+    } catch {
+      // ignore - revocation is best-effort
+    }
+  }
+  await deleteServer(c.env, serverId)
+  return c.json({ ok: true })
 })
 
 /**
