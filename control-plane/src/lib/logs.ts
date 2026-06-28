@@ -51,13 +51,3 @@ export async function readLogs(env: Env, query: string): Promise<unknown | null>
     return null
   }
 }
-
-/** Is this verified email a platform operator? Allowlist from PLATFORM_ADMIN_EMAILS
- *  (comma-separated, case-insensitive). Empty list = nobody (locked by default). */
-export function isPlatformAdmin(env: Env, email: string): boolean {
-  const allow = (env.PLATFORM_ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean)
-  return !!email && allow.includes(email.toLowerCase())
-}

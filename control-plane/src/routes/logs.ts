@@ -10,25 +10,13 @@
  * index.ts). The CP never binds the logs DB - all access is via LOG_COLLECTOR.
  */
 import { Hono } from 'hono'
-import type { Context } from 'hono'
 import type { Env } from '../types'
-import { bearer, verifyClerk, AuthError, type ClerkIdentity } from '../lib/clerk'
 import { getServer } from '../lib/db'
 import { sha256Hex, timingSafeEqual } from '../lib/ids'
-import { forwardLog, readLogs, isPlatformAdmin } from '../lib/logs'
+import { resolveAdmin } from '../lib/admin'
+import { forwardLog, readLogs } from '../lib/logs'
 
 export const logs = new Hono<{ Bindings: Env }>()
-
-async function requireUser(c: Context<{ Bindings: Env }>): Promise<ClerkIdentity | null> {
-  const token = bearer(c.req.header('Authorization') ?? null)
-  if (!token) return null
-  try {
-    return await verifyClerk(c.env, token)
-  } catch (err) {
-    if (err instanceof AuthError) return null
-    throw err
-  }
-}
 
 // A self-hosted box ships its own connect/cert errors here. Authenticated by the
 // server_secret (same scheme as /servers/name, /servers/deregister) so only a
@@ -71,12 +59,15 @@ logs.post('/logs/box', async (c) => {
   return c.json({ ok: true })
 })
 
-// Admin viewer read. Platform operators only (PLATFORM_ADMIN_EMAILS allowlist),
-// NOT per-server admins. Proxies the query through to the collector.
+// Admin viewer read. Platform admins only (the platform_admins D1 table, the same
+// gate as the rest of the admin panel), NOT per-server admins. Proxies the query
+// through to the collector.
 logs.get('/logs', async (c) => {
-  const user = await requireUser(c)
-  if (!user) return c.json({ error: 'unauthorized' }, 401)
-  if (!isPlatformAdmin(c.env, user.email)) return c.json({ error: 'forbidden' }, 403)
+  const ctx = await resolveAdmin(c)
+  if (!ctx) {
+    const authed = !!c.req.header('Authorization')
+    return c.json({ error: authed ? 'forbidden' : 'unauthorized' }, authed ? 403 : 401)
+  }
 
   // Pass through only the whitelisted query params so we don't proxy junk.
   const u = new URL(c.req.url)

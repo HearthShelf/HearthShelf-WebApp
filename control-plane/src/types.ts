@@ -45,10 +45,6 @@ export interface Env {
    *  sent as the x-cp-forward header. Same value as the collector's
    *  LOG_INGEST_TOKEN. Optional - log forwarding/reads no-op when unset. */
   LOG_INGEST_TOKEN?: string
-  /** Comma-separated allowlist of platform-operator emails permitted to read the
-   *  infra log viewer. Empty = nobody (the viewer is locked by default). This is
-   *  distinct from per-server 'admin' role - it gates fleet-wide infra access. */
-  PLATFORM_ADMIN_EMAILS?: string
 }
 
 /** A server linked to the authenticated user, as returned to the SPA. */

@@ -23,6 +23,15 @@ const EMAIL_CLAIM = 'email'
 const EMAIL_VERIFIED_CLAIM = 'email_verified'
 const USERNAME_CLAIM = 'username'
 
+/** Allowed authorized-parties for a Clerk session token = our SPA origin(s).
+ *  Same list as the CORS allowlist; defaults to production when unset. */
+function allowedParties(env: Env): string[] {
+  return (env.APP_ORIGINS || 'https://app.hearthshelf.com')
+    .split(',')
+    .map((o) => o.trim().replace(/\/$/, ''))
+    .filter(Boolean)
+}
+
 export interface ClerkIdentity {
   userId: string
   email: string
@@ -63,6 +72,15 @@ export async function verifyClerk(env: Env, token: string): Promise<ClerkIdentit
 
   const userId = typeof payload.sub === 'string' ? payload.sub : ''
   if (!userId) throw new AuthError('no subject in token')
+
+  // Authorized-party check: Clerk stamps `azp` with the origin that requested the
+  // token. Reject a token minted for a different app under the same Clerk issuer.
+  // Only enforced when `azp` is present (some token templates omit it); when
+  // present it MUST be one of our SPA origins.
+  const azp = typeof payload.azp === 'string' ? payload.azp.replace(/\/$/, '') : ''
+  if (azp && !allowedParties(env).includes(azp)) {
+    throw new AuthError('unauthorized party')
+  }
 
   const email = typeof payload[EMAIL_CLAIM] === 'string' ? (payload[EMAIL_CLAIM] as string) : ''
   const emailVerified = payload[EMAIL_VERIFIED_CLAIM] === true

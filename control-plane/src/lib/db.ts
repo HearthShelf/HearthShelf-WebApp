@@ -487,3 +487,185 @@ export async function incrementEmailSent(env: Env, serverId: string): Promise<vo
     .bind(serverId, monthWindowStart(), now())
     .run()
 }
+
+// --- platform admins -------------------------------------------------------
+
+export interface PlatformAdminRow {
+  clerk_user_id: string
+  role: string
+  email: string | null
+  granted_by: string | null
+  granted_at: number
+}
+
+/** Resolve a platform-admin row by clerk_user_id OR (lowercased) email. Email
+ *  match supports the seed/log-viewer cutover where a row may exist by email
+ *  before we've seen the operator's Clerk id. Returns null if neither matches. */
+export async function getPlatformAdmin(
+  env: Env,
+  opts: { clerkUserId?: string; email?: string }
+): Promise<PlatformAdminRow | null> {
+  const id = opts.clerkUserId ?? ''
+  const email = (opts.email ?? '').toLowerCase()
+  if (!id && !email) return null
+  return env.DB.prepare(
+    `SELECT * FROM platform_admins WHERE clerk_user_id = ? OR (email IS NOT NULL AND email = ?) LIMIT 1`
+  )
+    .bind(id, email)
+    .first<PlatformAdminRow>()
+}
+
+/** Backfill the real Clerk id onto an email-seeded admin row, the first time that
+ *  operator authenticates. Rewrites the PK from the 'seed:<email>' placeholder to
+ *  the actual clerk_user_id so the row is id-authoritative thereafter. No-op if
+ *  the row already keys on this id. */
+export async function backfillAdminClerkId(
+  env: Env,
+  email: string,
+  clerkUserId: string
+): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE platform_admins SET clerk_user_id = ?
+       WHERE email = ? AND clerk_user_id <> ?`
+  )
+    .bind(clerkUserId, email.toLowerCase(), clerkUserId)
+    .run()
+}
+
+export async function listPlatformAdmins(env: Env): Promise<PlatformAdminRow[]> {
+  const r = await env.DB.prepare(
+    `SELECT * FROM platform_admins ORDER BY granted_at ASC`
+  ).all<PlatformAdminRow>()
+  return r.results ?? []
+}
+
+export async function addPlatformAdmin(
+  env: Env,
+  a: { clerkUserId: string; email: string | null; role?: string; grantedBy: string }
+): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO platform_admins (clerk_user_id, role, email, granted_by, granted_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT (clerk_user_id) DO UPDATE SET
+       role = excluded.role, email = excluded.email`
+  )
+    .bind(a.clerkUserId, a.role ?? 'admin', a.email?.toLowerCase() ?? null, a.grantedBy, now())
+    .run()
+}
+
+export async function removePlatformAdmin(env: Env, clerkUserId: string): Promise<void> {
+  await env.DB.prepare(`DELETE FROM platform_admins WHERE clerk_user_id = ?`)
+    .bind(clerkUserId)
+    .run()
+}
+
+/** Count remaining admins - used to refuse removing the last one (lockout guard). */
+export async function countPlatformAdmins(env: Env): Promise<number> {
+  const r = await env.DB.prepare(`SELECT COUNT(*) AS n FROM platform_admins`).first<{ n: number }>()
+  return r?.n ?? 0
+}
+
+// --- admin audit -----------------------------------------------------------
+
+export interface AuditRow {
+  id: string
+  actor: string
+  action: string
+  target: string | null
+  detail: string | null
+  created_at: number
+}
+
+export async function writeAudit(
+  env: Env,
+  a: { id: string; actor: string; action: string; target?: string | null; detail?: unknown }
+): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO admin_audit (id, actor, action, target, detail, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  )
+    .bind(
+      a.id,
+      a.actor,
+      a.action,
+      a.target ?? null,
+      a.detail === undefined ? null : JSON.stringify(a.detail),
+      now()
+    )
+    .run()
+}
+
+export async function listAudit(env: Env, limit = 100): Promise<AuditRow[]> {
+  const capped = Math.min(Math.max(limit, 1), 500)
+  const r = await env.DB.prepare(
+    `SELECT * FROM admin_audit ORDER BY created_at DESC LIMIT ?`
+  )
+    .bind(capped)
+    .all<AuditRow>()
+  return r.results ?? []
+}
+
+// --- entitlements (billing seam) -------------------------------------------
+
+export interface EntitlementRow {
+  clerk_user_id: string
+  plan: string
+  source: string
+  granted_by: string | null
+  updated_at: number
+}
+
+/** The user's plan. D1 is the SOLE source of truth - never read from a JWT.
+ *  Absent row = 'free'. */
+export async function getEntitlement(env: Env, clerkUserId: string): Promise<EntitlementRow | null> {
+  return env.DB.prepare(`SELECT * FROM entitlements WHERE clerk_user_id = ?`)
+    .bind(clerkUserId)
+    .first<EntitlementRow>()
+}
+
+export async function setEntitlement(
+  env: Env,
+  e: { clerkUserId: string; plan: string; source?: string; grantedBy: string }
+): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO entitlements (clerk_user_id, plan, source, granted_by, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT (clerk_user_id) DO UPDATE SET
+       plan = excluded.plan, source = excluded.source,
+       granted_by = excluded.granted_by, updated_at = excluded.updated_at`
+  )
+    .bind(e.clerkUserId, e.plan, e.source ?? 'manual', e.grantedBy, now())
+    .run()
+}
+
+/** Listing of all servers for the admin moderation view, with linked-user counts. */
+export async function listAllServers(env: Env): Promise<
+  Array<ServerRow & { link_count: number }>
+> {
+  const r = await env.DB.prepare(
+    `SELECT s.*, (SELECT COUNT(*) FROM links l WHERE l.server_id = s.server_id) AS link_count
+       FROM servers s
+      ORDER BY s.created_at DESC`
+  ).all<ServerRow & { link_count: number }>()
+  return r.results ?? []
+}
+
+/** All links for a server (admin inspect view). */
+export async function listLinksForServer(env: Env, serverId: string): Promise<LinkRow[]> {
+  const r = await env.DB.prepare(
+    `SELECT * FROM links WHERE server_id = ? ORDER BY created_at ASC`
+  )
+    .bind(serverId)
+    .all<LinkRow>()
+  return r.results ?? []
+}
+
+/** All links for a user across servers (admin user-inspect view). */
+export async function listLinksByUser(env: Env, clerkUserId: string): Promise<LinkRow[]> {
+  const r = await env.DB.prepare(
+    `SELECT * FROM links WHERE clerk_user_id = ? ORDER BY created_at ASC`
+  )
+    .bind(clerkUserId)
+    .all<LinkRow>()
+  return r.results ?? []
+}

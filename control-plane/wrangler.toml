@@ -48,10 +48,10 @@ EMAIL_RELAY_MONTHLY_CAP = "500"
 # Pinned - the API never reflects arbitrary origins. Add localhost/preview here
 # during dev, e.g. "https://app.hearthshelf.com,http://localhost:5173".
 APP_ORIGINS = "https://app.hearthshelf.com"
-# Comma-separated allowlist of platform-operator emails allowed to read the infra
-# log viewer (GET /logs). Empty = nobody. This is NOT the per-server admin role;
-# it gates fleet-wide infra access. Set to your operator email(s).
-PLATFORM_ADMIN_EMAILS = "jeremy12@gmail.com"
+# Platform admins (who can moderate the fleet, manage plans, and read the infra log
+# viewer) live in the platform_admins D1 table - granted/revoked at runtime via the
+# admin panel and audited - NOT in an env var. The bootstrap operator is seeded by
+# email in migration 0006; their clerk_user_id is backfilled on first sign-in.
 
 # --- hs.direct (automatic HTTPS for self-hosters) ---
 # Base zone for hs.direct hostnames (POC). Production swaps to "hearthshelf.app".

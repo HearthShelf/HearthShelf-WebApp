@@ -21,6 +21,7 @@ import { pairing } from './routes/pairing'
 import { servers } from './routes/servers'
 import { email } from './routes/email'
 import { logs } from './routes/logs'
+import { admin } from './routes/admin'
 import { forwardLog } from './lib/logs'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -50,6 +51,7 @@ app.route('/', pairing)
 app.route('/', servers)
 app.route('/', email)
 app.route('/', logs)
+app.route('/', admin)
 
 app.notFound((c) => c.json({ error: 'not_found' }, 404))
 app.onError((err, c) => {
