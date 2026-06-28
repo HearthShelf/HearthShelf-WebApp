@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { usePlayer } from '@/player/PlayerProvider'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { Icon } from '@/components/common/Icon'
-import type { AbsChapter } from '@/api/absLibrary'
 
 const SPEEDS = [0.8, 1, 1.2, 1.5, 1.75, 2, 2.5, 3]
 const SLEEP_OPTIONS = [15, 30, 45, 60]
@@ -47,18 +46,12 @@ export function PlayerPage() {
   const chapters = now?.chapters ?? []
   const duration = now?.totalDurationSec ?? 0
 
-  // Derived chapter position.
-  const { ci, cur } = useMemo(() => {
-    if (chapters.length === 0) {
-      return {
-        ci: 0,
-        cur: { id: 0, startSec: 0, endSec: duration, title: 'Full book' } as AbsChapter,
-      }
-    }
-    let idx = chapters.findIndex((c) => positionSec < c.endSec)
-    if (idx === -1) idx = chapters.length - 1
-    return { ci: idx, cur: chapters[idx] }
-  }, [chapters, positionSec, duration])
+  // Index of the chapter currently playing (0 when there are no chapters).
+  const ci = useMemo(() => {
+    if (chapters.length === 0) return 0
+    const idx = chapters.findIndex((c) => positionSec < c.endSec)
+    return idx === -1 ? chapters.length - 1 : idx
+  }, [chapters, positionSec])
 
   // Keyboard shortcuts (player route only).
   useEffect(() => {
