@@ -41,7 +41,7 @@ interface RawListItem {
   id: string
   mediaType: 'book' | 'podcast'
   media?: {
-    metadata?: { title?: string; authorName?: string }
+    metadata?: { title?: string; authorName?: string; narratorName?: string }
     duration?: number
   }
 }
@@ -438,6 +438,43 @@ export async function setItemFinished(
   })
 }
 
+// --- bulk media progress (/api/me -> mediaProgress[]) -----------------------
+
+/** One item's listening progress, as ABS returns it in /api/me. */
+export interface MediaProgress {
+  libraryItemId: string
+  duration: number
+  /** 0..1 fraction complete. */
+  progress: number
+  currentTime: number
+  isFinished: boolean
+}
+
+interface RawMeResponse {
+  mediaProgress?: Array<{
+    libraryItemId: string
+    duration?: number
+    progress?: number
+    currentTime?: number
+    isFinished?: boolean
+  }>
+}
+
+/**
+ * The user's full per-item progress list, for building a libraryItemId -> progress
+ * lookup (tiles, shelves, detail pages). One /api/me call covers the whole library.
+ */
+export async function getMediaProgress(t: AbsTarget): Promise<MediaProgress[]> {
+  const data = await absGet<RawMeResponse>(t, '/api/me')
+  return (data.mediaProgress ?? []).map((p) => ({
+    libraryItemId: p.libraryItemId,
+    duration: p.duration ?? 0,
+    progress: p.progress ?? 0,
+    currentTime: p.currentTime ?? 0,
+    isFinished: Boolean(p.isFinished),
+  }))
+}
+
 // --- listening stats (/api/me/listening-stats) ------------------------------
 
 export interface ListeningStats {
@@ -529,4 +566,89 @@ export async function getListeningSessions(
     page: data.page ?? page,
     numPages: data.numPages ?? 1,
   }
+}
+
+// --- narrators (people view) ------------------------------------------------
+
+/** A narrator summary as returned by ABS's library narrators endpoint. */
+export interface AbsNarrator {
+  id: string
+  name: string
+  numBooks: number
+}
+
+interface NarratorsResponse {
+  narrators?: AbsNarrator[]
+}
+
+/**
+ * List the narrators in a library. ABS derives these from item metadata (they
+ * are not first-class records), giving each a synthetic id, the display name,
+ * and how many books credit them.
+ */
+export async function getNarrators(
+  t: AbsTarget,
+  libraryId: string
+): Promise<AbsNarrator[]> {
+  const data = await absGet<NarratorsResponse>(
+    t,
+    `/api/libraries/${encodeURIComponent(libraryId)}/narrators`
+  )
+  return (data.narrators ?? []).map((n) => ({
+    id: n.id,
+    name: n.name,
+    numBooks: n.numBooks ?? 0,
+  }))
+}
+
+/**
+ * A library item carrying the fields the narrators view needs to build a
+ * narrator -> books map. Extends the list shape with the raw narrator credit
+ * string (comma-joined names) ABS stores on each item's metadata.
+ */
+export interface AbsNarratorItem extends AbsListItem {
+  /** Raw narrator credit string ("Name A, Name B"), empty when uncredited. */
+  narrator: string
+}
+
+/**
+ * Fetch every item in a library (limit=0) with its narrator credit, for
+ * building the narrator -> books map the people view renders. Mirrors the
+ * minified list shape but keeps narratorName so callers can group by narrator.
+ */
+export async function getAllLibraryItems(
+  t: AbsTarget,
+  libraryId: string
+): Promise<AbsNarratorItem[]> {
+  const data = await absGet<{ results?: RawListItem[] }>(
+    t,
+    `/api/libraries/${encodeURIComponent(libraryId)}/items?minified=1&limit=0`
+  )
+  return (data.results ?? []).map((r) => ({
+    id: r.id,
+    title: r.media?.metadata?.title || 'Untitled',
+    author: r.media?.metadata?.authorName || '',
+    mediaType: r.mediaType,
+    durationSec: r.media?.duration ?? 0,
+    narrator: r.media?.metadata?.narratorName || '',
+  }))
+}
+
+/**
+ * Rename a narrator across a whole library. Narrators are item string fields,
+ * not first-class records, so ABS exposes a bulk-rename route that rewrites the
+ * credit on every item. Renaming one narrator to another's name merges them;
+ * renaming to "Unknown" effectively strips the credit. Admin only.
+ */
+export async function renameNarrator(
+  t: AbsTarget,
+  libraryId: string,
+  oldName: string,
+  newName: string
+): Promise<void> {
+  await absPatch(
+    t,
+    `/api/libraries/${encodeURIComponent(libraryId)}/narrators`,
+    { oldName, newName }
+  )
 }
