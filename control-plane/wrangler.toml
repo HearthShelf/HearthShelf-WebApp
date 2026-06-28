@@ -17,6 +17,15 @@ database_name = "hearthshelf-control-plane"
 database_id = "a35534ef-b305-4226-9426-080201cfe115"
 migrations_dir = "migrations"
 
+# Service binding to the isolated log-collector Worker. The control plane forwards
+# its own + boxes' warn/error logs to it and proxies the admin viewer's reads
+# through it - so the CP NEVER binds the logs DB directly (only the collector
+# does). Worker-to-Worker, no public hop. The forward/read calls carry the
+# x-cp-forward header = LOG_INGEST_TOKEN (the collector's internal gate).
+[[services]]
+binding = "LOG_COLLECTOR"
+service = "hearthshelf-log-collector"
+
 [vars]
 # Public URL of THIS Worker - the JWT `iss` and the origin HS fetches JWKS from
 # (${CP_ISSUER}/.well-known/jwks.json). Must be the Worker's hostname, NOT the
@@ -39,6 +48,10 @@ EMAIL_RELAY_MONTHLY_CAP = "500"
 # Pinned - the API never reflects arbitrary origins. Add localhost/preview here
 # during dev, e.g. "https://app.hearthshelf.com,http://localhost:5173".
 APP_ORIGINS = "https://app.hearthshelf.com"
+# Comma-separated allowlist of platform-operator emails allowed to read the infra
+# log viewer (GET /logs). Empty = nobody. This is NOT the per-server admin role;
+# it gates fleet-wide infra access. Set to your operator email(s).
+PLATFORM_ADMIN_EMAILS = "jeremy12@gmail.com"
 
 # --- hs.direct (automatic HTTPS for self-hosters) ---
 # Base zone for hs.direct hostnames (POC). Production swaps to "hearthshelf.app".
@@ -56,4 +69,6 @@ CERT_GRANT_TTL_SECONDS = "300"
 #   CP_SIGNING_JWK   - the control plane's PRIVATE signing key (JSON JWK, EdDSA)
 #   CLERK_SECRET_KEY - Clerk backend key (sk_...), for creating invitations
 #   RESEND_API_KEY   - Resend key (re_...), for sending email from hearthshelf.com
+#   LOG_INGEST_TOKEN - shared token for the log-collector's internal routes (the
+#                      x-cp-forward header); same value as the collector secret
 # The matching public key is derived and served at /.well-known/jwks.json.

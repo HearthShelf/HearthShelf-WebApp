@@ -20,6 +20,8 @@ import { wellKnown } from './routes/well-known'
 import { pairing } from './routes/pairing'
 import { servers } from './routes/servers'
 import { email } from './routes/email'
+import { logs } from './routes/logs'
+import { forwardLog } from './lib/logs'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -47,10 +49,21 @@ app.route('/', wellKnown)
 app.route('/', pairing)
 app.route('/', servers)
 app.route('/', email)
+app.route('/', logs)
 
 app.notFound((c) => c.json({ error: 'not_found' }, 404))
 app.onError((err, c) => {
   console.error('[control-plane] error:', err)
+  // Forward the CP's own unhandled errors to the central collector (best-effort).
+  c.executionCtx?.waitUntil(
+    forwardLog(c.env, {
+      source: 'cp',
+      severity: 'error',
+      event: 'cp_unhandled_error',
+      message: String(err).slice(0, 500),
+      detail: { path: new URL(c.req.url).pathname, method: c.req.method },
+    }),
+  )
   return c.json({ error: 'server_error', detail: String(err).slice(0, 160) }, 500)
 })
 

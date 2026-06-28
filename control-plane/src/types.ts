@@ -5,6 +5,11 @@
 export interface Env {
   DB: D1Database
 
+  /** Service binding to the isolated log-collector Worker (forward + admin read).
+   *  Absent in local dev unless the collector is also running; callers treat it
+   *  as optional and degrade to a no-op. */
+  LOG_COLLECTOR?: Fetcher
+
   // vars (wrangler.toml [vars])
   CP_ISSUER: string
   CLERK_JWKS_URL: string
@@ -36,6 +41,14 @@ export interface Env {
   CLERK_SECRET_KEY: string
   /** Resend API key (re_...), for sending email from hearthshelf.com. */
   RESEND_API_KEY: string
+  /** Shared internal token gating the log-collector's /ingest and /logs routes;
+   *  sent as the x-cp-forward header. Same value as the collector's
+   *  LOG_INGEST_TOKEN. Optional - log forwarding/reads no-op when unset. */
+  LOG_INGEST_TOKEN?: string
+  /** Comma-separated allowlist of platform-operator emails permitted to read the
+   *  infra log viewer. Empty = nobody (the viewer is locked by default). This is
+   *  distinct from per-server 'admin' role - it gates fleet-wide infra access. */
+  PLATFORM_ADMIN_EMAILS?: string
 }
 
 /** A server linked to the authenticated user, as returned to the SPA. */

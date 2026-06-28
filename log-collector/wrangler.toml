@@ -1,0 +1,43 @@
+name = "hearthshelf-log-collector"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+# Reachable only at its custom domain (logs.hearthshelf.com) for the VPS intake,
+# plus a service binding from the control plane. Not on workers.dev.
+workers_dev = false
+
+# Public hostname the VPS broker POSTs /ingest/vps to. A custom_domain route
+# makes Cloudflare create the DNS record + cert for it on deploy (the zone
+# hearthshelf.com must be in this CF account). The service-binding paths
+# (/ingest, /logs) do not need this - they're reached Worker-to-Worker - but they
+# are still gated by the x-cp-forward secret even though they share the hostname.
+[[routes]]
+pattern = "logs.hearthshelf.com"
+custom_domain = true
+
+# Isolated infra-log sink. This Worker exists SEPARATELY from the control plane on
+# purpose: its only public surface is a log-ingest endpoint the off-Cloudflare VPS
+# broker can reach, so it must NOT share an isolate with the control plane's
+# signing key / Clerk secret / control-plane DB. It holds exactly one binding
+# (LOGS_DB) and one ingest secret - compromise it and the blast radius is "someone
+# can write log rows", nothing more. See ../ARCHITECTURE.md.
+
+# Dedicated logs database - distinct from hearthshelf-control-plane. Create with:
+#   wrangler d1 create hearthshelf-logs
+# then paste the returned database_id below.
+[[d1_databases]]
+binding = "LOGS_DB"
+database_name = "hearthshelf-logs"
+database_id = "56565821-5038-475a-bfe9-6609bd45978b"
+migrations_dir = "migrations"
+
+[vars]
+# Minimum severity accepted. Anything below this is dropped at the door so the DB
+# stays error-focused and small. Order: debug < info < warn < error.
+LOG_MIN_SEVERITY = "warn"
+# Days to retain rows; an opportunistic sweep on write deletes older rows.
+LOG_RETENTION_DAYS = "30"
+
+# Secrets (set via `wrangler secret put <NAME>`), never committed:
+#   LOG_INGEST_TOKEN - bearer token the VPS broker presents on POST /ingest/vps.
+#                      This is the ONLY credential this Worker holds.
