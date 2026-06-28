@@ -35,7 +35,6 @@ import {
 import { pairingCode, serverSecret, sha256Hex, timingSafeEqual, uuid, now } from '../lib/ids'
 import { validatePublicUrl, probeServer } from '../lib/reachability'
 import { createOAuthClient, absRedirectUri } from '../lib/clerkOAuth'
-import { stableHost, hsDirectZone } from '../lib/certBroker'
 
 export const pairing = new Hono<{ Bindings: Env }>()
 
@@ -336,24 +335,14 @@ pairing.post('/pairing/redeem', async (c) => {
   try {
     const existing = await getOAuthClient(c.env, row.server_id)
     if (!existing) {
-      // The OIDC redirect must be the STABLE connect-domain host
-      // <hash>.<zone>/auth/openid/callback (the box's nginx forces ABS to see it,
-      // and the wildcard cert covers it). We derive <hash> straight from
-      // server_id - it does NOT depend on the cert or the live IP-bearing URL, so
-      // this works even if public_url were still settling. A bring-your-own-domain
-      // server (origin not under our zone) pins its own origin instead.
-      const origin = urlCheck.origin as string
-      const zone = hsDirectZone(c.env)
-      let isConnectDomain = false
-      try {
-        const h = new URL(origin).hostname.toLowerCase()
-        isConnectDomain = h === zone || h.endsWith('.' + zone)
-      } catch {
-        /* malformed origin - treat as own-domain, pin the origin */
-      }
-      const redirectUri = isConnectDomain
-        ? absRedirectUri(`https://${await stableHost(c.env, row.server_id)}`)
-        : absRedirectUri(origin)
+      // Pin the REACHABLE public origin's callback. For a connect-domain server
+      // that's the IP-bearing https://<ip-label>.<hash>.<zone>:<port>/auth/openid/callback
+      // (row.public_url, set by /pairing/update-url before redeem). Clerk redirects
+      // the browser HERE, so it must be loadable - the portless stable <hash>.<zone>
+      // is cert-valid but not browser-reachable. The box's nginx forces ABS to see
+      // this same host, and re-pushes its public_url on IP change so we re-PATCH the
+      // pin (see /servers/public-url). A bring-your-own-domain server pins its origin.
+      const redirectUri = absRedirectUri(row.public_url)
       const client = await createOAuthClient(c.env, {
         name: `HearthShelf server ${row.name || row.server_id}`,
         redirectUri,

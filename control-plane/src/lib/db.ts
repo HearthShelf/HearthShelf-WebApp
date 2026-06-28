@@ -237,6 +237,18 @@ export async function upsertOAuthClient(
     .run()
 }
 
+/** Update only the stored redirect_uri (e.g. on a connect-domain IP change), so
+ *  /servers/oidc-config reports the current callback. Leaves the secret intact. */
+export async function setOAuthRedirectUri(
+  env: Env,
+  serverId: string,
+  redirectUri: string
+): Promise<void> {
+  await env.DB.prepare(`UPDATE oauth_clients SET redirect_uri = ? WHERE server_id = ?`)
+    .bind(redirectUri, serverId)
+    .run()
+}
+
 export async function getOAuthClient(
   env: Env,
   serverId: string

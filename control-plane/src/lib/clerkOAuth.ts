@@ -9,6 +9,7 @@
  * Contract verified against the Clerk Backend API reference (mid-2026):
  *   POST   /v1/oauth_applications          create (secret returned ONCE here)
  *   GET    /v1/oauth_applications/{id}      read (never returns the secret)
+ *   PATCH  /v1/oauth_applications/{id}      update (e.g. redirect_uris on IP change)
  *   DELETE /v1/oauth_applications/{id}      revoke the client entirely
  * Scopes are a space-separated string; redirect_uris is an array of exact URLs.
  */
@@ -65,44 +66,26 @@ export function absRedirectUri(serverPublicUrl: string): string {
 }
 
 /**
- * The redirect URI to pin for a server, accounting for hs.direct.
+ * The redirect URI to pin for a server.
  *
- * For a bring-your-own-domain server we pin its public origin directly. For an
- * hs.direct server the public_url's host is the IP-bearing
- * `<ip-label>.<hash>.<zone>`, which CHANGES when the server's IP changes - but
- * the Clerk client allowlists exactly one redirect_uri. So we pin the STABLE
- * `https://<hash>.<zone>/auth/openid/callback` instead, and the HS container's
- * nginx forces ABS to see that stable host (hsdirect_abs_proxy.conf). The cert is
- * a wildcard over `*.<hash>.<zone>`, so it validates the IP-bearing name too.
- * See docs/hs-direct-implementation.md sec 2.4 / sec 5.
+ * We pin the server's REACHABLE public origin's callback - for a connect-domain
+ * server that's the IP-bearing `https://<ip-label>.<hash>.<zone>:<port>/auth/openid/callback`.
+ * Clerk redirects the browser to the pinned redirect_uri, so it must be an
+ * address the browser can actually load; the portless stable `<hash>.<zone>` is
+ * cert-valid but not browser-reachable (no synthesized A record, not on the WebUI
+ * port). The HS container forces ABS to see this same reachable host
+ * (hsdirect_abs_proxy.conf) so ABS's generated redirect_uri matches the pin. The
+ * IP-bearing host CHANGES with the server's IP, so the box re-pushes its
+ * public_url (server_secret-authed) and we re-PATCH this pin then - see
+ * updateOAuthClient + the /servers/public-url route.
  *
- * `hsDirectZone` is the configured base zone (e.g. "d.hearthshelf.com"); when a
- * server's public_url host ends with `.<zone>` we treat it as hs.direct and
- * derive the stable host as the last THREE-or-more labels `<hash>.<zone>`.
+ * `hsDirectZone` is retained for signature compatibility but no longer alters the
+ * result; we always pin the public origin directly now.
  */
 export function absRedirectUriForServer(
   serverPublicUrl: string,
-  hsDirectZone: string | undefined
+  _hsDirectZone?: string | undefined
 ): string {
-  if (hsDirectZone) {
-    const zone = hsDirectZone.replace(/\.+$/, '').toLowerCase()
-    let host: string
-    try {
-      host = new URL(serverPublicUrl).hostname.toLowerCase()
-    } catch {
-      return absRedirectUri(serverPublicUrl)
-    }
-    if (host === zone || host.endsWith('.' + zone)) {
-      // host is <...labels...>.<zone>; the stable host is the SINGLE label
-      // immediately left of the zone joined to the zone: <hash>.<zone>.
-      const prefix = host.slice(0, host.length - zone.length).replace(/\.+$/, '')
-      const labels = prefix.split('.').filter(Boolean)
-      const hash = labels[labels.length - 1] // the <hash> label
-      if (hash) {
-        return `https://${hash}.${zone}/auth/openid/callback`
-      }
-    }
-  }
   return absRedirectUri(serverPublicUrl)
 }
 
@@ -168,6 +151,28 @@ export async function createOAuthClient(
     clientSecret: data.client_secret,
     redirectUri: params.redirectUri,
   }
+}
+
+/**
+ * Update a server's OAuth client redirect_uri (PATCH). Used when a connect-domain
+ * server's public IP changes: the box re-pushes its new public_url and we re-pin
+ * the single allowlisted redirect_uri to the new reachable callback so OIDC keeps
+ * working. Idempotent; a 404 (client already deleted) is swallowed. Does not
+ * return or rotate the secret.
+ */
+export async function updateOAuthClient(
+  env: Env,
+  appId: string,
+  redirectUri: string
+): Promise<void> {
+  const res = await fetch(`${CLERK_API}/oauth_applications/${encodeURIComponent(appId)}`, {
+    method: 'PATCH',
+    headers: authHeaders(env),
+    body: JSON.stringify({ redirect_uris: [redirectUri] }),
+  })
+  if (res.ok || res.status === 404) return
+  const detail = await res.text().catch(() => '')
+  throw new ClerkApiError(res.status, detail.slice(0, 300))
 }
 
 /**

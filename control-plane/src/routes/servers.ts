@@ -33,8 +33,10 @@ import {
   pendingInvitesForServer,
   markInviteAccepted,
   getOAuthClient,
+  setOAuthRedirectUri,
   markOAuthClientApplied,
   deleteOAuthClientRow,
+  updateServerPublicUrl,
   upsertServerCertPending,
   recordServerCertResult,
   getServerCert,
@@ -44,7 +46,7 @@ import { mintCertGrant, hsDirectZone } from '../lib/certBroker'
 import { createClerkInvitation, ClerkApiError } from '../lib/clerkApi'
 import { sendEmail, EmailError } from '../lib/email'
 import { renderInviteEmail } from '../lib/emailTemplates'
-import { deleteOAuthClient, clerkOidcEndpoints } from '../lib/clerkOAuth'
+import { deleteOAuthClient, updateOAuthClient, absRedirectUri, clerkOidcEndpoints } from '../lib/clerkOAuth'
 import { uuid, sha256Hex, timingSafeEqual } from '../lib/ids'
 import { probeServer, validatePublicUrl, type ProbeStatus } from '../lib/reachability'
 
@@ -347,6 +349,59 @@ servers.post('/servers/name', async (c) => {
 
   await setServerName(c.env, serverId, name)
   return c.json({ ok: true, name })
+})
+
+/**
+ * Re-push the server's public_url (server_secret authed). The box calls this when
+ * its public IP changes (a connect-domain address embeds the IP), so the hosted
+ * app reaches it at the new address AND - critically - the dedicated Clerk OAuth
+ * client's single pinned redirect_uri is re-PATCHed to the new reachable callback,
+ * keeping OIDC sign-in working across IP changes. Best-effort on the Clerk side;
+ * the public_url is always recorded. Idempotent (no-op if unchanged).
+ */
+servers.post('/servers/public-url', async (c) => {
+  let body: { server_id?: string; server_secret?: string; public_url?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const serverId = (body.server_id || '').trim()
+  const secret = body.server_secret || ''
+  const publicUrl = (body.public_url || '').trim()
+  if (!serverId || !secret || !publicUrl) {
+    return c.json({ error: 'server_id, server_secret and public_url required' }, 400)
+  }
+  const check = validatePublicUrl(publicUrl)
+  if (!check.ok) return c.json({ error: 'public_url_invalid', reason: check.reason }, 400)
+
+  const server = await getServer(c.env, serverId)
+  if (!server) return c.json({ error: 'server_unknown' }, 404)
+  const presented = await sha256Hex(secret)
+  if (!timingSafeEqual(presented, server.server_secret_hash)) {
+    return c.json({ error: 'bad_server_secret' }, 401)
+  }
+
+  const origin = check.origin as string
+  await updateServerPublicUrl(c.env, serverId, origin)
+
+  // Re-pin the Clerk redirect_uri to the new reachable callback (best-effort).
+  let oidcRepinned = false
+  const oauth = await getOAuthClient(c.env, serverId)
+  if (oauth) {
+    const redirectUri = absRedirectUri(origin)
+    if (redirectUri !== oauth.redirect_uri) {
+      try {
+        await updateOAuthClient(c.env, oauth.clerk_app_id, redirectUri)
+        await setOAuthRedirectUri(c.env, serverId, redirectUri)
+        oidcRepinned = true
+      } catch {
+        // Non-fatal: the address is recorded; OIDC re-pin can be retried on the
+        // next push. Sign-in stays on the old pin until then.
+      }
+    }
+  }
+  return c.json({ ok: true, public_url: origin, oidc_repinned: oidcRepinned })
 })
 
 /**
