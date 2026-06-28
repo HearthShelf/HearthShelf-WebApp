@@ -22,7 +22,6 @@ import {
   listLinksByUser,
   getServerCert,
   emailSentThisWindow,
-  getOAuthClient,
   getEntitlement,
   setEntitlement,
   listPlatformAdmins,
@@ -33,7 +32,6 @@ import {
   writeAudit,
   listAudit,
 } from '../lib/db'
-import { deleteOAuthClient } from '../lib/clerkOAuth'
 import { uuid } from '../lib/ids'
 
 // The router carries the resolved admin context in `c.var.admin`.
@@ -97,9 +95,8 @@ admin.get('/admin/servers/:id', async (c) => {
 
 /**
  * Hard-deregister a server (moderation). Same teardown as the box-initiated
- * /servers/deregister: revoke its dedicated Clerk OAuth client (best-effort), then
- * delete the server row - links / invites / oauth / certs cascade. Destructive and
- * not reversible (the operator must re-pair). Audited.
+ * /servers/deregister: delete the server row - links / invites / certs cascade.
+ * Destructive and not reversible (the operator must re-pair). Audited.
  */
 admin.delete('/admin/servers/:id', async (c) => {
   const { user } = c.var.admin
@@ -107,14 +104,6 @@ admin.delete('/admin/servers/:id', async (c) => {
   const server = await getServer(c.env, serverId)
   if (!server) return c.json({ ok: true }) // idempotent
 
-  const oauth = await getOAuthClient(c.env, serverId)
-  if (oauth) {
-    try {
-      await deleteOAuthClient(c.env, oauth.clerk_app_id)
-    } catch {
-      // best-effort - revocation failing must not block the takedown
-    }
-  }
   await deleteServer(c.env, serverId)
   await writeAudit(c.env, {
     id: uuid(),

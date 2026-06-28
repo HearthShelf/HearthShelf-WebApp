@@ -22,7 +22,6 @@ import {
   listLinksForUser,
   getLink,
   deleteLink,
-  countLinksForServer,
   getServer,
   touchServer,
   setServerName,
@@ -32,8 +31,6 @@ import {
   pendingInvitesForEmail,
   pendingInvitesForServer,
   markInviteAccepted,
-  getOAuthClient,
-  deleteOAuthClientRow,
   updateServerPublicUrl,
   upsertServerCertPending,
   recordServerCertResult,
@@ -44,7 +41,6 @@ import { mintCertGrant, hsDirectZone } from '../lib/certBroker'
 import { createClerkInvitation, ClerkApiError } from '../lib/clerkApi'
 import { sendEmail, EmailError } from '../lib/email'
 import { renderInviteEmail } from '../lib/emailTemplates'
-import { deleteOAuthClient } from '../lib/clerkOAuth'
 import { uuid, sha256Hex, timingSafeEqual } from '../lib/ids'
 import { probeServer, validatePublicUrl, type ProbeStatus } from '../lib/reachability'
 
@@ -209,21 +205,6 @@ servers.delete('/servers/:id', async (c) => {
   if (!user) return c.json({ error: 'unauthorized' }, 401)
   const serverId = c.req.param('id')
   await deleteLink(c.env, user.userId, serverId)
-
-  // Last user out revokes the server's dedicated OAuth client (no one can reach
-  // it anymore, so the federation client should not linger). Best-effort: a
-  // Clerk failure shouldn't fail the unlink; the client can be cleaned up later.
-  if ((await countLinksForServer(c.env, serverId)) === 0) {
-    const oauth = await getOAuthClient(c.env, serverId)
-    if (oauth) {
-      try {
-        await deleteOAuthClient(c.env, oauth.clerk_app_id)
-      } catch {
-        // ignore - revocation is best-effort on unlink
-      }
-      await deleteOAuthClientRow(c.env, serverId)
-    }
-  }
   return c.json({ ok: true })
 })
 
@@ -412,16 +393,8 @@ servers.post('/servers/deregister', async (c) => {
     return c.json({ error: 'bad_server_secret' }, 401)
   }
 
-  // Revoke the dedicated Clerk OAuth client (best-effort), then delete the server
-  // row - dependents cascade.
-  const oauth = await getOAuthClient(c.env, serverId)
-  if (oauth) {
-    try {
-      await deleteOAuthClient(c.env, oauth.clerk_app_id)
-    } catch {
-      // ignore - revocation is best-effort
-    }
-  }
+  // Delete the server row - dependents cascade. (No Clerk OAuth client to revoke
+  // under HS-owned auth.)
   await deleteServer(c.env, serverId)
   return c.json({ ok: true })
 })

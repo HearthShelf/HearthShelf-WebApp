@@ -80,8 +80,8 @@ export async function setServerName(
 }
 
 // Remove a server entirely (box-initiated disconnect). All dependents - links,
-// invites, oauth_clients, server_certs - cascade via their ON DELETE CASCADE FKs,
-// so the server fully vanishes from the hosted app. No-op if absent.
+// invites, server_certs - cascade via their ON DELETE CASCADE FKs, so the server
+// fully vanishes from the hosted app. No-op if absent.
 export async function deleteServer(env: Env, serverId: string): Promise<void> {
   await env.DB.prepare(`DELETE FROM servers WHERE server_id = ?`).bind(serverId).run()
 }
@@ -198,35 +198,6 @@ export async function getOwnerLinkForServer(
   )
     .bind(serverId)
     .first<{ email: string; role: string }>()
-}
-
-// --- per-server OAuth clients (hosted OIDC) --------------------------------
-
-// The oauth_clients table is legacy (per-server Clerk OAuth clients from the old
-// ABS-OIDC path). HS-owned auth creates none. We keep read + delete so a legacy
-// server's client still gets revoked + its row cleaned on deregister. The table
-// itself is dropped in a future migration once no live server has a client.
-export interface OAuthClientRow {
-  server_id: string
-  clerk_app_id: string
-  client_id: string
-  client_secret: string | null
-  redirect_uri: string
-  applied_at: number | null
-  created_at: number
-}
-
-export async function getOAuthClient(
-  env: Env,
-  serverId: string
-): Promise<OAuthClientRow | null> {
-  return env.DB.prepare(`SELECT * FROM oauth_clients WHERE server_id = ?`)
-    .bind(serverId)
-    .first<OAuthClientRow>()
-}
-
-export async function deleteOAuthClientRow(env: Env, serverId: string): Promise<void> {
-  await env.DB.prepare(`DELETE FROM oauth_clients WHERE server_id = ?`).bind(serverId).run()
 }
 
 // --- hs.direct cert status -------------------------------------------------
