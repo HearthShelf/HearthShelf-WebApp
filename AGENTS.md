@@ -1,5 +1,12 @@
 # AGENTS.md
 
+> **NAMING (hard rule): never write or say "hs.direct".** We do not own that
+> domain. The remote-access feature is the **connect domain**. The current zone
+> is **`d.hearthshelf.com`**; a dedicated connect domain will be registered
+> later. Always read the zone from config - never hardcode a domain literal. Real
+> hostnames are synthesized as `<ip-dashed>.<hash>.<zone>`; the cert is
+> `*.<hash>.<zone>`.
+
 Guardrails for AI agents and contributors working in the HearthShelf hosted web
 app (`app.hearthshelf.com`). This repo is **open source under AGPL-3.0**, the
 same license as the HearthShelf server. Treat these as hard rules.
