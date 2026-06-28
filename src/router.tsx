@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ServerPickerPage } from '@/pages/ServerPickerPage'
 import { ServerHomePage } from '@/pages/ServerHomePage'
@@ -59,11 +59,13 @@ export const router = createBrowserRouter([
           { path: 'servers', element: <AdminServersPage /> },
           { path: 'admins', element: <AdminAdminsPage /> },
           { path: 'audit', element: <AdminAuditPage /> },
+          // Infra log viewer, now a tab inside the admin shell. The CP gates it to
+          // the same platform_admins roster as the rest of /admin.
+          { path: 'logs', element: <InfraLogsPage /> },
         ],
       },
-      // Platform-admin infra log viewer (CP gates to the platform_admins roster;
-      // non-admins see a "not authorized" panel). Linked from the Admin area.
-      { path: '/infra-logs', element: <InfraLogsPage /> },
+      // Old standalone path kept as a redirect so existing deep links still land.
+      { path: '/infra-logs', element: <Navigate to="/admin/logs" replace /> },
       // Full-page fallback landing for the OIDC connect bounce (popup-blocked).
       { path: '/connected', element: <ConnectedPage /> },
     ],

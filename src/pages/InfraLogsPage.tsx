@@ -1,14 +1,13 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowLeft, Loader2, RefreshCw, AlertTriangle, ServerCog, Cloud, HardDrive } from 'lucide-react'
+import { Loader2, RefreshCw, AlertTriangle, ServerCog, Cloud, HardDrive } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchInfraLogs, ApiError, type InfraLog, type LogQueryParams } from '@/api/controlPlane'
 
 /**
- * Platform-operator infra log viewer. Pulls warn/error logs from every source
- * (VPS cert broker, control plane, self-hosted boxes) into one filterable table.
- * The control plane gates this to the platform_admins roster - non-admins get a
- * clean "not authorized" panel rather than data.
+ * Infra log viewer. Pulls warn/error logs from every source (VPS cert broker,
+ * control plane, self-hosted boxes) into one filterable table. Rendered as a tab
+ * inside the admin shell (AdminLayout), which provides the page chrome and the
+ * platform-admin gate; this component is just the logs surface.
  */
 type SourceFilter = '' | 'vps' | 'cp' | 'box'
 type SeverityFilter = '' | 'warn' | 'error'
@@ -40,29 +39,17 @@ export function InfraLogsPage() {
   const unavailable = error instanceof ApiError && error.status === 503
 
   return (
-    <div className="mx-auto max-w-5xl">
-      <Link
-        to="/"
-        className="t-muted mb-6 inline-flex items-center gap-1.5 text-[13px] hover:text-foreground"
-      >
-        <ArrowLeft size={14} />
-        Your servers
-      </Link>
-
+    <div>
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="t-eyebrow">Operations</p>
-          <h1 className="t-h1 mt-1">Infrastructure logs</h1>
-          <p className="t-muted mt-2 text-[13px]">
-            Warnings and errors from the cert broker, control plane, and linked
-            servers. Newest first; auto-refreshes. Retained 30 days.
-          </p>
-        </div>
+        <p className="t-muted text-[13px]">
+          Warnings and errors from the cert broker, control plane, and linked
+          servers. Newest first; auto-refreshes. Retained 30 days.
+        </p>
         <button
           type="button"
           onClick={() => void refetch()}
           disabled={isFetching}
-          className="t-muted inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-[13px] hover:text-foreground disabled:opacity-50"
+          className="t-muted inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-[13px] hover:text-foreground disabled:opacity-50"
         >
           <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
           Refresh
