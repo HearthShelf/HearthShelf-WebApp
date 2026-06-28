@@ -37,6 +37,7 @@ import {
   getServerCert,
 } from '../lib/db'
 import { mintGrant } from '../lib/signing'
+import { getPlan } from '../lib/admin'
 import { mintCertGrant, hsDirectZone } from '../lib/certBroker'
 import { createClerkInvitation, ClerkApiError } from '../lib/clerkApi'
 import { sendEmail, EmailError } from '../lib/email'
@@ -79,6 +80,20 @@ async function acceptPendingInvites(c: Context<{ Bindings: Env }>, user: ClerkId
     await markInviteAccepted(c.env, inv.id)
   }
 }
+
+/**
+ * The signed-in user's own plan/entitlement. D1 entitlements is the sole source
+ * of truth (getPlan never trusts a JWT claim). This is the read the Account
+ * screen's subscription section renders - "plan state from day one", before any
+ * billing provider is wired. `source` lets the UI distinguish a manually granted
+ * plan from a future billing-synced one without leaking billing internals.
+ */
+servers.get('/me/plan', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return c.json({ error: 'unauthorized' }, 401)
+  const plan = await getPlan(c.env, user.userId)
+  return c.json({ plan })
+})
 
 servers.get('/servers', async (c) => {
   const user = await requireUser(c)

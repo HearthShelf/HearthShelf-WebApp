@@ -72,6 +72,14 @@ export async function fetchLinkedServers(): Promise<LinkedServer[]> {
   return data.servers.map((s) => ({ ...s, status: 'unknown' as const }))
 }
 
+export type Plan = 'free' | 'pro'
+
+/** The signed-in user's plan/entitlement (D1 is the sole source of truth). */
+export async function fetchMyPlan(): Promise<Plan> {
+  const data = await request<{ plan: Plan }>('/me/plan')
+  return data.plan
+}
+
 interface GrantResponse {
   grant: string
   server: { id: string; url: string }
