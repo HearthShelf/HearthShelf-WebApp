@@ -7,6 +7,7 @@ import { ItemDetailPage } from '@/pages/ItemDetailPage'
 import { AuthorDetailPage } from '@/pages/AuthorDetailPage'
 import { CollectionDetailPage } from '@/pages/CollectionDetailPage'
 import { AccountPage } from '@/pages/AccountPage'
+import { ConnectBoxPage } from '@/pages/ConnectBoxPage'
 import { InfraLogsPage } from '@/pages/InfraLogsPage'
 import { AdminLayout } from '@/pages/admin/AdminLayout'
 import { AdminServersPage } from '@/pages/admin/AdminServersPage'
@@ -42,6 +43,9 @@ export const router = createBrowserRouter([
       // Deeplink from the branded invite email: /invite?server=ID. Waits for the
       // pending invite to materialize, then lands on that server's library.
       { path: '/invite', element: <InvitePage /> },
+      // On-box sign-in bounce: the box's "Sign in with HearthShelf" button sends
+      // the user here (?server=<id>); we mint a grant and redirect back to the box.
+      { path: '/connect-box', element: <ConnectBoxPage /> },
       { path: '/server/:serverId', element: <ServerHomePage /> },
       { path: '/server/:serverId/item/:itemId', element: <ItemDetailPage /> },
       { path: '/server/:serverId/author/:authorId', element: <AuthorDetailPage /> },
