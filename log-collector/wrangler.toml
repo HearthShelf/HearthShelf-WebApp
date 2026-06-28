@@ -6,14 +6,13 @@ compatibility_flags = ["nodejs_compat"]
 # plus a service binding from the control plane. Not on workers.dev.
 workers_dev = false
 
-# Public hostname the VPS broker POSTs /ingest/vps to. A custom_domain route
-# makes Cloudflare create the DNS record + cert for it on deploy (the zone
-# hearthshelf.com must be in this CF account). The service-binding paths
-# (/ingest, /logs) do not need this - they're reached Worker-to-Worker - but they
-# are still gated by the x-cp-forward secret even though they share the hostname.
-[[routes]]
-pattern = "logs.hearthshelf.com"
-custom_domain = true
+# Public hostname the VPS broker POSTs /ingest/vps to: logs.hearthshelf.com.
+# The custom domain is attached OUT OF BAND (Cloudflare dashboard / a one-time
+# `wrangler deploy` with a full-permission login), same as the control plane's
+# api.hearthshelf.com - it is intentionally NOT a [[routes]] block here, because
+# the CI deploy token is scoped to Workers Scripts + D1, not zone Workers Routes,
+# and re-asserting the route on every deploy would fail with a 10000 auth error.
+# The service-binding paths (/ingest, /logs) don't need the hostname at all.
 
 # Isolated infra-log sink. This Worker exists SEPARATELY from the control plane on
 # purpose: its only public surface is a log-ingest endpoint the off-Cloudflare VPS
