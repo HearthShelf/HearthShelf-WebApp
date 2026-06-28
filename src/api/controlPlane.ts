@@ -130,6 +130,47 @@ interface InviteResponse {
   emailed: boolean
 }
 
+export interface InfraLog {
+  id: number
+  ts: number
+  source: 'vps' | 'cp' | 'box'
+  severity: 'warn' | 'error'
+  event: string
+  server_id: string | null
+  message: string | null
+  detail: string | null
+  ip: string | null
+}
+
+export interface LogQueryParams {
+  source?: 'vps' | 'cp' | 'box'
+  severity?: 'warn' | 'error'
+  server_id?: string
+  /** Only logs at or after this Unix-ms time. */
+  since?: number
+  /** Keyset paging: only logs older than this id. */
+  before_id?: number
+  limit?: number
+}
+
+/**
+ * Fetch infra logs (platform operators only). The control plane proxies to the
+ * isolated log collector. Throws ApiError(403) for non-operators so the page can
+ * show a clean "not authorized" state; ApiError(503) when the collector is down.
+ */
+export async function fetchInfraLogs(params: LogQueryParams = {}): Promise<InfraLog[]> {
+  const q = new URLSearchParams()
+  if (params.source) q.set('source', params.source)
+  if (params.severity) q.set('severity', params.severity)
+  if (params.server_id) q.set('server_id', params.server_id)
+  if (params.since) q.set('since', String(params.since))
+  if (params.before_id) q.set('before_id', String(params.before_id))
+  if (params.limit) q.set('limit', String(params.limit))
+  const qs = q.toString()
+  const data = await request<{ logs: InfraLog[] }>(`/logs${qs ? `?${qs}` : ''}`)
+  return data.logs
+}
+
 /** Invite someone by email to a server (admin only). */
 export async function inviteToServer(
   serverId: string,
