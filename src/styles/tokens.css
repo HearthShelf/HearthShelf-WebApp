@@ -12,13 +12,27 @@
    Production target: shadcn/ui + Tailwind CSS (see README → HANDOFF).
    ===================================================================== */
 
-/* -------- Brand display face (self-hosted) ------------------------- */
+/* -------- Self-hosted faces (no external CDN; offline-safe) -------- */
+@font-face {
+  font-family: "Inter";
+  src: url("fonts/Inter-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
 @font-face {
   font-family: "Libre Baskerville";
   src: url("fonts/LibreBaskerville-VariableFont_wght.ttf") format("truetype-variations");
   font-weight: 400 700;
   font-style: normal;
   font-display: swap;
+}
+@font-face {
+  font-family: "Material Symbols Rounded";
+  src: url("fonts/MaterialSymbolsRounded.woff2") format("woff2");
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: block;
 }
 
 /* =====================================================================
@@ -90,6 +104,21 @@
   --shadow-lift:   0 18px 48px rgba(60,50,40,0.18);
   --shadow-card:   0 2px 8px rgba(60,50,40,0.08);
 
+  /* -- HS shell compat (design.css surface/text token names) -- LIGHT -- */
+  --scaffold:  #f0e6d6;
+  --c-lowest:  #f7eee0;
+  --c-low:     #f1efeb;
+  --c:         #ecebe6;
+  --c-high:    #e7e5df;
+  --c-highest: #e0ded7;
+  --sheet:     #fffdf8;
+  --text:        var(--foreground);
+  --text-muted:  var(--muted-foreground);
+  --text-faint:  #9a948a;
+  --row-now:   color-mix(in oklab, var(--primary) 18%, transparent);
+  --on-accent: #fffaf6;
+  --glow-strength: 14;
+
   color-scheme: light;
 }
 
@@ -150,6 +179,21 @@
   --shadow-lift:   0 18px 48px rgba(0,0,0,0.55);
   --shadow-card:   0 1px 0 rgba(255,255,255,0.02);
 
+  /* -- HS shell compat (design.css surface/text token names) -- DARK -- */
+  --scaffold:  #1b1a18;
+  --c-lowest:  #131211;
+  --c-low:     #201e1c;
+  --c:         #242220;
+  --c-high:    #2a2825;
+  --c-highest: #322f2b;
+  --sheet:     #222120;
+  --text:        var(--foreground);
+  --text-muted:  var(--muted-foreground);
+  --text-faint:  #756f64;
+  --row-now:   color-mix(in oklab, var(--accent) 22%, transparent);
+  --on-accent: #fff;
+  --glow-strength: 60;
+
   color-scheme: dark;
 }
 
@@ -192,6 +236,28 @@
   --tracking-eyebrow:  0.32em;
   --tracking-wordmark: -0.02em;
   --tracking-title:    -0.02em;
+
+  /* =====================================================================
+     HS shell compat (design.css) — geometry, spacing, glow, font aliases.
+     The ported shell (.app/.sidebar/.appbar/.book-tile/...) reads these by
+     HS's names; map them onto the WebApp tokens above so nothing duplicates.
+     ===================================================================== */
+  --r-card:  16px;
+  --r-cover: 10px;
+  --r-pill:  999px;
+  --r-row:   12px;
+  --r-sheet: 20px;
+
+  /* 4px cadence — HS's --s1..--s10 */
+  --s1: 4px;   --s2: 8px;   --s3: 12px;  --s4: 16px;  --s5: 20px;
+  --s6: 24px;  --s7: 28px;  --s8: 32px;  --s10: 48px;
+
+  /* design.css uses bare --font / --p in a few spots */
+  --font: var(--font-sans);
+  --p: var(--primary);
+
+  /* dynamic cover-glow (fixed ember; JS may override --glow-accent live) */
+  --glow-accent: var(--primary);
 }
 
 /* =====================================================================
