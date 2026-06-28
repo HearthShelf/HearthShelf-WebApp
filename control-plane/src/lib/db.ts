@@ -202,6 +202,10 @@ export async function getOwnerLinkForServer(
 
 // --- per-server OAuth clients (hosted OIDC) --------------------------------
 
+// The oauth_clients table is legacy (per-server Clerk OAuth clients from the old
+// ABS-OIDC path). HS-owned auth creates none. We keep read + delete so a legacy
+// server's client still gets revoked + its row cleaned on deregister. The table
+// itself is dropped in a future migration once no live server has a client.
 export interface OAuthClientRow {
   server_id: string
   clerk_app_id: string
@@ -212,43 +216,6 @@ export interface OAuthClientRow {
   created_at: number
 }
 
-export async function upsertOAuthClient(
-  env: Env,
-  c: {
-    serverId: string
-    clerkAppId: string
-    clientId: string
-    clientSecret: string | null
-    redirectUri: string
-  }
-): Promise<void> {
-  await env.DB.prepare(
-    `INSERT INTO oauth_clients
-       (server_id, clerk_app_id, client_id, client_secret, redirect_uri, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT (server_id) DO UPDATE SET
-       clerk_app_id = excluded.clerk_app_id,
-       client_id = excluded.client_id,
-       client_secret = excluded.client_secret,
-       redirect_uri = excluded.redirect_uri,
-       applied_at = NULL`
-  )
-    .bind(c.serverId, c.clerkAppId, c.clientId, c.clientSecret, c.redirectUri, now())
-    .run()
-}
-
-/** Update only the stored redirect_uri (e.g. on a connect-domain IP change), so
- *  /servers/oidc-config reports the current callback. Leaves the secret intact. */
-export async function setOAuthRedirectUri(
-  env: Env,
-  serverId: string,
-  redirectUri: string
-): Promise<void> {
-  await env.DB.prepare(`UPDATE oauth_clients SET redirect_uri = ? WHERE server_id = ?`)
-    .bind(redirectUri, serverId)
-    .run()
-}
-
 export async function getOAuthClient(
   env: Env,
   serverId: string
@@ -256,15 +223,6 @@ export async function getOAuthClient(
   return env.DB.prepare(`SELECT * FROM oauth_clients WHERE server_id = ?`)
     .bind(serverId)
     .first<OAuthClientRow>()
-}
-
-/** Clear the one-time secret once the server has applied its OIDC config. */
-export async function markOAuthClientApplied(env: Env, serverId: string): Promise<void> {
-  await env.DB.prepare(
-    `UPDATE oauth_clients SET client_secret = NULL, applied_at = ? WHERE server_id = ?`
-  )
-    .bind(now(), serverId)
-    .run()
 }
 
 export async function deleteOAuthClientRow(env: Env, serverId: string): Promise<void> {

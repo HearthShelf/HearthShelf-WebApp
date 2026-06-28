@@ -1,93 +1,16 @@
 /**
- * Clerk OAuth-application management (Clerk acting as our OIDC provider).
+ * Clerk OAuth-application management.
  *
- * Per the most-secure design (docs/hosted-oidc-design.md sec 3): each paired
- * server gets a dedicated Clerk OAuth client. ABS on that server is configured
- * to trust this client as its OIDC provider, matching users by verified email.
- * A leaked secret is contained to one server; unlinking revokes just that client.
- *
- * Contract verified against the Clerk Backend API reference (mid-2026):
- *   POST   /v1/oauth_applications          create (secret returned ONCE here)
- *   GET    /v1/oauth_applications/{id}      read (never returns the secret)
- *   PATCH  /v1/oauth_applications/{id}      update (e.g. redirect_uris on IP change)
- *   DELETE /v1/oauth_applications/{id}      revoke the client entirely
- * Scopes are a space-separated string; redirect_uris is an array of exact URLs.
+ * Hosted sign-in is now HS-owned: a paired box mints a per-user ABS token on
+ * demand from a control-plane grant (no Clerk OAuth client, no ABS OIDC). The only
+ * remaining use is revoking a Clerk OAuth client that was created by the OLD
+ * per-server-OIDC code, when such a server deregisters - so we keep just the
+ * delete. (New servers never get a client; this is cleanup for legacy ones.)
  */
 import type { Env } from '../types'
 import { ClerkApiError } from './clerkApi'
 
 const CLERK_API = 'https://api.clerk.com/v1'
-
-/** Scopes ABS needs to federate + match by verified email. */
-export const OIDC_SCOPES = 'openid email profile'
-
-export interface ClerkOAuthClient {
-  /** Clerk application id (oauthapp_...), for rotate/delete. */
-  appId: string
-  clientId: string
-  /** Returned ONLY on create; undefined on reads. */
-  clientSecret?: string
-  redirectUri: string
-}
-
-/**
- * The OIDC issuer + endpoint URLs for this Clerk instance. ABS auto-discovers
- * from the issuer (GET <issuer>/.well-known/openid-configuration), but we also
- * carry the explicit endpoints as a fallback for ABS's config push, since
- * Clerk's primary discovery doc is the OAuth-AS metadata path.
- *
- * The issuer is the Clerk Frontend API origin (e.g. https://clerk.hearthshelf.com),
- * which we derive from the configured CLERK_JWKS_URL so there's a single source
- * of truth and no second env var to drift.
- */
-export function clerkOidcEndpoints(env: Env): {
-  issuer: string
-  authorizationUrl: string
-  tokenUrl: string
-  userInfoUrl: string
-  jwksUrl: string
-} {
-  // CLERK_JWKS_URL is e.g. https://clerk.hearthshelf.com/.well-known/jwks.json
-  const issuer = new URL(env.CLERK_JWKS_URL).origin
-  return {
-    issuer,
-    authorizationUrl: `${issuer}/oauth/authorize`,
-    tokenUrl: `${issuer}/oauth/token`,
-    userInfoUrl: `${issuer}/oauth/userinfo`,
-    jwksUrl: `${issuer}/.well-known/jwks.json`,
-  }
-}
-
-/** Build the single redirect URI ABS will use for a given server public origin. */
-export function absRedirectUri(serverPublicUrl: string): string {
-  // ABS builds <origin>/auth/openid/callback (default subfolder = ''), from the
-  // Host header. We pin exactly that on the Clerk client. See design doc sec 5.
-  return `${serverPublicUrl.replace(/\/$/, '')}/auth/openid/callback`
-}
-
-/**
- * The redirect URI to pin for a server.
- *
- * We pin the server's REACHABLE public origin's callback - for a connect-domain
- * server that's the IP-bearing `https://<ip-label>.<hash>.<zone>:<port>/auth/openid/callback`.
- * Clerk redirects the browser to the pinned redirect_uri, so it must be an
- * address the browser can actually load; the portless stable `<hash>.<zone>` is
- * cert-valid but not browser-reachable (no synthesized A record, not on the WebUI
- * port). The HS container forces ABS to see this same reachable host
- * (hsdirect_abs_proxy.conf) so ABS's generated redirect_uri matches the pin. The
- * IP-bearing host CHANGES with the server's IP, so the box re-pushes its
- * public_url (server_secret-authed) and we re-PATCH this pin then - see
- * updateOAuthClient + the /servers/public-url route.
- *
- * `hsDirectZone` is retained for signature compatibility but no longer alters the
- * result; we always pin the public origin directly now.
- */
-export function absRedirectUriForServer(
-  serverPublicUrl: string,
-  _hsDirectZone?: string | undefined
-): string {
-  return absRedirectUri(serverPublicUrl)
-}
 
 function authHeaders(env: Env): HeadersInit {
   if (!env.CLERK_SECRET_KEY) throw new ClerkApiError(0, 'CLERK_SECRET_KEY not configured')
@@ -97,87 +20,10 @@ function authHeaders(env: Env): HeadersInit {
   }
 }
 
-interface ClerkOAuthAppResponse {
-  id: string
-  client_id: string
-  client_secret?: string
-  redirect_uris?: string[]
-}
-
 /**
- * Create a dedicated OAuth client for one server. `name` is human-facing in the
- * Clerk dashboard; `redirectUri` is the server's ABS callback (exact match,
- * https). PKCE is required (confidential client + pkce_required) for defense in
- * depth even though ABS also holds the secret. The consent screen is disabled so
- * the per-session OIDC bounce stays silent (design sec 4.2 / Spirit rule 2) -
- * the user already consented to app.hearthshelf.com at sign-in, and ABS is a
- * first-party server we provisioned, so a per-server consent prompt is friction
- * with no security value here. Returns the secret ONCE.
- *
- * Field names verified live against the Clerk Backend API 2026-06-24: the
- * enforcement flag is `pkce_required` (NOT `require_pkce`, which Clerk silently
- * ignores), and `consent_screen_enabled` toggles the consent step. Clerk also
- * auto-appends `offline_access` to the stored scopes (enables refresh tokens),
- * so the persisted scope string is a superset of OIDC_SCOPES.
- */
-export async function createOAuthClient(
-  env: Env,
-  params: { name: string; redirectUri: string }
-): Promise<ClerkOAuthClient> {
-  const res = await fetch(`${CLERK_API}/oauth_applications`, {
-    method: 'POST',
-    headers: authHeaders(env),
-    body: JSON.stringify({
-      name: params.name,
-      redirect_uris: [params.redirectUri],
-      scopes: OIDC_SCOPES,
-      public: false,
-      pkce_required: true,
-      consent_screen_enabled: false,
-    }),
-  })
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '')
-    throw new ClerkApiError(res.status, detail.slice(0, 300))
-  }
-  const data = (await res.json()) as ClerkOAuthAppResponse
-  if (!data.client_secret) {
-    // Should never happen on create; guard so we never persist a half-made client.
-    throw new ClerkApiError(502, 'clerk did not return client_secret on create')
-  }
-  return {
-    appId: data.id,
-    clientId: data.client_id,
-    clientSecret: data.client_secret,
-    redirectUri: params.redirectUri,
-  }
-}
-
-/**
- * Update a server's OAuth client redirect_uri (PATCH). Used when a connect-domain
- * server's public IP changes: the box re-pushes its new public_url and we re-pin
- * the single allowlisted redirect_uri to the new reachable callback so OIDC keeps
- * working. Idempotent; a 404 (client already deleted) is swallowed. Does not
- * return or rotate the secret.
- */
-export async function updateOAuthClient(
-  env: Env,
-  appId: string,
-  redirectUri: string
-): Promise<void> {
-  const res = await fetch(`${CLERK_API}/oauth_applications/${encodeURIComponent(appId)}`, {
-    method: 'PATCH',
-    headers: authHeaders(env),
-    body: JSON.stringify({ redirect_uris: [redirectUri] }),
-  })
-  if (res.ok || res.status === 404) return
-  const detail = await res.text().catch(() => '')
-  throw new ClerkApiError(res.status, detail.slice(0, 300))
-}
-
-/**
- * Delete (revoke) a server's OAuth client. Idempotent from our side: a 404 means
- * it's already gone, which is fine for unlink. Other errors propagate.
+ * Delete (revoke) a server's OAuth client. Idempotent: a 404 means it's already
+ * gone, which is fine for unlink. Only legacy servers (paired under the old
+ * per-server-OIDC code) still have a client to revoke.
  */
 export async function deleteOAuthClient(env: Env, appId: string): Promise<void> {
   const res = await fetch(`${CLERK_API}/oauth_applications/${encodeURIComponent(appId)}`, {

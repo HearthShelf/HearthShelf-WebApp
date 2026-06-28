@@ -29,12 +29,9 @@ import {
   upsertServer,
   sweepOrphanServers,
   createLink,
-  getOAuthClient,
-  upsertOAuthClient,
 } from '../lib/db'
 import { pairingCode, serverSecret, sha256Hex, timingSafeEqual, uuid, now } from '../lib/ids'
 import { validatePublicUrl, probeServer } from '../lib/reachability'
-import { createOAuthClient, absRedirectUri } from '../lib/clerkOAuth'
 
 export const pairing = new Hono<{ Bindings: Env }>()
 
@@ -326,44 +323,12 @@ pairing.post('/pairing/redeem', async (c) => {
   })
   await markPairingRedeemed(c.env, code, identity.userId)
 
-  // Provision the dedicated per-server Clerk OAuth client (hosted OIDC). Only
-  // on first pairing of this server - re-pairs / invitee redeems reuse it. The
-  // client_secret is held until the HS server pulls it to configure ABS. A
-  // failure here is non-fatal to linking: the link is valid and OIDC config can
-  // be retried; we report it so the UI can prompt a re-pair if needed.
-  let oidcProvisioned = false
-  try {
-    const existing = await getOAuthClient(c.env, row.server_id)
-    if (!existing) {
-      // Pin the REACHABLE public origin's callback. For a connect-domain server
-      // that's the IP-bearing https://<ip-label>.<hash>.<zone>:<port>/auth/openid/callback
-      // (row.public_url, set by /pairing/update-url before redeem). Clerk redirects
-      // the browser HERE, so it must be loadable - the portless stable <hash>.<zone>
-      // is cert-valid but not browser-reachable. The box's nginx forces ABS to see
-      // this same host, and re-pushes its public_url on IP change so we re-PATCH the
-      // pin (see /servers/public-url). A bring-your-own-domain server pins its origin.
-      const redirectUri = absRedirectUri(row.public_url)
-      const client = await createOAuthClient(c.env, {
-        name: `HearthShelf server ${row.name || row.server_id}`,
-        redirectUri,
-      })
-      await upsertOAuthClient(c.env, {
-        serverId: row.server_id,
-        clerkAppId: client.appId,
-        clientId: client.clientId,
-        clientSecret: client.clientSecret ?? null,
-        redirectUri,
-      })
-    }
-    oidcProvisioned = true
-  } catch (err) {
-    // Swallow: linking already succeeded. Surface a soft signal in the response.
-    oidcProvisioned = false
-  }
-
+  // Hosted sign-in is HS-owned: the box mints a per-user ABS token on demand from
+  // a control-plane grant (POST <box>/hs/hosted/connect), so there is NO per-server
+  // Clerk OAuth client and no ABS-OIDC config step. Redeeming the code (the link
+  // created above) is all that's needed to connect.
   return c.json({
     ok: true,
     server: { id: row.server_id, url: row.public_url, name: row.name },
-    oidc_provisioned: oidcProvisioned,
   })
 })

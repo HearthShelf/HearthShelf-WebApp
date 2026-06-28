@@ -33,8 +33,6 @@ import {
   pendingInvitesForServer,
   markInviteAccepted,
   getOAuthClient,
-  setOAuthRedirectUri,
-  markOAuthClientApplied,
   deleteOAuthClientRow,
   updateServerPublicUrl,
   upsertServerCertPending,
@@ -46,7 +44,7 @@ import { mintCertGrant, hsDirectZone } from '../lib/certBroker'
 import { createClerkInvitation, ClerkApiError } from '../lib/clerkApi'
 import { sendEmail, EmailError } from '../lib/email'
 import { renderInviteEmail } from '../lib/emailTemplates'
-import { deleteOAuthClient, updateOAuthClient, absRedirectUri, clerkOidcEndpoints } from '../lib/clerkOAuth'
+import { deleteOAuthClient } from '../lib/clerkOAuth'
 import { uuid, sha256Hex, timingSafeEqual } from '../lib/ids'
 import { probeServer, validatePublicUrl, type ProbeStatus } from '../lib/reachability'
 
@@ -384,24 +382,9 @@ servers.post('/servers/public-url', async (c) => {
 
   const origin = check.origin as string
   await updateServerPublicUrl(c.env, serverId, origin)
-
-  // Re-pin the Clerk redirect_uri to the new reachable callback (best-effort).
-  let oidcRepinned = false
-  const oauth = await getOAuthClient(c.env, serverId)
-  if (oauth) {
-    const redirectUri = absRedirectUri(origin)
-    if (redirectUri !== oauth.redirect_uri) {
-      try {
-        await updateOAuthClient(c.env, oauth.clerk_app_id, redirectUri)
-        await setOAuthRedirectUri(c.env, serverId, redirectUri)
-        oidcRepinned = true
-      } catch {
-        // Non-fatal: the address is recorded; OIDC re-pin can be retried on the
-        // next push. Sign-in stays on the old pin until then.
-      }
-    }
-  }
-  return c.json({ ok: true, public_url: origin, oidc_repinned: oidcRepinned })
+  // No OIDC client to re-pin under HS-owned auth - recording the address is enough
+  // (it's what the SPA reaches + what grants are minted for).
+  return c.json({ ok: true, public_url: origin })
 })
 
 /**
@@ -495,95 +478,6 @@ servers.post('/servers/invite-from-server', async (c) => {
   })
 
   return c.json({ ok: true, email, role, emailed: clerkInvitationId !== null })
-})
-
-/**
- * OIDC config pull (server-to-server). A paired HS server fetches the OIDC
- * settings it must write into its ABS to trust Clerk as the IdP: the per-server
- * client_id + the one-time client_secret, the Clerk issuer/endpoint URLs, and
- * the pinned redirect_uri. Authenticated with the server_secret (the secret
- * never goes near the browser). The client_secret is returned ONCE; on success
- * the server calls back to confirm (or we clear it when it reports applied).
- *
- * Returns 409 if no OAuth client has been provisioned yet (pairing not redeemed
- * by an admin), or 410 if the secret was already consumed (re-pair to rotate).
- */
-servers.post('/servers/oidc-config', async (c) => {
-  let body: { server_id?: string; server_secret?: string }
-  try {
-    body = await c.req.json()
-  } catch {
-    return c.json({ error: 'invalid_body' }, 400)
-  }
-  const serverId = (body.server_id || '').trim()
-  const secret = body.server_secret || ''
-  if (!serverId || !secret) return c.json({ error: 'server_id and server_secret required' }, 400)
-
-  const server = await getServer(c.env, serverId)
-  if (!server) return c.json({ error: 'server_unknown' }, 404)
-  const presented = await sha256Hex(secret)
-  if (!timingSafeEqual(presented, server.server_secret_hash)) {
-    return c.json({ error: 'bad_server_secret' }, 401)
-  }
-
-  const oauth = await getOAuthClient(c.env, serverId)
-  if (!oauth) {
-    return c.json(
-      { error: 'oidc_not_provisioned', detail: 'have an admin redeem the pairing code first' },
-      409
-    )
-  }
-  if (!oauth.client_secret) {
-    return c.json(
-      { error: 'secret_consumed', detail: 're-pair to rotate the OIDC client secret' },
-      410
-    )
-  }
-
-  const endpoints = clerkOidcEndpoints(c.env)
-  // Do NOT clear the secret here. We used to null it on READ, but if the box then
-  // failed to PATCH ABS (or lost ABS's config on a container recreate), the secret
-  // was gone forever and every retry got 410 secret_consumed - a permanent break
-  // recoverable only by re-pair. Now the pull is IDEMPOTENT: the box may re-pull
-  // the same secret until it confirms a successful apply via POST /servers/oidc-applied.
-  return c.json({
-    issuer: endpoints.issuer,
-    authorization_url: endpoints.authorizationUrl,
-    token_url: endpoints.tokenUrl,
-    userinfo_url: endpoints.userInfoUrl,
-    jwks_url: endpoints.jwksUrl,
-    client_id: oauth.client_id,
-    client_secret: oauth.client_secret,
-    redirect_uri: oauth.redirect_uri,
-    scopes: 'openid email profile',
-  })
-})
-
-/**
- * Box confirms it successfully applied the OIDC config to ABS (server_secret
- * authed). Only NOW do we clear the one-time client_secret, so a failed apply
- * leaves the secret re-pullable instead of stranding the server. Idempotent.
- */
-servers.post('/servers/oidc-applied', async (c) => {
-  let body: { server_id?: string; server_secret?: string }
-  try {
-    body = await c.req.json()
-  } catch {
-    return c.json({ error: 'invalid_body' }, 400)
-  }
-  const serverId = (body.server_id || '').trim()
-  const secret = body.server_secret || ''
-  if (!serverId || !secret) return c.json({ error: 'server_id and server_secret required' }, 400)
-
-  const server = await getServer(c.env, serverId)
-  if (!server) return c.json({ error: 'server_unknown' }, 404)
-  const presented = await sha256Hex(secret)
-  if (!timingSafeEqual(presented, server.server_secret_hash)) {
-    return c.json({ error: 'bad_server_secret' }, 401)
-  }
-
-  await markOAuthClientApplied(c.env, serverId)
-  return c.json({ ok: true })
 })
 
 /**
