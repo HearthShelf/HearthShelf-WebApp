@@ -10,12 +10,15 @@ export interface Env {
   CLERK_JWKS_URL: string
   GRANT_TTL_SECONDS: string
   PAIRING_TTL_SECONDS: string
-  /** hs.direct base zone, e.g. "d.hearthshelf.com" (POC) / "hearthshelf.app". */
+  /** Connect-domain base zone, e.g. "d.hearthshelf.com" (current) / a dedicated
+   *  connect domain later. (Env name kept for compatibility.) */
   HSDIRECT_ZONE?: string
   /** Public base URL of the VPS cert broker, e.g. "https://ns1.d.hearthshelf.com:8443". */
   HSDIRECT_BROKER_URL?: string
   /** TTL (seconds) for cert-broker grant JWTs. Defaults to 300. */
   CERT_GRANT_TTL_SECONDS?: string
+  /** TTL (seconds) before an unredeemed server registration is swept. Default 7d. */
+  ORPHAN_TTL_SECONDS?: string
   /** Default From: address for outbound email, e.g. "no-reply@hearthshelf.com". */
   EMAIL_FROM: string
   /** Per-server monthly send cap for the hosted email relay. Defaults to 500. */

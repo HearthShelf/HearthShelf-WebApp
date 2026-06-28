@@ -22,19 +22,20 @@ import { bearer, verifyClerk, AuthError } from '../lib/clerk'
 import {
   createPairing,
   getPairing,
-  getServer,
-  setServerSecretHash,
   markPairingRedeemed,
   updatePairingPublicUrl,
+  updateServerPublicUrl,
   getOwnerLinkForServer,
   upsertServer,
+  sweepOrphanServers,
   createLink,
   getOAuthClient,
   upsertOAuthClient,
 } from '../lib/db'
 import { pairingCode, serverSecret, sha256Hex, timingSafeEqual, uuid, now } from '../lib/ids'
 import { validatePublicUrl, probeServer } from '../lib/reachability'
-import { createOAuthClient, absRedirectUriForServer } from '../lib/clerkOAuth'
+import { createOAuthClient, absRedirectUri } from '../lib/clerkOAuth'
+import { stableHost, hsDirectZone } from '../lib/certBroker'
 
 export const pairing = new Hono<{ Bindings: Env }>()
 
@@ -84,21 +85,23 @@ pairing.post('/pairing/start', async (c) => {
     return c.json({ error: 'public_url must be an absolute http(s) URL' }, 400)
   }
 
-  // Secret lifecycle: always issue a FRESH secret (the box stores it). For an
-  // ALREADY-REGISTERED server we also rotate the servers-row hash NOW, so the
-  // box's new secret validates immediately against the row that cert-grant and
-  // the server_secret-authed routes read - no drift window. (Rotating without
-  // updating the row was the bad_server_secret bug: a re-pair left the box's
-  // secret out of sync with the row until the next redeem rewrote it.) This
-  // self-heals a box whose stored secret had drifted. Redeem stays the ownership
-  // gate; rotating an existing row's secret only helps whoever already holds the
-  // box, which is the legitimate self-hoster.
+  // Secret lifecycle: always issue a FRESH secret (the box stores it) and
+  // MATERIALIZE the servers row NOW. cert-grant is server-secret-authed and needs
+  // the row to exist - both during this setup AND on every cert renewal after a
+  // reboot (long after the pairing code expires). Creating the row only at redeem
+  // (the old behavior) meant cert-grant 404'd, so the box could never get its
+  // address before redeem - and redeem needs that address. Registering here
+  // breaks that cycle. Ownership remains the LINKS table: a started-but-unredeemed
+  // servers row is inert (lists nothing, mints nothing user-facing). upsertServer
+  // is idempotent, so a re-pair just rotates the secret hash in place (self-heals
+  // a drifted box) - it replaces the old existing-only setServerSecretHash path.
   const secret = serverSecret()
   const secretHash = await sha256Hex(secret)
-  const existing = await getServer(c.env, serverId)
-  if (existing) {
-    await setServerSecretHash(c.env, serverId, secretHash)
-  }
+  await upsertServer(c.env, { serverId, publicUrl, name, secretHash })
+
+  // Opportunistically sweep abandoned (started-but-never-redeemed) servers rows
+  // so they don't accumulate. Fire-and-forget so it never delays pairing.
+  c.executionCtx?.waitUntil?.(sweepOrphanServers(c.env).catch(() => {}))
 
   const code = pairingCode()
   const ttl = Number(c.env.PAIRING_TTL_SECONDS || '900')
@@ -165,6 +168,9 @@ pairing.post('/pairing/update-url', async (c) => {
   }
 
   await updatePairingPublicUrl(c.env, code, publicUrl)
+  // The servers row exists from /pairing/start, so keep its URL current too -
+  // /servers/:id/grant and /status read server.public_url.
+  await updateServerPublicUrl(c.env, row.server_id, publicUrl)
   return c.json({ ok: true })
 })
 
@@ -330,7 +336,24 @@ pairing.post('/pairing/redeem', async (c) => {
   try {
     const existing = await getOAuthClient(c.env, row.server_id)
     if (!existing) {
-      const redirectUri = absRedirectUriForServer(urlCheck.origin as string, c.env.HSDIRECT_ZONE)
+      // The OIDC redirect must be the STABLE connect-domain host
+      // <hash>.<zone>/auth/openid/callback (the box's nginx forces ABS to see it,
+      // and the wildcard cert covers it). We derive <hash> straight from
+      // server_id - it does NOT depend on the cert or the live IP-bearing URL, so
+      // this works even if public_url were still settling. A bring-your-own-domain
+      // server (origin not under our zone) pins its own origin instead.
+      const origin = urlCheck.origin as string
+      const zone = hsDirectZone(c.env)
+      let isConnectDomain = false
+      try {
+        const h = new URL(origin).hostname.toLowerCase()
+        isConnectDomain = h === zone || h.endsWith('.' + zone)
+      } catch {
+        /* malformed origin - treat as own-domain, pin the origin */
+      }
+      const redirectUri = isConnectDomain
+        ? absRedirectUri(`https://${await stableHost(c.env, row.server_id)}`)
+        : absRedirectUri(origin)
       const client = await createOAuthClient(c.env, {
         name: `HearthShelf server ${row.name || row.server_id}`,
         redirectUri,

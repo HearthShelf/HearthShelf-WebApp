@@ -86,20 +86,39 @@ export async function deleteServer(env: Env, serverId: string): Promise<void> {
   await env.DB.prepare(`DELETE FROM servers WHERE server_id = ?`).bind(serverId).run()
 }
 
-// Rotate an already-registered server's secret hash at /pairing/start, so the
-// fresh secret the box receives validates immediately against the servers row
-// (cert-grant + the server_secret-authed routes read servers, not the pairing
-// row). Without this, re-pairing drifted the box's secret from the row until the
-// next redeem rewrote it - the bad_server_secret bug. No-op if the row is absent.
-export async function setServerSecretHash(
+// Update a server's public_url after the box provisions its real connect-domain
+// address (paired with /pairing/update-url, which updates the pairing row). The
+// servers row exists from /pairing/start now, so keep its URL current too - the
+// grant/status routes read server.public_url.
+export async function updateServerPublicUrl(
   env: Env,
   serverId: string,
-  secretHash: string
+  publicUrl: string
 ): Promise<void> {
+  await env.DB.prepare(`UPDATE servers SET public_url = ?, last_seen_at = ? WHERE server_id = ?`)
+    .bind(publicUrl, now(), serverId)
+    .run()
+}
+
+// Sweep abandoned server registrations. Since /pairing/start now creates the
+// servers row up front (so cert-grant works pre-redeem), a box that starts but is
+// never redeemed leaves an inert row. Delete rows older than the TTL that have NO
+// owner link AND no live (unredeemed, unexpired) pairing code. Dependents cascade.
+// Fire-and-forget from /pairing/start; never blocks pairing.
+export async function sweepOrphanServers(env: Env): Promise<void> {
+  const ttlMs = Number(env.ORPHAN_TTL_SECONDS || '604800') * 1000 // default 7d
+  const cutoff = now() - ttlMs
+  const t = now()
   await env.DB.prepare(
-    `UPDATE servers SET server_secret_hash = ?, last_seen_at = ? WHERE server_id = ?`
+    `DELETE FROM servers
+       WHERE created_at < ?
+         AND server_id NOT IN (SELECT server_id FROM links)
+         AND server_id NOT IN (
+           SELECT server_id FROM pairing_codes
+            WHERE redeemed_at IS NULL AND expires_at > ?
+         )`
   )
-    .bind(secretHash, now(), serverId)
+    .bind(cutoff, t)
     .run()
 }
 
