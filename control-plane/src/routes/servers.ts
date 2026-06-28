@@ -541,10 +541,11 @@ servers.post('/servers/oidc-config', async (c) => {
   }
 
   const endpoints = clerkOidcEndpoints(c.env)
-  // The server is about to apply this; clear the one-time secret so it isn't
-  // re-served. (If the server fails to apply, a re-pair rotates a fresh client.)
-  await markOAuthClientApplied(c.env, serverId)
-
+  // Do NOT clear the secret here. We used to null it on READ, but if the box then
+  // failed to PATCH ABS (or lost ABS's config on a container recreate), the secret
+  // was gone forever and every retry got 410 secret_consumed - a permanent break
+  // recoverable only by re-pair. Now the pull is IDEMPOTENT: the box may re-pull
+  // the same secret until it confirms a successful apply via POST /servers/oidc-applied.
   return c.json({
     issuer: endpoints.issuer,
     authorization_url: endpoints.authorizationUrl,
@@ -556,6 +557,33 @@ servers.post('/servers/oidc-config', async (c) => {
     redirect_uri: oauth.redirect_uri,
     scopes: 'openid email profile',
   })
+})
+
+/**
+ * Box confirms it successfully applied the OIDC config to ABS (server_secret
+ * authed). Only NOW do we clear the one-time client_secret, so a failed apply
+ * leaves the secret re-pullable instead of stranding the server. Idempotent.
+ */
+servers.post('/servers/oidc-applied', async (c) => {
+  let body: { server_id?: string; server_secret?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const serverId = (body.server_id || '').trim()
+  const secret = body.server_secret || ''
+  if (!serverId || !secret) return c.json({ error: 'server_id and server_secret required' }, 400)
+
+  const server = await getServer(c.env, serverId)
+  if (!server) return c.json({ error: 'server_unknown' }, 404)
+  const presented = await sha256Hex(secret)
+  if (!timingSafeEqual(presented, server.server_secret_hash)) {
+    return c.json({ error: 'bad_server_secret' }, 401)
+  }
+
+  await markOAuthClientApplied(c.env, serverId)
+  return c.json({ ok: true })
 })
 
 /**
