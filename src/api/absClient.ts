@@ -63,6 +63,27 @@ export async function absPatch<T = unknown>(
   })
 }
 
+/**
+ * Authenticated JSON POST (e.g. batch item actions, collection/playlist writes).
+ * Tolerates an empty/non-JSON 200 body (some ABS routes return nothing).
+ */
+export async function absPost<T = unknown>(
+  t: AbsTarget,
+  path: string,
+  body?: unknown
+): Promise<T | null> {
+  return absRequest<T | null>(t, path, {
+    method: 'POST',
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+}
+
+/** Authenticated DELETE. Tolerates an empty 200 body. */
+export async function absDelete<T = unknown>(t: AbsTarget, path: string): Promise<T | null> {
+  return absRequest<T | null>(t, path, { method: 'DELETE' })
+}
+
 async function absRequest<T>(
   t: AbsTarget,
   path: string,

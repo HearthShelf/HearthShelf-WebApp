@@ -5,7 +5,7 @@
  * minified item form for lists (denormalized title/authorName, cover via the
  * item's /cover endpoint). Only the fields we render are typed.
  */
-import { absGet, absPatch, absMediaUrl } from './absClient'
+import { absGet, absPatch, absPost, absMediaUrl } from './absClient'
 
 export interface AbsTarget {
   serverId: string
@@ -651,4 +651,424 @@ export async function renameNarrator(
     `/api/libraries/${encodeURIComponent(libraryId)}/narrators`,
     { oldName, newName }
   )
+}
+
+// =============================================================================
+// Rich library item shape + browse APIs for the full Library page.
+//
+// The Library page filters/sorts/derives client-side over the whole library, so
+// it needs more than the minified list shape above. These mirror the self-hosted
+// ABS reads (libraries.ts / admin.ts) over the WebApp's direct ABS client.
+// Verified against audiobookshelf 2.35.1 serializers.
+// =============================================================================
+
+/** Editable metadata fields on an item's media (PATCH /api/items/:id/media). */
+export interface ItemMetadataPatch {
+  title?: string | null
+  subtitle?: string | null
+  description?: string | null
+  publishedYear?: string | null
+  publisher?: string | null
+  language?: string | null
+  isbn?: string | null
+  asin?: string | null
+  genres?: string[]
+  explicit?: boolean
+  abridged?: boolean
+}
+
+export interface AbsItemMetadata {
+  title: string | null
+  titleIgnorePrefix: string
+  subtitle: string | null
+  authorName: string
+  narratorName: string
+  seriesName: string
+  publishedYear: string | null
+  description: string | null
+  genres: string[]
+  language: string | null
+  explicit: boolean
+}
+
+export interface AbsItemMedia {
+  id: string
+  metadata: AbsItemMetadata
+  coverPath: string | null
+  tags: string[]
+  numTracks: number
+  numAudioFiles: number
+  numChapters: number
+  duration: number
+  size: number
+  ebookFormat?: string
+}
+
+/** A full (minified-list) library item, as the Library page renders it. */
+export interface AbsLibraryItem {
+  id: string
+  libraryId: string
+  folderId: string
+  path: string
+  mediaType: 'book' | 'podcast'
+  media: AbsItemMedia
+  addedAt: number
+  updatedAt: number
+  isMissing: boolean
+  isInvalid: boolean
+}
+
+interface RawFullMetadata {
+  title?: string | null
+  titleIgnorePrefix?: string
+  subtitle?: string | null
+  authorName?: string
+  narratorName?: string
+  seriesName?: string
+  publishedYear?: string | null
+  description?: string | null
+  genres?: string[]
+  language?: string | null
+  explicit?: boolean
+}
+
+interface RawFullItem {
+  id: string
+  libraryId?: string
+  folderId?: string
+  path?: string
+  mediaType?: 'book' | 'podcast'
+  addedAt?: number
+  updatedAt?: number
+  isMissing?: boolean
+  isInvalid?: boolean
+  media?: {
+    id?: string
+    metadata?: RawFullMetadata
+    coverPath?: string | null
+    tags?: string[]
+    numTracks?: number
+    numAudioFiles?: number
+    numChapters?: number
+    duration?: number
+    size?: number
+    ebookFormat?: string
+  }
+}
+
+function mapFullItem(r: RawFullItem): AbsLibraryItem {
+  const md = r.media?.metadata ?? {}
+  return {
+    id: r.id,
+    libraryId: r.libraryId ?? '',
+    folderId: r.folderId ?? '',
+    path: r.path ?? '',
+    mediaType: r.mediaType ?? 'book',
+    addedAt: r.addedAt ?? 0,
+    updatedAt: r.updatedAt ?? 0,
+    isMissing: Boolean(r.isMissing),
+    isInvalid: Boolean(r.isInvalid),
+    media: {
+      id: r.media?.id ?? '',
+      metadata: {
+        title: md.title ?? null,
+        titleIgnorePrefix: md.titleIgnorePrefix ?? md.title ?? '',
+        subtitle: md.subtitle ?? null,
+        authorName: md.authorName ?? '',
+        narratorName: md.narratorName ?? '',
+        seriesName: md.seriesName ?? '',
+        publishedYear: md.publishedYear ?? null,
+        description: md.description ?? null,
+        genres: md.genres ?? [],
+        language: md.language ?? null,
+        explicit: Boolean(md.explicit),
+      },
+      coverPath: r.media?.coverPath ?? null,
+      tags: r.media?.tags ?? [],
+      numTracks: r.media?.numTracks ?? 0,
+      numAudioFiles: r.media?.numAudioFiles ?? 0,
+      numChapters: r.media?.numChapters ?? 0,
+      duration: r.media?.duration ?? 0,
+      size: r.media?.size ?? 0,
+      ebookFormat: r.media?.ebookFormat,
+    },
+  }
+}
+
+export interface LibraryItemsFull {
+  results: AbsLibraryItem[]
+  total: number
+}
+
+/**
+ * Fetch the entire library in one request (ABS treats limit=0 as "no limit").
+ * The Library page filters/sorts/derives client-side over the full set.
+ */
+export async function getAllLibraryItemsFull(
+  t: AbsTarget,
+  libraryId: string
+): Promise<LibraryItemsFull> {
+  const data = await absGet<{ results?: RawFullItem[]; total?: number }>(
+    t,
+    `/api/libraries/${encodeURIComponent(libraryId)}/items?minified=1&limit=0`
+  )
+  const results = (data.results ?? []).map(mapFullItem)
+  return { results, total: data.total ?? results.length }
+}
+
+// --- Series (with book counts + cover items) --------------------------------
+
+export interface AbsSeries {
+  id: string
+  name: string
+  nameIgnorePrefix: string
+  description: string | null
+  books: AbsLibraryItem[]
+}
+
+export interface SeriesListResponse {
+  results: AbsSeries[]
+  total: number
+}
+
+/** List the series in a library with their books (for the Series tab cards). */
+export async function getSeries(
+  t: AbsTarget,
+  libraryId: string,
+  page = 0,
+  limit = 1000
+): Promise<SeriesListResponse> {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+    sort: 'name',
+  })
+  const data = await absGet<{
+    results?: Array<{
+      id: string
+      name?: string
+      nameIgnorePrefix?: string
+      description?: string | null
+      books?: RawFullItem[]
+    }>
+    total?: number
+  }>(t, `/api/libraries/${encodeURIComponent(libraryId)}/series?${params.toString()}`)
+  const results: AbsSeries[] = (data.results ?? []).map((s) => ({
+    id: s.id,
+    name: s.name ?? '',
+    nameIgnorePrefix: s.nameIgnorePrefix ?? s.name ?? '',
+    description: s.description ?? null,
+    books: (s.books ?? []).map(mapFullItem),
+  }))
+  return { results, total: data.total ?? results.length }
+}
+
+// --- Authors (library author list: id, name, image, book count) -------------
+
+export interface AbsLibraryAuthor {
+  id: string
+  name: string
+  description: string | null
+  imagePath: string | null
+  numBooks: number
+  addedAt: number
+}
+
+export interface AuthorsResponse {
+  authors: AbsLibraryAuthor[]
+}
+
+/** List the authors in a library (id -> name map + photos for cards). */
+export async function getAuthors(t: AbsTarget, libraryId: string): Promise<AuthorsResponse> {
+  const data = await absGet<{
+    authors?: Array<{
+      id: string
+      name?: string
+      description?: string | null
+      imagePath?: string | null
+      numBooks?: number
+      addedAt?: number
+    }>
+  }>(t, `/api/libraries/${encodeURIComponent(libraryId)}/authors`)
+  return {
+    authors: (data.authors ?? []).map((a) => ({
+      id: a.id,
+      name: a.name ?? '',
+      description: a.description ?? null,
+      imagePath: a.imagePath ?? null,
+      numBooks: a.numBooks ?? 0,
+      addedAt: a.addedAt ?? 0,
+    })),
+  }
+}
+
+// --- Batch item actions (admin / write) -------------------------------------
+
+export interface BatchMediaPayload {
+  metadata?: ItemMetadataPatch
+  tags?: string[]
+}
+
+/** Write the same media payload across many items at once. */
+export async function batchUpdateItems(
+  t: AbsTarget,
+  ids: string[],
+  mediaPayload: BatchMediaPayload
+): Promise<void> {
+  await absPost(
+    t,
+    '/api/items/batch/update',
+    ids.map((id) => ({ id, mediaPayload }))
+  )
+}
+
+export async function batchDeleteItems(t: AbsTarget, libraryItemIds: string[]): Promise<void> {
+  await absPost(t, '/api/items/batch/delete', { libraryItemIds })
+}
+
+export async function batchScanItems(t: AbsTarget, libraryItemIds: string[]): Promise<void> {
+  await absPost(t, '/api/items/batch/scan', { libraryItemIds })
+}
+
+export async function batchQuickMatchItems(
+  t: AbsTarget,
+  libraryItemIds: string[],
+  options: { provider?: string; overrideDetails?: boolean } = {}
+): Promise<void> {
+  await absPost(t, '/api/items/batch/quickmatch', { libraryItemIds, options })
+}
+
+/**
+ * Tokenized URL to zip-download several items at once (ABS takes a comma-joined
+ * ?ids= list). Null when there's no token yet.
+ */
+export function libraryDownloadUrl(
+  t: AbsTarget,
+  libraryId: string,
+  itemIds: string[]
+): string | null {
+  return absMediaUrl(
+    t,
+    `/api/libraries/${encodeURIComponent(libraryId)}/download?ids=${encodeURIComponent(
+      itemIds.join(',')
+    )}`
+  )
+}
+
+// --- Collections / playlists (Add to list…) ---------------------------------
+
+export interface AbsListSummary {
+  id: string
+  name: string
+}
+
+export async function getCollectionsList(
+  t: AbsTarget,
+  libraryId: string
+): Promise<AbsListSummary[]> {
+  const data = await absGet<{ results?: Array<{ id: string; name?: string }> }>(
+    t,
+    `/api/libraries/${encodeURIComponent(libraryId)}/collections`
+  )
+  return (data.results ?? []).map((c) => ({ id: c.id, name: c.name ?? 'Collection' }))
+}
+
+export async function getPlaylistsList(
+  t: AbsTarget,
+  libraryId: string
+): Promise<AbsListSummary[]> {
+  const data = await absGet<{ results?: Array<{ id: string; name?: string }> }>(
+    t,
+    `/api/libraries/${encodeURIComponent(libraryId)}/playlists`
+  )
+  return (data.results ?? []).map((p) => ({ id: p.id, name: p.name ?? 'Playlist' }))
+}
+
+export async function createCollection(
+  t: AbsTarget,
+  libraryId: string,
+  name: string,
+  books: string[]
+): Promise<void> {
+  await absPost(t, '/api/collections', { libraryId, name, books })
+}
+
+export async function addBookToCollection(
+  t: AbsTarget,
+  collectionId: string,
+  libraryItemId: string
+): Promise<void> {
+  await absPost(t, `/api/collections/${encodeURIComponent(collectionId)}/book`, {
+    id: libraryItemId,
+  })
+}
+
+export async function addBooksToCollection(
+  t: AbsTarget,
+  collectionId: string,
+  libraryItemIds: string[]
+): Promise<void> {
+  await absPost(t, `/api/collections/${encodeURIComponent(collectionId)}/batch/add`, {
+    books: libraryItemIds,
+  })
+}
+
+export async function createPlaylist(
+  t: AbsTarget,
+  libraryId: string,
+  name: string,
+  items: { libraryItemId: string; episodeId?: string }[]
+): Promise<void> {
+  await absPost(t, '/api/playlists', { libraryId, name, items })
+}
+
+export async function addItemToPlaylist(
+  t: AbsTarget,
+  playlistId: string,
+  libraryItemId: string
+): Promise<void> {
+  await absPost(t, `/api/playlists/${encodeURIComponent(playlistId)}/item`, {
+    libraryItemId,
+  })
+}
+
+export async function addBooksToPlaylist(
+  t: AbsTarget,
+  playlistId: string,
+  libraryItemIds: string[]
+): Promise<void> {
+  await absPost(t, `/api/playlists/${encodeURIComponent(playlistId)}/batch/add`, {
+    items: libraryItemIds.map((libraryItemId) => ({ libraryItemId })),
+  })
+}
+
+// --- Current user (admin gating) --------------------------------------------
+
+export interface AbsMe {
+  id: string
+  username: string
+  type: string
+  permissions: { update: boolean; delete: boolean; download: boolean } | null
+}
+
+/** The signed-in user on the active server, for gating admin batch actions. */
+export async function getMe(t: AbsTarget): Promise<AbsMe> {
+  const data = await absGet<{
+    id?: string
+    username?: string
+    type?: string
+    permissions?: { update?: boolean; delete?: boolean; download?: boolean }
+  }>(t, '/api/me')
+  return {
+    id: data.id ?? '',
+    username: data.username ?? '',
+    type: data.type ?? 'user',
+    permissions: data.permissions
+      ? {
+          update: Boolean(data.permissions.update),
+          delete: Boolean(data.permissions.delete),
+          download: Boolean(data.permissions.download),
+        }
+      : null,
+  }
 }

@@ -1,0 +1,227 @@
+import { useState, useEffect } from 'react'
+import type { AbsLibraryItem } from '@/api/absLibrary'
+import { Icon } from '@/components/common/Icon'
+import {
+  FILTER_GROUPS,
+  FILTER_FLAGS,
+  filterLabel,
+  SORT_COMMON,
+  SORT_MORE,
+  type LibrarySort,
+} from '@/lib/libraryFilters'
+
+function FilterItem({
+  label,
+  check,
+  arrow,
+  onClick,
+}: {
+  label: string
+  check?: boolean
+  arrow?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button className={'mp-item' + (check ? ' on' : '')} onClick={onClick}>
+      {label}
+      {arrow && (
+        <Icon
+          name="arrow_right"
+          style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}
+        />
+      )}
+      {check && (
+        <Icon name="check" style={{ marginLeft: 'auto', color: 'var(--accent)' }} />
+      )}
+    </button>
+  )
+}
+
+// Progress filter values surfaced at the top of the filter menu.
+export type ProgFilter = 'all' | 'in-progress' | 'finished' | 'not-started'
+
+const PROGRESS_ROWS: [ProgFilter, string][] = [
+  ['in-progress', 'In progress'],
+  ['finished', 'Finished'],
+  ['not-started', 'Not started'],
+]
+
+// Nested filter menu: a progress section, then categories (drill in with a back
+// button) plus standalone flag toggles.
+export function LibraryFilterMenu({
+  items,
+  filter,
+  setFilter,
+  prog,
+  setProg,
+}: {
+  items: AbsLibraryItem[]
+  filter: string
+  setFilter: (f: string) => void
+  // Progress segment (separate from the unified filter). Optional so other
+  // callers can use the menu without it.
+  prog?: ProgFilter
+  setProg?: (p: ProgFilter) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [sub, setSub] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const close = () => setOpen(false)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [open])
+
+  const group = sub ? FILTER_GROUPS.find((g) => g.id === sub) : null
+  const active = filter !== 'all' || (prog != null && prog !== 'all')
+
+  return (
+    <div className="menu-wrap" onClick={(e) => e.stopPropagation()}>
+      <button
+        className={'pill' + (active ? ' on' : '')}
+        onClick={() => {
+          setOpen((o) => !o)
+          setSub(null)
+        }}
+      >
+        <Icon name="filter_list" /> {filterLabel(filter)}
+      </button>
+      {open && (
+        <div className="menu-pop left">
+          {!group && (
+            <>
+              {setProg && (
+                <>
+                  <div className="mp-label">Progress</div>
+                  {PROGRESS_ROWS.map(([id, label]) => (
+                    <FilterItem
+                      key={id}
+                      label={label}
+                      check={prog === id}
+                      onClick={() => {
+                        setProg(prog === id ? 'all' : id)
+                        setOpen(false)
+                      }}
+                    />
+                  ))}
+                  <div className="mp-sep" />
+                </>
+              )}
+              <div className="mp-label">Filter by</div>
+              <FilterItem
+                label="All"
+                check={filter === 'all'}
+                onClick={() => {
+                  setFilter('all')
+                  setOpen(false)
+                }}
+              />
+              {FILTER_GROUPS.filter((g) => g.values(items).length > 0).map((g) => (
+                <FilterItem key={g.id} label={g.label} arrow onClick={() => setSub(g.id)} />
+              ))}
+              <div className="mp-sep" />
+              {FILTER_FLAGS.map(([id, label]) => (
+                <FilterItem
+                  key={id}
+                  label={label}
+                  check={filter === id}
+                  onClick={() => {
+                    setFilter(id)
+                    setOpen(false)
+                  }}
+                />
+              ))}
+            </>
+          )}
+          {group && (
+            <>
+              <button
+                className="mp-item"
+                onClick={() => setSub(null)}
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <Icon name="arrow_left" /> Back
+              </button>
+              <div className="mp-sep" />
+              <div className="mp-label">{group.label}</div>
+              {group.values(items).map((v) => {
+                const key = `${group.id}|${v}`
+                return (
+                  <FilterItem
+                    key={v}
+                    label={v}
+                    check={filter === key}
+                    onClick={() => {
+                      setFilter(key)
+                      setOpen(false)
+                    }}
+                  />
+                )
+              })}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function LibrarySortMenu({
+  sort,
+  desc,
+  setSort,
+  toggleDesc,
+}: {
+  sort: LibrarySort
+  desc: boolean
+  setSort: (s: LibrarySort) => void
+  toggleDesc: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    const close = () => setOpen(false)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [open])
+
+  const Row = (s: LibrarySort) => (
+    <button
+      key={s}
+      className={'mp-item' + (s === sort ? ' on' : '')}
+      onClick={() => {
+        if (s === sort) toggleDesc()
+        else {
+          setSort(s)
+          setOpen(false)
+        }
+      }}
+    >
+      {s}
+      {s === sort && (
+        <Icon
+          name={desc ? 'expand_more' : 'expand_less'}
+          style={{ marginLeft: 'auto', color: 'var(--accent)' }}
+        />
+      )}
+    </button>
+  )
+
+  return (
+    <div className="menu-wrap" onClick={(e) => e.stopPropagation()}>
+      <button className={'pill' + (open ? ' on' : '')} onClick={() => setOpen((o) => !o)}>
+        <Icon name="swap_vert" /> {sort}
+      </button>
+      {open && (
+        <div className="menu-pop left">
+          <div className="mp-label">Sort by</div>
+          {SORT_COMMON.map(Row)}
+          <div className="mp-sep" />
+          <div className="mp-label">More</div>
+          {SORT_MORE.map(Row)}
+        </div>
+      )}
+    </div>
+  )
+}
