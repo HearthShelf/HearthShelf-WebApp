@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Loader2, AlertCircle } from 'lucide-react'
 import { useServers } from '@/hooks/useServers'
+import { useActiveServerStore } from '@/store/activeServer'
 
 /**
  * Landing for the branded invite email's deeplink: /invite?server=<serverId>.
@@ -18,6 +19,7 @@ export function InvitePage() {
   const [params] = useSearchParams()
   const serverId = params.get('server') ?? ''
   const { data: servers, isLoading, isError } = useServers()
+  const setActiveServer = useActiveServerStore((s) => s.setActiveServer)
 
   useEffect(() => {
     if (!serverId) {
@@ -26,14 +28,17 @@ export function InvitePage() {
     }
     if (!servers) return
     if (servers.some((s) => s.id === serverId)) {
-      navigate(`/server/${serverId}`, { replace: true })
+      // Make the invited server the active one, then land on the clean library -
+      // the server id never sticks in the URL.
+      setActiveServer(serverId)
+      navigate('/library', { replace: true })
     } else {
       // Authed and the list loaded, but this server isn't linked: the invite was
       // for a different email, already revoked, or never materialized. Drop them
       // on the server list rather than a dead end - anything they do have shows.
       navigate('/', { replace: true })
     }
-  }, [serverId, servers, navigate])
+  }, [serverId, servers, navigate, setActiveServer])
 
   return (
     <div className="mx-auto max-w-md py-24 text-center">

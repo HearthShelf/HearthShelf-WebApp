@@ -31,7 +31,7 @@ export function WebAppMediaUIProvider({
     () => ({
       coverUrl: (itemId, width = 240) =>
         absMediaUrl(target, `/api/items/${encodeURIComponent(itemId)}/cover?width=${width}`),
-      openItem: (itemId) => navigate(`/server/${target.serverId}/item/${itemId}`),
+      openItem: (itemId) => navigate(`/book/${itemId}`),
       // Fetch the book and start it in the global player (no navigation needed -
       // the docked mini-player surfaces it). Falls back to opening the page if
       // the fetch fails.
@@ -52,7 +52,7 @@ export function WebAppMediaUIProvider({
             autoplay: true,
           })
         } catch {
-          navigate(`/server/${target.serverId}/item/${itemId}`)
+          navigate(`/book/${itemId}`)
         }
       },
       markFinished: (itemId, finished) => {
@@ -62,12 +62,11 @@ export function WebAppMediaUIProvider({
           qc.invalidateQueries({ queryKey: ['abs-item', target.serverId, itemId] })
         })
       },
-      // Author has a detail route now; series/narrator/genre browse routes don't
-      // exist yet (those render as plain text until they do).
-      authorHref: (authorId) => `/server/${target.serverId}/author/${authorId}`,
-      seriesHref: () => null,
-      narratorHref: () => null,
-      genreHref: () => null,
+      // Clean, server-agnostic routes - the active server is ambient.
+      authorHref: (authorId) => `/author/${authorId}`,
+      seriesHref: (seriesId) => `/series/${seriesId}`,
+      narratorHref: (narrator) => `/library?narrator=${encodeURIComponent(narrator)}`,
+      genreHref: (genre) => `/library?genre=${encodeURIComponent(genre)}`,
     }),
     [target, navigate, player, qc]
   )

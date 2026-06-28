@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Server, MoreVertical, ExternalLink, Trash2 } from 'lucide-react'
 import { useUnlinkServer } from '@/hooks/useServers'
+import { useActiveServerStore } from '@/store/activeServer'
 import { ServerStatusDot } from '@/components/ServerStatusDot'
 import { Menu, MenuItem } from '@/components/ui/Menu'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -10,18 +11,20 @@ import { cn } from '@/lib/cn'
 import type { LinkedServer } from '@/types/server'
 
 /**
- * One row on the "Pick a library" screen. Clicking the row opens the server; a
- * kebab menu (revealed on hover/focus) and a right-click context menu both offer
- * Open and Remove. Remove unlinks the server from the user's account after a
- * confirm - it does not touch the server itself.
+ * One server in the account's "My servers" list. Clicking the row makes that
+ * server active and opens its library; a kebab menu (hover/focus) and right-click
+ * context menu both offer Open and Remove. Remove unlinks the server from the
+ * user's account after a confirm - it does not touch the server itself.
+ *
+ * The row shows the server's NAME and a friendly status only - never the Direct
+ * URL or a server id (those are ugly and confusing to non-technical users).
  */
-export function ServerRow({ server }: { server: LinkedServer }) {
+export function ServerRow({ server, active }: { server: LinkedServer; active?: boolean }) {
   const navigate = useNavigate()
   const unlink = useUnlinkServer()
+  const setActiveServer = useActiveServerStore((s) => s.setActiveServer)
   const [menu, setMenu] = useState<{ x: number; y: number; align: 'left' | 'right' } | null>(null)
   const [confirmRemove, setConfirmRemove] = useState(false)
-
-  const to = `/server/${server.id}`
 
   function openMenuFromKebab(e: React.MouseEvent) {
     e.preventDefault()
@@ -37,7 +40,8 @@ export function ServerRow({ server }: { server: LinkedServer }) {
 
   function open() {
     setMenu(null)
-    navigate(to)
+    setActiveServer(server.id)
+    navigate('/library')
   }
 
   function remove() {
@@ -54,11 +58,13 @@ export function ServerRow({ server }: { server: LinkedServer }) {
   return (
     <li>
       <div className="group relative" onContextMenu={openMenuFromContext}>
-        <Link
-          to={to}
+        <button
+          type="button"
+          onClick={open}
           className={cn(
-            'flex items-center gap-4 rounded-lg border border-border bg-card p-4',
-            'transition-colors hover:bg-elevated'
+            'flex w-full items-center gap-4 rounded-lg border bg-card p-4 text-left',
+            'transition-colors hover:bg-elevated',
+            active ? 'border-primary/60' : 'border-border'
           )}
         >
           <span className="flex size-10 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
@@ -66,12 +72,14 @@ export function ServerRow({ server }: { server: LinkedServer }) {
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate font-medium text-card-foreground">{server.name}</span>
-            <span className="t-mono block truncate">{server.url}</span>
+            <span className="t-muted block truncate text-[12px]">
+              {active ? 'Currently browsing' : 'Tap to open this library'}
+            </span>
           </span>
           <ServerStatusDot serverId={server.id} />
           {/* Spacer so the status dot never sits under the kebab button. */}
           <span className="w-7" aria-hidden />
-        </Link>
+        </button>
 
         <button
           type="button"

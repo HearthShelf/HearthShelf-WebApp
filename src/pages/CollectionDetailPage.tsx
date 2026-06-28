@@ -1,65 +1,82 @@
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react'
-import { useServer } from '@/hooks/useServers'
+import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useCollection } from '@/hooks/useLibrary'
-import { hasAbsToken } from '@/lib/absTokens'
-import { type AbsTarget } from '@/api/absLibrary'
-import { WebAppMediaUIProvider } from '@/components/shared/WebAppMediaUI'
+import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { ItemGrid } from '@/components/ItemGrid'
+import { Icon } from '@/components/common/Icon'
 
-/** A collection's items as a cover grid. */
 export function CollectionDetailPage() {
-  const { serverId, collectionId } = useParams()
-  const server = useServer(serverId)
-  const target: AbsTarget | null = serverId && server ? { serverId, serverUrl: server.url } : null
-  const connected = serverId ? hasAbsToken(serverId) : false
-  const { data, isLoading, isError } = useCollection(
-    target as AbsTarget,
+  const { collectionId } = useParams()
+  const { target, connected } = useActiveLibrary()
+  const ui = useMediaUI()
+
+  const { data, isLoading, isError, refetch } = useCollection(
+    target ?? { serverId: '', serverUrl: '' },
     collectionId,
     Boolean(target) && connected
   )
 
+  if (!target) return null
+
+  if (isLoading) {
+    return (
+      <div className="page">
+        <p className="page-sub">Loading collection...</p>
+      </div>
+    )
+  }
+  if (isError || !data) {
+    return (
+      <div className="page">
+        <div className="empty-state">
+          <Icon name="error" />
+          <h3>Could not load this collection.</h3>
+          <button className="btn-sm btn-ghost" style={{ margin: '0 auto' }} onClick={() => refetch()}>
+            Try again
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const books = data.items
+  const totalH = books.reduce((s, b) => s + (b.durationSec ?? 0) / 3600, 0)
+
   return (
-    <div className="mx-auto max-w-5xl">
-      <Link
-        to={serverId ? `/server/${serverId}` : '/'}
-        className="t-muted mb-6 inline-flex items-center gap-1.5 text-[13px] hover:text-foreground"
-      >
-        <ArrowLeft size={14} />
-        Back to library
-      </Link>
+    <div className="page fade-in">
+      <div className="crumb">
+        <Link className="lnk" to="/collections">
+          Collections
+        </Link>
+        <Icon name="chevron_right" />
+        {data.name}
+      </div>
 
-      {(!connected || isLoading) && (
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-6 text-muted-foreground">
-          <Loader2 className="animate-spin" size={18} />
-          <span className="t-body">Loading...</span>
+      <div className="page-head">
+        <div className="eyebrow">Collection</div>
+        <h1 className="title-xl">{data.name}</h1>
+        {data.description && <p className="page-sub">{data.description}</p>}
+      </div>
+
+      <div className="toolbar2">
+        <span className="count-badge">
+          {books.length} {books.length === 1 ? 'book' : 'books'} · {totalH.toFixed(0)}h
+        </span>
+        <div className="tb-spacer" />
+        {books[0] && (
+          <button className="pill" onClick={() => ui.playItem(books[0].id)}>
+            <Icon name="play_arrow" fill /> Play all
+          </button>
+        )}
+      </div>
+
+      {books.length === 0 ? (
+        <div className="empty-state">
+          <Icon name="auto_stories" />
+          <h3>This collection is empty</h3>
         </div>
-      )}
-
-      {connected && isError && (
-        <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-6">
-          <AlertCircle className="mt-0.5 shrink-0 text-destructive" size={18} />
-          <p className="t-body text-card-foreground">Couldn't load this collection.</p>
-        </div>
-      )}
-
-      {connected && data && target && (
-        <WebAppMediaUIProvider target={target}>
-          <p className="t-eyebrow">Collection</p>
-          <h1 className="t-h1 mt-1">{data.name}</h1>
-          {data.description && (
-            <p className="t-body mt-3 max-w-2xl whitespace-pre-line text-muted-foreground">
-              {data.description}
-            </p>
-          )}
-          <div className="mt-8">
-            {data.items.length > 0 ? (
-              <ItemGrid items={data.items} />
-            ) : (
-              <p className="t-muted text-[13px]">This collection is empty.</p>
-            )}
-          </div>
-        </WebAppMediaUIProvider>
+      ) : (
+        <ItemGrid items={books} />
       )}
     </div>
   )

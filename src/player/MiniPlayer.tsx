@@ -20,7 +20,7 @@ export function MiniPlayer() {
   const p = usePlayer()
   if (!p.now) return null
   const n = p.now
-  const itemHref = `/server/${n.serverId}/item/${n.itemId}`
+  const itemHref = `/book/${n.itemId}`
 
   return (
     <div className="border-t border-border bg-sidebar">

@@ -437,3 +437,96 @@ export async function setItemFinished(
     isFinished: finished,
   })
 }
+
+// --- listening stats (/api/me/listening-stats) ------------------------------
+
+export interface ListeningStats {
+  /** All-time seconds listened. */
+  totalTimeSec: number
+  /** Seconds listened today. */
+  todaySec: number
+  /** Seconds per ISO date (YYYY-MM-DD), for the activity heatmap/streak. */
+  byDay: Record<string, number>
+}
+
+interface RawListeningStats {
+  totalTime?: number
+  today?: number
+  days?: Record<string, number>
+}
+
+export async function getListeningStats(t: AbsTarget): Promise<ListeningStats> {
+  const data = await absGet<RawListeningStats>(t, '/api/me/listening-stats')
+  return {
+    totalTimeSec: data.totalTime ?? 0,
+    todaySec: data.today ?? 0,
+    byDay: data.days ?? {},
+  }
+}
+
+// --- listening sessions (/api/me/listening-sessions) ------------------------
+
+export interface ListeningSession {
+  id: string
+  itemId: string
+  title: string
+  author: string
+  /** Seconds actually listened in this session. */
+  timeListeningSec: number
+  /** Epoch ms the session started. */
+  startedAt: number
+  device?: string
+}
+
+export interface ListeningSessionsPage {
+  sessions: ListeningSession[]
+  total: number
+  page: number
+  numPages: number
+}
+
+interface RawSession {
+  id: string
+  libraryItemId: string
+  displayTitle: string
+  displayAuthor: string
+  timeListening: number
+  startedAt: number
+  deviceInfo?: { deviceName?: string; osName?: string; browserName?: string }
+}
+
+interface RawSessionsResponse {
+  total: number
+  numPages: number
+  page: number
+  sessions: RawSession[]
+}
+
+export async function getListeningSessions(
+  t: AbsTarget,
+  opts: { page?: number; itemsPerPage?: number } = {}
+): Promise<ListeningSessionsPage> {
+  const page = opts.page ?? 0
+  const itemsPerPage = opts.itemsPerPage ?? 25
+  const data = await absGet<RawSessionsResponse>(
+    t,
+    `/api/me/listening-sessions?page=${page}&itemsPerPage=${itemsPerPage}`
+  )
+  return {
+    sessions: (data.sessions ?? []).map((s) => ({
+      id: s.id,
+      itemId: s.libraryItemId,
+      title: s.displayTitle || 'Untitled',
+      author: s.displayAuthor || '',
+      timeListeningSec: s.timeListening ?? 0,
+      startedAt: s.startedAt ?? 0,
+      device:
+        s.deviceInfo?.deviceName ||
+        [s.deviceInfo?.osName, s.deviceInfo?.browserName].filter(Boolean).join(' ') ||
+        undefined,
+    })),
+    total: data.total ?? 0,
+    page: data.page ?? page,
+    numPages: data.numPages ?? 1,
+  }
+}
