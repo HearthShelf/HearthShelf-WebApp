@@ -7,7 +7,7 @@ import { fetchInfraLogs, ApiError, type InfraLog, type LogQueryParams } from '@/
 /**
  * Platform-operator infra log viewer. Pulls warn/error logs from every source
  * (VPS cert broker, control plane, self-hosted boxes) into one filterable table.
- * The control plane gates this to PLATFORM_ADMIN_EMAILS - non-operators get a
+ * The control plane gates this to the platform_admins roster - non-admins get a
  * clean "not authorized" panel rather than data.
  */
 type SourceFilter = '' | 'vps' | 'cp' | 'box'
@@ -73,8 +73,8 @@ export function InfraLogsPage() {
         <Panel>
           <AlertTriangle size={18} className="text-muted-foreground" />
           <span className="t-body">
-            This view is limited to platform operators. Your account isn&apos;t on the
-            operator allowlist.
+            This view is limited to platform admins. Your account isn&apos;t on the admin
+            roster.
           </span>
         </Panel>
       ) : (

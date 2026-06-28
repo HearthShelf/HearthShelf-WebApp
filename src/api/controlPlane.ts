@@ -171,6 +171,117 @@ export async function fetchInfraLogs(params: LogQueryParams = {}): Promise<Infra
   return data.logs
 }
 
+// --- platform admin -------------------------------------------------------
+//
+// The control plane gates all of these to the platform_admins D1 table (the same
+// roster that gates the infra log viewer). Non-admins get ApiError(403) so a page
+// can show a clean "not authorized" state; an absent/expired session is 401.
+
+export interface AdminMe {
+  clerk_user_id: string
+  email: string
+  role: string
+}
+
+/** Resolve whether the signed-in user is a platform admin (and their role). The
+ *  control plane is the real gate; this just drives UI routing. Throws
+ *  ApiError(403) when authenticated but not an admin. */
+export async function fetchAdminMe(): Promise<AdminMe> {
+  return request<AdminMe>('/admin/me')
+}
+
+export interface AdminServer {
+  id: string
+  name: string | null
+  url: string
+  link_count: number
+  created_at: number
+  last_seen_at: number | null
+}
+
+export async function fetchAdminServers(): Promise<AdminServer[]> {
+  const data = await request<{ servers: AdminServer[] }>('/admin/servers')
+  return data.servers
+}
+
+export interface AdminServerDetail {
+  id: string
+  name: string | null
+  url: string
+  created_at: number
+  last_seen_at: number | null
+  cert: { status: string; not_after: number | null; hash: string } | null
+  email_relay: { sent_this_window: number; monthly_cap: number }
+  links: Array<{ clerk_user_id: string; email: string; role: 'admin' | 'user'; created_at: number }>
+}
+
+export async function fetchAdminServer(serverId: string): Promise<AdminServerDetail> {
+  return request<AdminServerDetail>(`/admin/servers/${encodeURIComponent(serverId)}`)
+}
+
+/** Hard-deregister a server (destructive, not reversible). Audited server-side. */
+export async function deregisterServer(serverId: string): Promise<void> {
+  await request(`/admin/servers/${encodeURIComponent(serverId)}`, { method: 'DELETE' })
+}
+
+export interface AdminUser {
+  clerk_user_id: string
+  plan: 'free' | 'pro'
+  plan_source: string | null
+  links: Array<{ server_id: string; email: string; role: 'admin' | 'user'; created_at: number }>
+}
+
+export async function fetchAdminUser(clerkUserId: string): Promise<AdminUser> {
+  return request<AdminUser>(`/admin/users/${encodeURIComponent(clerkUserId)}`)
+}
+
+/** Manually set a user's plan (the only entitlement lever until billing lands). */
+export async function setUserPlan(clerkUserId: string, plan: 'free' | 'pro'): Promise<void> {
+  await request('/admin/entitlements', {
+    method: 'POST',
+    body: JSON.stringify({ clerk_user_id: clerkUserId, plan }),
+  })
+}
+
+export interface PlatformAdminEntry {
+  clerk_user_id: string
+  email: string | null
+  role: string
+  granted_by: string | null
+  granted_at: number
+}
+
+export async function fetchPlatformAdmins(): Promise<PlatformAdminEntry[]> {
+  const data = await request<{ admins: PlatformAdminEntry[] }>('/admin/admins')
+  return data.admins
+}
+
+export async function addPlatformAdmin(input: {
+  email?: string
+  clerk_user_id?: string
+  role?: 'admin' | 'support'
+}): Promise<void> {
+  await request('/admin/admins', { method: 'POST', body: JSON.stringify(input) })
+}
+
+export async function removePlatformAdmin(clerkUserId: string): Promise<void> {
+  await request(`/admin/admins/${encodeURIComponent(clerkUserId)}`, { method: 'DELETE' })
+}
+
+export interface AuditEntry {
+  id: string
+  actor: string
+  action: string
+  target: string | null
+  detail: string | null
+  created_at: number
+}
+
+export async function fetchAuditLog(limit = 100): Promise<AuditEntry[]> {
+  const data = await request<{ audit: AuditEntry[] }>(`/admin/audit?limit=${limit}`)
+  return data.audit
+}
+
 /** Invite someone by email to a server (admin only). */
 export async function inviteToServer(
   serverId: string,
