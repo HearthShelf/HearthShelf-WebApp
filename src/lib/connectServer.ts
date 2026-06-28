@@ -19,7 +19,9 @@ const TIMEOUT_MS = 2 * 60 * 1000
 interface ConnectMessage {
   type: 'hs-connect-token'
   token: string
-  state: string
+  // ABS's own state, echoed back by the connect-return relay. Informational only
+  // now (we don't issue or verify our own nonce on the web flow).
+  state?: string
 }
 
 function isConnectMessage(v: unknown): v is ConnectMessage {
@@ -27,16 +29,8 @@ function isConnectMessage(v: unknown): v is ConnectMessage {
     typeof v === 'object' &&
     v !== null &&
     (v as { type?: unknown }).type === 'hs-connect-token' &&
-    typeof (v as { token?: unknown }).token === 'string' &&
-    typeof (v as { state?: unknown }).state === 'string'
+    typeof (v as { token?: unknown }).token === 'string'
   )
-}
-
-// Browser-safe random nonce for the state round-trip.
-function randomState(): string {
-  const b = new Uint8Array(16)
-  crypto.getRandomValues(b)
-  return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('')
 }
 
 // Dedupe concurrent connects to the same server (e.g. two components mounting).
@@ -52,22 +46,30 @@ export function connectServer(serverId: string, serverUrl: string): Promise<stri
   if (existing) return existing
 
   const origin = serverUrl.replace(/\/$/, '')
-  const state = randomState()
   // Stash which server this attempt is for, so the full-page fallback (popup
-  // blocked) can recover the target + verify state after the round-trip.
+  // blocked) can recover the target after the round-trip.
   try {
     sessionStorage.setItem(
       'hs-connect-pending',
-      JSON.stringify({ serverId, serverUrl: origin, state })
+      JSON.stringify({ serverId, serverUrl: origin })
     )
   } catch {
     // sessionStorage unavailable (private mode edge) - popup path still works.
   }
-  const authCb = `${origin}/hs/hosted/connect-return`
-  const authUrl =
-    `${origin}/auth/openid` +
-    `?auth_cb=${encodeURIComponent(authCb)}` +
-    `&state=${encodeURIComponent(state)}`
+  // ABS web OIDC flow (verified against ABS 2.35.1, Auth.js / OidcAuthStrategy.js):
+  // - the callback param is `callback` (ABS reads `redirect_uri || callback`),
+  //   NOT `auth_cb`.
+  // - We send a RELATIVE callback path, not an absolute URL. ABS's
+  //   isValidWebCallbackUrl has a relative-path branch that skips the host
+  //   comparison entirely (a leading-slash path can only stay same-origin), which
+  //   (a) avoids the host mismatch - nginx makes ABS see the portless stable host
+  //   while the browser is on the IP-bearing host:port - and (b) is strictly safer
+  //   against open-redirect (no attacker-suppliable host in the callback at all).
+  //   ABS then 302s to this path on whatever origin the browser actually loaded.
+  // - The web flow REJECTS a caller-supplied `state` ("Invalid state, not allowed
+  //   on web flow"), so we do NOT send one. Cross-talk safety rests on origin-
+  //   pinning + per-server dedupe instead of a self-issued nonce.
+  const authUrl = `${origin}/auth/openid?callback=${encodeURIComponent('/hs/hosted/connect-return')}`
 
   const promise = new Promise<string>((resolve, reject) => {
     const win = window.open(authUrl, `hs-connect-${serverId}`, POPUP_FEATURES)
@@ -86,10 +88,11 @@ export function connectServer(serverId: string, serverUrl: string): Promise<stri
     }
 
     function onMessage(e: MessageEvent) {
-      // Only accept a message from this exact server origin.
+      // Only accept a message from this exact server origin. (We no longer issue
+      // our own state nonce - ABS web flow forbids it - so cross-talk safety
+      // rests on this origin pin plus the per-server inflight dedupe above.)
       if (e.origin !== origin) return
       if (!isConnectMessage(e.data)) return
-      if (e.data.state !== state) return // not our attempt
       if (!e.data.token) {
         settled = true
         cleanup()

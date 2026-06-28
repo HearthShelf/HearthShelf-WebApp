@@ -6,12 +6,15 @@ import { setAbsToken } from '@/lib/absTokens'
 /**
  * Full-page fallback landing for the OIDC connect bounce (used when popups are
  * blocked, so the relay redirects the top window here with the token in the URL
- * fragment). We match the `state` against the attempt we stashed before leaving,
- * store the ABS token for that server, and continue into the server view. The
- * primary path is popup + postMessage, which never lands here.
+ * fragment). We confirm a connect attempt was started this session (stashed in
+ * sessionStorage before we left), store the ABS token for that server, and
+ * continue into the server view. The primary path is popup + postMessage, which
+ * never lands here.
  *
- * The token arrives in the fragment (`#token=...&state=...`) so it is never sent
- * to a server or written to logs; we strip it from the URL immediately.
+ * The token arrives in the fragment (`#token=...`) so it is never sent to a
+ * server or written to logs; we strip it from the URL immediately. We don't
+ * verify a self-issued state nonce: ABS's web OIDC flow forbids a caller state,
+ * so the guard is "we initiated this attempt this session" + the token's origin.
  */
 export function ConnectedPage() {
   const navigate = useNavigate()
@@ -24,11 +27,10 @@ export function ConnectedPage() {
 
     const frag = new URLSearchParams(window.location.hash.replace(/^#/, ''))
     const token = frag.get('token') || ''
-    const state = frag.get('state') || ''
     // Clear the fragment from the address bar right away.
     window.history.replaceState(null, '', window.location.pathname)
 
-    let pending: { serverId: string; serverUrl: string; state: string } | null = null
+    let pending: { serverId: string; serverUrl: string } | null = null
     try {
       const raw = sessionStorage.getItem('hs-connect-pending')
       pending = raw ? JSON.parse(raw) : null
@@ -37,7 +39,7 @@ export function ConnectedPage() {
       pending = null
     }
 
-    if (!token || !pending || pending.state !== state) {
+    if (!token || !pending) {
       setError('We could not complete the connection. Please try again.')
       return
     }
