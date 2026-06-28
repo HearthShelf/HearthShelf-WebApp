@@ -257,7 +257,9 @@ export async function recordServerCertResult(
       c.status,
       now(),
       c.notAfter ?? null,
-      c.status === 'failed' ? (c.lastError ?? null) : null,
+      // Keep whatever note was provided (active reports may carry a diagnostic
+      // string); only clear it when an active report sends no note at all.
+      c.lastError ?? null,
       now(),
       c.serverId
     )
