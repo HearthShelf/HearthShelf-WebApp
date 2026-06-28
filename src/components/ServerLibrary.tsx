@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Loader2, Link2, AlertCircle, Search, X, BookOpen } from 'lucide-react'
+import { Loader2, Link2, AlertCircle, Search, X } from 'lucide-react'
 import {
   useConnect,
   useLibraries,
@@ -19,47 +19,40 @@ import { cn } from '@/lib/cn'
 const HOME_SHELVES = ['continue-listening', 'recently-added']
 
 /**
- * The library surface for one connected server. First it gates on connection
- * (the OIDC bounce, behind a user gesture). Once connected it shows the server's
- * libraries as tabs and a paginated grid of items with covers, fetched directly
- * from that server's ABS.
+ * The library surface for one connected server. Connection is now silent: landing
+ * here auto-connects (a plain grant -> /hs/hosted/connect fetch, no popup), so we
+ * just show a brief connecting state, then the library. On failure we offer a
+ * retry. Once connected it shows the server's libraries as tabs and a paginated
+ * grid of items with covers, fetched directly from that server's ABS.
  */
 export function ServerLibrary({ target }: { target: AbsTarget }) {
   const { state, error, connect, connected } = useConnect(target)
 
   if (!connected) {
-    return (
-      <div className="rounded-xl border border-border bg-card p-8 text-center">
-        <BookOpen className="mx-auto text-muted-foreground" size={28} />
-        <p className="mt-3 font-medium text-card-foreground">Connect to browse this library</p>
-        <p className="t-muted mx-auto mt-1 max-w-sm text-[13px]">
-          Sign in to this server with your HearthShelf account. A window opens
-          briefly to complete sign-in, then your library appears here.
-        </p>
-        {state === 'error' && (
-          <p className="t-muted mt-3 text-[13px] text-destructive">
-            {error === 'popup_blocked'
-              ? 'Your browser blocked the sign-in window. Allow popups and try again.'
-              : error === 'popup_closed'
-                ? 'Sign-in was cancelled.'
-                : 'Could not connect. Please try again.'}
+    if (state === 'error') {
+      return (
+        <div className="rounded-xl border border-border bg-card p-8 text-center">
+          <AlertCircle className="mx-auto text-destructive" size={28} />
+          <p className="mt-3 font-medium text-card-foreground">Couldn&apos;t connect to this server</p>
+          <p className="t-muted mx-auto mt-1 max-w-sm text-[13px]">
+            {error?.includes('not_paired')
+              ? 'This server isn&apos;t finished connecting to HearthShelf yet.'
+              : 'We could not sign you in to this server. Please try again.'}
           </p>
-        )}
-        <div className="mt-5">
-          <Button onClick={connect} disabled={state === 'connecting'}>
-            {state === 'connecting' ? (
-              <>
-                <Loader2 className="animate-spin" size={16} />
-                Connecting...
-              </>
-            ) : (
-              <>
-                <Link2 size={16} />
-                Connect
-              </>
-            )}
-          </Button>
+          <div className="mt-5">
+            <Button onClick={connect}>
+              <Link2 size={16} />
+              Try again
+            </Button>
+          </div>
         </div>
+      )
+    }
+    // idle (briefly, before the mount effect fires) or connecting.
+    return (
+      <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card p-12 text-muted-foreground">
+        <Loader2 className="animate-spin" size={18} />
+        <span className="t-body">Connecting to your library...</span>
       </div>
     )
   }

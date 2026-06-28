@@ -53,6 +53,18 @@ export function useConnect(target: AbsTarget) {
     }
   }, [target.serverId, target.serverUrl])
 
+  // Auto-connect on mount when we don't already hold a token. Connect is now a
+  // plain fetch (grant -> /hs/hosted/connect, no popup/gesture), so landing on a
+  // server view silently connects - "selecting a server IS connecting". The
+  // connect itself is deduped (connectServer inflight map), so this is safe even
+  // if it races another caller. setState happens in the async callback, not the
+  // effect body, so the set-state-in-effect lint rule is satisfied.
+  useEffect(() => {
+    if (state === 'idle') void connect()
+    // Only on mount / when the target changes; connect is stable per target.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target.serverId])
+
   return { state, error, connect, connected: state === 'connected' }
 }
 

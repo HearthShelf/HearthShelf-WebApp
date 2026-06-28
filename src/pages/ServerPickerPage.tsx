@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Plus, Server, AlertCircle, Loader2 } from 'lucide-react'
 import { useServers } from '@/hooks/useServers'
 import { Button } from '@/components/ui/Button'
@@ -8,12 +8,26 @@ import { ServerRow } from '@/components/ServerRow'
 
 export function ServerPickerPage() {
   const { data: servers, isLoading, isError, error } = useServers()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
   // A code in the URL means we arrived from a HS "Connect" deep link
   // (/pair?code=... or /?code=...). Open the link dialog prefilled with it.
   const codeFromUrl = searchParams.get('code') ?? ''
   const [linkOpen, setLinkOpen] = useState(Boolean(codeFromUrl))
+
+  // Silent auth: with exactly ONE linked server and no pairing dialog to show,
+  // skip the picker entirely and go straight to it - the server view auto-
+  // connects (a plain fetch, no popup), so this is a zero-click sign-in. With 2+
+  // servers we keep the picker; selecting a row navigates + auto-connects there,
+  // so choosing a server IS connecting. Navigate from an effect (not during
+  // render) so we don't setState/navigate mid-render.
+  const onlyServerId = servers && servers.length === 1 ? servers[0].id : null
+  useEffect(() => {
+    if (onlyServerId && !codeFromUrl) {
+      navigate(`/server/${onlyServerId}`, { replace: true })
+    }
+  }, [onlyServerId, codeFromUrl, navigate])
 
   function closeLink() {
     setLinkOpen(false)

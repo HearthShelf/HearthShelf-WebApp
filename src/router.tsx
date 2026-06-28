@@ -2,7 +2,6 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ServerPickerPage } from '@/pages/ServerPickerPage'
 import { ServerHomePage } from '@/pages/ServerHomePage'
-import { ConnectedPage } from '@/pages/ConnectedPage'
 import { InvitePage } from '@/pages/InvitePage'
 import { ItemDetailPage } from '@/pages/ItemDetailPage'
 import { AuthorDetailPage } from '@/pages/AuthorDetailPage'
@@ -66,8 +65,6 @@ export const router = createBrowserRouter([
       },
       // Old standalone path kept as a redirect so existing deep links still land.
       { path: '/infra-logs', element: <Navigate to="/admin/logs" replace /> },
-      // Full-page fallback landing for the OIDC connect bounce (popup-blocked).
-      { path: '/connected', element: <ConnectedPage /> },
     ],
   },
 
