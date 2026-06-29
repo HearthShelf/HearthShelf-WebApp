@@ -6,6 +6,7 @@ import {
   createApiKey,
   deleteApiKey,
   getServiceAccountIds,
+  tagServiceAccount,
   adminSectionKeys,
   adminKeys,
   type ABSApiKey,
@@ -39,6 +40,11 @@ export function ConfigApiKeys() {
   const [createdToken, setCreatedToken] = useState<string | null>(null)
   const [createError, setCreateError] = useState<string | null>(null)
   const [pendingRevoke, setPendingRevoke] = useState<ABSApiKey | null>(null)
+  // When set, the new key's owner gets tagged as a service account after create.
+  const [asServiceAccount, setAsServiceAccount] = useState(false)
+  // Bumped after tagging so the local (localStorage-backed) service-account set
+  // is re-read - it has no query to invalidate.
+  const [tagBump, setTagBump] = useState(0)
   // Keys owned by tagged service accounts are hidden by default - they're
   // managed on the Service Accounts page and would just clutter this list.
   const [showServiceKeys, setShowServiceKeys] = useState(false)
@@ -77,7 +83,8 @@ export function ConfigApiKeys() {
   // WebApp data path); their keys are grouped on the Service Accounts page.
   const serviceUserIds = useMemo(
     () => new Set(target ? getServiceAccountIds(target) : []),
-    [target]
+    // tagBump forces a re-read after we tag a new owner (no query to invalidate).
+    [target, tagBump]
   )
 
   const isServiceKey = (k: ABSApiKey): boolean => serviceUserIds.has(k.userId)
@@ -93,6 +100,7 @@ export function ConfigApiKeys() {
     setNewName('')
     setOwnerId(me?.id ?? '')
     setExpiryIdx(0)
+    setAsServiceAccount(false)
     setCreateError(null)
     setCreating(true)
   }
@@ -109,6 +117,13 @@ export function ConfigApiKeys() {
         userId,
         EXPIRY_OPTIONS[expiryIdx]?.seconds
       )
+      // Optionally group the owner under Service Accounts. ABS has no machine-user
+      // flag, so "service account" is just our local per-server tag; applying it
+      // here mirrors creating the key as a service account.
+      if (asServiceAccount && !serviceUserIds.has(userId)) {
+        tagServiceAccount(target, userId)
+        setTagBump((n) => n + 1)
+      }
       setCreatedToken(res.apiKey.apiKey ?? null)
       setCreating(false)
       qc.invalidateQueries({ queryKey: adminSectionKeys.apiKeys(target.serverId) })
@@ -252,10 +267,41 @@ export function ConfigApiKeys() {
                 <option key={u.id} value={u.id}>
                   {u.username}
                   {u.id === me?.id ? ' (you)' : ''}
-                  {u.type === 'root' || u.type === 'admin' ? ` - ${u.type}` : ''}
+                  {serviceUserIds.has(u.id)
+                    ? ' - service account'
+                    : u.type === 'root' || u.type === 'admin'
+                      ? ` - ${u.type}`
+                      : ''}
                 </option>
               ))}
             </select>
+          </div>
+          <div className="field full">
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: 10 }}
+              onClick={() => {
+                // Already-tagged owners are service accounts no matter what; the
+                // toggle only adds the tag, so keep it locked on for them.
+                if (!serviceUserIds.has(ownerId)) setAsServiceAccount((v) => !v)
+              }}
+            >
+              <div
+                className={
+                  'toggle' +
+                  (asServiceAccount || serviceUserIds.has(ownerId) ? ' on' : '') +
+                  (serviceUserIds.has(ownerId) ? ' disabled' : '')
+                }
+                role="switch"
+                aria-checked={asServiceAccount || serviceUserIds.has(ownerId)}
+              >
+                <i />
+              </div>
+              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                {serviceUserIds.has(ownerId)
+                  ? 'Owner is already a service account'
+                  : 'This is a service account'}
+              </span>
+            </div>
           </div>
           <div className="field full">
             <label>Expires</label>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -6,6 +6,7 @@ import {
   deleteUser,
   setUserActive,
   createUser,
+  getServiceAccountIds,
   adminKeys,
 } from '@/api/absAdmin'
 import type { ABSAdminUser } from '@/api/absAdmin'
@@ -37,7 +38,19 @@ export function ConfigUsers() {
     staleTime: 60 * 1000,
   })
 
-  const users = data?.users ?? []
+  // Service accounts are machine logins, not people. They live on their own
+  // Config page, so keep them out of this human-user list. On the WebApp data
+  // path the only signal is the locally-tagged id set (no Node backend / runtime
+  // serviceUsername like the self-hosted app has). ABS itself does not expose a
+  // distinct non-human user type - service accounts are regular admin users - so
+  // tagged ids are all we can filter on here.
+  const serviceUserIds = useMemo(
+    () => new Set(target ? getServiceAccountIds(target) : []),
+    [target]
+  )
+  const allUsers = data?.users ?? []
+  const users = allUsers.filter((u) => !serviceUserIds.has(u.id))
+  const serviceCount = allUsers.length - users.length
 
   if (!target) return <LoadingSpinner className="py-12" label="Connecting..." />
 
@@ -83,6 +96,17 @@ export function ConfigUsers() {
           <Icon name="add" /> Add user
         </button>
       </div>
+
+      {serviceCount > 0 && (
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px' }}>
+          <Icon name="smart_toy" style={{ verticalAlign: '-3px' }} />{' '}
+          {serviceCount} machine{' '}
+          {serviceCount === 1 ? 'account is' : 'accounts are'} hidden here.{' '}
+          <span className="lnk" onClick={() => navigate('/config/service-accounts')}>
+            Manage service accounts
+          </span>
+        </p>
+      )}
 
       {isLoading && <LoadingSpinner className="py-12" label="Loading users..." />}
       {isError && <ErrorState message="Could not load users." onRetry={refetch} />}

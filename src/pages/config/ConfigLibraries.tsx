@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   getLibrariesAdmin,
+  createLibrary,
   scanLibrary,
   updateLibrary,
   deleteLibrary,
@@ -18,6 +19,10 @@ import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { LibraryEditModal } from '@/components/config/LibraryEditModal'
+import {
+  LibraryCreateModal,
+  type LibraryCreateValues,
+} from '@/components/config/LibraryCreateModal'
 
 // Map a library to a Material Symbol for the row icon. ABS uses its own icon
 // font; we render an equivalent symbol based on media type.
@@ -52,6 +57,9 @@ export function ConfigLibraries() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [createBusy, setCreateBusy] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
 
   const dragIdx = useRef<number | null>(null)
 
@@ -99,6 +107,21 @@ export function ConfigLibraries() {
     const [moved] = next.splice(from, 1)
     next.splice(to, 0, moved)
     void persistOrder(next)
+  }
+
+  const create = async (values: LibraryCreateValues) => {
+    setCreateBusy(true)
+    setCreateError(null)
+    try {
+      await createLibrary(target, values)
+      qc.invalidateQueries({ queryKey: adminKeys.libraries(target.serverId) })
+      setCreating(false)
+      flash(`Created "${values.name}". ABS is scanning it now.`)
+    } catch (e) {
+      setCreateError(e instanceof Error ? e.message : 'Could not create the library.')
+    } finally {
+      setCreateBusy(false)
+    }
   }
 
   const saveEdit = async (patch: LibraryUpdatePayload) => {
@@ -154,10 +177,21 @@ export function ConfigLibraries() {
 
   return (
     <>
-      <div className="page-head">
-        <div className="eyebrow">Admin</div>
-        <h1 className="title-xl">Libraries</h1>
-        {data && <p className="page-sub">{order.length} libraries · drag to reorder</p>}
+      <div className="page-head-row">
+        <div>
+          <div className="eyebrow">Admin</div>
+          <h1 className="title-xl">Libraries</h1>
+          {data && <p className="page-sub">{order.length} libraries · drag to reorder</p>}
+        </div>
+        <button
+          className="btn-sm btn-accent"
+          onClick={() => {
+            setCreateError(null)
+            setCreating(true)
+          }}
+        >
+          <Icon name="add" /> New library
+        </button>
       </div>
 
       {toast && (
@@ -264,6 +298,16 @@ export function ConfigLibraries() {
           onMatchAll={() => void matchAll()}
           onRemoveMetadata={(ext) => void removeMetadata(ext)}
           onClose={() => setEditId(null)}
+        />
+      )}
+
+      {creating && (
+        <LibraryCreateModal
+          target={target}
+          busy={createBusy}
+          error={createError}
+          onCreate={(v) => void create(v)}
+          onClose={() => setCreating(false)}
         />
       )}
 
