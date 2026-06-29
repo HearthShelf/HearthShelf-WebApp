@@ -10,6 +10,23 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ConfigUsers } from '@/pages/config/ConfigUsers'
 import { ConfigUserDetail } from '@/pages/config/ConfigUserDetail'
 import { ConfigLibraries } from '@/pages/config/ConfigLibraries'
+import { ConfigSessions } from '@/pages/config/ConfigSessions'
+import { ConfigBackups } from '@/pages/config/ConfigBackups'
+import { ConfigLogs } from '@/pages/config/ConfigLogs'
+import { ConfigApiKeys } from '@/pages/config/ConfigApiKeys'
+import { ConfigServiceAccounts } from '@/pages/config/ConfigServiceAccounts'
+import { ConfigServerInfo } from '@/pages/config/ConfigServerInfo'
+import { ConfigIntegrations } from '@/pages/config/ConfigIntegrations'
+import { ConfigNotifications } from '@/pages/config/ConfigNotifications'
+import { ConfigEmail } from '@/pages/config/ConfigEmail'
+import { ConfigMeta } from '@/pages/config/ConfigMeta'
+import { ConfigRss } from '@/pages/config/ConfigRss'
+import { ConfigAuth } from '@/pages/config/ConfigAuth'
+import { ConfigQuestGiver } from '@/pages/config/ConfigQuestGiver'
+import { ConfigHosted } from '@/pages/config/ConfigHosted'
+import { ConfigCommunity } from '@/pages/config/ConfigCommunity'
+import { ConfigServerStats, ConfigLibraryStats } from '@/pages/config/ConfigStats'
+import { StatsPage } from '@/pages/StatsPage'
 import { ConfigStub } from '@/pages/config/ConfigStub'
 
 interface NavEntry {
@@ -145,6 +162,42 @@ export function ConfigShell({ menuMode = false }: { menuMode?: boolean }) {
         return <ConfigUsers />
       case 'libraries':
         return <ConfigLibraries />
+      case 'sessions':
+        return <ConfigSessions />
+      case 'backups':
+        return <ConfigBackups />
+      case 'logs':
+        return <ConfigLogs />
+      case 'apikeys':
+        return <ConfigApiKeys />
+      case 'service-accounts':
+        return <ConfigServiceAccounts />
+      case 'settings':
+        return <ConfigServerInfo />
+      case 'integrations':
+        return <ConfigIntegrations />
+      case 'notifications':
+        return <ConfigNotifications />
+      case 'email':
+        return <ConfigEmail />
+      case 'meta':
+        return <ConfigMeta />
+      case 'rss':
+        return <ConfigRss />
+      case 'auth':
+        return <ConfigAuth />
+      case 'questgiver':
+        return <ConfigQuestGiver />
+      case 'connect':
+        return <ConfigHosted />
+      case 'community':
+        return <ConfigCommunity />
+      case 'mystats':
+        return <StatsPage />
+      case 'serverstats':
+        return <ConfigServerStats />
+      case 'libstats':
+        return <ConfigLibraryStats />
       default:
         return <ConfigStub section={section} />
     }

@@ -1,0 +1,205 @@
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  getServerSettings,
+  updateServerSettings,
+  adminContentKeys,
+  type ABSServerSettings,
+} from '@/api/absAdmin'
+import { useActiveServer } from '@/hooks/useActiveServer'
+import { Icon } from '@/components/common/Icon'
+import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+
+// General server settings. The server NAME is owned by the hosted control plane
+// (it's how the server appears in the app switcher), not by ABS, so it's shown
+// read-only here. Scanner + display settings are ABS-native and editable.
+export function ConfigServerInfo() {
+  const { target, server } = useActiveServer()
+
+  if (!target) return <LoadingSpinner className="py-12" label="Connecting..." />
+
+  return (
+    <>
+      <div className="page-head">
+        <div className="eyebrow">Admin</div>
+        <h1 className="title-xl">Settings</h1>
+      </div>
+
+      <div className="section-head">
+        <Icon name="badge" />
+        <h2>Server</h2>
+      </div>
+      <div className="cfg-card">
+        <div className="cfg-line">
+          <Icon name="dns" style={{ color: 'var(--text-muted)' }} />
+          <div className="cl-meta" style={{ flex: 1 }}>
+            <div className="cl-t">Server name</div>
+            <div className="cl-d">How this server appears in HearthShelf.</div>
+          </div>
+          <span style={{ color: 'var(--text-muted)' }}>{server?.name ?? 'HearthShelf'}</span>
+        </div>
+        <div className="cfg-line">
+          <Icon name="lan" style={{ color: 'var(--text-muted)' }} />
+          <div className="cl-meta" style={{ flex: 1 }}>
+            <div className="cl-t">Connection</div>
+            <div className="cl-d">This server is connected to HearthShelf.</div>
+          </div>
+          <span className="badge-pill" style={{ color: '#7fbd6f' }}>
+            Connected
+          </span>
+        </div>
+      </div>
+
+      <ScannerDisplaySettings />
+    </>
+  )
+}
+
+const SCANNER_TOGGLES: {
+  key:
+    | 'scannerFindCovers'
+    | 'scannerParseSubtitle'
+    | 'scannerPreferMatchedMetadata'
+    | 'scannerDisableWatcher'
+    | 'storeCoverWithItem'
+  label: string
+  desc: string
+}[] = [
+  {
+    key: 'scannerFindCovers',
+    label: 'Find covers',
+    desc: 'Search for a cover online when an item has none.',
+  },
+  {
+    key: 'scannerParseSubtitle',
+    label: 'Parse subtitles',
+    desc: 'Pull a subtitle from the folder name after a dash.',
+  },
+  {
+    key: 'scannerPreferMatchedMetadata',
+    label: 'Prefer matched metadata',
+    desc: 'Let matched provider data override existing details.',
+  },
+  {
+    key: 'scannerDisableWatcher',
+    label: 'Disable folder watcher',
+    desc: 'Stop scanning automatically when files change on disk.',
+  },
+  {
+    key: 'storeCoverWithItem',
+    label: 'Store covers with item',
+    desc: 'Save the cover alongside the audio files instead of in metadata.',
+  },
+]
+
+function ScannerDisplaySettings() {
+  const { target } = useActiveServer()
+  const { data } = useQuery({
+    queryKey: adminContentKeys.serverSettings(target?.serverId ?? ''),
+    queryFn: () => getServerSettings(target!),
+    enabled: Boolean(target),
+    staleTime: 60 * 1000,
+  })
+
+  if (!data) return null
+  return <ScannerDisplayForm key={JSON.stringify(data)} settings={data} />
+}
+
+function ScannerDisplayForm({ settings }: { settings: ABSServerSettings }) {
+  const qc = useQueryClient()
+  const { target } = useActiveServer()
+
+  const [toggles, setToggles] = useState<Record<string, boolean>>({
+    scannerFindCovers: !!settings.scannerFindCovers,
+    scannerParseSubtitle: !!settings.scannerParseSubtitle,
+    scannerPreferMatchedMetadata: !!settings.scannerPreferMatchedMetadata,
+    scannerDisableWatcher: !!settings.scannerDisableWatcher,
+    storeCoverWithItem: !!settings.storeCoverWithItem,
+  })
+  const [dateFormat, setDateFormat] = useState(settings.dateFormat ?? '')
+  const [timeFormat, setTimeFormat] = useState(settings.timeFormat ?? '')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const save = async () => {
+    if (!target) return
+    setSaving(true)
+    try {
+      await updateServerSettings(target, {
+        ...toggles,
+        dateFormat: dateFormat || undefined,
+        timeFormat: timeFormat || undefined,
+      })
+      qc.invalidateQueries({ queryKey: adminContentKeys.serverSettings(target.serverId) })
+      setSaved(true)
+      window.setTimeout(() => setSaved(false), 2000)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="section-head" style={{ marginTop: 'var(--s6)' }}>
+        <Icon name="manage_search" />
+        <h2>Scanner</h2>
+      </div>
+      <div className="cfg-card">
+        {SCANNER_TOGGLES.map((t) => (
+          <div className="cfg-line" key={t.key}>
+            <Icon name="tune" style={{ color: 'var(--text-muted)' }} />
+            <div className="cl-meta" style={{ flex: 1 }}>
+              <div className="cl-t">{t.label}</div>
+              <div className="cl-d">{t.desc}</div>
+            </div>
+            <button
+              className={toggles[t.key] ? 'toggle on' : 'toggle'}
+              aria-pressed={!!toggles[t.key]}
+              onClick={() => setToggles((cur) => ({ ...cur, [t.key]: !cur[t.key] }))}
+            >
+              <i />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="section-head" style={{ marginTop: 'var(--s6)' }}>
+        <Icon name="calendar_today" />
+        <h2>Display</h2>
+      </div>
+      <div className="cfg-card">
+        <div className="cfg-line" style={{ gap: 12 }}>
+          <div className="cl-meta" style={{ width: 150, flex: 'none' }}>
+            <div className="cl-t">Date format</div>
+          </div>
+          <input
+            className="fld"
+            placeholder="MM/dd/yyyy"
+            value={dateFormat}
+            onChange={(e) => setDateFormat(e.target.value)}
+          />
+        </div>
+        <div className="cfg-line" style={{ gap: 12 }}>
+          <div className="cl-meta" style={{ width: 150, flex: 'none' }}>
+            <div className="cl-t">Time format</div>
+          </div>
+          <input
+            className="fld"
+            placeholder="HH:mm"
+            value={timeFormat}
+            onChange={(e) => setTimeFormat(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div
+        className="cfg-line"
+        style={{ gap: 8, justifyContent: 'flex-end', marginTop: 'var(--s5)' }}
+      >
+        <button className="btn-sm btn-green" disabled={saving} onClick={() => void save()}>
+          {saved ? <Icon name="check" /> : <Icon name="save" />} {saved ? 'Saved' : 'Save'}
+        </button>
+      </div>
+    </>
+  )
+}

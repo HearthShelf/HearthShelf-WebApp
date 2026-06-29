@@ -16,6 +16,8 @@ import { PodcastLatestPage } from '@/pages/PodcastLatestPage'
 import { PodcastSearchPage } from '@/pages/PodcastSearchPage'
 import { PodcastQueuePage } from '@/pages/PodcastQueuePage'
 import { SearchPage } from '@/pages/SearchPage'
+import { RequestsPage } from '@/pages/RequestsPage'
+import { DiscoverPage } from '@/pages/DiscoverPage'
 import { StatsPage } from '@/pages/StatsPage'
 import { SessionsPage } from '@/pages/SessionsPage'
 import { PlayerPage } from '@/pages/PlayerPage'
@@ -75,6 +77,12 @@ export const router = createBrowserRouter([
       { path: '/podcasts/add', element: withShell(<PodcastSearchPage />) },
       { path: '/podcasts/queue', element: withShell(<PodcastQueuePage />) },
       { path: '/search', element: withShell(<SearchPage />) },
+
+      // Discover + Requests (ReadMeABook). Both self-gate inside the page on the
+      // active server's /hs/* feature flag and redirect home when it's off.
+      { path: '/discover', element: withShell(<DiscoverPage />) },
+      { path: '/requests', element: withShell(<RequestsPage />) },
+
       { path: '/stats', element: withShell(<StatsPage />) },
       { path: '/sessions', element: withShell(<SessionsPage />) },
       { path: '/player', element: withShell(<PlayerPage />) },

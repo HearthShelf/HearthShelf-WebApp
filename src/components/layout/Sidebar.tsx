@@ -9,6 +9,8 @@ import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getMe } from '@/api/absLibrary'
 import { fetchAdminMe, ApiError } from '@/api/controlPlane'
+import { useRmabEnabled } from '@/hooks/useRmab'
+import { useDiscoverEnabled } from '@/hooks/useDiscover'
 
 // Which nav group a path belongs to. Browse surfaces (series, authors, search,
 // item detail) keep Library lit, matching the self-hosted shell.
@@ -27,6 +29,8 @@ function groupForPath(path: string): string {
   if (path.startsWith('/podcasts/')) return 'podcasts'
   if (path.startsWith('/collections')) return 'collections'
   if (path.startsWith('/playlists')) return 'playlists'
+  if (path.startsWith('/discover')) return 'discover'
+  if (path.startsWith('/requests')) return 'requests'
   if (path.startsWith('/stats')) return 'stats'
   if (path.startsWith('/sessions')) return 'sessions'
   if (path.startsWith('/player')) return 'player'
@@ -126,6 +130,13 @@ export function Sidebar() {
   })
   const isServerAdmin = absMe?.type === 'admin' || absMe?.type === 'root'
 
+  // ReadMeABook feature gates: each nav item shows ONLY when the active server's
+  // HearthShelf backend reports the feature enabled (defaults false until known,
+  // so nothing flickers in on a server without the feature).
+  const discoverEnabled = useDiscoverEnabled()
+  const rmabEnabled = useRmabEnabled()
+  const showDiscoverGroup = discoverEnabled || rmabEnabled
+
   const Item = ({ id, icon, label, to, badge }: NavItemDef) => {
     const active = group === id
     return (
@@ -167,6 +178,18 @@ export function Sidebar() {
             <div className="nav-label">Shelves</div>
             <Item id="collections" icon="folder_special" label="Collections" to="/collections" />
             <Item id="playlists" icon="queue_music" label="Playlists" to="/playlists" />
+          </>
+        )}
+
+        {showDiscoverGroup && (
+          <>
+            <div className="nav-label">Find</div>
+            {discoverEnabled && (
+              <Item id="discover" icon="explore" label="Discover" to="/discover" />
+            )}
+            {rmabEnabled && (
+              <Item id="requests" icon="cloud_download" label="Requests" to="/requests" />
+            )}
           </>
         )}
 
