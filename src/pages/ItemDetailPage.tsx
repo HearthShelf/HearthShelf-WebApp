@@ -108,6 +108,7 @@ export function ItemDetailPage() {
       chapters: playable.chapters,
       totalDurationSec: playable.durationSec,
       startAtSec: playable.progress?.currentTimeSec ?? 0,
+      playSessionId: playable.playSessionId,
     })
     // Only re-run when the loaded book changes, not on every player tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -193,6 +194,7 @@ export function ItemDetailPage() {
         totalDurationSec: playable.durationSec,
         startAtSec: start,
         autoplay: true,
+        playSessionId: playable.playSessionId,
       })
     }
   }

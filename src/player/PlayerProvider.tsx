@@ -1,7 +1,10 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { useAudioPlayer } from '@/hooks/useAudioPlayer'
+import { useRef } from 'react'
 import {
   saveProgress,
+  syncPlaySession,
+  closePlaySession,
   getItemDetail,
   type AbsChapter,
   type AbsTrack,
@@ -30,6 +33,8 @@ export interface NowPlaying {
   startAtSec: number
   /** Start playing immediately on load (vs. load paused). */
   autoplay?: boolean
+  /** Open ABS play session to sync listened time to (drives stats + sessions). */
+  playSessionId?: string | null
 }
 
 interface PlayerApi {
@@ -55,12 +60,19 @@ const PlayerContext = createContext<PlayerApi | null>(null)
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [now, setNow] = useState<NowPlaying | null>(null)
+  // Position at the last session sync, to derive listened-time deltas. Reset when
+  // the book (and its session) changes.
+  const lastSyncPosRef = useRef<number>(0)
 
   const target: AbsTarget | null = now
     ? { serverId: now.serverId, serverUrl: now.serverUrl }
     : null
 
-  const play = useCallback((n: NowPlaying) => setNow(n), [])
+  const play = useCallback((n: NowPlaying) => {
+    // New book = new session: reset the listened-delta baseline to its start.
+    lastSyncPosRef.current = n.startAtSec ?? 0
+    setNow(n)
+  }, [])
 
   // When a book finishes, auto-advance to the next queued item (unless the queue
   // is off). We pop the queue, load the item on the SAME server, and autoplay it.
@@ -86,6 +98,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           chapters: d.chapters,
           totalDurationSec: d.durationSec,
           startAtSec: d.progress?.currentTimeSec ?? 0,
+          playSessionId: d.playSessionId,
           autoplay: true,
         })
       })
@@ -102,7 +115,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     autoplayOnLoad: now?.autoplay ?? false,
     onSaveProgress: useCallback(
       (sec: number) => {
-        if (target && now) void saveProgress(target, now.itemId, sec, now.totalDurationSec)
+        if (!target || !now) return
+        // Stateless progress PATCH keeps the resume point current.
+        void saveProgress(target, now.itemId, sec, now.totalDurationSec)
+        // AND sync the open play session so ABS accrues listening time + records
+        // a session (the PATCH alone never does - that's why stats showed 0h).
+        if (now.playSessionId) {
+          const listened = Math.max(0, sec - lastSyncPosRef.current)
+          lastSyncPosRef.current = sec
+          void syncPlaySession(target, now.playSessionId, sec, listened, now.totalDurationSec)
+        }
       },
       [target, now]
     ),
@@ -114,8 +136,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // hides. Used by the swipe-to-dismiss gesture on the mini-player.
   const close = useCallback(() => {
     if (player.playing) player.togglePlay()
+    // Close the ABS play session so its final listened-time is recorded and the
+    // session is marked closed (a final sync delta on the way out).
+    if (target && now?.playSessionId) {
+      const sec = player.positionSec
+      const listened = Math.max(0, sec - lastSyncPosRef.current)
+      void closePlaySession(target, now.playSessionId, sec, listened, now.totalDurationSec)
+    }
     setNow(null)
-  }, [player])
+  }, [player, target, now])
 
   const api = useMemo<PlayerApi>(
     () => ({

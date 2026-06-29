@@ -297,6 +297,7 @@ export async function clearDownloadQueue(t: AbsTarget, podcastItemId: string): P
 // --- Playable episode session -----------------------------------------------
 
 interface RawPlaySession {
+  id?: string
   duration?: number
   currentTime?: number
   audioTracks?: Array<{
@@ -316,6 +317,8 @@ export interface PlayableEpisode {
   totalDurationSec: number
   /** Server-side resume position, if any. */
   currentTimeSec: number
+  /** Open play session id (sync it to accrue stats). */
+  playSessionId: string | null
 }
 
 /**
@@ -348,5 +351,6 @@ export async function getPlayableEpisode(
     tracks,
     totalDurationSec,
     currentTimeSec: session?.currentTime ?? 0,
+    playSessionId: session?.id ?? null,
   }
 }

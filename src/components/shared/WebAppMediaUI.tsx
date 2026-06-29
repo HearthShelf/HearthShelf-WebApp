@@ -49,6 +49,7 @@ export function WebAppMediaUIProvider({
             chapters: d.chapters,
             totalDurationSec: d.durationSec,
             startAtSec: d.progress?.currentTimeSec ?? 0,
+            playSessionId: d.playSessionId,
             autoplay: true,
           })
         } catch {

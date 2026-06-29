@@ -314,6 +314,9 @@ export interface AbsItemDetail {
   chapters: AbsChapter[]
   /** Saved position for this user, if any. */
   progress: { currentTimeSec: number; isFinished: boolean } | null
+  /** The open play session's id - sync/close it to accrue listening time + a
+   *  session record. Null when no session opened (e.g. a book with no audio). */
+  playSessionId: string | null
 }
 
 interface RawChapter {
@@ -348,6 +351,7 @@ interface RawItemDetail {
 // authoritative book duration / resume position - the item endpoint does NOT
 // return media.tracks or a usable media.duration on an expanded read.
 interface RawPlaySession {
+  id?: string
   duration?: number
   currentTime?: number
   chapters?: RawChapter[]
@@ -357,6 +361,40 @@ interface RawPlaySession {
     startOffset?: number
     duration?: number
   }>
+}
+
+/**
+ * Report listened time to an open play session. THIS is what makes ABS count
+ * listening time and create a session record (the stateless progress PATCH only
+ * moves the resume point - it never accrues stats/sessions). Best-effort.
+ */
+export async function syncPlaySession(
+  t: AbsTarget,
+  sessionId: string,
+  currentTimeSec: number,
+  timeListenedSec: number,
+  durationSec: number
+): Promise<void> {
+  await absPost(t, `/api/session/${encodeURIComponent(sessionId)}/sync`, {
+    currentTime: currentTimeSec,
+    timeListened: timeListenedSec,
+    duration: durationSec,
+  }).catch(() => {})
+}
+
+/** Close an open play session (on stop / unmount). Best-effort. */
+export async function closePlaySession(
+  t: AbsTarget,
+  sessionId: string,
+  currentTimeSec: number,
+  timeListenedSec: number,
+  durationSec: number
+): Promise<void> {
+  await absPost(t, `/api/session/${encodeURIComponent(sessionId)}/close`, {
+    currentTime: currentTimeSec,
+    timeListened: timeListenedSec,
+    duration: durationSec,
+  }).catch(() => {})
 }
 
 const PLAY_DEVICE = { deviceId: 'hearthshelf-web', clientName: 'HearthShelf', clientVersion: '0.1.0' }
@@ -415,6 +453,7 @@ export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsIt
       : session?.currentTime != null
         ? { currentTimeSec: session.currentTime, isFinished: false }
         : null,
+    playSessionId: session?.id ?? null,
   }
 }
 

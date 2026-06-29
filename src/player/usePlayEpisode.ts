@@ -39,6 +39,7 @@ export function usePlayEpisode(): (args: {
         totalDurationSec: session.totalDurationSec,
         startAtSec: session.currentTimeSec,
         autoplay: true,
+        playSessionId: session.playSessionId,
       })
     },
     [player, target]
