@@ -22,11 +22,19 @@ import {
   type LibraryItemsPage,
   type AbsLibrary,
   type AbsListItem,
+  type AbsLibraryItem,
   type Shelf,
   type AuthorDetail,
   type CollectionSummary,
   type CollectionDetail,
 } from '@/api/absLibrary'
+import {
+  getItemsInProgress,
+  getHomeShelves,
+  searchLibraryFull,
+  type HomeShelf,
+  type LibrarySearchResults,
+} from '@/api/absHome'
 
 export type ConnectState = 'idle' | 'connecting' | 'connected' | 'error'
 
@@ -74,6 +82,37 @@ export function useShelves(target: AbsTarget, libraryId: string | undefined, ena
     queryFn: () => getPersonalizedShelves(target, libraryId as string),
     enabled: enabled && Boolean(libraryId),
     staleTime: 60 * 1000,
+  })
+}
+
+/**
+ * Personalized home shelves (book + series), keeping ABS's shelf type so the
+ * home page renders book and series shelves distinctly.
+ */
+export function useHomeShelves(
+  target: AbsTarget,
+  libraryId: string | undefined,
+  enabled: boolean
+) {
+  return useQuery<HomeShelf[]>({
+    queryKey: ['abs-home-shelves', target.serverId, libraryId],
+    queryFn: () => getHomeShelves(target, libraryId as string),
+    enabled: enabled && Boolean(libraryId),
+    staleTime: 60 * 1000,
+  })
+}
+
+/** The user's in-progress books on the active server (home "continue listening"). */
+export function useItemsInProgress(
+  target: AbsTarget,
+  libraryId: string | undefined,
+  enabled: boolean
+) {
+  return useQuery<AbsLibraryItem[]>({
+    queryKey: ['abs-items-in-progress', target.serverId, libraryId],
+    queryFn: () => getItemsInProgress(target, libraryId),
+    enabled,
+    staleTime: 30 * 1000,
   })
 }
 
@@ -147,6 +186,25 @@ export function useLibrarySearch(
   return useQuery<AbsListItem[]>({
     queryKey: ['abs-search', target.serverId, libraryId, q],
     queryFn: () => searchLibrary(target, libraryId as string, q),
+    enabled: enabled && Boolean(libraryId) && q.length > 0,
+    staleTime: 30 * 1000,
+  })
+}
+
+/**
+ * Multi-section search (books + series + authors + narrators) for the Search
+ * page, from one ABS /search call.
+ */
+export function useLibrarySearchFull(
+  target: AbsTarget,
+  libraryId: string | undefined,
+  query: string,
+  enabled: boolean
+) {
+  const q = query.trim()
+  return useQuery<LibrarySearchResults>({
+    queryKey: ['abs-search-full', target.serverId, libraryId, q],
+    queryFn: () => searchLibraryFull(target, libraryId as string, q),
     enabled: enabled && Boolean(libraryId) && q.length > 0,
     staleTime: 30 * 1000,
   })

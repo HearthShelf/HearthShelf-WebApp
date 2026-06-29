@@ -1,18 +1,29 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
-import { getListeningStats, type ListeningStats } from '@/api/absLibrary'
+import { getListeningStatsFull, type ListeningStatsFull } from '@/api/absStats'
+import { getLeaderboard, type LeaderboardResponse } from '@/api/absSocial'
+import { Cover, tintFor } from '@/components/shared/Cover'
+import { Avatar } from '@/components/common/Avatar'
 import { Icon } from '@/components/common/Icon'
+import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { ErrorState } from '@/components/common/ErrorState'
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-// Local time formatter (no shared util in this app). Renders e.g. "12h 30m".
-function fmtDuration(sec: number): string {
-  const h = Math.floor(sec / 3600)
-  const m = Math.floor((sec % 3600) / 60)
-  if (h === 0) return `${m}m`
-  if (m === 0) return `${h}h`
-  return `${h}h ${m}m`
+// Heads every section: icon + title (matches the design's section-head markup).
+function SectionHead({ icon, title }: { icon: string; title: string }) {
+  return (
+    <div className="section-head">
+      <Icon name={icon} />
+      <h2>{title}</h2>
+    </div>
+  )
+}
+
+// Whole hours, for the compact leaderboard listening column.
+function hoursLabel(seconds: number): string {
+  return `${Math.floor(seconds / 3600)}h`
 }
 
 // Build a stable YYYY-MM-DD key in local time (matches ABS's byDay keys).
@@ -25,14 +36,41 @@ function dayKey(d: Date): string {
 export function StatsPage() {
   const { target } = useActiveServer()
 
-  const { data, isLoading, isError, refetch } = useQuery<ListeningStats>({
-    queryKey: ['abs-stats', target?.serverId],
-    queryFn: () => getListeningStats(target!),
+  const { data, isLoading, isError, refetch } = useQuery<ListeningStatsFull>({
+    queryKey: ['abs-stats-full', target?.serverId],
+    queryFn: () => getListeningStatsFull(target!),
     enabled: Boolean(target),
     staleTime: 60 * 1000,
   })
 
-  // Last 7 calendar days (hours), newest day last, for the weekly bar chart.
+  // Cross-user leaderboard (the connected server's HearthShelf backend). Degrades
+  // to an unavailable response when the server doesn't expose social, in which
+  // case we hide the whole section rather than show an error.
+  const { data: leaderboard } = useQuery<LeaderboardResponse>({
+    queryKey: ['abs-leaderboard', target?.serverId],
+    queryFn: () => getLeaderboard(target!),
+    enabled: Boolean(target),
+    staleTime: 5 * 60 * 1000,
+  })
+  const lbEntries = leaderboard?.available ? leaderboard.entries : []
+
+  // Top items by listening time, resolved with cover + metadata.
+  const mostListened = useMemo(() => {
+    if (!data) return []
+    return data.items
+      .map((it) => ({
+        id: it.id,
+        title: it.title,
+        author: it.author,
+        narrator: it.narrator,
+        hours: it.timeListeningSec / 3600,
+      }))
+      .sort((a, b) => b.hours - a.hours)
+      .slice(0, 8)
+  }, [data])
+  const mlMax = mostListened[0]?.hours || 1
+
+  // Last 7 calendar days from the days map (date string -> seconds).
   const week = useMemo(() => {
     if (!data) return [] as { d: string; v: number }[]
     const out: { d: string; v: number }[] = []
@@ -49,8 +87,8 @@ export function StatsPage() {
   const weekMax = Math.max(0.1, ...week.map((d) => d.v))
   const hotIdx = week.length ? week.reduce((m, d, i) => (d.v > week[m].v ? i : m), 0) : 0
 
-  // Last 26 weeks (182 days) of listening as a heatmap; opacity scales with the
-  // busiest day in the window.
+  // Last 26 weeks (182 days) of listening, as a heatmap. Each cell's opacity
+  // scales with that day's minutes against the busiest day in the window.
   const heat = useMemo(() => {
     if (!data) return [] as { key: string; ratio: number; mins: number }[]
     const cells: { key: string; ratio: number; mins: number }[] = []
@@ -72,7 +110,7 @@ export function StatsPage() {
   if (isLoading) {
     return (
       <div className="page fade-in">
-        <p className="page-sub">Loading stats...</p>
+        <LoadingSpinner className="py-12" label="Loading stats..." />
       </div>
     )
   }
@@ -80,26 +118,16 @@ export function StatsPage() {
   if (isError || !data) {
     return (
       <div className="page fade-in">
-        <div className="empty-state">
-          <Icon name="error" />
-          <h3>Could not load your stats</h3>
-          <button
-            className="btn-sm btn-ghost"
-            style={{ margin: '0 auto' }}
-            onClick={() => refetch()}
-          >
-            Try again
-          </button>
-        </div>
+        <ErrorState message="Could not load your stats." onRetry={refetch} />
       </div>
     )
   }
 
   const totalH = Math.floor(data.totalTimeSec / 3600)
   const totalM = Math.floor((data.totalTimeSec % 3600) / 60)
-  const activeDays = Object.keys(data.byDay).filter((k) => data.byDay[k] > 0).length
+  const bookCount = data.items.length
   const todayMin = Math.round(data.todaySec / 60)
-  const hasActivity = data.totalTimeSec > 0 || activeDays > 0
+  const activeDays = Object.keys(data.byDay).filter((k) => data.byDay[k] > 0).length
 
   return (
     <div className="page fade-in">
@@ -117,11 +145,18 @@ export function StatsPage() {
           <u>m</u>
         </div>
         <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>
-          {fmtDuration(data.totalTimeSec)} of audio so far
+          across {bookCount} {bookCount === 1 ? 'book' : 'books'}
         </div>
       </div>
 
       <div className="stat-tiles">
+        <div className="tile">
+          <div className="t-ico">
+            <Icon name="menu_book" />
+          </div>
+          <div className="t-num">{bookCount}</div>
+          <div className="t-cap">Books listened</div>
+        </div>
         <div className="tile">
           <div className="t-ico">
             <Icon name="calendar_today" />
@@ -148,48 +183,98 @@ export function StatsPage() {
         </div>
       </div>
 
-      {!hasActivity ? (
-        <div className="empty-state" style={{ marginTop: 'var(--s6)' }}>
-          <Icon name="bar_chart" />
-          <h3>No listening yet</h3>
-          <p>Your activity will show up here as you listen.</p>
-        </div>
-      ) : (
-        <>
-          <div className="chart-card" style={{ marginTop: 'var(--s6)' }}>
-            <div className="sh-day">Last 7 days</div>
-            <div className="bars">
-              {week.map((d, i) => (
-                <div className={'bar-col' + (i === hotIdx ? ' hot' : '')} key={i}>
-                  <span className="v">{d.v}h</span>
-                  <div className="bar" style={{ height: (d.v / weekMax) * 100 + '%' }} />
-                  <span className="d">{d.d}</span>
+      {mostListened.length > 0 && (
+        <div className="section">
+          <SectionHead icon="trending_up" title="Most listened to" />
+          <div className="chart-card" style={{ marginTop: 0 }}>
+            <div className="ml-list">
+              {mostListened.map((b, i) => (
+                <div className="ml-row" key={b.id} data-cv={tintFor(b.title)}>
+                  <span className="ml-rank">{i + 1}</span>
+                  <Cover itemId={b.id} title={b.title} fs={4} />
+                  <div className="ml-meta">
+                    <div className="ml-t">{b.title}</div>
+                    <div className="ml-s">
+                      {[b.author, b.narrator].filter(Boolean).join(' · ')}
+                    </div>
+                    <div className="ml-bar">
+                      <i style={{ width: (b.hours / mlMax) * 100 + '%' }} />
+                    </div>
+                  </div>
+                  <span className="ml-h">
+                    {b.hours.toFixed(1)}
+                    <small>h</small>
+                  </span>
                 </div>
               ))}
             </div>
           </div>
+        </div>
+      )}
 
-          <div className="chart-card" style={{ marginTop: 'var(--s6)' }}>
-            <div className="sh-day">Last 6 months</div>
-            <div className="heatmap">
-              {heat.map((c) => (
-                <i
-                  key={c.key}
-                  title={`${c.key}: ${c.mins} min`}
-                  style={
-                    c.ratio > 0
-                      ? {
-                          background: `color-mix(in oklab, var(--accent) ${Math.round(
-                            18 + c.ratio * 82
-                          )}%, var(--c-highest))`,
-                        }
-                      : undefined
-                  }
-                />
+      <div className="chart-card">
+        <SectionHead icon="bar_chart" title="Last 7 days" />
+        <div className="bars">
+          {week.map((d, i) => (
+            <div className={'bar-col' + (i === hotIdx ? ' hot' : '')} key={i}>
+              <span className="v">{d.v}h</span>
+              <div className="bar" style={{ height: (d.v / weekMax) * 100 + '%' }} />
+              <span className="d">{d.d}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="chart-card" style={{ marginTop: 'var(--s6)' }}>
+        <SectionHead icon="calendar_month" title="Last 6 months" />
+        <div className="heatmap">
+          {heat.map((c) => (
+            <i
+              key={c.key}
+              title={`${c.key}: ${c.mins} min`}
+              style={
+                c.ratio > 0
+                  ? {
+                      background: `color-mix(in oklab, var(--accent) ${Math.round(
+                        18 + c.ratio * 82
+                      )}%, var(--c-highest))`,
+                    }
+                  : undefined
+              }
+            />
+          ))}
+        </div>
+      </div>
+
+      {lbEntries.length > 0 && (
+        <div className="section">
+          <SectionHead icon="groups" title="Leaderboard" />
+          <div className="chart-card" style={{ marginTop: 0 }}>
+            <div className="ml-list">
+              {lbEntries.map((e) => (
+                <div
+                  className={'ml-row' + (e.isMe ? ' hot' : '')}
+                  key={e.userId}
+                  data-cv={tintFor(e.username)}
+                >
+                  <span className="ml-rank">{e.rank}</span>
+                  <Avatar name={e.username} size={40} />
+                  <div className="ml-meta">
+                    <div className="ml-t">
+                      {e.username}
+                      {e.isMe && <small style={{ marginLeft: 6 }}>(you)</small>}
+                    </div>
+                    <div className="ml-s">{hoursLabel(e.secondsListened)} listened</div>
+                  </div>
+                  <span className="ml-h">
+                    {e.booksFinished}
+                    <small>{e.booksFinished === 1 ? 'book' : 'books'}</small>
+                  </span>
+                </div>
               ))}
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   )

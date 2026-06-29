@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import {
@@ -7,45 +7,28 @@ import {
   type ListeningSessionsPage,
 } from '@/api/absLibrary'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
+import { formatTimestamp, fmtSessDate } from '@/lib/format'
 import { Cover, tintFor } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
+import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { ErrorState } from '@/components/common/ErrorState'
 
 const ITEMS_PER_PAGE = 25
 
-// Local time formatter (no shared util in this app). Renders e.g. "12h 30m".
-function fmtDuration(sec: number): string {
-  const h = Math.floor(sec / 3600)
-  const m = Math.floor((sec % 3600) / 60)
-  if (h === 0) {
-    if (m === 0) return `${Math.max(0, Math.round(sec))}s`
-    return `${m}m`
-  }
-  if (m === 0) return `${h}h`
-  return `${h}h ${m}m`
-}
-
-// "Started" shown relative to now (epoch ms). Falls back to a date for old rows.
-function fmtRelative(epochMs: number): string {
-  if (!epochMs) return ''
-  const diff = Date.now() - epochMs
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days < 7) return `${days}d ago`
-  return new Date(epochMs).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
+// Pick an icon from the free-form device string (ABS joins deviceName / OS /
+// browser). Phones win first, then a browser, else a desktop.
 function deviceIcon(device: string | undefined): string {
   const d = (device ?? '').toLowerCase()
-  if (d.includes('android') || d.includes('ios') || d.includes('phone')) return 'smartphone'
-  if (d.includes('chrome') || d.includes('firefox') || d.includes('safari') || d.includes('edge'))
+  if (d.includes('android') || d.includes('ios') || d.includes('phone') || d.includes('iphone'))
+    return 'smartphone'
+  if (d.includes('ipad') || d.includes('tablet')) return 'tablet'
+  if (
+    d.includes('chrome') ||
+    d.includes('firefox') ||
+    d.includes('safari') ||
+    d.includes('edge') ||
+    d.includes('browser')
+  )
     return 'language'
   return 'computer'
 }
@@ -63,33 +46,42 @@ export function SessionsPage() {
     staleTime: 60 * 1000,
   })
 
-  if (!target) return null
-
-  const sessions = data?.sessions ?? []
+  const sessions = useMemo(() => data?.sessions ?? [], [data])
   const numPages = Math.max(1, data?.numPages ?? 1)
+
+  // Summary tiles (client-derived from the loaded page of sessions).
+  const totalListened = sessions.reduce((s, x) => s + (x.timeListeningSec ?? 0), 0)
+  const uniqueBooks = new Set(sessions.map((s) => s.itemId)).size
+  const longest = sessions.reduce((m, s) => Math.max(m, s.timeListeningSec ?? 0), 0)
+
+  // Group sessions by day (array is already newest-first).
+  const groups = useMemo(() => {
+    const out: { day: string; rows: ListeningSession[] }[] = []
+    for (const s of sessions) {
+      const { day } = fmtSessDate(s.startedAt)
+      const last = out[out.length - 1]
+      if (last && last.day === day) last.rows.push(s)
+      else out.push({ day, rows: [s] })
+    }
+    return out
+  }, [sessions])
+
+  if (!target) return null
 
   return (
     <div className="page fade-in">
       <div className="page-head">
         <div className="eyebrow">Insights</div>
         <h1 className="title-xl">Listening history</h1>
-        <p className="page-sub">Every session, newest first.</p>
+        <p className="page-sub">
+          Every session, newest first. Jump straight back to any book you were in.
+        </p>
       </div>
 
-      {isLoading && <p className="page-sub">Loading history...</p>}
+      {isLoading && <LoadingSpinner className="py-12" label="Loading history..." />}
 
       {isError && !data && (
-        <div className="empty-state">
-          <Icon name="error" />
-          <h3>Could not load your history</h3>
-          <button
-            className="btn-sm btn-ghost"
-            style={{ margin: '0 auto' }}
-            onClick={() => refetch()}
-          >
-            Try again
-          </button>
-        </div>
+        <ErrorState message="Could not load your history." onRetry={refetch} />
       )}
 
       {data && sessions.length === 0 && (
@@ -102,40 +94,82 @@ export function SessionsPage() {
 
       {sessions.length > 0 && (
         <>
-          <div className="section">
-            <div className="sh-list" style={isFetching ? { opacity: 0.6 } : undefined}>
-              {sessions.map((s: ListeningSession) => (
-                <div
-                  className="sh-row"
-                  key={s.id}
-                  data-cv={tintFor(s.title)}
-                  onClick={() => ui.openItem(s.itemId)}
-                  title="Open book"
-                >
-                  <Cover itemId={s.itemId} title={s.title} fs={3} />
-                  <div className="sh-meta">
-                    <div className="ll-title">{s.title}</div>
-                    <div className="ll-sub">{s.author}</div>
-                  </div>
-                  <span className="sh-span">{fmtRelative(s.startedAt)}</span>
-                  <span className="sh-dur">{fmtDuration(s.timeListeningSec)}</span>
-                  <span className="sh-when">
-                    <Icon name={deviceIcon(s.device)} style={{ fontSize: 15 }} />
-                    {s.device ?? 'Web'}
-                  </span>
-                  <button
-                    className="sh-play"
-                    title="Open book"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      ui.openItem(s.itemId)
-                    }}
-                  >
-                    <Icon name="arrow_forward" />
-                  </button>
-                </div>
-              ))}
+          <div className="stat-tiles">
+            <div className="tile">
+              <div className="t-ico">
+                <Icon name="history" />
+              </div>
+              <div className="t-num">{data?.total ?? sessions.length}</div>
+              <div className="t-cap">Sessions</div>
             </div>
+            <div className="tile">
+              <div className="t-ico">
+                <Icon name="schedule" />
+              </div>
+              <div className="t-num">{Math.round(totalListened / 3600)}h</div>
+              <div className="t-cap">This page</div>
+            </div>
+            <div className="tile">
+              <div className="t-ico">
+                <Icon name="menu_book" />
+              </div>
+              <div className="t-num">{uniqueBooks}</div>
+              <div className="t-cap">Books</div>
+            </div>
+            <div className="tile">
+              <div className="t-ico">
+                <Icon name="timer" />
+              </div>
+              <div className="t-num" style={{ fontFamily: 'var(--font-mono)' }}>
+                {formatTimestamp(longest)}
+              </div>
+              <div className="t-cap">Longest session</div>
+            </div>
+          </div>
+
+          <div style={isFetching ? { opacity: 0.6 } : undefined}>
+            {groups.map((g) => (
+              <div className="section" key={g.day}>
+                <div className="sh-day">{g.day}</div>
+                <div className="sh-list">
+                  {g.rows.map((s) => {
+                    const when = fmtSessDate(s.startedAt)
+                    return (
+                      <div
+                        className="sh-row"
+                        key={s.id}
+                        data-cv={tintFor(s.title)}
+                        onClick={() => ui.openItem(s.itemId)}
+                        title="Open book"
+                      >
+                        <Cover itemId={s.itemId} title={s.title} fs={3} />
+                        <div className="sh-meta">
+                          <div className="ll-title">{s.title}</div>
+                          <div className="ll-sub">{s.author}</div>
+                        </div>
+                        <span className="sh-dur">
+                          {formatTimestamp(s.timeListeningSec)}
+                        </span>
+                        <span className="sh-when">
+                          <Icon name={deviceIcon(s.device)} style={{ fontSize: 15 }} />
+                          {when.time}
+                        </span>
+                        <button
+                          className="sh-play"
+                          title="Open book"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            ui.openItem(s.itemId)
+                          }}
+                        >
+                          <Icon name="arrow_forward" />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
 
           {numPages > 1 && (
