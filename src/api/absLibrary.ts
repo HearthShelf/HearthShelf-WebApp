@@ -196,11 +196,6 @@ function mapBareItem(r: RawBareItem): AbsListItem {
   }
 }
 
-/** base64 (browser btoa) for ABS's filter param values. */
-function b64(s: string): string {
-  return typeof btoa !== 'undefined' ? btoa(s) : s
-}
-
 export interface SeriesSummary {
   id: string
   name: string
@@ -215,19 +210,6 @@ export async function getSeriesList(t: AbsTarget, libraryId: string): Promise<Se
   return (data.results ?? []).map((s) => ({ id: s.id, name: s.name }))
 }
 
-/** Ordered books in a series, via the items filter (filter value is base64). */
-export async function getSeriesItems(
-  t: AbsTarget,
-  libraryId: string,
-  seriesId: string
-): Promise<{ name: string; items: AbsListItem[] }> {
-  const data = await absGet<{ results?: RawBareItem[] }>(
-    t,
-    `/api/libraries/${encodeURIComponent(libraryId)}/items?minified=1&limit=0&filter=series.${encodeURIComponent(b64(seriesId))}`
-  )
-  const items = (data.results ?? []).map(mapBareItem)
-  return { name: '', items }
-}
 
 export interface AuthorDetail {
   id: string
@@ -334,14 +316,6 @@ export interface AbsItemDetail {
   progress: { currentTimeSec: number; isFinished: boolean } | null
 }
 
-interface RawTrack {
-  ino: string
-  index: number
-  startOffset: number
-  duration: number
-  contentUrl: string
-}
-
 interface RawChapter {
   id: number
   title?: string
@@ -364,26 +338,54 @@ interface RawItemDetail {
       series?: Array<{ id: string; name: string; sequence?: string }>
       description?: string
     }
-    tracks?: RawTrack[]
     chapters?: RawChapter[]
   }
   userMediaProgress?: { currentTime?: number; isFinished?: boolean } | null
 }
 
+// The play session ABS returns from POST /api/items/:id/play. This is the ONLY
+// endpoint that yields streamable audio tracks (contentUrl + startOffset) and the
+// authoritative book duration / resume position - the item endpoint does NOT
+// return media.tracks or a usable media.duration on an expanded read.
+interface RawPlaySession {
+  duration?: number
+  currentTime?: number
+  chapters?: RawChapter[]
+  audioTracks?: Array<{
+    index: number
+    contentUrl: string
+    startOffset?: number
+    duration?: number
+  }>
+}
+
+const PLAY_DEVICE = { deviceId: 'hearthshelf-web', clientName: 'HearthShelf', clientVersion: '0.1.0' }
+const PLAY_MIME = ['audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/flac', 'audio/ogg']
+
 export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsItemDetail> {
-  const r = await absGet<RawItemDetail>(
-    t,
-    `/api/items/${encodeURIComponent(itemId)}?expanded=1&include=progress`
-  )
+  // Metadata comes from the item endpoint; playable tracks + true duration come
+  // from a play session (ABS only exposes streamable tracks there).
+  const [r, session] = await Promise.all([
+    absGet<RawItemDetail>(t, `/api/items/${encodeURIComponent(itemId)}?expanded=1&include=progress`),
+    absPost<RawPlaySession>(t, `/api/items/${encodeURIComponent(itemId)}/play`, {
+      deviceInfo: PLAY_DEVICE,
+      supportedMimeTypes: PLAY_MIME,
+    }).catch(() => null),
+  ])
   const md = r.media?.metadata
-  const tracks: AbsTrack[] = (r.media?.tracks ?? []).map((tr) => ({
-    ino: tr.ino,
+  const tracks: AbsTrack[] = (session?.audioTracks ?? []).map((tr) => ({
+    ino: String(tr.index),
     index: tr.index,
     startOffsetSec: tr.startOffset ?? 0,
     durationSec: tr.duration ?? 0,
     // contentUrl is "/api/items/{id}/file/{ino}"; add the auth token for <audio>.
     url: absMediaUrl(t, tr.contentUrl),
   }))
+  // Prefer the session's chapters/duration (authoritative); fall back to the
+  // item endpoint's chapters when no session (e.g. a book with no audio).
+  const rawChapters = session?.chapters ?? r.media?.chapters ?? []
+  const durationSec =
+    session?.duration ?? tracks.reduce((s, tr) => s + tr.durationSec, 0)
   const firstSeries = md?.series?.[0]
   return {
     id: r.id,
@@ -396,10 +398,10 @@ export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsIt
     publishedYear: md?.publishedYear || '',
     series: firstSeries ? { id: firstSeries.id, name: firstSeries.name, sequence: firstSeries.sequence } : null,
     description: md?.description || '',
-    durationSec: r.media?.duration ?? 0,
+    durationSec,
     coverUrl: itemCoverUrl(t, r.id, 480),
     tracks,
-    chapters: (r.media?.chapters ?? []).map((c) => ({
+    chapters: rawChapters.map((c) => ({
       id: c.id,
       title: c.title || `Chapter ${c.id + 1}`,
       startSec: c.start ?? 0,
@@ -410,7 +412,9 @@ export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsIt
           currentTimeSec: r.userMediaProgress.currentTime ?? 0,
           isFinished: Boolean(r.userMediaProgress.isFinished),
         }
-      : null,
+      : session?.currentTime != null
+        ? { currentTimeSec: session.currentTime, isFinished: false }
+        : null,
   }
 }
 

@@ -1,10 +1,10 @@
 /**
  * Richer browse reads for the full Author / Series detail pages.
  *
- * The minified list reads in absLibrary.ts (getAuthor / getSeriesItems) drop
- * fields these pages need - the author's photo + bio, and the full per-book item
- * shape (AbsLibraryItem) that BookTile / BookContextMenu render. These wrappers
- * hit the expanded ABS endpoints and return the full shapes.
+ * The minified list reads in absLibrary.ts (getAuthor / getSeries) drop fields
+ * these pages need - the author's photo + bio, and the full per-book item shape
+ * (AbsLibraryItem) that BookTile / BookContextMenu render. These wrappers hit the
+ * expanded ABS endpoints and return the full shapes.
  *
  * Field shapes verified against audiobookshelf 2.35.1 serializers and mirror the
  * self-hosted reads (HearthShelf src/api/libraries.ts getAuthor / getOneSeries).

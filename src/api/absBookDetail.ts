@@ -156,7 +156,9 @@ export async function getBookDetailFull(t: AbsTarget, itemId: string): Promise<B
       ? { id: firstSeries.id, name: firstSeries.name, sequence: firstSeries.sequence ?? null }
       : null,
     description: md.description || '',
-    durationSec: r.media?.duration ?? 0,
+    // media.duration is omitted on the expanded item read, so sum the audio
+    // files (the field that IS returned) for the real book length.
+    durationSec: audioFiles.reduce((s, f) => s + f.durationSec, 0),
     audioFiles,
     ebookFormat: r.media?.ebookFormat ?? ebookFile?.format ?? null,
     ebookFile,
