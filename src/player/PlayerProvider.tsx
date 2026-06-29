@@ -1,6 +1,13 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { useAudioPlayer } from '@/hooks/useAudioPlayer'
-import { saveProgress, type AbsChapter, type AbsTrack, type AbsTarget } from '@/api/absLibrary'
+import {
+  saveProgress,
+  getItemDetail,
+  type AbsChapter,
+  type AbsTrack,
+  type AbsTarget,
+} from '@/api/absLibrary'
+import { useQueueStore } from '@/store/queueStore'
 
 /**
  * App-level playback. One <audio> element lives here (via useAudioPlayer), so a
@@ -35,6 +42,8 @@ interface PlayerApi {
   skip: (d: number) => void
   rate: number
   setRate: (r: number) => void
+  volume: number
+  setVolume: (v: number) => void
   setSleepMinutes: (m: number | null) => void
   sleepArmed: boolean
   sleepRemainingMs: number | null
@@ -49,6 +58,40 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     ? { serverId: now.serverId, serverUrl: now.serverUrl }
     : null
 
+  const play = useCallback((n: NowPlaying) => setNow(n), [])
+
+  // When a book finishes, auto-advance to the next queued item (unless the queue
+  // is off). We pop the queue, load the item on the SAME server, and autoplay it.
+  // Auto/playlist smart-fill modes still rely on the queue being pre-populated by
+  // the UI; this just consumes whatever is up next.
+  const onBookEnded = useCallback(() => {
+    if (!target) return
+    const q = useQueueStore.getState()
+    if (q.mode === 'off') return
+    const nextEntry = q.next()
+    if (!nextEntry) return
+    const t = target
+    void getItemDetail(t, nextEntry.libraryItemId)
+      .then((d) => {
+        play({
+          serverId: t.serverId,
+          serverUrl: t.serverUrl,
+          itemId: d.id,
+          title: d.title,
+          author: d.author,
+          coverUrl: d.coverUrl,
+          tracks: d.tracks,
+          chapters: d.chapters,
+          totalDurationSec: d.durationSec,
+          startAtSec: d.progress?.currentTimeSec ?? 0,
+          autoplay: true,
+        })
+      })
+      .catch(() => {
+        /* next item failed to load; stop rather than loop */
+      })
+  }, [target, play])
+
   const player = useAudioPlayer({
     // Empty until something is playing; the hook tolerates an empty track set.
     tracks: now?.tracks ?? [],
@@ -61,9 +104,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       },
       [target, now]
     ),
+    onBookEnded,
   })
-
-  const play = useCallback((n: NowPlaying) => setNow(n), [])
 
   const api = useMemo<PlayerApi>(
     () => ({
@@ -76,6 +118,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       skip: player.skip,
       rate: player.rate,
       setRate: player.setRate,
+      volume: player.volume,
+      setVolume: player.setVolume,
       setSleepMinutes: player.setSleepMinutes,
       sleepArmed: player.sleepArmed,
       sleepRemainingMs: player.sleepRemainingMs,

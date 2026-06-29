@@ -51,12 +51,12 @@ function clockLabel(addSeconds: number): string {
  * / clock time) plus a rewind-on-stop behaviour, on top of the global player
  * (usePlayer). Defaults for the stop behaviours come from the settings store.
  *
- * Note: volume fade is a UI/preference-only stub here - the WebApp's
- * PlayerProvider does not expose the <audio> element's volume, so we pause
- * cleanly at the deadline (rewind still applies) rather than fading out.
+ * When fade is on, the last `fadeLen` seconds of a duration/clock countdown ramp
+ * the player volume down to silence before the stop fires; volume is restored to
+ * full once playback stops or the timer is cancelled.
  */
 export function useSleepTimer(): SleepCtl {
-  const { now, positionSec, playing, togglePlay, seekTo } = usePlayer()
+  const { now, positionSec, playing, togglePlay, seekTo, setVolume } = usePlayer()
   const chapters: ChapterBound[] = (now?.chapters ?? []).map((c) => ({
     id: c.id,
     start: c.startSec,
@@ -88,7 +88,8 @@ export function useSleepTimer(): SleepCtl {
     if (playingRef.current) togglePlay()
   }, [togglePlay])
 
-  // The stop sequence: optional rewind, then pause.
+  // The stop sequence: optional rewind, then pause, then restore full volume (so
+  // the next play isn't faded down from a previous sleep).
   const fireStop = useCallback(() => {
     if (s.sleepRewindSec > 0) {
       const cur = posRef.current
@@ -101,24 +102,30 @@ export function useSleepTimer(): SleepCtl {
       }
     }
     pause()
-  }, [s.sleepRewindSec, s.chapterBarrier, chapters, seekTo, pause])
+    setVolume(1)
+  }, [s.sleepRewindSec, s.chapterBarrier, chapters, seekTo, pause, setVolume])
 
-  // Countdown tick for duration / time modes.
+  // Countdown tick for duration / time modes. When fade is on, the last
+  // `fadeLen` seconds ramp the volume down to silence before the stop fires.
   useEffect(() => {
     if (!sleeping) return
     tickRef.current = window.setInterval(() => {
       setLeft((l) => {
+        const next = l - 1
+        if (s.sleepFade && s.sleepFadeLen > 0) {
+          setVolume(next >= s.sleepFadeLen ? 1 : Math.max(0, next / s.sleepFadeLen))
+        }
         if (l <= 1) {
           fireStop()
           return 0
         }
-        return l - 1
+        return next
       })
     }, 1000)
     return () => {
       if (tickRef.current) window.clearInterval(tickRef.current)
     }
-  }, [sleeping, fireStop])
+  }, [sleeping, fireStop, s.sleepFade, s.sleepFadeLen, setVolume])
 
   // Chapter-mode stop: watch position and stop when we cross the target.
   useEffect(() => {
@@ -170,6 +177,7 @@ export function useSleepTimer(): SleepCtl {
     cancel: () => {
       setLeft(0)
       setEoc(null)
+      setVolume(1)
     },
     rewindSec: s.sleepRewindSec,
     setRewindSec: (v) => set('sleepRewindSec', v),

@@ -20,6 +20,8 @@ interface UsePlayerArgs {
   autoplayOnLoad?: boolean
   /** Called (throttled) to persist the current global position. */
   onSaveProgress: (currentTimeSec: number) => void
+  /** Called when the LAST track of the book finishes (for queue auto-advance). */
+  onBookEnded?: () => void
 }
 
 /** Find the track index covering a global position (clamps to last track). */
@@ -36,12 +38,17 @@ export function useAudioPlayer({
   startAtSec,
   autoplayOnLoad = false,
   onSaveProgress,
+  onBookEnded,
 }: UsePlayerArgs) {
+  // Latest onBookEnded, read by the [tracks] effect without re-subscribing.
+  const onBookEndedRef = useRef(onBookEnded)
+  onBookEndedRef.current = onBookEnded
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [playing, setPlaying] = useState(false)
   const [positionSec, setPositionSec] = useState(startAtSec)
   const [ready, setReady] = useState(false)
   const [rate, setRateState] = useState(1)
+  const [volume, setVolumeState] = useState(1)
   /** Sleep timer: epoch ms when playback should auto-pause, or null. */
   const [sleepAt, setSleepAt] = useState<number | null>(null)
   const currentTrackRef = useRef<number>(-1)
@@ -62,6 +69,17 @@ export function useAudioPlayer({
     if (audioRef.current) audioRef.current.playbackRate = r
   }, [])
 
+  // Latest volume, read by loadTrack on a track swap without making it a dep
+  // (the sleep-fade ramp updates volume many times a second).
+  const volumeRef = useRef(1)
+  // Set the element volume (0..1). Used by the sleep timer's fade-out ramp.
+  const setVolume = useCallback((v: number) => {
+    const clamped = Math.max(0, Math.min(1, v))
+    volumeRef.current = clamped
+    setVolumeState(clamped)
+    if (audioRef.current) audioRef.current.volume = clamped
+  }, [])
+
   // Sleep timer: pause when the deadline passes. setSleepMinutes(null) cancels.
   const setSleepMinutes = useCallback((minutes: number | null) => {
     setSleepAt(minutes == null ? null : Date.now() + minutes * 60_000)
@@ -78,6 +96,7 @@ export function useAudioPlayer({
       const onMeta = () => {
         audio.currentTime = Math.max(0, Math.min(localOffsetSec, audio.duration || localOffsetSec))
         audio.playbackRate = rate
+        audio.volume = volumeRef.current
         if (autoplay) void audio.play().catch(() => setPlaying(false))
         audio.removeEventListener('loadedmetadata', onMeta)
       }
@@ -144,13 +163,15 @@ export function useAudioPlayer({
       save(true)
     }
     const onEnded = () => {
-      // Advance to the next track, or stop at the end of the book.
+      // Advance to the next track, or end the book.
       const next = currentTrackRef.current + 1
       if (next < tracks.length) {
         loadTrack(next, 0, true)
       } else {
         setPlaying(false)
         save(true)
+        // Book finished: let the queue play the next item, if any.
+        onBookEndedRef.current?.()
       }
     }
     const onCanPlay = () => setReady(true)
@@ -215,6 +236,8 @@ export function useAudioPlayer({
     ready,
     rate,
     setRate,
+    volume,
+    setVolume,
     togglePlay,
     seekTo,
     skip,
