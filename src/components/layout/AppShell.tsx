@@ -1,8 +1,10 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { AppBar } from '@/components/layout/AppBar'
+import { MobileNav } from '@/components/layout/MobileNav'
 import { MiniPlayer } from '@/player/MiniPlayer'
 import { useConnectActiveServer } from '@/hooks/useConnectActiveServer'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 
 /**
  * Persistent app frame (design: .app grid + cover-glow bloom), ported from the
@@ -15,21 +17,23 @@ import { useConnectActiveServer } from '@/hooks/useConnectActiveServer'
  */
 export function AppShell() {
   const { pathname } = useLocation()
-  // The full-screen player is immersive: no app bar.
+  // The full-screen player is immersive: no app bar, no bottom nav.
   const immersive = pathname === '/player'
+  const isMobile = useIsMobile()
 
   // Drive the connection to the active server for the whole shell.
   useConnectActiveServer()
 
   return (
-    <div className="app">
+    <div className={'app' + (isMobile ? ' has-mobile-nav' : '')}>
       <div className="app-glow" />
       <Sidebar />
       <div className="main">
-        {!immersive && <AppBar />}
+        {!immersive && !isMobile && <AppBar />}
         <div className="content">
           <Outlet />
         </div>
+        {isMobile && !immersive && <MobileNav />}
       </div>
       <MiniPlayer />
     </div>

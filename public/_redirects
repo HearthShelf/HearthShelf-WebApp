@@ -1,0 +1,5 @@
+# SPA fallback: every path that isn't a real static asset is served index.html
+# so the client router (react-router) can handle deep links like /book/:id,
+# /library, /account on a direct load or refresh. Without this, Cloudflare Pages
+# returns a hard 404 for any client-only route.
+/*    /index.html   200
