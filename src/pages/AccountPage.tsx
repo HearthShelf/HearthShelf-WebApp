@@ -9,11 +9,15 @@ import { ServerRow } from '@/components/ServerRow'
 import { LinkServerDialog } from '@/components/LinkServerDialog'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/common/Icon'
+import { PlaybackSettings } from '@/components/settings/PlaybackSettings'
+import { ReadingSettings } from '@/components/settings/ReadingSettings'
 
-type Section = 'servers' | 'plan' | 'profile'
+type Section = 'servers' | 'playback' | 'reading' | 'plan' | 'profile'
 
 const NAV: { id: Section; icon: string; label: string }[] = [
   { id: 'servers', icon: 'dns', label: 'My servers' },
+  { id: 'playback', icon: 'graphic_eq', label: 'Playback' },
+  { id: 'reading', icon: 'menu_book', label: 'Reading' },
   { id: 'plan', icon: 'workspace_premium', label: 'Subscription' },
   { id: 'profile', icon: 'person', label: 'Profile & sign-in' },
 ]
@@ -47,6 +51,8 @@ export function AccountPage() {
       </nav>
       <div className="config-body">
         {section === 'servers' && <MyServers />}
+        {section === 'playback' && <PlaybackSettings />}
+        {section === 'reading' && <ReadingSettings />}
         {section === 'plan' && <Subscription />}
         {section === 'profile' && <Profile />}
       </div>
