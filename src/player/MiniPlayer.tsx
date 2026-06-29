@@ -4,7 +4,7 @@ import { usePlayer } from '@/player/PlayerProvider'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useSleepTimer } from '@/hooks/useSleepTimer'
 import { Icon } from '@/components/common/Icon'
-import { Cover } from '@/components/shared/Cover'
+import { tintFor } from '@/components/shared/Cover'
 import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
 import { formatTimestamp } from '@/lib/format'
 
@@ -101,7 +101,18 @@ export function MiniPlayer() {
         onClick={() => navigate(`/book/${now.itemId}`)}
         style={{ cursor: 'pointer' }}
       >
-        <Cover itemId={now.itemId} title={now.title} author={now.author} fs={5} />
+        {/* The mini-player is global chrome mounted OUTSIDE the MediaUI provider,
+            so it can't use <Cover> (which reads useMediaUI). The now-playing
+            descriptor already carries a tokenized coverUrl captured at load. */}
+        <span className="cover pb-cover" style={{ ['--cv' as string]: tintFor(now.title) }}>
+          {now.coverUrl ? (
+            <img className="cv-img" src={now.coverUrl} alt={now.title} />
+          ) : (
+            <span className="cv-mono" aria-hidden>
+              {(now.title || '?').trim()[0]}
+            </span>
+          )}
+        </span>
         <div className="pb-meta">
           <div className="pb-title">{now.title}</div>
           <div className="pb-sub">{now.author}</div>
