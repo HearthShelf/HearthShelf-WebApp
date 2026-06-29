@@ -835,19 +835,25 @@ export function PlayerPage() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 textAlign: 'center',
-                gap: 10,
+                gap: 14,
                 padding: '48px 24px',
                 color: 'var(--text-muted)',
               }}
             >
               <Icon name="auto_stories" style={{ fontSize: 42, opacity: 0.5 }} />
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
-                Read in browser — coming soon
+                Read in browser
               </div>
               <div style={{ fontSize: 12.5, maxWidth: 280, lineHeight: 1.5 }}>
-                Following along with the ebook isn't available in the web app yet.
-                It's on the way.
+                Open this book in the in-browser reader. Jump to where the audio
+                is from inside the reader.
               </div>
+              <button
+                className="btn btn-primary"
+                onClick={() => navigate(`/reader/${libraryItemId}`)}
+              >
+                <Icon name="menu_book" fill /> Open reader
+              </button>
             </div>
           </div>
         )}

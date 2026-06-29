@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQueries } from '@tanstack/react-query'
 import { useUser } from '@clerk/clerk-react'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
@@ -6,6 +7,7 @@ import { useHomeShelves, useItemsInProgress } from '@/hooks/useLibrary'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
+import { useSettingsStore } from '@/store/settingsStore'
 import { Cover, tintFor } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
 import { BookTile } from '@/components/library/BookTile'
@@ -14,7 +16,12 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 import { useToast } from '@/hooks/useToast'
 import type { AbsLibraryItem, MediaProgress } from '@/api/absLibrary'
-import type { HomeShelf } from '@/api/absHome'
+import {
+  getHomeShelves,
+  getItemsInProgress,
+  mergeHomeShelves,
+  type HomeShelf,
+} from '@/api/absHome'
 
 const SHELF_ICONS: Record<string, string> = {
   'recently-added': 'schedule',
@@ -174,9 +181,15 @@ function CalmHero({ book, progress }: HeroProps) {
 export function HomePage() {
   const { user } = useUser()
   const { target } = useActiveServer()
-  const { active, activeId } = useActiveLibrary()
+  const { active, activeId, libraries } = useActiveLibrary()
   const isMobile = useIsMobile()
   const { toast, show } = useToast()
+
+  const unifiedPref = useSettingsStore((s) => s.unifiedHome)
+  const setSetting = useSettingsStore((s) => s.set)
+  // Unified home only does something with more than one library; below that it
+  // is the same single-library Home, so we never branch on it.
+  const unified = unifiedPref && libraries.length > 1
 
   const [heroStyle, setHeroStyle] = useState<HeroStyle>(
     () => (localStorage.getItem(HERO_KEY) as HeroStyle) || 'comfy'
@@ -190,19 +203,39 @@ export function HomePage() {
 
   // The page renders inside <ActiveServerMediaUI>, so target is connected by the
   // time we render. Guard defensively anyway.
+  const safeTarget = target ?? { serverId: '', serverUrl: '' }
   const enabled = Boolean(target) && Boolean(activeId)
-  const {
-    data: shelves,
-    isLoading,
-    isError,
-    refetch,
-  } = useHomeShelves(target ?? { serverId: '', serverUrl: '' }, activeId ?? undefined, enabled)
 
-  const { data: inProgressData } = useItemsInProgress(
-    target ?? { serverId: '', serverUrl: '' },
+  // --- single-library reads (used when unified is off) ---------------------
+  const single = useHomeShelves(safeTarget, activeId ?? undefined, enabled && !unified)
+  const { data: singleInProgress } = useItemsInProgress(
+    safeTarget,
     activeId ?? undefined,
-    enabled
+    enabled && !unified
   )
+
+  // --- unified reads: fan out one home-shelves query per library -----------
+  // /api/me/items-in-progress is already server-wide, so the unified in-progress
+  // is just that same call with no library filter. The shelves are per-library,
+  // so we fetch each library's shelves and merge them by shelf id.
+  const unifiedQueries = useQueries({
+    queries: unified
+      ? [
+          {
+            queryKey: ['abs-items-in-progress', target?.serverId, '__all__'],
+            queryFn: () => getItemsInProgress(safeTarget),
+            staleTime: 30 * 1000,
+          },
+          ...libraries.map((lib) => ({
+            queryKey: ['abs-home-shelves', target?.serverId, lib.id],
+            queryFn: () => getHomeShelves(safeTarget, lib.id),
+            staleTime: 60 * 1000,
+          })),
+        ]
+      : [],
+  })
+  const unifiedInProgressQuery = unified ? unifiedQueries[0] : undefined
+  const unifiedShelfQueries = unified ? unifiedQueries.slice(1) : []
 
   const progressById = useMediaProgress()
 
@@ -210,14 +243,33 @@ export function HomePage() {
 
   const name = user?.firstName || user?.username || 'there'
 
-  const inProgress = inProgressData ?? []
+  // Resolve shelves + in-progress + load state from whichever branch is active.
+  const inProgress: AbsLibraryItem[] = unified
+    ? ((unifiedInProgressQuery?.data as AbsLibraryItem[] | undefined) ?? [])
+    : (singleInProgress ?? [])
+
+  const rawShelves: HomeShelf[] = unified
+    ? mergeHomeShelves(
+        unifiedShelfQueries.map((q) => (q.data as HomeShelf[] | undefined) ?? [])
+      )
+    : (single.data ?? [])
+
+  const isLoading = unified
+    ? unifiedQueries.some((q) => q.isLoading)
+    : single.isLoading
+  const isError = unified ? unifiedQueries.some((q) => q.isError) : single.isError
+  const refetch = () => {
+    if (unified) unifiedQueries.forEach((q) => void q.refetch())
+    else void single.refetch()
+  }
+
   const hero = inProgress[0]
   const heroProgress = hero ? progressById.get(hero.id) : undefined
   const heroPct = heroProgress?.progress ?? 0
 
   // Shelves we render: book + series shelves, in display order, dropping the
   // empty ones and the continue-series shelf (covered by recent-series).
-  const ordered: HomeShelf[] = (shelves ?? [])
+  const ordered: HomeShelf[] = rawShelves
     .filter(
       (sh) =>
         sh.id !== 'continue-series' &&
@@ -240,7 +292,14 @@ export function HomePage() {
               You're {Math.round(heroPct * 100)}% through{' '}
               <b style={{ color: 'var(--text)' }}>{hero.media.metadata.title}</b> ·{' '}
               {inProgress.length} {inProgress.length === 1 ? 'book' : 'books'} on the go
-              {active && ` in ${active.name}`}
+              {unified ? (
+                <>
+                  {' '}
+                  <Icon name="hub" /> across all libraries
+                </>
+              ) : (
+                active && ` in ${active.name}`
+              )}
             </p>
           ) : (
             <p className="page-sub">Nothing in progress yet</p>
@@ -248,6 +307,15 @@ export function HomePage() {
         </div>
         {!isMobile && (
           <div className="hero-switch">
+            {libraries.length > 1 && (
+              <button
+                className={'pill' + (unifiedPref ? ' on' : '')}
+                onClick={() => setSetting('unifiedHome', !unifiedPref)}
+                title="Show Home across every library at once"
+              >
+                <Icon name="hub" /> All libraries
+              </button>
+            )}
             <div className="seg">
               <button
                 className={heroStyle === 'comfy' ? 'on' : ''}

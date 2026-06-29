@@ -319,7 +319,7 @@ export function ItemDetailPage() {
 
           <div className="detail-actions">
             {ebookOnly ? (
-              <button className="btn btn-primary" onClick={() => show('The reader is coming soon')}>
+              <button className="btn btn-primary" onClick={() => navigate(`/reader/${data.id}`)}>
                 <Icon name="menu_book" fill /> Read
               </button>
             ) : (
@@ -328,7 +328,7 @@ export function ItemDetailPage() {
               </button>
             )}
             {hasEbook && !ebookOnly && (
-              <button className="pill" onClick={() => show('The reader is coming soon')}>
+              <button className="pill" onClick={() => navigate(`/reader/${data.id}`)}>
                 <Icon name="menu_book" /> Read
               </button>
             )}
@@ -483,7 +483,7 @@ export function ItemDetailPage() {
               <div
                 className="dt-row file"
                 style={{ cursor: 'pointer' }}
-                onClick={() => show('The reader is coming soon')}
+                onClick={() => navigate(`/reader/${data.id}`)}
                 title="Open in reader"
               >
                 <Icon name="menu_book" style={{ fontSize: 18, color: 'var(--accent)' }} fill />

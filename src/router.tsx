@@ -13,6 +13,7 @@ import { SearchPage } from '@/pages/SearchPage'
 import { StatsPage } from '@/pages/StatsPage'
 import { SessionsPage } from '@/pages/SessionsPage'
 import { PlayerPage } from '@/pages/PlayerPage'
+import { ReaderPage } from '@/pages/ReaderPage'
 import { AccountPage } from '@/pages/AccountPage'
 import { InvitePage } from '@/pages/InvitePage'
 import { ConnectBoxPage } from '@/pages/ConnectBoxPage'
@@ -64,6 +65,7 @@ export const router = createBrowserRouter([
       { path: '/stats', element: withShell(<StatsPage />) },
       { path: '/sessions', element: withShell(<SessionsPage />) },
       { path: '/player', element: withShell(<PlayerPage />) },
+      { path: '/reader/:itemId', element: withShell(<ReaderPage />) },
 
       // Account (Clerk profile + My Servers + plan). No active-server gate - it
       // manages servers, so it must render even with zero linked.

@@ -35,6 +35,11 @@ export interface SettingsState {
   queueMode: QueueMode
   queueAutoRules: AutoRulePref[]
 
+  // Library
+  // Pull Home's shelves + in-progress from every library at once (only takes
+  // effect when the server has more than one library).
+  unifiedHome: boolean
+
   // Sleep (stop-sequence behaviour, mirrored by useSleepTimer)
   sleepRewindSec: number
   chapterBarrier: boolean
@@ -56,6 +61,8 @@ export const useSettingsStore = create<SettingsState>()(
 
       queueMode: 'manual',
       queueAutoRules: DEFAULT_AUTO_RULE_PREFS,
+
+      unifiedHome: false,
 
       sleepRewindSec: 30,
       chapterBarrier: true,

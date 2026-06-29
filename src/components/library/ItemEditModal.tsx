@@ -16,6 +16,8 @@ import { formatTimestamp } from '@/lib/format'
 import { Modal } from '@/components/common/Modal'
 import { Chips } from '@/components/common/Chips'
 import { Icon } from '@/components/common/Icon'
+import { ItemMatchTab } from '@/components/library/ItemMatchTab'
+import { ItemCoverTab } from '@/components/library/ItemCoverTab'
 import { ChapterEditorModal, type EditableChapter } from '@/components/library/ChapterEditorModal'
 
 function Field({
@@ -52,6 +54,7 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
 
   const [tab, setTab] = useState('Details')
   const [editingChapters, setEditingChapters] = useState(false)
+  const [appliedNote, setAppliedNote] = useState<string | null>(null)
   const [title, setTitle] = useState(item.title ?? '')
   const [subtitle, setSubtitle] = useState(item.subtitle ?? '')
   const [publishedYear, setPublishedYear] = useState(item.publishedYear ?? '')
@@ -110,16 +113,41 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
     </>
   )
 
+  // A provider match/cover was applied. The item query is invalidated, so jump
+  // back to Details and leave a note - reopening the modal shows the fresh fields.
+  const onApplied = (msg: string) => {
+    setAppliedNote(msg)
+    setTab('Details')
+  }
+
   return (
     <>
       <Modal
         title={`Edit · ${title}`}
         onClose={onClose}
-        tabs={['Details', ...(hasAudio ? ['Chapters', 'Files', 'Tools'] : [])]}
+        tabs={['Details', 'Cover', ...(hasAudio ? ['Chapters', 'Files', 'Tools'] : []), 'Match']}
         tab={tab}
         setTab={setTab}
         foot={tab === 'Details' ? foot : undefined}
       >
+        {tab === 'Match' && (
+          <ItemMatchTab
+            target={target}
+            itemId={item.id}
+            defaultTitle={title}
+            defaultAuthor={item.author}
+            onApplied={onApplied}
+          />
+        )}
+        {tab === 'Cover' && (
+          <ItemCoverTab
+            target={target}
+            itemId={item.id}
+            defaultTitle={title}
+            defaultAuthor={item.author}
+            onApplied={onApplied}
+          />
+        )}
         {tab === 'Chapters' && (
           <ChaptersTab chapterCount={chapters.length} onEdit={() => setEditingChapters(true)} />
         )}
@@ -127,6 +155,13 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
         {tab === 'Tools' && <ToolsTab target={target} itemId={item.id} />}
         {tab === 'Details' && (
           <div className="form-grid">
+            {appliedNote && (
+              <div className="field full">
+                <span style={{ color: '#a7c896', fontSize: 13 }}>
+                  <Icon name="check" /> {appliedNote} - reopen to see updated fields
+                </span>
+              </div>
+            )}
             <Field label="Title" full>
               <input className="fld" value={title} onChange={(e) => setTitle(e.target.value)} />
             </Field>

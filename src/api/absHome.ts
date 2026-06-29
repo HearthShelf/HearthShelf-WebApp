@@ -174,6 +174,75 @@ export async function getHomeShelves(
   return out
 }
 
+// --- unified home: merge shelves across every library -----------------------
+
+// Shelf ids whose items are time-ordered (newest first). When we concat the
+// same shelf from several libraries the per-library ordering is lost, so these
+// get re-sorted by addedAt after merging; everything else keeps library order.
+const RECENCY_SHELVES = new Set(['recently-added', 'listen-again'])
+
+/**
+ * Fold the per-library home shelves into one set of shelves "across all
+ * libraries". Shelves are matched by id (e.g. every library's "recently-added"
+ * becomes one shelf), their entities concatenated and de-duplicated by item /
+ * series id. Recency shelves are re-sorted by addedAt (newest first) so the
+ * merged shelf still reads newest-first across libraries; other shelves keep the
+ * order the libraries returned. Shelf order follows first appearance.
+ */
+export function mergeHomeShelves(perLibrary: HomeShelf[][]): HomeShelf[] {
+  const order: string[] = []
+  const byId = new Map<string, HomeShelf>()
+
+  for (const shelves of perLibrary) {
+    for (const sh of shelves) {
+      const existing = byId.get(sh.id)
+      if (!existing) {
+        order.push(sh.id)
+        // Clone so we don't mutate the per-library query cache.
+        byId.set(
+          sh.id,
+          sh.type === 'series'
+            ? { ...sh, series: [...sh.series] }
+            : { ...sh, items: [...sh.items] }
+        )
+        continue
+      }
+      if (existing.type === 'series' && sh.type === 'series') {
+        existing.series.push(...sh.series)
+      } else if (existing.type === 'book' && sh.type === 'book') {
+        existing.items.push(...sh.items)
+      }
+    }
+  }
+
+  const out: HomeShelf[] = []
+  for (const id of order) {
+    const sh = byId.get(id)
+    if (!sh) continue
+    if (sh.type === 'series') {
+      out.push({ ...sh, series: dedupeById(sh.series) })
+    } else {
+      let items = dedupeById(sh.items)
+      if (RECENCY_SHELVES.has(sh.id)) {
+        items = [...items].sort((a, b) => b.addedAt - a.addedAt)
+      }
+      out.push({ ...sh, items })
+    }
+  }
+  return out
+}
+
+function dedupeById<T extends { id: string }>(list: T[]): T[] {
+  const seen = new Set<string>()
+  const out: T[] = []
+  for (const x of list) {
+    if (x.id && seen.has(x.id)) continue
+    if (x.id) seen.add(x.id)
+    out.push(x)
+  }
+  return out
+}
+
 // --- continue listening (/api/me/items-in-progress) -------------------------
 
 interface ItemsInProgressResponse {

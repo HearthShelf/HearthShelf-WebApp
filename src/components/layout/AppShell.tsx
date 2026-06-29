@@ -17,8 +17,9 @@ import { useIsMobile } from '@/hooks/useMediaQuery'
  */
 export function AppShell() {
   const { pathname } = useLocation()
-  // The full-screen player is immersive: no app bar, no bottom nav.
-  const immersive = pathname === '/player'
+  // The full-screen player and the ebook reader are immersive: no app bar,
+  // no bottom nav.
+  const immersive = pathname === '/player' || pathname.startsWith('/reader/')
   const isMobile = useIsMobile()
 
   // Drive the connection to the active server for the whole shell.
