@@ -12,7 +12,7 @@ import {
   type ItemMetadataPatch,
 } from '@/api/absBookDetail'
 import type { AbsTarget } from '@/api/absLibrary'
-import { formatTimestamp } from '@/lib/format'
+import { formatTimestamp } from '@hearthshelf/core'
 import { Modal } from '@/components/common/Modal'
 import { Chips } from '@/components/common/Chips'
 import { Icon } from '@/components/common/Icon'

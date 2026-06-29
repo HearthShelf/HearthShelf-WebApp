@@ -7,7 +7,7 @@ import {
   type ListeningSessionsPage,
 } from '@/api/absLibrary'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
-import { formatTimestamp, fmtSessDate } from '@/lib/format'
+import { formatTimestamp, fmtSessDate } from '@hearthshelf/core'
 import { Cover, tintFor } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'

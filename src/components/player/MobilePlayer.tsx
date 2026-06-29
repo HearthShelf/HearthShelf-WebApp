@@ -9,7 +9,7 @@ import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
 import { RecentListens } from '@/components/player/RecentListens'
 import { Cover } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
-import { formatTimestamp } from '@/lib/format'
+import { formatTimestamp } from '@hearthshelf/core'
 import type { AbsChapter, AbsItemDetail } from '@/api/absLibrary'
 
 // The merged Shelf-Queue mobile now-playing screen: a full-screen takeover

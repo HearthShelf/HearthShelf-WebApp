@@ -1,5 +1,5 @@
 import { type SleepCtl } from '@/hooks/useSleepTimer'
-import { formatTimestamp } from '@/lib/format'
+import { formatTimestamp } from '@hearthshelf/core'
 import { Icon } from '@/components/common/Icon'
 
 const SPEED_PRESETS = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3]

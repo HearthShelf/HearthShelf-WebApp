@@ -1,6 +1,6 @@
 import { Cover } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
-import { stripHtml } from '@/lib/format'
+import { stripHtml } from '@hearthshelf/core'
 
 // Duration label for an episode (seconds -> "1h 12m" / "34m").
 function formatDuration(seconds: number): string {

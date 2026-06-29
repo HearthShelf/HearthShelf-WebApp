@@ -8,7 +8,7 @@ import {
   SORT_COMMON,
   SORT_MORE,
   type LibrarySort,
-} from '@/lib/libraryFilters'
+} from '@hearthshelf/core'
 
 function FilterItem({
   label,

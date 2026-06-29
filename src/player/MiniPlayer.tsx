@@ -6,7 +6,7 @@ import { useSleepTimer } from '@/hooks/useSleepTimer'
 import { Icon } from '@/components/common/Icon'
 import { tintFor } from '@/components/shared/Cover'
 import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
-import { formatTimestamp } from '@/lib/format'
+import { formatTimestamp } from '@hearthshelf/core'
 
 type Pop = 'speed' | 'sleep' | 'chapters' | null
 

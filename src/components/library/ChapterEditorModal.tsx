@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { updateItemChapters } from '@/api/absBookDetail'
 import type { AbsTarget } from '@/api/absLibrary'
-import { formatTimestamp } from '@/lib/format'
+import { formatTimestamp } from '@hearthshelf/core'
 import { Modal } from '@/components/common/Modal'
 import { Icon } from '@/components/common/Icon'
 

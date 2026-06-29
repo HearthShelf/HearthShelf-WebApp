@@ -3,7 +3,7 @@ import { getRecentSessions, type RecentSession } from '@/api/absPlayback'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
-import { formatTimestamp, fmtSessDate } from '@/lib/format'
+import { formatTimestamp, fmtSessDate } from '@hearthshelf/core'
 import type { AbsTarget } from '@/api/absLibrary'
 
 function deviceIcon(s: RecentSession): string {

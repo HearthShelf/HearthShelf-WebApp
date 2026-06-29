@@ -26,7 +26,7 @@ import { PodcastsGrid } from '@/pages/PodcastsGrid'
 import { BookTile } from '@/components/library/BookTile'
 import { SeriesCard } from '@/components/library/SeriesCard'
 import { AzJumpRail } from '@/components/library/AzJumpRail'
-import { letterOf } from '@/lib/letterBucket'
+import { letterOf } from '@hearthshelf/core'
 import { BatchEditModal } from '@/components/library/BatchEditModal'
 import { AddToListModal } from '@/components/library/AddToListModal'
 import { Dropdown, MItem } from '@/components/common/Dropdown'
@@ -38,7 +38,7 @@ import {
   LibrarySortMenu,
   type ProgFilter,
 } from '@/components/library/LibraryFilters'
-import { applyLibraryFilter, type LibrarySort } from '@/lib/libraryFilters'
+import { applyLibraryFilter, type LibrarySort } from '@hearthshelf/core'
 
 type Tab = 'books' | 'series' | 'authors' | 'narrators'
 type View = 'grid' | 'list'

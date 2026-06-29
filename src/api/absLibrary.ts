@@ -6,6 +6,7 @@
  * item's /cover endpoint). Only the fields we render are typed.
  */
 import { absGet, absPatch, absPost, absMediaUrl } from './absClient'
+import type { ABSBookMetadata, ABSBookMedia, ABSLibraryItem } from '@hearthshelf/core'
 
 export interface AbsTarget {
   serverId: string
@@ -720,46 +721,12 @@ export interface ItemMetadataPatch {
   abridged?: boolean
 }
 
-export interface AbsItemMetadata {
-  title: string | null
-  titleIgnorePrefix: string
-  subtitle: string | null
-  authorName: string
-  narratorName: string
-  seriesName: string
-  publishedYear: string | null
-  description: string | null
-  genres: string[]
-  language: string | null
-  explicit: boolean
-}
-
-export interface AbsItemMedia {
-  id: string
-  metadata: AbsItemMetadata
-  coverPath: string | null
-  tags: string[]
-  numTracks: number
-  numAudioFiles: number
-  numChapters: number
-  duration: number
-  size: number
-  ebookFormat?: string
-}
-
-/** A full (minified-list) library item, as the Library page renders it. */
-export interface AbsLibraryItem {
-  id: string
-  libraryId: string
-  folderId: string
-  path: string
-  mediaType: 'book' | 'podcast'
-  media: AbsItemMedia
-  addedAt: number
-  updatedAt: number
-  isMissing: boolean
-  isInvalid: boolean
-}
+// These shapes are now owned by @hearthshelf/core (canonical ABS types). The
+// local Abs* aliases stay so existing importers keep resolving; they will be
+// renamed to the ABS* names in a follow-up pass.
+export type AbsItemMetadata = ABSBookMetadata
+export type AbsItemMedia = ABSBookMedia
+export type AbsLibraryItem = ABSLibraryItem
 
 interface RawFullMetadata {
   title?: string | null

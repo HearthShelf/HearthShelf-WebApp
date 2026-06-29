@@ -7,7 +7,7 @@ import {
   type ABSAdminSession,
 } from '@/api/absAdmin'
 import { useActiveServer } from '@/hooks/useActiveServer'
-import { formatTimestamp, fmtSessDate } from '@/lib/format'
+import { formatTimestamp, fmtSessDate } from '@hearthshelf/core'
 import { Icon } from '@/components/common/Icon'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'

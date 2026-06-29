@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { letterOf } from '@/lib/letterBucket'
+import { letterOf } from '@hearthshelf/core'
 
 const ALPHABET = '#ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 

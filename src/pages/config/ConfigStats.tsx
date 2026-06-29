@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getServerStats, getLibraryStats, adminContentKeys } from '@/api/absAdmin'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
-import { formatTimestamp } from '@/lib/format'
+import { formatTimestamp } from '@hearthshelf/core'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 
