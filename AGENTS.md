@@ -58,14 +58,16 @@ with DCO sign-off; see `CONTRIBUTING.md`.
 
 ## Related repositories
 
-HearthShelf spans several repos (all AGPLv3 unless noted):
+HearthShelf spans several repos. The servers are AGPLv3; the mobile app and the
+shared `@hearthshelf/core` library are MIT (low-friction for a client app + a
+shared lib that links cleanly into the AGPL servers).
 
-| Repo | What it is |
-| --- | --- |
-| **HearthShelf** | Self-hosted SPA + Node backend (`server/`) + Docker |
-| **HearthShelf-WebApp** | Hosted front door (`app.hearthshelf.com`): SPA + control-plane Worker |
-| **HearthShelf-Mobile** | Mobile app (Expo/React Native); Android Auto via a native Media3 `MediaLibraryService` |
-| **HearthShelf-Core** | `@hearthshelf/core`: shared ABS types + pure logic, consumed as a git submodule |
+| Repo | What it is | License |
+| --- | --- | --- |
+| **HearthShelf** | Self-hosted SPA + Node backend (`server/`) + Docker | AGPLv3 |
+| **HearthShelf-WebApp** | Hosted front door (`app.hearthshelf.com`): SPA + control-plane Worker | AGPLv3 |
+| **HearthShelf-Mobile** | Mobile app (Expo/React Native); Android Auto via a native Media3 `MediaLibraryService` | MIT |
+| **HearthShelf-Core** | `@hearthshelf/core`: shared ABS types + pure logic, consumed as a git submodule | MIT |
 | **HearthShelf-Website** | Marketing site (`hearthshelf.com`) |
 | **HearthShelf-Docs** | Docs site (`docs.hearthshelf.com`) |
 | **HearthShelf-Direct-Infra** | VPS-side infra for the connect domain (automatic HTTPS for self-hosters) |
