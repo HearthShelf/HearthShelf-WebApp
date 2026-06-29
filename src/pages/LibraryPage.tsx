@@ -22,6 +22,7 @@ import { useMarkFinished } from '@/hooks/useMarkFinished'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { Cover, tintFor } from '@/components/shared/Cover'
+import { PodcastsGrid } from '@/pages/PodcastsGrid'
 import { BookTile } from '@/components/library/BookTile'
 import { SeriesCard } from '@/components/library/SeriesCard'
 import { AzJumpRail } from '@/components/library/AzJumpRail'
@@ -345,17 +346,9 @@ export function LibraryPage() {
 
   if (!target) return null
 
-  // Podcast-type libraries aren't browsed via the book tabs here yet.
-  if (active?.mediaType === 'podcast') {
-    return (
-      <div className="page fade-in" style={{ paddingTop: 24 }}>
-        <div className="empty-state">
-          <Icon name="podcasts" />
-          <h3>Podcasts aren&apos;t available here yet</h3>
-          <p>This is a podcast library. Browse it from your HearthShelf server.</p>
-        </div>
-      </div>
-    )
+  // Podcast-type libraries render their own show grid (not the book tabs).
+  if (active?.mediaType === 'podcast' && activeId) {
+    return <PodcastsGrid libraryId={activeId} />
   }
 
   const TABS: { id: Tab; icon: string; label: string; n: number }[] = [

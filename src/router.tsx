@@ -8,7 +8,13 @@ import { AuthorDetailPage } from '@/pages/AuthorDetailPage'
 import { SeriesDetailPage } from '@/pages/SeriesDetailPage'
 import { CollectionsPage } from '@/pages/CollectionsPage'
 import { CollectionDetailPage } from '@/pages/CollectionDetailPage'
+import { PlaylistsPage } from '@/pages/PlaylistsPage'
+import { PlaylistDetailPage } from '@/pages/PlaylistDetailPage'
 import { NarratorsPage } from '@/pages/NarratorsPage'
+import { PodcastDetailPage } from '@/pages/PodcastDetailPage'
+import { PodcastLatestPage } from '@/pages/PodcastLatestPage'
+import { PodcastSearchPage } from '@/pages/PodcastSearchPage'
+import { PodcastQueuePage } from '@/pages/PodcastQueuePage'
 import { SearchPage } from '@/pages/SearchPage'
 import { StatsPage } from '@/pages/StatsPage'
 import { SessionsPage } from '@/pages/SessionsPage'
@@ -60,7 +66,13 @@ export const router = createBrowserRouter([
       { path: '/series/:seriesId', element: withShell(<SeriesDetailPage />) },
       { path: '/collections', element: withShell(<CollectionsPage />) },
       { path: '/collections/:collectionId', element: withShell(<CollectionDetailPage />) },
+      { path: '/playlists', element: withShell(<PlaylistsPage />) },
+      { path: '/playlists/:playlistId', element: withShell(<PlaylistDetailPage />) },
       { path: '/narrators', element: withShell(<NarratorsPage />) },
+      { path: '/podcast/:podcastId', element: withShell(<PodcastDetailPage />) },
+      { path: '/podcasts/latest', element: withShell(<PodcastLatestPage />) },
+      { path: '/podcasts/add', element: withShell(<PodcastSearchPage />) },
+      { path: '/podcasts/queue', element: withShell(<PodcastQueuePage />) },
       { path: '/search', element: withShell(<SearchPage />) },
       { path: '/stats', element: withShell(<StatsPage />) },
       { path: '/sessions', element: withShell(<SessionsPage />) },

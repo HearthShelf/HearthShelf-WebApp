@@ -7,6 +7,7 @@ import { Avatar } from '@/components/common/Avatar'
 import { Icon } from '@/components/common/Icon'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
+import { getMe } from '@/api/absLibrary'
 import { fetchAdminMe, ApiError } from '@/api/controlPlane'
 
 // Which nav group a path belongs to. Browse surfaces (series, authors, search,
@@ -23,6 +24,7 @@ function groupForPath(path: string): string {
     path.startsWith('/podcast/')
   )
     return 'library'
+  if (path.startsWith('/podcasts/')) return 'podcasts'
   if (path.startsWith('/collections')) return 'collections'
   if (path.startsWith('/playlists')) return 'playlists'
   if (path.startsWith('/stats')) return 'stats'
@@ -106,9 +108,20 @@ function UserMenu() {
 export function Sidebar() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const { target } = useActiveServer()
   const { itemCount, active: activeLib } = useActiveLibrary()
   const group = groupForPath(pathname)
   const isPodcast = activeLib?.mediaType === 'podcast'
+
+  // Podcast admin items (Add / Download queue) are gated on the ABS *server*
+  // admin, not the platform admin - this is the same getMe the library reads.
+  const { data: absMe } = useQuery({
+    queryKey: ['abs-me', target?.serverId],
+    queryFn: () => getMe(target!),
+    enabled: Boolean(target) && isPodcast,
+    staleTime: 5 * 60 * 1000,
+  })
+  const isServerAdmin = absMe?.type === 'admin' || absMe?.type === 'root'
 
   const Item = ({ id, icon, label, to, badge }: NavItemDef) => {
     const active = group === id
@@ -135,7 +148,18 @@ export function Sidebar() {
         <Item id="home" icon="home" label="Home" to="/" />
         <Item id="library" icon="grid_view" label="Library" to="/library" badge={itemCount} />
 
-        {!isPodcast && (
+        {isPodcast ? (
+          <>
+            <div className="nav-label">Podcasts</div>
+            <Item id="podcasts" icon="podcasts" label="Latest" to="/podcasts/latest" />
+            {isServerAdmin && (
+              <>
+                <Item id="podcasts" icon="add_circle" label="Add podcast" to="/podcasts/add" />
+                <Item id="podcasts" icon="download" label="Download queue" to="/podcasts/queue" />
+              </>
+            )}
+          </>
+        ) : (
           <>
             <div className="nav-label">Shelves</div>
             <Item id="collections" icon="folder_special" label="Collections" to="/collections" />
