@@ -14,7 +14,7 @@ import {
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { BookTile } from '@/components/library/BookTile'
-import { buildDiscoverShelves } from '@/lib/discover'
+import { buildDiscoverShelves } from '@hearthshelf/core'
 
 // Heads every section: icon + title (matches the design's section-head markup).
 function SectionHead({ icon, title }: { icon: string; title: string }) {

@@ -19,7 +19,7 @@ import {
   type MonthlyShelf,
   type PopularItem,
 } from '@/api/absDiscover'
-import { buildDiscoverSummary, discoverCandidates } from '@/lib/discover'
+import { buildDiscoverSummary, discoverCandidates } from '@hearthshelf/core'
 import type { AbsLibraryItem, MediaProgress } from '@/api/absLibrary'
 
 const NO_TARGET: DiscoverConfig = { enabled: false }

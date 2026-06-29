@@ -13,7 +13,7 @@
  */
 import { getAbsToken } from '@/lib/absTokens'
 import type { AbsTarget } from './absLibrary'
-import type { DiscoverSummary, DiscoverCandidate } from '@/lib/discover'
+import type { DiscoverSummary, DiscoverCandidate } from '@hearthshelf/core'
 
 export type DiscoverVote = 'like' | 'dislike' | 'not_interested'
 
