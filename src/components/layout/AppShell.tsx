@@ -4,6 +4,7 @@ import { AppBar } from '@/components/layout/AppBar'
 import { MobileNav } from '@/components/layout/MobileNav'
 import { MiniPlayer } from '@/player/MiniPlayer'
 import { useConnectActiveServer } from '@/hooks/useConnectActiveServer'
+import { useApplySettings } from '@/hooks/useApplySettings'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 
 /**
@@ -24,6 +25,8 @@ export function AppShell() {
 
   // Drive the connection to the active server for the whole shell.
   useConnectActiveServer()
+  // Apply appearance settings (theme via data-theme, accent CSS vars) globally.
+  useApplySettings()
 
   return (
     <div className={'app' + (isMobile ? ' has-mobile-nav' : '')}>

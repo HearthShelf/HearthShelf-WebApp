@@ -1,67 +1,6 @@
 import { useSettingsStore, type ScrubberScope } from '@/store/settingsStore'
 import { Icon } from '@/components/common/Icon'
-
-// A label + description row with its control on the right (mirrors the
-// self-hosted Settings shell's SetRow).
-function SetRow({
-  title,
-  desc,
-  control,
-}: {
-  title: string
-  desc?: string
-  control: React.ReactNode
-}) {
-  return (
-    <div className="set-row">
-      <div className="sr-meta">
-        <div className="sr-t">{title}</div>
-        {desc && <div className="sr-d">{desc}</div>}
-      </div>
-      {control}
-    </div>
-  )
-}
-
-// A two-or-more option segmented control.
-function Seg<T extends string | number>({
-  value,
-  options,
-  onChange,
-}: {
-  value: T
-  options: { value: T; label: string }[]
-  onChange: (v: T) => void
-}) {
-  return (
-    <div className="seg">
-      {options.map((o) => (
-        <button
-          type="button"
-          key={String(o.value)}
-          className={'seg-btn' + (o.value === value ? ' on' : '')}
-          onClick={() => onChange(o.value)}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      className={'toggle' + (on ? ' on' : '')}
-      role="switch"
-      aria-checked={on}
-      onClick={() => onChange(!on)}
-    >
-      <i />
-    </button>
-  )
-}
+import { SetRow, Seg, Toggle } from '@/components/settings/controls'
 
 export function PlaybackSettings() {
   const s = useSettingsStore()

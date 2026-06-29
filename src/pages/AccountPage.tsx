@@ -11,15 +11,29 @@ import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/common/Icon'
 import { PlaybackSettings } from '@/components/settings/PlaybackSettings'
 import { ReadingSettings } from '@/components/settings/ReadingSettings'
+import { AppearanceSettings } from '@/components/settings/AppearanceSettings'
+import { ConnectionsSettings } from '@/components/settings/ConnectionsSettings'
+import { AccountSettings } from '@/components/settings/AccountSettings'
 
-type Section = 'servers' | 'playback' | 'reading' | 'plan' | 'profile'
+type Section =
+  | 'servers'
+  | 'playback'
+  | 'reading'
+  | 'appearance'
+  | 'connections'
+  | 'account'
+  | 'plan'
+  | 'profile'
 
 const NAV: { id: Section; icon: string; label: string }[] = [
   { id: 'servers', icon: 'dns', label: 'My servers' },
   { id: 'playback', icon: 'graphic_eq', label: 'Playback' },
   { id: 'reading', icon: 'menu_book', label: 'Reading' },
+  { id: 'appearance', icon: 'palette', label: 'Appearance' },
+  { id: 'connections', icon: 'hub', label: 'Connections' },
+  { id: 'account', icon: 'person', label: 'Account' },
   { id: 'plan', icon: 'workspace_premium', label: 'Subscription' },
-  { id: 'profile', icon: 'person', label: 'Profile & sign-in' },
+  { id: 'profile', icon: 'manage_accounts', label: 'Profile & sign-in' },
 ]
 
 /**
@@ -53,6 +67,9 @@ export function AccountPage() {
         {section === 'servers' && <MyServers />}
         {section === 'playback' && <PlaybackSettings />}
         {section === 'reading' && <ReadingSettings />}
+        {section === 'appearance' && <AppearanceSettings />}
+        {section === 'connections' && <ConnectionsSettings />}
+        {section === 'account' && <AccountSettings />}
         {section === 'plan' && <Subscription />}
         {section === 'profile' && <Profile />}
       </div>

@@ -31,6 +31,7 @@ function groupForPath(path: string): string {
   if (path.startsWith('/sessions')) return 'sessions'
   if (path.startsWith('/player')) return 'player'
   if (path.startsWith('/account')) return 'settings'
+  if (path.startsWith('/config')) return 'config'
   return path.slice(1)
 }
 
@@ -113,12 +114,14 @@ export function Sidebar() {
   const group = groupForPath(pathname)
   const isPodcast = activeLib?.mediaType === 'podcast'
 
-  // Podcast admin items (Add / Download queue) are gated on the ABS *server*
-  // admin, not the platform admin - this is the same getMe the library reads.
+  // ABS *server* admin (distinct from the platform admin). Gates the podcast
+  // admin items (Add / Download queue) AND the Server (/config) nav link below.
+  // Queried whenever we have a target so the Server link can appear on any
+  // library type, not just podcasts.
   const { data: absMe } = useQuery({
     queryKey: ['abs-me', target?.serverId],
     queryFn: () => getMe(target!),
-    enabled: Boolean(target) && isPodcast,
+    enabled: Boolean(target),
     staleTime: 5 * 60 * 1000,
   })
   const isServerAdmin = absMe?.type === 'admin' || absMe?.type === 'root'
@@ -173,6 +176,7 @@ export function Sidebar() {
         <Item id="player" icon="graphic_eq" label="Now playing" to="/player" />
 
         <div className="nav-sep" />
+        {isServerAdmin && <Item id="config" icon="dns" label="Server" to="/config" />}
         <Item id="settings" icon="settings" label="Settings" to="/account" />
       </nav>
 

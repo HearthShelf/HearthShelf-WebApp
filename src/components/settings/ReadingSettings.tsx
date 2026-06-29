@@ -9,51 +9,7 @@ import {
   type ReaderLayout,
 } from '@/store/readerPrefsStore'
 import { Icon } from '@/components/common/Icon'
-
-function SetRow({
-  title,
-  desc,
-  control,
-}: {
-  title: string
-  desc?: string
-  control: React.ReactNode
-}) {
-  return (
-    <div className="set-row">
-      <div className="sr-meta">
-        <div className="sr-t">{title}</div>
-        {desc && <div className="sr-d">{desc}</div>}
-      </div>
-      {control}
-    </div>
-  )
-}
-
-function Seg<T extends string | number>({
-  value,
-  options,
-  onChange,
-}: {
-  value: T
-  options: { value: T; label: string }[]
-  onChange: (v: T) => void
-}) {
-  return (
-    <div className="seg">
-      {options.map((o) => (
-        <button
-          type="button"
-          key={String(o.value)}
-          className={'seg-btn' + (o.value === value ? ' on' : '')}
-          onClick={() => onChange(o.value)}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  )
-}
+import { SetRow, Seg } from '@/components/settings/controls'
 
 export function ReadingSettings() {
   const p = useReaderPrefs()

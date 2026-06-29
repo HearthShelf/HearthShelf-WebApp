@@ -198,6 +198,88 @@
 }
 
 /* =====================================================================
+   Alternate themes — the Appearance "Theme" seg swaps data-theme on <html>.
+   The shell keeps class="dark"; these blocks come AFTER .dark in source
+   order, so [data-theme='light'|'flat'|'oled'] override the dark palette at
+   equal specificity. data-theme='dark' (or absent) leaves .dark in place.
+   `oled` aliases `flat` (pure black, no bloom). Each block re-points BOTH the
+   shadcn role tokens and the HS-shell compat tokens so Tailwind utilities and
+   the ported shell re-theme together.
+   ===================================================================== */
+[data-theme='flat'],
+[data-theme='oled'] {
+  --scaffold: #000000;
+  --c-lowest: #000000;
+  --c-low: #0a0a0a;
+  --c: #0d0d0d;
+  --c-high: #131313;
+  --c-highest: #1b1b1b;
+  --sheet: #0d0d0d;
+  --text: #f3f1ec;
+  --text-muted: #9a958d;
+  --text-faint: #65615a;
+  --hairline: rgba(255, 255, 255, 0.09);
+  --fill: rgba(255, 255, 255, 0.06);
+  --fill-strong: rgba(255, 255, 255, 0.11);
+  --row-now: color-mix(in oklab, var(--accent) 22%, transparent);
+  --shadow-lift: 0 18px 48px rgba(0, 0, 0, 0.7);
+  --glow-strength: 0;
+  color-scheme: dark;
+
+  /* shadcn role tokens follow the surface vars so body + shadcn re-theme too */
+  --background: var(--scaffold);
+  --foreground: var(--text);
+  --card: var(--c-high);
+  --card-foreground: var(--text);
+  --popover: var(--c);
+  --popover-foreground: var(--text);
+  --secondary: var(--c-highest);
+  --secondary-foreground: var(--text);
+  --muted: var(--c-highest);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--c-highest);
+  --accent-foreground: var(--text);
+  --border: var(--hairline);
+  --input: var(--hairline);
+}
+
+[data-theme='light'] {
+  --scaffold: #f7f6f3;
+  --c-lowest: #ffffff;
+  --c-low: #f1efeb;
+  --c: #ecebe6;
+  --c-high: #e7e5df;
+  --c-highest: #e0ded7;
+  --sheet: #ffffff;
+  --text: #1b1916;
+  --text-muted: #6c665d;
+  --text-faint: #9a948a;
+  --hairline: rgba(0, 0, 0, 0.1);
+  --fill: rgba(0, 0, 0, 0.05);
+  --fill-strong: rgba(0, 0, 0, 0.09);
+  --row-now: color-mix(in oklab, var(--accent) 18%, transparent);
+  --shadow-lift: 0 18px 48px rgba(60, 50, 40, 0.18);
+  --glow-strength: 14;
+  color-scheme: light;
+
+  /* shadcn role tokens follow the surface vars so body + shadcn re-theme too */
+  --background: var(--scaffold);
+  --foreground: var(--text);
+  --card: var(--c-high);
+  --card-foreground: var(--text);
+  --popover: var(--c);
+  --popover-foreground: var(--text);
+  --secondary: var(--c-highest);
+  --secondary-foreground: var(--text);
+  --muted: var(--c-highest);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--c-highest);
+  --accent-foreground: var(--text);
+  --border: var(--hairline);
+  --input: var(--hairline);
+}
+
+/* =====================================================================
    Non-themed tokens (geometry, spacing, type) — declared once on :root
    ===================================================================== */
 :root {

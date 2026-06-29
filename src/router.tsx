@@ -24,6 +24,7 @@ import { AccountPage } from '@/pages/AccountPage'
 import { InvitePage } from '@/pages/InvitePage'
 import { ConnectBoxPage } from '@/pages/ConnectBoxPage'
 import { InfraLogsPage } from '@/pages/InfraLogsPage'
+import { ConfigShell, ConfigIndexRedirect } from '@/pages/config/ConfigShell'
 import { AdminLayout } from '@/pages/admin/AdminLayout'
 import { AdminServersPage } from '@/pages/admin/AdminServersPage'
 import { AdminAdminsPage } from '@/pages/admin/AdminAdminsPage'
@@ -78,6 +79,15 @@ export const router = createBrowserRouter([
       { path: '/sessions', element: withShell(<SessionsPage />) },
       { path: '/player', element: withShell(<PlayerPage />) },
       { path: '/reader/:itemId', element: withShell(<ReaderPage />) },
+
+      // Server admin (the /config panel). Acts on the ambient active server, so
+      // it renders inside withShell (needs the connected target). Gated to ABS
+      // server-admins inside ConfigShell. Bare /config drills down on mobile and
+      // redirects to the default section on desktop; the user-detail sub-route
+      // keeps the Users nav item lit.
+      { path: '/config', element: withShell(<ConfigIndexRedirect />) },
+      { path: '/config/users/:userId', element: withShell(<ConfigShell />) },
+      { path: '/config/:section', element: withShell(<ConfigShell />) },
 
       // Account (Clerk profile + My Servers + plan). No active-server gate - it
       // manages servers, so it must render even with zero linked.
