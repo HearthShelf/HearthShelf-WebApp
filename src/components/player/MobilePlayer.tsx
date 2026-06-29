@@ -1093,7 +1093,8 @@ export function MobilePlayer({
             <div
               style={{ padding: '0 20px 8px', fontSize: 11.5, lineHeight: 1.4, color: 'var(--text-muted)' }}
             >
-              Drag to reorder - the first four appear under the player.
+              Drag an action between the two groups: the first four show under the
+              player, the rest live in this More menu.
             </div>
           )}
           <div
@@ -1105,58 +1106,67 @@ export function MobilePlayer({
               gap: 5,
             }}
           >
-            {vis.map((k, i) => (
-              <div
-                key={k}
-                className={
-                  'mp-row' +
-                  (aDrag === i ? ' drag' : '') +
-                  (aOver === i && aDrag !== null && aDrag !== i ? ' over' : '')
-                }
-                draggable={edit}
-                onDragStart={() => setADrag(i)}
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  if (aOver !== i) setAOver(i)
-                }}
-                onDrop={commitA}
-                onDragEnd={commitA}
-                onClick={() => {
-                  if (!edit) {
-                    setSheet(null)
-                    ACT[k].on()
+            {vis.map((k, i) => {
+              const row = (
+                <div
+                  key={k}
+                  className={
+                    'mp-row' +
+                    (aDrag === i ? ' drag' : '') +
+                    (aOver === i && aDrag !== null && aDrag !== i ? ' over' : '')
                   }
-                }}
-                style={{ cursor: 'pointer', padding: '11px 8px' }}
-              >
-                <Icon
-                  name={edit ? 'drag_indicator' : ACT[k].icon}
-                  style={{
-                    width: 24,
-                    textAlign: 'center',
-                    fontSize: edit ? 20 : 21,
-                    color: edit ? 'var(--text-muted)' : 'var(--text)',
+                  draggable={edit}
+                  onDragStart={() => setADrag(i)}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    if (aOver !== i) setAOver(i)
                   }}
-                />
-                <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{ACT[k].label}</div>
-                {i < 4 && (
-                  <span
+                  onDrop={commitA}
+                  onDragEnd={commitA}
+                  onClick={() => {
+                    if (!edit) {
+                      setSheet(null)
+                      ACT[k].on()
+                    }
+                  }}
+                  style={{ cursor: 'pointer', padding: '11px 8px' }}
+                >
+                  <Icon
+                    name={edit ? 'drag_indicator' : ACT[k].icon}
                     style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 9,
-                      letterSpacing: '0.08em',
-                      textTransform: 'uppercase',
-                      color: 'var(--text-muted)',
-                      border: '1px solid var(--hairline)',
-                      borderRadius: 999,
-                      padding: '3px 8px',
+                      width: 24,
+                      textAlign: 'center',
+                      fontSize: edit ? 20 : 21,
+                      color: edit ? 'var(--text-muted)' : 'var(--text)',
                     }}
-                  >
-                    On player
-                  </span>
-                )}
-              </div>
-            ))}
+                  />
+                  <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{ACT[k].label}</div>
+                </div>
+              )
+              // In edit mode, draw a labelled divider before the first shown row
+              // (index 0) and before the first More row (index 4), so the two
+              // groups read as distinct drop targets you drag between.
+              if (edit && (i === 0 || i === 4)) {
+                return (
+                  <div key={`${k}-grp`}>
+                    <div
+                      style={{
+                        padding: '10px 8px 4px',
+                        fontSize: 10.5,
+                        letterSpacing: '0.1em',
+                        textTransform: 'uppercase',
+                        color: 'var(--text-faint)',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {i === 0 ? 'On the player' : 'In the More menu'}
+                    </div>
+                    {row}
+                  </div>
+                )
+              }
+              return row
+            })}
           </div>
         </Sheet>
       )}
