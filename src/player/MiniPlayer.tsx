@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { usePlayer } from '@/player/PlayerProvider'
 import { useSettingsStore } from '@/store/settingsStore'
@@ -27,6 +27,7 @@ type Pop = 'speed' | 'sleep' | 'chapters' | null
 export function MiniPlayer() {
   const {
     now,
+    close,
     playing,
     positionSec,
     togglePlay,
@@ -35,6 +36,28 @@ export function MiniPlayer() {
     rate,
     setRate,
   } = usePlayer()
+
+  // Swipe-to-dismiss: drag the bar horizontally; past the threshold on release it
+  // dismisses (which stops playback). Tracked in a ref during the gesture and
+  // mirrored to state only for the live transform, so we don't thrash renders.
+  const swipeStartX = useRef<number | null>(null)
+  const [dragX, setDragX] = useState(0)
+  const DISMISS_PX = 90
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    swipeStartX.current = e.touches[0].clientX
+  }
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (swipeStartX.current == null) return
+    setDragX(e.touches[0].clientX - swipeStartX.current)
+  }
+  const onTouchEnd = () => {
+    if (Math.abs(dragX) > DISMISS_PX) {
+      close()
+    }
+    swipeStartX.current = null
+    setDragX(0)
+  }
 
   const scrubber = useSettingsStore((s) => s.scrubber)
   const skipFwd = useSettingsStore((s) => s.skipForward)
@@ -94,11 +117,27 @@ export function MiniPlayer() {
     }
   }
 
+  const dragging = dragX !== 0
+
   return (
-    <div className={'playbar' + (onPlayerRoute ? ' hidden' : '')}>
+    <div
+      className={'playbar' + (onPlayerRoute ? ' hidden' : '')}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      style={
+        dragging
+          ? {
+              transform: `translateX(${dragX}px)`,
+              opacity: Math.max(0.3, 1 - Math.abs(dragX) / 240),
+              transition: 'none',
+            }
+          : undefined
+      }
+    >
       <div
         className="pb-now"
-        onClick={() => navigate(`/book/${now.itemId}`)}
+        onClick={() => navigate('/player')}
         style={{ cursor: 'pointer' }}
       >
         {/* The mini-player is global chrome mounted OUTSIDE the MediaUI provider,

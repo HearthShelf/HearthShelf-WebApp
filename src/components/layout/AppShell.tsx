@@ -34,9 +34,13 @@ export function AppShell() {
         <div className="content">
           <Outlet />
         </div>
-        {isMobile && !immersive && <MobileNav />}
       </div>
       <MiniPlayer />
+      {/* MobileNav (bottom tab bar + "More" drawer) lives at the .app level, a
+          sibling of the mini-player - NOT inside .main - so its drawer can layer
+          ABOVE the mini-player. Nested in .main it was trapped in .main's lower
+          stacking context and rendered under the playbar. */}
+      {isMobile && !immersive && <MobileNav />}
     </div>
   )
 }

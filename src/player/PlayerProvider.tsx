@@ -35,6 +35,8 @@ export interface NowPlaying {
 interface PlayerApi {
   now: NowPlaying | null
   play: (n: NowPlaying) => void
+  /** Stop playback and dismiss the now-playing book (clears the mini-player). */
+  close: () => void
   playing: boolean
   positionSec: number
   togglePlay: () => void
@@ -107,10 +109,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     onBookEnded,
   })
 
+  // Dismiss the current book: pause first (so the <audio> stops and a final
+  // progress save fires on pause), then clear now-playing so the mini-player
+  // hides. Used by the swipe-to-dismiss gesture on the mini-player.
+  const close = useCallback(() => {
+    if (player.playing) player.togglePlay()
+    setNow(null)
+  }, [player])
+
   const api = useMemo<PlayerApi>(
     () => ({
       now,
       play,
+      close,
       playing: player.playing,
       positionSec: player.positionSec,
       togglePlay: player.togglePlay,
@@ -124,7 +135,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       sleepArmed: player.sleepArmed,
       sleepRemainingMs: player.sleepRemainingMs,
     }),
-    [now, play, player]
+    [now, play, close, player]
   )
 
   return <PlayerContext.Provider value={api}>{children}</PlayerContext.Provider>
