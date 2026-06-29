@@ -9,6 +9,7 @@ export default defineConfig({
   server: process.env.PORT ? { port: Number(process.env.PORT), strictPort: true } : undefined,
   resolve: {
     alias: {
+      '@hearthshelf/core': path.resolve(__dirname, './packages/core/src'),
       '@': path.resolve(__dirname, './src'),
     },
   },

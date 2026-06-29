@@ -22,8 +22,10 @@
     "noUncheckedSideEffectImports": true,
 
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@hearthshelf/core": ["./packages/core/src/index.ts"],
+      "@hearthshelf/core/*": ["./packages/core/src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "packages/core/src"]
 }
