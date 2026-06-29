@@ -55,3 +55,18 @@ HearthShelf is a UI. It does not host, source, or distribute content.
 
 **AGPL-3.0** (see `LICENSE.md`). Contributions welcome under the same license
 with DCO sign-off; see `CONTRIBUTING.md`.
+
+## Related repositories
+
+HearthShelf spans several repos (all AGPLv3 unless noted):
+
+| Repo | What it is |
+| --- | --- |
+| **HearthShelf** | Self-hosted SPA + Node backend (`server/`) + Docker |
+| **HearthShelf-WebApp** | Hosted front door (`app.hearthshelf.com`): SPA + control-plane Worker |
+| **HearthShelf-Mobile** | Mobile app (Expo/React Native); Android Auto via a native Media3 `MediaLibraryService` |
+| **HearthShelf-Core** | `@hearthshelf/core`: shared ABS types + pure logic, consumed as a git submodule |
+| **HearthShelf-Website** | Marketing site (`hearthshelf.com`) |
+| **HearthShelf-Docs** | Docs site (`docs.hearthshelf.com`) |
+| **HearthShelf-Direct-Infra** | VPS-side infra for the connect domain (automatic HTTPS for self-hosters) |
+| **HearthShelf-DesignSystem** | Logos, favicon, shared design assets |
