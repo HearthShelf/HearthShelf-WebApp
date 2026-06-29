@@ -1,24 +1,31 @@
-import { useMemo } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
-import {
-  getSeriesItems,
-  getSeriesList,
-  type AbsListItem,
-} from '@/api/absLibrary'
+import { getMe, type AbsLibraryItem, type AbsSeries } from '@/api/absLibrary'
+import { getSeriesFull } from '@/api/absBrowse'
+import { useMediaProgress } from '@/hooks/useMediaProgress'
+import { useMarkFinished } from '@/hooks/useMarkFinished'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
+import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useToast } from '@/hooks/useToast'
+import { orderBooks } from '@/lib/seriesOrder'
 import { Cover, tintFor } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
+import { BookContextMenu } from '@/components/library/BookContextMenu'
+import { BatchEditModal } from '@/components/library/BatchEditModal'
+import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { ErrorState } from '@/components/common/ErrorState'
+import type { AbsTarget } from '@/api/absLibrary'
 
-// Count-aware cover cluster: 1 solo, 2 stacked, 3 two+one, 4+ a 2x2 square
-// with an optional centered 5th carrying a "+N" overflow chip.
-function HeroCovers({ books }: { books: AbsListItem[] }) {
+// Count-aware cover cluster: 1 solo, 2 stacked, 3 two+one, 4+ a 2x2 square with
+// an optional centered 5th carrying a "+N" overflow chip.
+function HeroCovers({ books }: { books: AbsLibraryItem[] }) {
   const n = books.length
   const layout = n >= 4 ? 'square' : n === 3 ? 'tri' : n === 2 ? 'duo' : 'solo'
-  const cover = (b: AbsListItem, fs: number) => (
-    <Cover key={b.id} itemId={b.id} title={b.title || 'Untitled'} fs={fs} />
+  const cover = (b: AbsLibraryItem, fs: number) => (
+    <Cover key={b.id} itemId={b.id} title={b.media.metadata.title ?? 'Untitled'} fs={fs} />
   )
 
   return (
@@ -48,86 +55,342 @@ function HeroCovers({ books }: { books: AbsListItem[] }) {
   )
 }
 
-function SeriesDetail({ name, books }: { name: string; books: AbsListItem[] }) {
+function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget }) {
   const navigate = useNavigate()
   const ui = useMediaUI()
-  const author = books[0]?.author || ''
-  const cv = tintFor(books[0]?.title ?? name)
-  const totalHours = books.reduce((s, b) => s + (b.durationSec ?? 0) / 3600, 0)
-  const nextUp = books[0]
+  const progressById = useMediaProgress()
+  const { markFinished, isPending: marking } = useMarkFinished()
+  const isMobile = useIsMobile()
+  const { toast, show } = useToast()
+  const books = orderBooks(series.books ?? [])
+  const author = books[0]?.media.metadata.authorName || ''
+  const cv = tintFor(books[0]?.media.metadata.title ?? series.name)
+
+  // Admin gating for the bulk-edit action.
+  const { data: me } = useQuery({
+    queryKey: ['abs-me', target.serverId],
+    queryFn: () => getMe(target),
+    enabled: Boolean(target),
+    staleTime: 5 * 60 * 1000,
+  })
+  const canEdit =
+    me?.type === 'admin' || me?.type === 'root' || Boolean(me?.permissions?.update)
+
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(() => new Set())
+  const [batchEditing, setBatchEditing] = useState(false)
+  const toggleSel = (id: string) =>
+    setSelected((s) => {
+      const n = new Set(s)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+  const clearSel = () => {
+    setSelected(new Set())
+    setSelectMode(false)
+  }
+  const selectAll = () => setSelected(new Set(books.map((b) => b.id)))
+
+  const allSeriesFinished =
+    books.length > 0 && books.every((b) => progressById.get(b.id)?.isFinished)
+  // Quick-mark the whole series: finish all, or unfinish if already all done.
+  const markSeries = () => {
+    if (!books.length) return
+    void markFinished(
+      books.map((b) => b.id),
+      !allSeriesFinished
+    )
+  }
+  // Mark the current selection, toggling off if every selected book is finished.
+  const markSelection = () => {
+    const ids = [...selected]
+    if (!ids.length) return
+    const allFinished = ids.every((id) => progressById.get(id)?.isFinished)
+    void markFinished(ids, !allFinished).then(clearSel)
+  }
+
+  // Per-book progress, finished count, totals.
+  let done = 0
+  let sum = 0
+  let totalHours = 0
+  for (const b of books) {
+    const p = progressById.get(b.id)
+    if (p?.isFinished) done++
+    sum += p?.isFinished ? 1 : p?.progress ?? 0
+    totalHours += (b.media.duration ?? 0) / 3600
+  }
+  const pct = books.length ? sum / books.length : 0
+  const listenedHours = totalHours * pct
+
+  // Next up = first unfinished in reading order, else the first book.
+  const nextUpIdx = books.findIndex((b) => !progressById.get(b.id)?.isFinished)
+  const nextUp = nextUpIdx === -1 ? books[0] : books[nextUpIdx]
+  const nextUpNum = (nextUpIdx === -1 ? 0 : nextUpIdx) + 1
+
+  // Shared progress widgets (segment track + bottom hours bar).
+  const progEl = (
+    <div className="series-prog">
+      <div className="sp-top">
+        <span className="sp-pct">{Math.round(pct * 100)}%</span>
+        <span className="sp-cap">
+          {done} of {books.length} finished · {listenedHours.toFixed(0)}h of{' '}
+          {totalHours.toFixed(0)}h
+        </span>
+      </div>
+      <div className="sp-track">
+        {books.map((b, i) => {
+          const p = progressById.get(b.id)
+          const fin = p?.isFinished
+          const part = !fin && (p?.progress ?? 0) > 0
+          const status = fin
+            ? 'finished'
+            : part
+              ? `${Math.round((p?.progress ?? 0) * 100)}%`
+              : 'not started'
+          return (
+            <div
+              key={b.id}
+              className={'sp-seg' + (fin ? ' done' : '') + (part ? ' part' : '')}
+              title={`Book ${i + 1} · ${status}`}
+            >
+              {part && <i style={{ width: (p?.progress ?? 0) * 100 + '%' }} />}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+  const heroProg = (
+    <div className="hero-prog">
+      <div className="hp-fill" style={{ width: pct * 100 + '%' }}>
+        <span className="hp-head" />
+      </div>
+    </div>
+  )
+
+  const hero = isMobile ? (
+    <div className="series-hero mob">
+      <div className="eyebrow">Series</div>
+      <h1 className="series-mtitle">{series.name}</h1>
+      {author && <div className="series-msub">{author}</div>}
+      <div className="series-mstats">
+        <span>
+          <b>{books.length}</b>books
+        </span>
+        <span>
+          <b>{totalHours.toFixed(0)}h</b>total
+        </span>
+        <span>
+          <b>
+            {done}/{books.length}
+          </b>
+          finished
+        </span>
+      </div>
+      {progEl}
+      {nextUp && (
+        <button className="btn btn-primary mob-cta" onClick={() => ui.playItem(nextUp.id)}>
+          <Icon name="play_arrow" fill /> Continue · Book {nextUpNum}
+        </button>
+      )}
+      <div className="mob-actions">
+        <button className="pill" disabled={marking} onClick={markSeries}>
+          <Icon name={allSeriesFinished ? 'remove_done' : 'done_all'} />{' '}
+          {allSeriesFinished ? 'Not finished' : 'Mark finished'}
+        </button>
+      </div>
+      {heroProg}
+    </div>
+  ) : (
+    <div className="series-hero">
+      <HeroCovers books={books} />
+      <div className="series-hero-meta">
+        <div className="eyebrow">Series</div>
+        <h1 className="title-xl">{series.name}</h1>
+        <div style={{ color: 'var(--text-muted)', fontSize: 14.5, margin: '8px 0 18px' }}>
+          {author && `${author} · `}
+          {books.length} {books.length === 1 ? 'book' : 'books'} ·{' '}
+          {totalHours.toFixed(0)}h total
+        </div>
+
+        {progEl}
+
+        <div style={{ display: 'flex', gap: 12, marginTop: 22, flexWrap: 'wrap' }}>
+          {nextUp && (
+            <button className="btn btn-primary" onClick={() => ui.playItem(nextUp.id)}>
+              <Icon name="play_arrow" fill /> Continue · Book {nextUpNum}
+            </button>
+          )}
+          <button className="pill" disabled={marking} onClick={markSeries}>
+            <Icon name={allSeriesFinished ? 'remove_done' : 'done_all'} />{' '}
+            {allSeriesFinished ? 'Mark series unfinished' : 'Mark series finished'}
+          </button>
+        </div>
+      </div>
+
+      {heroProg}
+    </div>
+  )
 
   return (
     <div className="page fade-in" style={{ ['--glow-accent' as string]: cv }}>
       <button
         className="pill"
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: isMobile ? 16 : 24 }}
         onClick={() => navigate('/library?tab=series')}
       >
         <Icon name="arrow_back" /> Library
       </button>
 
-      <div className="series-hero">
-        <HeroCovers books={books} />
-        <div className="series-hero-meta">
-          <div className="eyebrow">Series</div>
-          <h1 className="title-xl">{name}</h1>
-          <div style={{ color: 'var(--text-muted)', fontSize: 14.5, margin: '8px 0 18px' }}>
-            {author && `${author} · `}
-            {books.length} {books.length === 1 ? 'book' : 'books'} ·{' '}
-            {totalHours.toFixed(0)}h total
-          </div>
-
-          <div style={{ display: 'flex', gap: 12, marginTop: 22, flexWrap: 'wrap' }}>
-            {nextUp && (
-              <button className="btn btn-primary" onClick={() => ui.playItem(nextUp.id)}>
-                <Icon name="play_arrow" fill /> Continue · Book 1
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      {hero}
 
       <div className="section">
-        <div className="series-list-head">
-          <div className="section-head">
-            <Icon name="format_list_numbered" />
-            <h2>In reading order</h2>
+        {selected.size > 0 ? (
+          <div className="toolbar2 sel-bar">
+            <button className="pill" onClick={clearSel} title="Clear selection">
+              <Icon name="close" />
+            </button>
+            <span className="count-badge" style={{ color: 'var(--accent)', fontWeight: 600 }}>
+              {selected.size} selected
+            </span>
+            {selected.size < books.length && (
+              <button className="pill" onClick={selectAll}>
+                Select all {books.length}
+              </button>
+            )}
+            <div className="tb-spacer" />
+            {canEdit && (
+              <button className="pill" onClick={() => setBatchEditing(true)}>
+                <Icon name="edit" /> Edit
+              </button>
+            )}
+            <button className="pill" disabled={marking} onClick={markSelection}>
+              <Icon name="task_alt" />{' '}
+              {[...selected].every((id) => progressById.get(id)?.isFinished)
+                ? 'Mark not finished'
+                : 'Mark finished'}
+            </button>
           </div>
-        </div>
+        ) : (
+          <div className="series-list-head">
+            <div className="section-head">
+              <Icon name="format_list_numbered" />
+              <h2>In reading order</h2>
+            </div>
+            <button
+              className={'pill' + (selectMode ? ' on' : '')}
+              onClick={() => setSelectMode((v) => !v)}
+            >
+              <Icon name="checklist" /> {selectMode ? 'Done' : 'Select'}
+            </button>
+          </div>
+        )}
         <div className="series-list">
           {books.map((b, i) => {
-            const hours = b.durationSec ? Math.round(b.durationSec / 360) / 10 : 0
+            const m = b.media.metadata
+            const p = progressById.get(b.id)
+            const fin = p?.isFinished
+            const part = !fin && (p?.progress ?? 0) > 0
+            const hours = b.media.duration ? Math.round(b.media.duration / 360) / 10 : 0
+            const isSel = selected.has(b.id)
+            const active = selectMode || selected.size > 0
             return (
-              <div
+              <BookContextMenu
                 key={b.id}
-                className="sl-row"
-                data-cv={tintFor(b.title || 'Untitled')}
-                onClick={() => ui.openItem(b.id)}
+                item={b}
+                target={target}
+                progress={p?.progress}
+                finished={fin}
+                seriesId={series.id}
+                seriesName={series.name}
+                onToast={show}
               >
-                <div className="sl-num">{i + 1}</div>
-                <Cover itemId={b.id} title={b.title || 'Untitled'} fs={6} className="sl-cover" />
-                <div className="sl-meta">
-                  <div className="sl-title">{b.title}</div>
-                  <div className="sl-sub">
-                    {[b.author, hours > 0 && `${hours}h`].filter(Boolean).join(' · ')}
-                  </div>
-                </div>
-                <div className="sl-rating" />
-                <button
-                  className="icon-btn sl-play"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    ui.playItem(b.id)
-                  }}
-                  aria-label="Play"
+                <div
+                  className={'sl-row' + (isSel ? ' sel' : '')}
+                  data-cv={tintFor(m.title ?? 'Untitled')}
+                  onClick={() => (active ? toggleSel(b.id) : ui.openItem(b.id))}
                 >
-                  <Icon name="play_arrow" fill />
-                </button>
-              </div>
+                  {active ? (
+                    <button
+                      className={'b-check sl-check' + (isSel ? ' on' : '')}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleSel(b.id)
+                      }}
+                      aria-label={isSel ? 'Deselect' : 'Select'}
+                    >
+                      <Icon name="check" fill style={{ opacity: isSel ? 1 : 0 }} />
+                    </button>
+                  ) : (
+                    <div className="sl-num">{i + 1}</div>
+                  )}
+                  <Cover
+                    itemId={b.id}
+                    title={m.title ?? 'Untitled'}
+                    fs={6}
+                    className="sl-cover"
+                  />
+                  <div className="sl-meta">
+                    <div className="sl-title">
+                      {m.title}
+                      {fin && (
+                        <Icon
+                          name="check_circle"
+                          fill
+                          style={{
+                            fontSize: 16,
+                            color: 'var(--text-muted)',
+                            marginLeft: 8,
+                            verticalAlign: '-3px',
+                          }}
+                        />
+                      )}
+                    </div>
+                    <div className="sl-sub">
+                      {[m.narratorName, hours > 0 && `${hours}h`].filter(Boolean).join(' · ')}
+                    </div>
+                    {part && (
+                      <div className="prog-line" style={{ marginTop: 8, maxWidth: 280 }}>
+                        <i style={{ width: (p?.progress ?? 0) * 100 + '%' }} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="sl-rating" />
+                  <button
+                    className="icon-btn sl-play"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      ui.playItem(b.id)
+                    }}
+                    aria-label="Play"
+                  >
+                    <Icon name="play_arrow" fill />
+                  </button>
+                </div>
+              </BookContextMenu>
             )
           })}
         </div>
       </div>
+
+      {batchEditing && (
+        <BatchEditModal
+          ids={[...selected]}
+          items={books.filter((b) => selected.has(b.id))}
+          target={target}
+          onClose={() => setBatchEditing(false)}
+          onDone={() => {
+            setBatchEditing(false)
+            clearSel()
+          }}
+        />
+      )}
+      {toast && (
+        <div className="p-toast">
+          <Icon name="check_circle" fill /> {toast}
+        </div>
+      )}
     </div>
   )
 }
@@ -138,46 +401,28 @@ export function SeriesDetailPage() {
   const { activeId } = useActiveLibrary()
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['abs-series-items', target?.serverId, activeId, seriesId],
-    queryFn: () => getSeriesItems(target!, activeId!, seriesId!),
+    queryKey: ['abs-series-full', target?.serverId, activeId, seriesId],
+    queryFn: () => getSeriesFull(target!, activeId!, seriesId!),
     enabled: Boolean(target) && Boolean(activeId) && Boolean(seriesId),
     staleTime: 2 * 60 * 1000,
   })
-
-  // getSeriesItems returns an empty name; resolve the display name from the list.
-  const { data: seriesList } = useQuery({
-    queryKey: ['abs-series-list', target?.serverId, activeId],
-    queryFn: () => getSeriesList(target!, activeId!),
-    enabled: Boolean(target) && Boolean(activeId),
-    staleTime: 5 * 60 * 1000,
-  })
-  const name = useMemo(
-    () => seriesList?.find((s) => s.id === seriesId)?.name ?? 'Series',
-    [seriesList, seriesId]
-  )
 
   if (!target) return null
 
   if (isLoading) {
     return (
       <div className="page">
-        <p className="page-sub">Loading series...</p>
+        <LoadingSpinner className="py-12" label="Loading series..." />
       </div>
     )
   }
   if (isError || !data) {
     return (
       <div className="page">
-        <div className="empty-state">
-          <Icon name="error" />
-          <h3>Could not load this series.</h3>
-          <button className="btn-sm btn-ghost" style={{ margin: '0 auto' }} onClick={() => refetch()}>
-            Try again
-          </button>
-        </div>
+        <ErrorState message="Could not load this series." onRetry={refetch} />
       </div>
     )
   }
 
-  return <SeriesDetail name={name} books={data.items} />
+  return <SeriesDetail series={data} target={target} />
 }

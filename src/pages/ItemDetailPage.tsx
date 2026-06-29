@@ -1,161 +1,569 @@
-import { useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Loader2, AlertCircle, Play } from 'lucide-react'
 import { useActiveServer } from '@/hooks/useActiveServer'
-import { getItemDetail } from '@/api/absLibrary'
-import { AudioPlayer } from '@/components/AudioPlayer'
-import { BookHeader } from '@/components/shared/BookHeader'
+import { getItemDetail, getMe } from '@/api/absLibrary'
+import {
+  getBookDetailFull,
+  itemFileDownloadUrl,
+  itemCoverFullUrl,
+} from '@/api/absBookDetail'
+import { useMediaProgress } from '@/hooks/useMediaProgress'
+import { useMarkFinished } from '@/hooks/useMarkFinished'
+import { useToast } from '@/hooks/useToast'
 import { usePlayer } from '@/player/PlayerProvider'
+import { useMediaUI } from '@/components/shared/MediaUIContext'
+import { formatTimestamp, stripHtml } from '@/lib/format'
+import { externalLinks } from '@/lib/externalLinks'
+import { Cover, tintFor } from '@/components/shared/Cover'
+import { ImageZoomViewer } from '@/components/common/ImageZoomViewer'
+import { Icon } from '@/components/common/Icon'
+import { Stars } from '@/components/common/Stars'
+import { Dropdown, MItem } from '@/components/common/Dropdown'
+import { ItemEditModal } from '@/components/library/ItemEditModal'
+import { ChapterEditorModal, type EditableChapter } from '@/components/library/ChapterEditorModal'
+import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { ErrorState } from '@/components/common/ErrorState'
+
+type DetailTab = 'chapters' | 'tracks' | 'ebook' | 'files'
+
+function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '0m'
+  const h = Math.floor(seconds / 3600)
+  const m = Math.round((seconds % 3600) / 60)
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
+}
+
+function formatBytes(bytes: number): string {
+  if (!bytes) return '0 MB'
+  const mb = bytes / (1024 * 1024)
+  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`
+  return `${mb.toFixed(1)} MB`
+}
 
 /**
- * Item detail + player. Loads the expanded item (tracks + saved progress) and
- * mounts the audio player. Renders inside <ActiveServerMediaUI>, so the active
- * server is already connected and the MediaUI provider is mounted - we read the
- * target from useActiveServer() (non-null by the time this renders) and only
- * guard defensively against a null target.
+ * Full book detail + player. Loads the expanded item two ways: the lean shape
+ * the global player needs (tracks/chapters/progress, via getItemDetail) and the
+ * richer detail fields the page renders (rating, isbn/asin, per-file metadata,
+ * ebook, tags, via getBookDetailFull). Renders inside <ActiveServerMediaUI>, so
+ * the active server is connected; we read the target from useActiveServer (non-
+ * null by the time this renders) and guard defensively.
  */
 export function ItemDetailPage() {
   const { itemId } = useParams()
   const { target } = useActiveServer()
+  const navigate = useNavigate()
   const player = usePlayer()
+  const ui = useMediaUI()
+  const progressById = useMediaProgress()
+  const { markFinished, isPending: marking } = useMarkFinished()
+  const { toast, show } = useToast()
 
-  const { data, isLoading, isError } = useQuery({
+  const [expanded, setExpanded] = useState(false)
+  const [tab, setTab] = useState<DetailTab>('chapters')
+  const [editing, setEditing] = useState(false)
+  const [editingChapters, setEditingChapters] = useState(false)
+  const [zoomCover, setZoomCover] = useState(false)
+
+  // Lean shape for the global player (tracks/chapters/progress).
+  const { data: playable } = useQuery({
     queryKey: ['abs-item', target?.serverId, itemId],
     queryFn: () => getItemDetail(target!, itemId as string),
     enabled: Boolean(target && itemId),
   })
 
+  // Rich detail shape the page renders.
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['abs-book-detail', target?.serverId, itemId],
+    queryFn: () => getBookDetailFull(target!, itemId as string),
+    enabled: Boolean(target && itemId),
+    staleTime: 10 * 60 * 1000,
+  })
+
+  // Admin gating for Edit / Download (update / download permission).
+  const { data: me } = useQuery({
+    queryKey: ['abs-me', target?.serverId],
+    queryFn: () => getMe(target!),
+    enabled: Boolean(target),
+    staleTime: 10 * 60 * 1000,
+  })
+  const canEdit = me?.type === 'admin' || me?.type === 'root' || me?.permissions?.update === true
+  const canDownload = me?.permissions?.download !== false
+
   // Load this book into the GLOBAL player when it opens (paused at the saved
   // position), unless it's already the now-playing book - so navigating back to
-  // a playing book doesn't restart it. The global player keeps playing as the
-  // user moves around; the docked mini-player reflects it.
+  // a playing book doesn't restart it.
   const alreadyPlaying =
     player.now?.itemId === itemId && player.now?.serverId === target?.serverId
   useEffect(() => {
-    if (!data || !target || alreadyPlaying) return
+    if (!playable || !target || alreadyPlaying) return
     player.play({
       serverId: target.serverId,
       serverUrl: target.serverUrl,
-      itemId: data.id,
-      title: data.title,
-      author: data.author,
-      coverUrl: data.coverUrl,
-      tracks: data.tracks,
-      chapters: data.chapters,
-      totalDurationSec: data.durationSec,
-      startAtSec: data.progress?.currentTimeSec ?? 0,
+      itemId: playable.id,
+      title: playable.title,
+      author: playable.author,
+      coverUrl: playable.coverUrl,
+      tracks: playable.tracks,
+      chapters: playable.chapters,
+      totalDurationSec: playable.durationSec,
+      startAtSec: playable.progress?.currentTimeSec ?? 0,
     })
     // Only re-run when the loaded book changes, not on every player tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, target?.serverId, target?.serverUrl])
+  }, [playable, target?.serverId, target?.serverUrl])
 
   // Lock-screen / media-key metadata.
   useEffect(() => {
-    if (!data || !('mediaSession' in navigator)) return
+    if (!playable || !('mediaSession' in navigator)) return
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: data.title,
-      artist: data.author,
-      album: data.narrator ? `Narrated by ${data.narrator}` : undefined,
-      artwork: data.coverUrl ? [{ src: data.coverUrl, sizes: '480x480' }] : undefined,
+      title: playable.title,
+      artist: playable.author,
+      album: playable.narrator ? `Narrated by ${playable.narrator}` : undefined,
+      artwork: playable.coverUrl ? [{ src: playable.coverUrl, sizes: '480x480' }] : undefined,
     })
     return () => {
       navigator.mediaSession.metadata = null
     }
-  }, [data])
+  }, [playable])
 
-  const startListening = () => {
-    if (!data || !target) return
-    player.play({
-      serverId: target.serverId,
-      serverUrl: target.serverUrl,
-      itemId: data.id,
-      title: data.title,
-      author: data.author,
-      coverUrl: data.coverUrl,
-      tracks: data.tracks,
-      chapters: data.chapters,
-      totalDurationSec: data.durationSec,
-      startAtSec: data.progress?.currentTimeSec ?? 0,
-      autoplay: true,
-    })
+  if (!target) {
+    return (
+      <div className="page">
+        <ErrorState message="No active server." />
+      </div>
+    )
+  }
+  if (isLoading) {
+    return (
+      <div className="page">
+        <LoadingSpinner className="py-12" label="Loading book..." />
+      </div>
+    )
+  }
+  if (isError || !data) {
+    return (
+      <div className="page">
+        <ErrorState message="Could not load this book." onRetry={() => void refetch()} />
+      </div>
+    )
+  }
+
+  const title = data.title
+  const cv = tintFor(title)
+  const author = data.author
+  const authorId = data.authorId
+  const narrator = data.narrator
+  const series = data.series
+  const chapters: EditableChapter[] = (playable?.chapters ?? []).map((c) => ({
+    title: c.title,
+    start: c.startSec,
+    end: c.endSec,
+  }))
+  const tracks = data.audioFiles
+  const duration = data.durationSec
+  const rating = data.rating
+  const hasEbook = !!data.ebookFile || !!data.ebookFormat
+  const ebookOnly = hasEbook && tracks.length === 0
+
+  const progress = progressById.get(data.id)
+  const pct = progress?.progress ?? 0
+  const finished = progress?.isFinished ?? false
+  const chaptersLeft = Math.round(chapters.length * (1 - pct))
+
+  const playLabel = finished ? 'Listen again' : pct > 0 ? 'Resume' : 'Start listening'
+
+  const description = data.description ? stripHtml(data.description) : ''
+  const links = externalLinks({ title, author, isbn: data.isbn, asin: data.asin })
+  const coverFull = itemCoverFullUrl(target, data.id)
+
+  const playChapter = (start: number) => {
+    if (player.now?.itemId === data.id && player.now?.serverId === target.serverId) {
+      player.seekTo(start)
+    } else if (playable) {
+      player.play({
+        serverId: target.serverId,
+        serverUrl: target.serverUrl,
+        itemId: playable.id,
+        title: playable.title,
+        author: playable.author,
+        coverUrl: playable.coverUrl,
+        tracks: playable.tracks,
+        chapters: playable.chapters,
+        totalDurationSec: playable.durationSec,
+        startAtSec: start,
+        autoplay: true,
+      })
+    }
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <Link
-        to="/library"
-        className="t-muted mb-6 inline-flex items-center gap-1.5 text-[13px] hover:text-foreground"
-      >
-        <ArrowLeft size={14} />
-        Back to library
-      </Link>
+    <div className="page fade-in" style={{ ['--glow-accent' as string]: cv }}>
+      <div className="crumb">
+        <Link className="lnk" to="/library">
+          Library
+        </Link>
+        <Icon name="chevron_right" />
+        {title}
+      </div>
 
-      {!target && (
-        <div className="rounded-xl border border-border bg-card p-8 text-center">
-          <p className="t-body text-card-foreground">No active server.</p>
-          <Link to="/library" className="t-muted mt-2 inline-block text-[13px] underline">
-            Go to the library
-          </Link>
-        </div>
-      )}
-
-      {target && isLoading && (
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-6 text-muted-foreground">
-          <Loader2 className="animate-spin" size={18} />
-          <span className="t-body">Loading...</span>
-        </div>
-      )}
-
-      {target && isError && (
-        <div className="flex items-start gap-3 rounded-lg border border-border bg-card p-6">
-          <AlertCircle className="mt-0.5 shrink-0 text-destructive" size={18} />
-          <p className="t-body text-card-foreground">Couldn't load this title.</p>
-        </div>
-      )}
-
-      {target && data && (
-        <>
-          <BookHeader
-            data={{
-              id: data.id,
-              title: data.title,
-              subtitle: data.subtitle,
-              author: data.author,
-              authorId: data.authorId ?? undefined,
-              narrator: data.narrator,
-              series: data.series ?? undefined,
-              genre: data.genre,
-              publishedYear: data.publishedYear,
-              durationSec: data.durationSec,
-              chapterCount: data.chapters.length,
-              description: data.description,
-            }}
+      <div className="detail-top">
+        <div className="detail-cover" data-cv={cv}>
+          <Cover
+            itemId={data.id}
+            title={title}
+            author={author}
+            fs={18}
+            width={480}
+            className="dc-zoomable"
+            onClick={() => setZoomCover(true)}
+            overlay={
+              <span className="dc-zoom-hint" aria-hidden>
+                <Icon name="zoom_in" />
+              </span>
+            }
           />
-
-          {data.tracks.length > 0 ? (
+          {pct > 0 && !finished && (
             <>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button
-                  onClick={startListening}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[14px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-                >
-                  <Play size={16} fill="currentColor" />
-                  {data.progress && data.progress.currentTimeSec > 0 && !data.progress.isFinished
-                    ? 'Resume'
-                    : data.progress?.isFinished
-                      ? 'Listen again'
-                      : 'Start listening'}
-                </button>
+              <div className="prog-line">
+                <i style={{ width: pct * 100 + '%' }} />
               </div>
-              <div className="mt-6">
-                <AudioPlayer chapters={data.chapters} totalDurationSec={data.durationSec} />
+              <div className="dc-prog-cap">
+                {Math.round(pct * 100)}% · {chaptersLeft} chapters left
               </div>
             </>
-          ) : (
-            <p className="t-muted mt-8 text-[13px]">No audio tracks on this title.</p>
           )}
-        </>
+          {finished && (
+            <div className="dc-prog-cap" style={{ color: '#a7c896' }}>
+              <Icon name="check_circle" fill style={{ fontSize: 14, verticalAlign: '-2px' }} /> Finished
+            </div>
+          )}
+        </div>
+
+        <div className="detail-main">
+          <h1>
+            {title}
+            {rating != null && rating >= 4.7 && (
+              <span className="badges">
+                <span className="badge-pill abridged">Top rated</span>
+              </span>
+            )}
+          </h1>
+          {data.subtitle && <div className="d-sub">{data.subtitle}</div>}
+          {series && (
+            <div className="detail-series-links">
+              <span className="d-series-chip" onClick={() => navigate(`/series/${series.id}`)}>
+                {series.name}
+                {series.sequence && ` #${series.sequence}`}
+              </span>
+            </div>
+          )}
+          <div className="d-sub" style={{ marginTop: 8 }}>
+            By{' '}
+            {authorId ? (
+              <span
+                className="d-author-link"
+                style={{ color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
+                onClick={() => navigate(`/author/${authorId}`)}
+              >
+                {author}
+              </span>
+            ) : (
+              <span style={{ color: 'var(--text)', fontWeight: 600 }}>{author}</span>
+            )}
+          </div>
+
+          <dl className="meta-rows">
+            {narrator && (
+              <>
+                <dt>Narrator</dt>
+                <dd>
+                  <Link className="lnk" to={`/library?narrator=${encodeURIComponent(narrator)}`}>
+                    {narrator}
+                  </Link>
+                </dd>
+              </>
+            )}
+            {data.publishedYear && (
+              <>
+                <dt>Published</dt>
+                <dd>{data.publishedYear}</dd>
+              </>
+            )}
+            {data.genres[0] && (
+              <>
+                <dt>Genre</dt>
+                <dd>
+                  <Link className="lnk" to={`/library?genre=${encodeURIComponent(data.genres[0])}`}>
+                    {data.genres[0]}
+                  </Link>
+                </dd>
+              </>
+            )}
+            {rating != null && rating > 0 && (
+              <>
+                <dt>Rating</dt>
+                <dd style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Stars rating={rating} />
+                  <span className="mono" style={{ fontFamily: 'var(--font-mono)' }}>
+                    {rating.toFixed(1)}
+                  </span>
+                </dd>
+              </>
+            )}
+            <dt>Duration</dt>
+            <dd className="mono" style={{ fontFamily: 'var(--font-mono)' }}>
+              {formatDuration(duration)} · {chapters.length} chapters
+            </dd>
+          </dl>
+
+          <div className="detail-actions">
+            {ebookOnly ? (
+              <button className="btn btn-primary" onClick={() => show('The reader is coming soon')}>
+                <Icon name="menu_book" fill /> Read
+              </button>
+            ) : (
+              <button className="btn btn-primary" onClick={() => void ui.playItem(data.id)}>
+                <Icon name="play_arrow" fill /> {playLabel}
+              </button>
+            )}
+            {hasEbook && !ebookOnly && (
+              <button className="pill" onClick={() => show('The reader is coming soon')}>
+                <Icon name="menu_book" /> Read
+              </button>
+            )}
+            <button
+              className={'pill' + (finished ? ' on' : '')}
+              disabled={marking}
+              onClick={() => void markFinished([data.id], !finished)}
+            >
+              <Icon name={finished ? 'task_alt' : 'check'} fill={finished} />{' '}
+              {finished ? 'Finished' : 'Mark finished'}
+            </button>
+            {canEdit && (
+              <button className="pill" onClick={() => setEditing(true)}>
+                <Icon name="edit" /> Edit
+              </button>
+            )}
+            <Dropdown icon="more_horiz" label="">
+              {canDownload && (
+                <MItem
+                  icon="download"
+                  label="Download"
+                  onClick={() => {
+                    const ino = tracks[0]?.ino
+                    const url = ino ? itemFileDownloadUrl(target, data.id, ino) : null
+                    if (url) window.open(url, '_blank')
+                  }}
+                />
+              )}
+              <MItem
+                icon="bookmark"
+                label="Bookmarks"
+                onClick={() => show('Bookmarks are coming soon')}
+              />
+              <MItem
+                icon="share"
+                label="Share"
+                onClick={() => {
+                  void navigator.clipboard.writeText(window.location.href)
+                  show('Link copied')
+                }}
+              />
+            </Dropdown>
+          </div>
+
+          <div className="detail-ext">
+            {links.map((l) => (
+              <a
+                key={l.key}
+                className="ext-link"
+                href={l.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Open on ${l.label}`}
+              >
+                <Icon name={l.icon} /> {l.label}
+                <Icon name="open_in_new" style={{ fontSize: 15, opacity: 0.6 }} />
+              </a>
+            ))}
+          </div>
+
+          {description && (
+            <>
+              <div className={'detail-desc' + (expanded ? '' : ' clamp')}>{description}</div>
+              <button className="read-more" onClick={() => setExpanded((e) => !e)}>
+                {expanded ? 'Read less' : 'Read more'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="detail-section">
+        <div className="toolbar2" style={{ marginBottom: 0 }}>
+          {(
+            [
+              ['chapters', 'Chapters', chapters.length],
+              ['tracks', 'Audio tracks', tracks.length],
+              ...(hasEbook ? [['ebook', 'eBook', 1] as [DetailTab, string, number]] : []),
+              ['files', 'Files', tracks.length + 1],
+            ] as [DetailTab, string, number][]
+          ).map(([id, lbl, n]) => (
+            <button
+              key={id}
+              className={'pill' + (tab === id ? ' on' : '')}
+              onClick={() => setTab(id)}
+            >
+              {lbl} <span style={{ opacity: 0.6 }}>{n}</span>
+            </button>
+          ))}
+          {tab === 'chapters' && chapters.length > 0 && canEdit && (
+            <>
+              <div className="tb-spacer" />
+              <button className="pill" onClick={() => setEditingChapters(true)}>
+                <Icon name="edit" /> Edit chapters
+              </button>
+            </>
+          )}
+        </div>
+
+        <div className="tbl-wrap" style={{ marginTop: 16 }}>
+          {tab === 'chapters' && (
+            <>
+              <div className="dt-row chap dt-head">
+                <span>#</span>
+                <span>Title</span>
+                <span>Start</span>
+                <span>Length</span>
+              </div>
+              {chapters.map((c, i) => (
+                <div className="dt-row chap" key={i} onClick={() => playChapter(c.start)}>
+                  <span className="num">{i + 1}</span>
+                  <span>{c.title}</span>
+                  <span className="mono">{formatTimestamp(c.start)}</span>
+                  <span className="mono">{formatTimestamp(c.end - c.start)}</span>
+                </div>
+              ))}
+            </>
+          )}
+
+          {tab === 'tracks' && (
+            <>
+              <div className="dt-row track dt-head">
+                <span>#</span>
+                <span>File</span>
+                <span>Codec</span>
+                <span>Bitrate</span>
+                <span>Size</span>
+              </div>
+              {tracks.map((t) => (
+                <div className="dt-row track" key={t.ino}>
+                  <span className="num">{t.index}</span>
+                  <span>{t.filename}</span>
+                  <span className="num">{(t.codec ?? '').toUpperCase()}</span>
+                  <span className="num">
+                    {t.bitRate ? `${Math.round(t.bitRate / 1000)} kbps` : '—'}
+                  </span>
+                  <span className="num">{formatBytes(t.size)}</span>
+                </div>
+              ))}
+            </>
+          )}
+
+          {tab === 'ebook' && (
+            <>
+              <div className="dt-row file dt-head">
+                <span />
+                <span>File</span>
+                <span>Format</span>
+                <span>Size</span>
+                <span />
+              </div>
+              <div
+                className="dt-row file"
+                style={{ cursor: 'pointer' }}
+                onClick={() => show('The reader is coming soon')}
+                title="Open in reader"
+              >
+                <Icon name="menu_book" style={{ fontSize: 18, color: 'var(--accent)' }} fill />
+                <span>{data.ebookFile?.filename ?? 'ebook'}</span>
+                <span className="num">
+                  {(data.ebookFile?.format ?? data.ebookFormat ?? '').toUpperCase()}
+                </span>
+                <span className="num">
+                  {data.ebookFile?.size ? formatBytes(data.ebookFile.size) : '—'}
+                </span>
+                <span className="mono" style={{ color: 'var(--accent)' }}>
+                  <Icon name="chevron_right" />
+                </span>
+              </div>
+            </>
+          )}
+
+          {tab === 'files' && (
+            <>
+              <div className="dt-row file dt-head">
+                <span />
+                <span>File</span>
+                <span>Type</span>
+                <span>Size</span>
+                <span />
+              </div>
+              <div className="dt-row file">
+                <Icon name="image" style={{ fontSize: 18, color: 'var(--text-muted)' }} />
+                <span>cover.jpg</span>
+                <span className="num">Image</span>
+                <span className="num">—</span>
+                <span />
+              </div>
+              {tracks.map((t) => {
+                const dl = itemFileDownloadUrl(target, data.id, t.ino)
+                return (
+                  <div className="dt-row file" key={t.ino}>
+                    <Icon name="audio_file" style={{ fontSize: 18, color: 'var(--text-muted)' }} />
+                    <span>{t.filename}</span>
+                    <span className="num">Audio</span>
+                    <span className="num">{formatBytes(t.size)}</span>
+                    {dl ? (
+                      <a className="tbl-icon" title="Download" href={dl}>
+                        <Icon name="download" />
+                      </a>
+                    ) : (
+                      <span />
+                    )}
+                  </div>
+                )
+              })}
+            </>
+          )}
+        </div>
+      </div>
+
+      {zoomCover && coverFull && (
+        <ImageZoomViewer src={coverFull} alt={title} onClose={() => setZoomCover(false)} />
+      )}
+      {editing && (
+        <ItemEditModal
+          target={target}
+          item={data}
+          chapters={chapters}
+          onClose={() => setEditing(false)}
+        />
+      )}
+      {editingChapters && (
+        <ChapterEditorModal
+          target={target}
+          itemId={data.id}
+          chapters={chapters}
+          duration={duration}
+          onClose={() => setEditingChapters(false)}
+        />
+      )}
+      {toast && (
+        <div className="p-toast">
+          <Icon name="check_circle" fill /> {toast}
+        </div>
       )}
     </div>
   )
