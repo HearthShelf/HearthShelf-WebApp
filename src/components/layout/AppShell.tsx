@@ -6,6 +6,7 @@ import { MiniPlayer } from '@/player/MiniPlayer'
 import { useConnectActiveServer } from '@/hooks/useConnectActiveServer'
 import { useApplySettings } from '@/hooks/useApplySettings'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useNavCollapsed } from '@/hooks/useNavCollapsed'
 
 /**
  * Persistent app frame (design: .app grid + cover-glow bloom), ported from the
@@ -22,6 +23,8 @@ export function AppShell() {
   // no bottom nav.
   const immersive = pathname === '/player' || pathname.startsWith('/reader/')
   const isMobile = useIsMobile()
+  // Icon-rail toggle - only meaningful on desktop, where the sidebar is shown.
+  const navCollapsed = useNavCollapsed()
 
   // Drive the connection to the active server for the whole shell.
   useConnectActiveServer()
@@ -29,7 +32,13 @@ export function AppShell() {
   useApplySettings()
 
   return (
-    <div className={'app' + (isMobile ? ' has-mobile-nav' : '')}>
+    <div
+      className={
+        'app' +
+        (isMobile ? ' has-mobile-nav' : '') +
+        (navCollapsed && !isMobile ? ' nav-collapsed' : '')
+      }
+    >
       <div className="app-glow" />
       <Sidebar />
       <div className="main">

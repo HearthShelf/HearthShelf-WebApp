@@ -11,6 +11,7 @@ import { getMe } from '@/api/absLibrary'
 import { fetchAdminMe, ApiError } from '@/api/controlPlane'
 import { useRmabEnabled } from '@/hooks/useRmab'
 import { useDiscoverEnabled, useQuestGiverEnabled } from '@/hooks/useQuestGiver'
+import { useNavCollapsed, toggleNavCollapsed } from '@/hooks/useNavCollapsed'
 
 // Which nav group a path belongs to. Browse surfaces (series, authors, search,
 // item detail) keep Library lit, matching the self-hosted shell.
@@ -139,15 +140,20 @@ export function Sidebar() {
   const rmabEnabled = useRmabEnabled()
   const showFindGroup = questGiverEnabled || discoverEnabled || rmabEnabled
 
+  const collapsed = useNavCollapsed()
+
   const Item = ({ id, icon, label, to, badge }: NavItemDef) => {
     const active = group === id
     return (
       <button
         className={'nav-item' + (active ? ' active' : '')}
         onClick={() => navigate(to)}
+        // When collapsed the label is hidden, so expose it as a tooltip.
+        title={collapsed ? label : undefined}
+        aria-label={label}
       >
         <Icon name={icon} fill={active} />
-        {label}
+        <span className="ni-label">{label}</span>
         {badge != null && <span className="ni-badge">{badge}</span>}
       </button>
     )
@@ -158,7 +164,25 @@ export function Sidebar() {
       <div className="brand">
         <img src="/flame.png" alt="" className="mark" />
         <Wordmark />
+        <button
+          className="nav-collapse-btn"
+          onClick={toggleNavCollapsed}
+          title="Collapse menu"
+          aria-label="Collapse menu"
+        >
+          <Icon name="menu_open" />
+        </button>
       </div>
+
+      {/* Expand affordance, shown only in the collapsed rail (CSS-gated). */}
+      <button
+        className="nav-item nav-collapse-rail"
+        onClick={toggleNavCollapsed}
+        title="Expand menu"
+        aria-label="Expand menu"
+      >
+        <Icon name="menu" />
+      </button>
 
       <nav className="nav">
         <Item id="home" icon="home" label="Home" to="/" />

@@ -9,20 +9,27 @@
 
 /* ---- App shell ----------------------------------------------------- */
 .app {
+  --sidebar-w: 248px;
   display: grid;
-  grid-template-columns: 248px 1fr;
+  grid-template-columns: var(--sidebar-w) 1fr;
   height: 100vh;
   position: relative;
+}
+
+/* Collapsed sidebar: an icon-only rail. The grid, glow, and playbar all
+   track --sidebar-w, so narrowing it here moves everything together. */
+.app.nav-collapsed {
+  --sidebar-w: 76px;
 }
 
 /* signature cover-glow - fixed bloom behind the content column */
 .app-glow {
   position: absolute;
-  inset: 0 0 auto 248px;
+  inset: 0 0 auto var(--sidebar-w);
   height: 78vh;
   pointer-events: none;
   z-index: 0;
-  transition: background 0.7s ease;
+  transition: inset 0.2s ease, background 0.7s ease;
   background: radial-gradient(
     120% 80% at 50% -18%,
     color-mix(
@@ -138,6 +145,73 @@
   color: var(--text-faint);
   padding: 0 14px var(--s2);
   margin-top: var(--s4);
+}
+
+/* ---- Collapse toggle + collapsed (icon-rail) state ----------------- */
+.nav-collapse-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  margin-left: auto;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+.nav-collapse-btn:hover {
+  background: var(--fill);
+  color: var(--text);
+}
+.nav-collapse-btn .ms {
+  font-size: 20px;
+}
+
+.nav-collapsed .brand {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+/* Hide everything but the flame mark when collapsed. */
+.nav-collapsed .brand .wordmark,
+.nav-collapsed .brand .nav-collapse-btn,
+.nav-collapsed .nav-label,
+.nav-collapsed .nav-item .ni-label,
+.nav-collapsed .nav-item .ni-badge,
+.nav-collapsed .u-meta,
+.nav-collapsed .u-chev {
+  display: none;
+}
+/* Icon-only: center the glyph, square the hit target, tighten gutters. */
+.nav-collapsed .sidebar {
+  align-items: center;
+  padding-left: var(--s2);
+  padding-right: var(--s2);
+}
+.nav-collapsed .nav-item {
+  justify-content: center;
+  gap: 0;
+  padding: 11px 0;
+}
+.nav-collapsed .nav-sep {
+  margin-left: 8px;
+  margin-right: 8px;
+}
+.nav-collapsed .user-chip {
+  justify-content: center;
+  padding: 9px 0;
+}
+/* The expand affordance when collapsed: a full-width rail button. */
+.nav-collapse-rail {
+  display: none;
+}
+.nav-collapsed .nav-collapse-rail {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--s2);
 }
 
 /* sidebar user chip + menu */
@@ -864,7 +938,7 @@
 /* ---- Persistent play bar ------------------------------------------- */
 .playbar {
   position: absolute;
-  left: 248px;
+  left: var(--sidebar-w);
   right: 0;
   bottom: 0;
   z-index: 6;
@@ -877,7 +951,7 @@
   background: color-mix(in oklab, var(--c-low) 86%, transparent);
   backdrop-filter: blur(20px);
   border-top: 1px solid var(--hairline);
-  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.3, 1);
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.3, 1), left 0.2s ease;
 }
 .playbar.hidden {
   transform: translateY(110%);
@@ -3469,9 +3543,8 @@ select.fld { appearance: none; cursor: pointer; background-image: url("data:imag
 
 /* Tablet: narrow the sidebar so content keeps room before the phone layout. */
 @media (max-width: 1023px) and (min-width: 761px) {
-  .app { grid-template-columns: 200px 1fr; }
-  .app-glow { inset: 0 0 auto 200px; }
-  .playbar { left: 200px; }
+  .app { --sidebar-w: 200px; }
+  .app.nav-collapsed { --sidebar-w: 76px; }
 }
 
 @media (max-width: 760px) {
