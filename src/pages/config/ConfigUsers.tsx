@@ -13,6 +13,7 @@ import {
 } from '@/api/absAdmin'
 import type { ABSAdminUser } from '@/api/absAdmin'
 import { getMe } from '@/api/absLibrary'
+import { recoverAdmins, HostedError } from '@/api/absHosted'
 import type { UserFormSubmit } from '@/components/config/UserForm'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
@@ -28,12 +29,14 @@ export function ConfigUsers() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { toast, show } = useToast()
-  const { target } = useActiveServer()
+  const { target, server } = useActiveServer()
   const [pendingDelete, setPendingDelete] = useState<ABSAdminUser | null>(null)
   const [pendingDisable, setPendingDisable] = useState<ABSAdminUser | null>(null)
   const [adding, setAdding] = useState(false)
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [recoverOpen, setRecoverOpen] = useState(false)
+  const [recovering, setRecovering] = useState(false)
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: adminKeys.users(target?.serverId ?? ''),
@@ -80,6 +83,10 @@ export function ConfigUsers() {
   const allUsers = data?.users ?? []
   const users = allUsers.filter((u) => !serviceUserIds.has(u.id))
   const serviceCount = allUsers.length - users.length
+  // Disabled admin/root accounts - the trigger for the break-glass recovery card.
+  const disabledAdmins = users.filter(
+    (u) => (u.type === 'admin' || u.type === 'root') && !u.isActive
+  )
 
   if (!target) return <LoadingSpinner className="py-12" label="Connecting..." />
 
@@ -107,6 +114,31 @@ export function ConfigUsers() {
     await deleteUser(target, u.id)
     qc.invalidateQueries({ queryKey: adminKeys.users(target.serverId) })
     show(`Deleted ${u.username}`)
+  }
+
+  const RECOVER_ERRORS: Record<string, string> = {
+    not_paired: 'This server must be connected to HearthShelf to recover admins.',
+    no_service_token: 'Recovery is unavailable - no service account on file.',
+    forbidden: 'Only a server admin can recover admin access.',
+    invalid_grant: 'Your session could not be verified. Sign in again and retry.',
+  }
+  const doRecover = async () => {
+    setRecovering(true)
+    try {
+      const r = await recoverAdmins(target)
+      qc.invalidateQueries({ queryKey: adminKeys.users(target.serverId) })
+      show(
+        r.count > 0
+          ? `Re-enabled ${r.count} admin ${r.count === 1 ? 'account' : 'accounts'}`
+          : 'No disabled admins to recover'
+      )
+    } catch (e) {
+      const code = e instanceof HostedError ? e.code : ''
+      show(RECOVER_ERRORS[code] ?? 'Could not recover admin access.')
+    } finally {
+      setRecovering(false)
+      setRecoverOpen(false)
+    }
   }
 
   const create = async (values: UserFormSubmit) => {
@@ -234,6 +266,46 @@ export function ConfigUsers() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {disabledAdmins.length > 0 && (
+        <div
+          className="cfg-card"
+          style={{ marginTop: 'var(--s5)', borderColor: 'color-mix(in oklab, var(--primary) 40%, var(--hairline))' }}
+        >
+          <div className="cfg-line" style={{ alignItems: 'flex-start' }}>
+            <Icon name="lock_reset" style={{ color: 'var(--primary)', marginTop: 2 }} />
+            <div className="cl-meta" style={{ flex: 1 }}>
+              <div className="cl-t">Recover admin access</div>
+              <div className="cl-d">
+                {disabledAdmins.length === 1
+                  ? '1 admin account is disabled.'
+                  : `${disabledAdmins.length} admin accounts are disabled.`}{' '}
+                If you've locked yourself out, this re-enables every disabled admin
+                using this server's HearthShelf connection. Requires the server to
+                be connected to HearthShelf.
+              </div>
+            </div>
+            <button
+              className="btn-sm btn-accent"
+              style={{ flex: 'none' }}
+              disabled={recovering}
+              onClick={() => setRecoverOpen(true)}
+            >
+              <Icon name="lock_reset" /> {recovering ? 'Recovering...' : 'Recover admins'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {recoverOpen && (
+        <ConfirmDialog
+          title="Recover admin access"
+          message={`Re-enable all disabled admin accounts on "${server?.name ?? 'this server'}"? This uses this server's HearthShelf connection to restore admin sign-in.`}
+          confirmLabel="Recover admins"
+          onConfirm={() => void doRecover()}
+          onClose={() => setRecoverOpen(false)}
+        />
       )}
 
       {adding && (

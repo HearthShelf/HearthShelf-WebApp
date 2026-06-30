@@ -192,6 +192,42 @@ export function checkPort(t: AbsTarget): Promise<PortCheckResult> {
   return hsFetch<PortCheckResult>(t, '/hs/hosted/port-check', { method: 'GET' })
 }
 
+// --- Admin recovery (break-glass) --------------------------------------------
+
+export interface RecoverAdminsResult {
+  ok: boolean
+  recovered: { id: string; username: string }[]
+  count: number
+}
+
+/**
+ * Re-enable disabled admin accounts when every admin is locked out. Authenticated
+ * by a fresh control-plane grant (NOT an ABS token - there may be no usable admin
+ * login left), which the box verifies as a server-admin grant and acts on with
+ * its stored service-root token. Requires the server to be paired ("connect"
+ * enabled). The grant is minted Clerk-side for THIS server, so only a linked
+ * server admin can trigger it.
+ */
+export async function recoverAdmins(t: AbsTarget): Promise<RecoverAdminsResult> {
+  const { grant } = await mintGrant(t.serverId)
+  let res: Response
+  try {
+    res = await fetch(`${origin(t)}/hs/hosted/recover-admins`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ grant }),
+    })
+  } catch {
+    throw new HostedError('network', 0, null)
+  }
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const error = (data as { error?: string }).error || `http_${res.status}`
+    throw new HostedError(error, res.status, null)
+  }
+  return data as RecoverAdminsResult
+}
+
 // --- Invites -----------------------------------------------------------------
 
 export interface InviteResult {
