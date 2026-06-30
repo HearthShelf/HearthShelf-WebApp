@@ -13,6 +13,7 @@
  */
 import { absGet, absPatch, absPost, absDelete, absMediaUrl } from './absClient'
 import type { AbsTarget } from './absLibrary'
+import type { ABSItemMetadataPatch } from '@hearthshelf/core'
 
 export interface BookAudioFile {
   ino: string
@@ -186,20 +187,7 @@ export function itemCoverFullUrl(t: AbsTarget, itemId: string): string | null {
 
 // --- admin writes (item metadata, chapters, files, tools) -------------------
 
-/** Editable metadata fields on an item's media (PATCH /api/items/:id/media). */
-export interface ItemMetadataPatch {
-  title?: string | null
-  subtitle?: string | null
-  description?: string | null
-  publishedYear?: string | null
-  publisher?: string | null
-  language?: string | null
-  isbn?: string | null
-  asin?: string | null
-  genres?: string[]
-  explicit?: boolean
-  abridged?: boolean
-}
+export type ItemMetadataPatch = ABSItemMetadataPatch
 
 /** Write metadata (and optionally tags) back to an item. Admin only. */
 export async function updateItemMetadata(

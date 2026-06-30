@@ -13,6 +13,7 @@ import type {
   ABSNarrator,
   ABSSeries,
   ABSLibraryAuthor,
+  ABSItemMetadataPatch,
 } from '@hearthshelf/core'
 
 export interface AbsTarget {
@@ -709,20 +710,7 @@ export async function renameNarrator(
 // Verified against audiobookshelf 2.35.1 serializers.
 // =============================================================================
 
-/** Editable metadata fields on an item's media (PATCH /api/items/:id/media). */
-export interface ItemMetadataPatch {
-  title?: string | null
-  subtitle?: string | null
-  description?: string | null
-  publishedYear?: string | null
-  publisher?: string | null
-  language?: string | null
-  isbn?: string | null
-  asin?: string | null
-  genres?: string[]
-  explicit?: boolean
-  abridged?: boolean
-}
+export type ItemMetadataPatch = ABSItemMetadataPatch
 
 // These shapes are now owned by @hearthshelf/core (canonical ABS types). The
 // local Abs* aliases stay so existing importers keep resolving; they will be

@@ -18,6 +18,7 @@
  */
 import { absGet, absPatch, absPost } from './absClient'
 import type { AbsTarget } from './absLibrary'
+import type { MetadataProvider } from './absAdmin'
 
 /** A metadata-provider search result; applied via matchItem. */
 export interface AbsMatchResult {
@@ -34,11 +35,6 @@ export interface AbsMatchResult {
   genres: string[]
   series: { series: string; sequence: string | null }[]
   duration: number | null
-}
-
-export interface MetadataProvider {
-  text: string
-  value: string
 }
 
 interface SearchProvidersResponse {
