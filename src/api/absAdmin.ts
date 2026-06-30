@@ -49,6 +49,7 @@ export type ABSAdminLibrary = ABSLibrary
 export const adminKeys = {
   users: (serverId: string) => ['admin', serverId, 'users'] as const,
   usersOnline: (serverId: string) => ['admin', serverId, 'users-online'] as const,
+  lastSeen: (serverId: string) => ['admin', serverId, 'users-last-seen'] as const,
   libraries: (serverId: string) => ['admin', serverId, 'libraries'] as const,
   tagNames: (serverId: string) => ['admin', serverId, 'tag-names'] as const,
   searchProviders: (serverId: string) => ['admin', serverId, 'search-providers'] as const,
@@ -73,12 +74,23 @@ export function getUsers(t: AbsTarget): Promise<ABSUsersResponse> {
   return absGet<ABSUsersResponse>(t, '/api/users')
 }
 
-// The ids of users currently connected (open socket). ABS returns the live
-// `usersOnline` array here; `isActive` on the user list is the account-enabled
-// flag, NOT presence - so the Users table reads online state from this instead.
+// The ids of users who are listening right now. `/api/users/online` returns two
+// signals: `usersOnline` (users with an open ABS websocket) and `openSessions`
+// (active playback sessions, each carrying its userId). App/REST users - which
+// is everyone on HearthShelf - never open the ABS web-client socket, so
+// `usersOnline` is almost always empty for us; an open playback session is the
+// real "online now" signal. We union both, keyed by userId, so the Users table's
+// presence column reflects who is actually active. (`isActive` on the user list
+// is the account-enabled flag, not presence, so it can't be used for this.)
 export async function getOnlineUserIds(t: AbsTarget): Promise<Set<string>> {
-  const res = await absGet<{ usersOnline?: { id: string }[] }>(t, '/api/users/online')
-  return new Set((res.usersOnline ?? []).map((u) => u.id))
+  const res = await absGet<{
+    usersOnline?: { id: string }[]
+    openSessions?: { userId: string }[]
+  }>(t, '/api/users/online')
+  const ids = new Set<string>()
+  for (const u of res.usersOnline ?? []) if (u.id) ids.add(u.id)
+  for (const s of res.openSessions ?? []) if (s.userId) ids.add(s.userId)
+  return ids
 }
 
 // Create an ABS user. ABS echoes back the created user on `user`. type defaults
@@ -321,6 +333,7 @@ export const adminSectionKeys = {
 
 export interface ABSAdminSession {
   id: string
+  userId: string
   libraryItemId: string
   displayTitle: string
   displayAuthor: string
@@ -362,6 +375,27 @@ export async function getSessions(
 // DELETE /api/sessions/:id - removes a single playback session record (admin).
 export async function deleteSession(t: AbsTarget, sessionId: string): Promise<void> {
   await absDelete(t, `/api/sessions/${sessionId}`)
+}
+
+// A real "last seen" per user, derived from listening sessions. ABS only stamps
+// the user record's `lastSeen` on websocket auth, which HearthShelf/app users
+// (REST-only) never trigger - so that field is null for them and the Users table
+// showed "never". A playback session's `updatedAt` is the true last-activity
+// signal. ABS returns sessions newest-first, so one page of recent sessions
+// covers everyone who's been active lately; we keep the max updatedAt per user.
+// Returns a Map<userId, epochMs>.
+export async function getLastSeenByUser(
+  t: AbsTarget,
+  sampleSize = 200
+): Promise<Map<string, number>> {
+  const { sessions } = await getSessions(t, 0, sampleSize)
+  const last = new Map<string, number>()
+  for (const s of sessions) {
+    if (!s.userId) continue
+    const ts = s.updatedAt || s.startedAt || 0
+    if (ts > (last.get(s.userId) ?? 0)) last.set(s.userId, ts)
+  }
+  return last
 }
 
 // --- Backups ----------------------------------------------------------------

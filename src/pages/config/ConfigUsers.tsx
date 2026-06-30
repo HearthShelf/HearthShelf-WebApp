@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   getUsers,
   getOnlineUserIds,
+  getLastSeenByUser,
   deleteUser,
   setUserActive,
   createUser,
@@ -45,14 +46,24 @@ export function ConfigUsers() {
     staleTime: 60 * 1000,
   })
 
-  // Live presence (open socket) - the real "online now" signal. isActive on the
-  // user record is the account-enabled flag, not presence, so the Status column
-  // reads online state from here. Refreshes on a short interval.
+  // Live presence: users with an open socket OR an active playback session (see
+  // getOnlineUserIds - app users stream over REST, so the session is the real
+  // signal). isActive on the user record is the account-enabled flag, not
+  // presence, so the Status column reads online state from here. Polls.
   const { data: onlineIds } = useQuery({
     queryKey: adminKeys.usersOnline(target?.serverId ?? ''),
     queryFn: () => getOnlineUserIds(target!),
     enabled: Boolean(target),
     refetchInterval: 30 * 1000,
+  })
+
+  // Real per-user "last seen" from listening sessions, since ABS's user.lastSeen
+  // only updates on a websocket login that app users never make.
+  const { data: lastSeenByUser } = useQuery({
+    queryKey: adminKeys.lastSeen(target?.serverId ?? ''),
+    queryFn: () => getLastSeenByUser(target!),
+    enabled: Boolean(target),
+    staleTime: 60 * 1000,
   })
 
   // The signed-in admin, so we can stop them disabling or deleting their own
@@ -214,7 +225,14 @@ export function ConfigUsers() {
                   </td>
                   <td>{u.type}</td>
                   <td className="num">
-                    {u.lastSeen ? fmtSessDate(u.lastSeen).day : 'never'}
+                    {(() => {
+                      // Most recent of ABS's record lastSeen and the session-
+                      // derived activity (the latter is what app users actually
+                      // generate). Online right now reads as "Now".
+                      if (onlineIds?.has(u.id)) return 'Now'
+                      const seen = Math.max(u.lastSeen ?? 0, lastSeenByUser?.get(u.id) ?? 0)
+                      return seen > 0 ? fmtSessDate(seen).day : 'never'
+                    })()}
                   </td>
                   <td>
                     {!u.isActive ? (
