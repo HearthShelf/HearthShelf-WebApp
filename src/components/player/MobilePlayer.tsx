@@ -253,6 +253,9 @@ export function MobilePlayer({
   )
 
   const [sheet, setSheet] = useState<SheetKind>(null)
+  // Live scrubber drag target (0-1, null when not dragging) so the time
+  // labels preview where you're scrubbing to.
+  const [scrubDrag, setScrubDrag] = useState<number | null>(null)
   const [car, setCar] = useState(false)
   const [order, setOrder] = useState<ActionKey[]>(MP_ACTIONS)
   const [edit, setEdit] = useState(false)
@@ -280,14 +283,22 @@ export function MobilePlayer({
     if (idx === -1) idx = chapters.length - 1
     return { ci: idx, cur: chapters[idx] }
   }, [chapters, pos, duration])
-  const chPos = Math.max(0, pos - cur.start)
-  const bookRatio = duration ? pos / duration : 0
-  // Chapter-scoped progress, so the bar can track the current chapter when the
-  // Playback setting is 'chapter' (matches the desktop PlayerPage).
   const chSpan = cur.end - cur.start
-  const chRatio = chSpan > 0 ? Math.min(1, chPos / chSpan) : 0
   // The bar honours the scrubber setting: ratio shown + where a tap seeks to.
   const onChapter = scrubber === 'chapter'
+  // While dragging the scrubber, labels preview the drag target; otherwise
+  // they track the live play position.
+  const previewPos =
+    scrubDrag === null
+      ? pos
+      : onChapter
+        ? cur.start + scrubDrag * chSpan
+        : scrubDrag * duration
+  const chPos = Math.max(0, previewPos - cur.start)
+  const bookRatio = duration ? previewPos / duration : 0
+  // Chapter-scoped progress, so the bar can track the current chapter when the
+  // Playback setting is 'chapter' (matches the desktop PlayerPage).
+  const chRatio = chSpan > 0 ? Math.min(1, chPos / chSpan) : 0
   const scrubRatio = onChapter ? chRatio : bookRatio
   const seekRatio = (r: number) => (onChapter ? cur.start + r * chSpan : r * duration)
   const seekClamp = (s: number) => seek(Math.max(0, Math.min(duration, Math.round(s))))
@@ -645,7 +656,12 @@ export function MobilePlayer({
               {onChapter ? cur.title : `Ch ${ci + 1} / ${chapters.length || 1}`}
             </span>
           </div>
-          <Scrubber className="scrub" ratio={scrubRatio} onSeek={(r) => seekClamp(seekRatio(r))} />
+          <Scrubber
+            className="scrub"
+            ratio={scrubRatio}
+            onDrag={setScrubDrag}
+            onSeek={(r) => seekClamp(seekRatio(r))}
+          />
           <div
             style={{
               display: 'flex',
@@ -657,8 +673,10 @@ export function MobilePlayer({
               marginTop: 8,
             }}
           >
-            <span>{formatTimestamp(onChapter ? chPos : pos)}</span>
-            <span>-{formatTimestamp(onChapter ? Math.max(0, chSpan - chPos) : duration - pos)}</span>
+            <span>{formatTimestamp(onChapter ? chPos : previewPos)}</span>
+            <span>
+              -{formatTimestamp(onChapter ? Math.max(0, chSpan - chPos) : duration - previewPos)}
+            </span>
           </div>
         </div>
 
@@ -1439,7 +1457,12 @@ export function MobilePlayer({
               </div>
             </div>
             <div style={{ width: '100%', maxWidth: 360, marginTop: 18 }}>
-              <Scrubber className="scrub" ratio={scrubRatio} onSeek={(r) => seekClamp(seekRatio(r))} />
+              <Scrubber
+                className="scrub"
+                ratio={scrubRatio}
+                onDrag={setScrubDrag}
+                onSeek={(r) => seekClamp(seekRatio(r))}
+              />
               <div
                 style={{
                   display: 'flex',
@@ -1450,8 +1473,10 @@ export function MobilePlayer({
                   marginTop: 9,
                 }}
               >
-                <span>{formatTimestamp(onChapter ? chPos : pos)}</span>
-                <span>-{formatTimestamp(onChapter ? Math.max(0, chSpan - chPos) : duration - pos)}</span>
+                <span>{formatTimestamp(onChapter ? chPos : previewPos)}</span>
+                <span>
+                  -{formatTimestamp(onChapter ? Math.max(0, chSpan - chPos) : duration - previewPos)}
+                </span>
               </div>
             </div>
           </div>

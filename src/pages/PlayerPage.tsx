@@ -384,6 +384,9 @@ export function PlayerPage() {
 
   const [panel, setPanel] = useState<Panel>(null)
   const [pop, setPop] = useState<Pop>(null)
+  // Live scrubber drag target (0-1, null when not dragging) so the time
+  // labels preview where you're scrubbing to.
+  const [dragRatio, setDragRatio] = useState<number | null>(null)
   const { toast, show: setToast } = useToast()
 
   const { bookmarks, addBookmark: addBookmarkApi, removeBookmark } =
@@ -504,9 +507,17 @@ export function PlayerPage() {
   }
 
   const chSpan = cur.end - cur.start
-  const chPos = Math.max(0, pos - cur.start)
+  // While dragging the scrubber, labels preview the drag target; otherwise
+  // they track the live play position.
+  const previewPos =
+    dragRatio === null
+      ? pos
+      : scrubber === 'chapter'
+        ? cur.start + dragRatio * chSpan
+        : dragRatio * duration
+  const chPos = Math.max(0, previewPos - cur.start)
   const chRatio = chSpan > 0 ? Math.min(1, chPos / chSpan) : 0
-  const bookRatio = duration > 0 ? pos / duration : 0
+  const bookRatio = duration > 0 ? previewPos / duration : 0
 
   const seekClamp = (sec: number) => seekTo(Math.max(0, Math.min(duration, sec)))
   const prevCh = () =>
@@ -671,8 +682,8 @@ export function PlayerPage() {
               onSeek={(r) => seekClamp(r * duration)}
             />
             <div className="p-times">
-              <span>{formatTimestamp(pos)} elapsed</span>
-              <span>{formatTimestamp(duration - pos)} left</span>
+              <span>{formatTimestamp(previewPos)} elapsed</span>
+              <span>{formatTimestamp(duration - previewPos)} left</span>
             </div>
           </>
         )}
@@ -683,19 +694,25 @@ export function PlayerPage() {
             {scrubber === 'book' ? 'Full book' : cur.title}
           </div>
           {scrubber === 'book' ? (
-            <Scrubber className="scrub" ratio={bookRatio} onSeek={(r) => seekClamp(r * duration)} />
+            <Scrubber
+              className="scrub"
+              ratio={bookRatio}
+              onDrag={setDragRatio}
+              onSeek={(r) => seekClamp(r * duration)}
+            />
           ) : (
             <Scrubber
               className="scrub"
               ratio={chRatio}
+              onDrag={setDragRatio}
               onSeek={(r) => seekClamp(cur.start + r * chSpan)}
             />
           )}
           <div className="p-times">
             {scrubber === 'book' ? (
               <>
-                <span>{formatTimestamp(pos)} elapsed</span>
-                <span>{formatTimestamp(duration - pos)} left</span>
+                <span>{formatTimestamp(previewPos)} elapsed</span>
+                <span>{formatTimestamp(duration - previewPos)} left</span>
               </>
             ) : (
               <>

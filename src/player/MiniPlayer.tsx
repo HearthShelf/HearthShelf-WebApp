@@ -44,6 +44,9 @@ export function MiniPlayer() {
   const swipeStartX = useRef<number | null>(null)
   const [dragX, setDragX] = useState(0)
   const DISMISS_PX = 90
+  // Live scrubber drag target (0-1, null when not dragging) so the time
+  // labels preview where you're scrubbing to.
+  const [scrubDrag, setScrubDrag] = useState<number | null>(null)
 
   const onTouchStart = (e: React.TouchEvent) => {
     swipeStartX.current = e.touches[0].clientX
@@ -92,7 +95,9 @@ export function MiniPlayer() {
   const useChapter = scrubber === 'chapter' && chapters.length > 0
   const span = useChapter ? cur.end - cur.start : duration
   const offset = useChapter ? cur.start : 0
-  const localPos = Math.max(0, currentTime - offset)
+  // While dragging the scrubber, the labels preview the drag target.
+  const localPos =
+    scrubDrag === null ? Math.max(0, currentTime - offset) : scrubDrag * span
   const pct = span > 0 ? Math.min(100, (localPos / span) * 100) : 0
 
   const onScrub = (ratio: number) => {
@@ -201,7 +206,7 @@ export function MiniPlayer() {
         </div>
         <div className="pb-time">
           <span>{formatTimestamp(localPos)}</span>
-          <Scrubber className="scrub" ratio={pct / 100} onSeek={onScrub} />
+          <Scrubber className="scrub" ratio={pct / 100} onDrag={setScrubDrag} onSeek={onScrub} />
           <span>-{formatTimestamp(Math.max(0, span - localPos))}</span>
         </div>
       </div>

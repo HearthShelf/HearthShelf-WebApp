@@ -79,13 +79,24 @@ export function CarPlayer({
   const sleepCtl = useSleepTimer()
 
   const [sheet, setSheet] = useState<Sheet>(null)
+  // While the scrubber is being dragged, the time labels preview the drag
+  // target instead of the live play position (null = not dragging).
+  const [dragRatio, setDragRatio] = useState<number | null>(null)
 
   const { rect, onDragHandlePointerDown, onResizeHandlePointerDown, dragging } =
     useDraggableCard(true, wake)
 
-  const bookRatio = duration > 0 ? pos / duration : 0
   const chSpan = Math.max(1, cur.end - cur.start)
-  const chPos = Math.max(0, Math.min(chSpan, pos - cur.start))
+  // The absolute book position shown in the labels: the drag target while
+  // dragging, otherwise the live play position.
+  const previewPos =
+    dragRatio === null
+      ? pos
+      : scrubber === 'chapter'
+        ? cur.start + dragRatio * chSpan
+        : dragRatio * duration
+  const bookRatio = duration > 0 ? previewPos / duration : 0
+  const chPos = Math.max(0, Math.min(chSpan, previewPos - cur.start))
   const chRatio = chPos / chSpan
   const scrubRatio = scrubber === 'chapter' ? chRatio : bookRatio
 
@@ -170,6 +181,10 @@ export function CarPlayer({
         <Scrubber
           className="scrub car-scrub"
           ratio={scrubRatio}
+          onDrag={(r) => {
+            wake()
+            setDragRatio(r)
+          }}
           onSeek={(r) => {
             wake()
             seekClamp(scrubber === 'chapter' ? cur.start + r * chSpan : r * duration)
@@ -183,8 +198,8 @@ export function CarPlayer({
             </>
           ) : (
             <>
-              <span>{formatTimestamp(pos)}</span>
-              <span>-{formatTimestamp(duration - pos)}</span>
+              <span>{formatTimestamp(previewPos)}</span>
+              <span>-{formatTimestamp(duration - previewPos)}</span>
             </>
           )}
         </div>

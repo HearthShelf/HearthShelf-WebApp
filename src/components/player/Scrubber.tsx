@@ -13,6 +13,7 @@ import { useRef, useState } from 'react'
 export function Scrubber({
   ratio,
   onSeek,
+  onDrag,
   className = '',
   knob = true,
 }: {
@@ -20,6 +21,10 @@ export function Scrubber({
   ratio: number
   /** Called once, with the new 0-1 ratio, when a tap or drag ends. */
   onSeek: (ratio: number) => void
+  /** Fires continuously while dragging with the live 0-1 ratio, and once with
+   * null when the drag/tap ends - so the caller can preview the target time
+   * in its own time labels without committing a seek. */
+  onDrag?: (ratio: number | null) => void
   className?: string
   /** Some scrub bars (the compact mini-player one) hide the knob via CSS at
    * small sizes anyway; default on. */
@@ -27,7 +32,12 @@ export function Scrubber({
 }) {
   const trackRef = useRef<HTMLDivElement>(null)
   const [dragRatio, setDragRatio] = useState<number | null>(null)
+  // Refs (not state) gate the move/up handlers so a pointermove that fires in
+  // the same tick as pointerdown - before React commits the state update -
+  // still counts as an active drag. The state copy only drives the re-render.
+  const activeRef = useRef(false)
   const movedRef = useRef(false)
+  const lastRatioRef = useRef(0)
 
   const ratioFromEvent = (clientX: number) => {
     const track = trackRef.current
@@ -38,22 +48,38 @@ export function Scrubber({
   }
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId)
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    activeRef.current = true
     movedRef.current = false
-    setDragRatio(ratioFromEvent(e.clientX))
+    const r = ratioFromEvent(e.clientX)
+    lastRatioRef.current = r
+    setDragRatio(r)
+    onDrag?.(r)
   }
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (dragRatio === null) return
+    if (!activeRef.current) return
     movedRef.current = true
-    setDragRatio(ratioFromEvent(e.clientX))
+    const r = ratioFromEvent(e.clientX)
+    lastRatioRef.current = r
+    setDragRatio(r)
+    onDrag?.(r)
   }
 
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (dragRatio === null) return
-    const final = movedRef.current ? dragRatio : ratioFromEvent(e.clientX)
+    if (!activeRef.current) return
+    activeRef.current = false
+    const final = movedRef.current ? lastRatioRef.current : ratioFromEvent(e.clientX)
     setDragRatio(null)
+    onDrag?.(null)
     onSeek(final)
+  }
+
+  const onPointerCancel = () => {
+    if (!activeRef.current) return
+    activeRef.current = false
+    setDragRatio(null)
+    onDrag?.(null)
   }
 
   const shown = dragRatio ?? ratio
@@ -66,7 +92,7 @@ export function Scrubber({
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={() => setDragRatio(null)}
+      onPointerCancel={onPointerCancel}
     >
       <i style={{ width: pct + '%' }} />
       {knob && <b style={{ left: pct + '%' }} />}

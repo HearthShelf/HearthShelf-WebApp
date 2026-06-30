@@ -1886,9 +1886,9 @@
   text-overflow: ellipsis;
 }
 
-/* Bigger scrubber + hit area than the desktop player. The padded zone is
-   faintly visible (not just an invisible hit target) so the draggable area
-   reads clearly at a glance/touch while driving. */
+/* Bigger scrubber + hit area than the desktop player. The visible 10px track
+   sits in the content box; the 14px vertical padding extends the drag/tap
+   target above and below it without moving the bar. */
 .car-scrub {
   width: 100%;
   height: 10px;
@@ -1896,18 +1896,19 @@
   background-clip: content-box;
   position: relative;
 }
-.car-scrub::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 99px;
-  background: rgba(255, 255, 255, 0.06);
+/* The fill (i) and knob (b) are absolutely positioned against the padded
+   box, so pin them to the content strip (inset by the 14px padding) instead
+   of the box edges - otherwise they ride 14px too high. */
+.car-scrub > i {
+  top: 14px;
+  bottom: 14px;
 }
-.car-scrub b {
+.car-scrub > b {
+  top: 50%;
   width: 26px;
   height: 26px;
 }
-.car-scrub.dragging b {
+.car-scrub.dragging > b {
   width: 30px;
   height: 30px;
 }
