@@ -1948,6 +1948,7 @@
   box-shadow: var(--shadow-lift);
   padding: 14px;
   z-index: 5;
+  transition: opacity 0.5s ease;
 }
 .car-more {
   display: flex;
@@ -1989,6 +1990,7 @@
   cursor: nwse-resize;
   touch-action: none;
   z-index: 6;
+  transition: opacity 0.5s ease;
 }
 .car-resize .ms {
   font-size: 18px;

@@ -45,13 +45,17 @@ export function useIdleFade(enabled: boolean, ms = 60_000): IdleFade {
     arm()
   }, [enabled, arm])
 
-  // Arm on enable; fully reset (revealed, no timer) on disable.
+  // Arm on enable; fully reset (revealed, no timer) on disable. Explicitly
+  // un-fade here too (not just rely on the initial useState) - a fresh mount
+  // (e.g. toggling car mode on, or navigating back into /player) must always
+  // start revealed, never inherit a stale faded state from a prior instance.
   useEffect(() => {
     if (!enabled) {
       if (timer.current) clearTimeout(timer.current)
       setFaded(false)
       return
     }
+    setFaded(false)
     arm()
     return () => {
       if (timer.current) clearTimeout(timer.current)
