@@ -58,6 +58,16 @@ export function useAudioPlayer({
   const [sleepAt, setSleepAt] = useState<number | null>(null)
   const currentTrackRef = useRef<number>(-1)
   const lastSaveRef = useRef<number>(0)
+  // False from the moment a track src is set until loadedmetadata has applied the
+  // intended seek offset. The browser fires timeupdate with currentTime=0 during
+  // load (before we seek), so without this guard onTime records position 0 and a
+  // throttled/teardown save would clobber a real resume point (e.g. 5h) with 0.
+  const seekedRef = useRef(false)
+  // Live global position + previous position, at HOOK scope so seekTo and saves
+  // see the truth immediately - not effect-local, where a seek wouldn't update
+  // them until the next timeupdate and a save in that gap wrote the stale value.
+  const positionRef = useRef(startAtSec)
+  const prevPosRef = useRef(startAtSec)
   // Read by the [tracks] init effect without making autoplay a dependency.
   const autoplayRef = useRef(autoplayOnLoad)
   autoplayRef.current = autoplayOnLoad
@@ -97,11 +107,15 @@ export function useAudioPlayer({
       const track = tracks[index]
       if (!audio || !track || !track.url) return
       currentTrackRef.current = index
+      // Block position tracking until the seek below lands (load fires timeupdate
+      // at currentTime=0 first; recording that would clobber the resume point).
+      seekedRef.current = false
       audio.src = track.url
       const onMeta = () => {
         audio.currentTime = Math.max(0, Math.min(localOffsetSec, audio.duration || localOffsetSec))
         audio.playbackRate = rate
         audio.volume = volumeRef.current
+        seekedRef.current = true
         if (autoplay) void audio.play().catch(() => setPlaying(false))
         audio.removeEventListener('loadedmetadata', onMeta)
       }
@@ -118,6 +132,12 @@ export function useAudioPlayer({
       const idx = trackIndexForPosition(tracks, pos)
       const local = pos - tracks[idx].startOffsetSec
       setPositionSec(pos)
+      // Seed the saved-position refs NOW so any save before the next timeupdate
+      // (pause/teardown right after a seek) reports where we seeked to, not the
+      // stale prior position. prevPosRef too, so this jump isn't counted as
+      // listened time.
+      positionRef.current = pos
+      prevPosRef.current = pos
       if (idx !== currentTrackRef.current) {
         loadTrack(idx, local, playing)
       } else if (audioRef.current) {
@@ -164,12 +184,12 @@ export function useAudioPlayer({
         if (listened > 0 || moved) onSaveProgress(positionRef.current, listened)
       }
     }
-    // Track position in a ref so the interval/handlers see the latest value.
-    const positionRef = { current: startAtSec }
-    // Previous global position, to derive played-time from natural advancement.
-    const prevPosRef = { current: startAtSec }
 
     const onTime = () => {
+      // Ignore the timeupdate(s) the browser fires at currentTime=0 while a track
+      // is still loading - we haven't applied the resume seek yet, so this is not
+      // a real position and must not be recorded or saved.
+      if (!seekedRef.current) return
       const idx = currentTrackRef.current
       const base = tracks[idx]?.startOffsetSec ?? 0
       const global = base + audio.currentTime
@@ -207,6 +227,11 @@ export function useAudioPlayer({
     audio.addEventListener('ended', onEnded)
     audio.addEventListener('canplay', onCanPlay)
 
+    // Reset the saved-position baseline to THIS book's resume point before the
+    // initial load, so a stale prior-book position can't leak into a save.
+    positionRef.current = startAtSec
+    prevPosRef.current = startAtSec
+    setPositionSec(startAtSec)
     // Initial load at the saved position; autoplay if the caller requested it.
     const idx = trackIndexForPosition(tracks, startAtSec)
     loadTrack(idx, startAtSec - tracks[idx].startOffsetSec, autoplayRef.current)
