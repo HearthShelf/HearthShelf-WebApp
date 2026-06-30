@@ -36,6 +36,7 @@ import { AdminAuditPage } from '@/pages/admin/AdminAuditPage'
 import { SignInPage } from '@/pages/SignInPage'
 import { SignUpPage } from '@/pages/SignUpPage'
 import { ErrorPage } from '@/pages/ErrorPage'
+import { CarPlayerHarness } from '@/pages/dev/CarPlayerHarness'
 import { RequireAuth } from '@/auth/RequireAuth'
 import { PlayerProvider } from '@/player/PlayerProvider'
 
@@ -51,6 +52,11 @@ export const router = createBrowserRouter([
   // own its multi-step sub-routes (email verification, OAuth callback, etc.).
   { path: '/sign-in/*', element: <SignInPage /> },
   { path: '/sign-up/*', element: <SignUpPage /> },
+
+  // DEV-ONLY: car-player visual harness (no auth). Stripped from prod builds.
+  ...(import.meta.env.DEV
+    ? [{ path: '/dev/car', element: <CarPlayerHarness /> }]
+    : []),
 
   // Everything else requires sign-in.
   {

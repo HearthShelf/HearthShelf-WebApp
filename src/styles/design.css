@@ -1713,6 +1713,291 @@
   border-color: rgba(255,255,255,0.1);
 }
 
+/* ---- Car mode: big-touch, draggable/resizable floating player ------ */
+.player.car-mode {
+  position: fixed;
+  inset: 0;
+  padding: 0;
+  overflow: hidden;
+}
+/* The hearth bg rides brighter in the car so it reads at a glance in daylight. */
+.car-bg {
+  filter: brightness(1.28) saturate(1.05);
+}
+
+.car-card {
+  position: fixed;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  background: rgba(14, 12, 11, 0.72);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  box-shadow: var(--shadow-lift);
+  color: var(--text);
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  transition: opacity 0.5s ease;
+}
+.car-card.dragging {
+  transition: none;
+  cursor: grabbing;
+}
+
+/* Header doubles as the drag handle. */
+.car-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  cursor: grab;
+  flex: none;
+  transition: opacity 0.5s ease;
+}
+.car-head .car-grip {
+  color: var(--text-faint);
+  display: grid;
+  place-items: center;
+}
+.car-head .car-grip .ms {
+  font-size: 22px;
+}
+.car-head-meta {
+  flex: 1;
+  min-width: 0;
+}
+.car-head-meta .car-ch {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.car-icon-btn {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.car-icon-btn .ms {
+  font-size: 24px;
+}
+
+.car-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 6cqw 18px;
+  /* The card is a container so its inner sizing scales with the card size -
+     this is how resizing the card resizes the controls. */
+  container-type: inline-size;
+}
+
+.car-card .car-cover {
+  width: min(46cqw, 38cqh);
+  height: min(46cqw, 38cqh);
+  aspect-ratio: 1 / 1;
+  border-radius: 16px;
+  box-shadow: var(--shadow-lift);
+  flex: none;
+  margin-bottom: 4cqh;
+}
+
+.car-titles {
+  width: 100%;
+  text-align: center;
+  margin-bottom: 14px;
+}
+.car-title {
+  font-size: clamp(17px, 5.4cqw, 30px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.car-sub {
+  font-size: clamp(13px, 3.4cqw, 18px);
+  color: var(--text-muted);
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Bigger scrubber + hit area than the desktop player. */
+.car-scrub {
+  width: 100%;
+  height: 10px;
+  padding: 14px 0;
+  background-clip: content-box;
+}
+.car-scrub b {
+  width: 26px;
+  height: 26px;
+}
+.car-times {
+  font-size: clamp(12px, 3cqw, 16px);
+}
+
+.car-transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4cqw;
+  margin: 3cqh 0 2cqh;
+}
+.car-skip {
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  position: relative;
+  padding: 10px;
+}
+.car-skip .ms {
+  font-size: clamp(34px, 9cqw, 52px);
+}
+.car-skip small {
+  position: absolute;
+  top: 52%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(9px, 2.4cqw, 13px);
+  font-weight: 700;
+}
+.car-skip.lite {
+  color: var(--text-muted);
+}
+.car-play {
+  width: clamp(72px, 20cqw, 120px);
+  height: clamp(72px, 20cqw, 120px);
+  border-radius: 50%;
+  background: var(--text);
+  color: var(--scaffold);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.12s;
+}
+.car-play:active {
+  transform: scale(0.96);
+}
+.car-play .ms {
+  font-size: clamp(40px, 11cqw, 64px);
+}
+
+.car-secondary {
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  transition: opacity 0.5s ease;
+}
+.car-pill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 10px;
+  border-radius: 14px;
+  border: 1px solid var(--hairline);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font: inherit;
+  font-size: clamp(13px, 3.2cqw, 16px);
+  font-weight: 600;
+  cursor: pointer;
+}
+.car-pill.on {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+}
+.car-pill .ms {
+  font-size: clamp(18px, 4.4cqw, 24px);
+}
+
+.car-sheet {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 84px;
+  background: var(--c-high);
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  box-shadow: var(--shadow-lift);
+  padding: 14px;
+  z-index: 5;
+}
+.car-more {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.car-more-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 14px;
+  border-radius: 12px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+}
+.car-more-item:hover {
+  background: var(--fill);
+}
+.car-more-item .ms {
+  font-size: 22px;
+  color: var(--text-muted);
+}
+
+.car-resize {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+  cursor: nwse-resize;
+  touch-action: none;
+  z-index: 6;
+}
+.car-resize .ms {
+  font-size: 18px;
+  transform: rotate(90deg);
+}
+
+/* Faded (idle) state: shed everything but cover, titles, scrubber, transport. */
+.car-card.faded .car-head,
+.car-card.faded .car-secondary,
+.car-card.faded .car-sheet,
+.car-card.faded .car-resize {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .player-col {
   width: 460px; max-width: 100%; flex: none;
   display: flex; flex-direction: column; align-items: center;

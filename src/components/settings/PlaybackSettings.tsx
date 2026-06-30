@@ -1,10 +1,21 @@
-import { useSettingsStore, type ScrubberScope } from '@/store/settingsStore'
+import { useSettingsStore, type ScrubberScope, type CarMode } from '@/store/settingsStore'
 import { Icon } from '@/components/common/Icon'
 import { SetRow, Seg, Toggle } from '@/components/settings/controls'
+import { isCarBrowser } from '@/hooks/useCarMode'
 
 export function PlaybackSettings() {
   const s = useSettingsStore()
   const set = s.set
+  const carDetected = isCarBrowser()
+  // What 'Auto' resolves to right now, surfaced so the choice isn't a mystery.
+  const carDesc =
+    s.carMode === 'auto'
+      ? carDetected
+        ? 'A car browser was detected, so the big-touch player is on.'
+        : "Turns on the big-touch player automatically when a car browser (like Tesla) is detected. None detected here."
+      : s.carMode === 'on'
+        ? 'The big-touch player is always on.'
+        : 'The big-touch player is off.'
 
   return (
     <section>
@@ -64,6 +75,26 @@ export function PlaybackSettings() {
         title="Hearth background"
         desc="Show the cozy hearth artwork behind the full-screen player."
         control={<Toggle on={s.hearthBgPlayer} onChange={(v) => set('hearthBgPlayer', v)} />}
+      />
+
+      <div className="nav-label" style={{ padding: '16px 4px 10px' }}>
+        Car mode
+      </div>
+
+      <SetRow
+        title="Big-touch player"
+        desc={carDesc}
+        control={
+          <Seg<CarMode>
+            value={s.carMode}
+            onChange={(v) => set('carMode', v)}
+            options={[
+              { value: 'auto', label: 'Auto' },
+              { value: 'on', label: 'On' },
+              { value: 'off', label: 'Off' },
+            ]}
+          />
+        }
       />
 
       <div className="nav-label" style={{ padding: '16px 4px 10px' }}>

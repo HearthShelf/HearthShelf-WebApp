@@ -14,6 +14,19 @@ export type Theme = 'dark' | 'flat' | 'light' | 'oled'
 export type AccentMode = 'dynamic' | 'manual'
 export type CoverStyle = 'floating' | 'cards'
 
+// Car mode: a big-touch, glance-friendly player for in-car browsers (Tesla).
+// 'auto' enables it when a Tesla user-agent is detected; 'on'/'off' force it.
+export type CarMode = 'auto' | 'on' | 'off'
+
+// The draggable/resizable car-mode player card, in viewport px. null until the
+// user first moves or resizes it (then it's pinned and restored next time).
+export interface CarPlayerRect {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
 // The default hearth ember accent (matches tokens.css --primary).
 export const EMBER = '#e0654a'
 
@@ -75,6 +88,10 @@ export interface SettingsState {
   skipBack: number
   hearthBgPlayer: boolean
 
+  // Car mode (in-car browser player)
+  carMode: CarMode
+  carPlayerRect: CarPlayerRect | null
+
   // Queue
   queueMode: QueueMode
   queueAutoRules: AutoRulePref[]
@@ -106,7 +123,10 @@ export const useSettingsStore = create<SettingsState>()(
       scrubber: 'chapter',
       skipForward: 30,
       skipBack: 15,
-      hearthBgPlayer: false,
+      hearthBgPlayer: true,
+
+      carMode: 'auto',
+      carPlayerRect: null,
 
       queueMode: 'manual',
       queueAutoRules: DEFAULT_AUTO_RULE_PREFS,

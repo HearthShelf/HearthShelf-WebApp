@@ -10,6 +10,8 @@ import { useSleepTimer } from '@/hooks/useSleepTimer'
 import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
 import { RecentListens } from '@/components/player/RecentListens'
 import { MobilePlayer } from '@/components/player/MobilePlayer'
+import { CarPlayer } from '@/components/player/CarPlayer'
+import { useCarMode } from '@/hooks/useCarMode'
 import { useBookmarks } from '@/hooks/useBookmarks'
 import { useToast } from '@/hooks/useToast'
 import { useQueueStore, type QueueMode, type AutoRuleId } from '@/store/queueStore'
@@ -357,6 +359,8 @@ export function PlayerPage() {
   const scrubber = useSettingsStore((s) => s.scrubber)
   const hearthBgPlayer = useSettingsStore((s) => s.hearthBgPlayer)
   const isMobile = useIsMobile()
+  const carMode = useCarMode()
+  const setSetting = useSettingsStore((s) => s.set)
 
   // Full sleep-timer controller (three modes + stop behaviours).
   const sleepCtl = useSleepTimer()
@@ -496,6 +500,44 @@ export function PlayerPage() {
     seekClamp(chPos > 4 ? cur.start : chapters[Math.max(0, ci - 1)]?.start ?? 0)
   const nextCh = () =>
     seekClamp(chapters[Math.min(chapters.length - 1, ci + 1)]?.start ?? cur.start)
+
+  // Car mode: a draggable big-touch player floating over the (brightened) hearth
+  // background. Replaces the two-pane desktop layout when an in-car browser is
+  // detected or the user forces it on.
+  if (carMode) {
+    return (
+      <div className="player car-mode hearth-bg">
+        <div
+          className="player-hearth-bg car-bg"
+          aria-hidden="true"
+          style={{ backgroundImage: `url("${cozyHearth}")` }}
+        />
+        <CarPlayer
+          libraryItemId={libraryItemId}
+          title={title}
+          author={author}
+          chapters={chapters}
+          ci={ci}
+          cur={cur}
+          pos={pos}
+          duration={duration}
+          isPlaying={isPlaying}
+          rate={speed}
+          setRate={setSpeed}
+          togglePlay={togglePlay}
+          seekClamp={seekClamp}
+          prevCh={prevCh}
+          nextCh={nextCh}
+          onExit={() => setSetting('carMode', 'off')}
+        />
+        {toast && (
+          <div className="p-toast">
+            <Icon name="check_circle" fill /> {toast}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const togglePanel = (p: Exclude<Panel, null>) => {
     setPop(null)
