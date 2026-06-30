@@ -10,6 +10,7 @@ import {
 } from '@/api/absBookDetail'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
 import { useMarkFinished } from '@/hooks/useMarkFinished'
+import { useBookmarks } from '@/hooks/useBookmarks'
 import { useToast } from '@/hooks/useToast'
 import { usePlayer } from '@/player/PlayerProvider'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
@@ -22,6 +23,8 @@ import { Stars } from '@/components/common/Stars'
 import { Dropdown, MItem } from '@/components/common/Dropdown'
 import { ItemEditModal } from '@/components/library/ItemEditModal'
 import { ChapterEditorModal, type EditableChapter } from '@/components/library/ChapterEditorModal'
+import { Modal } from '@/components/common/Modal'
+import { RecentListens } from '@/components/player/RecentListens'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 
@@ -64,6 +67,9 @@ export function ItemDetailPage() {
   const [editing, setEditing] = useState(false)
   const [editingChapters, setEditingChapters] = useState(false)
   const [zoomCover, setZoomCover] = useState(false)
+  const [showSessions, setShowSessions] = useState(false)
+  const [showBookmarks, setShowBookmarks] = useState(false)
+  const { bookmarks, removeBookmark } = useBookmarks(itemId ?? null)
 
   // Lean shape for the global player (tracks/chapters/progress).
   const { data: playable } = useQuery({
@@ -342,6 +348,11 @@ export function ItemDetailPage() {
               <Icon name={finished ? 'task_alt' : 'check'} fill={finished} />{' '}
               {finished ? 'Finished' : 'Mark finished'}
             </button>
+            {(pct > 0 || finished) && (
+              <button className="pill" onClick={() => setShowSessions(true)}>
+                <Icon name="history" /> Previous sessions
+              </button>
+            )}
             {canEdit && (
               <button className="pill" onClick={() => setEditing(true)}>
                 <Icon name="edit" /> Edit
@@ -361,16 +372,8 @@ export function ItemDetailPage() {
               )}
               <MItem
                 icon="bookmark"
-                label="Bookmarks"
-                onClick={() => show('Bookmarks are coming soon')}
-              />
-              <MItem
-                icon="share"
-                label="Share"
-                onClick={() => {
-                  void navigator.clipboard.writeText(window.location.href)
-                  show('Link copied')
-                }}
+                label={bookmarks.length ? `Bookmarks (${bookmarks.length})` : 'Bookmarks'}
+                onClick={() => setShowBookmarks(true)}
               />
             </Dropdown>
           </div>
@@ -552,6 +555,49 @@ export function ItemDetailPage() {
           chapters={chapters}
           onClose={() => setEditing(false)}
         />
+      )}
+      {showSessions && (
+        <Modal title="Previous sessions" onClose={() => setShowSessions(false)}>
+          <RecentListens
+            libraryItemId={data.id}
+            onSeek={(sec) => {
+              playChapter(sec)
+              show(`Jumped to ${formatTimestamp(sec)}`)
+              setShowSessions(false)
+            }}
+          />
+        </Modal>
+      )}
+      {showBookmarks && (
+        <Modal title="Bookmarks" onClose={() => setShowBookmarks(false)}>
+          {bookmarks.length === 0 ? (
+            <div className="pop-empty">No bookmarks yet</div>
+          ) : (
+            <div className="bm-list">
+              {bookmarks.map((b) => {
+                const label = formatTimestamp(b.time)
+                const jump = () => {
+                  playChapter(b.time)
+                  show(`Jumped to ${label}`)
+                  setShowBookmarks(false)
+                }
+                return (
+                  <div className="bm-row" key={b.time}>
+                    <span className="bm-t" onClick={jump}>
+                      {label}
+                    </span>
+                    <span className="bm-n" onClick={jump}>
+                      {b.title}
+                    </span>
+                    <span className="bm-x" onClick={() => removeBookmark(b.time)}>
+                      <Icon name="delete" style={{ fontSize: 17 }} />
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </Modal>
       )}
       {editingChapters && (
         <ChapterEditorModal
