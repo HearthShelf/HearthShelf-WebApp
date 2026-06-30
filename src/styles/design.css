@@ -1726,9 +1726,13 @@
   padding: 0;
   overflow: hidden;
 }
-/* The hearth bg rides brighter in the car so it reads at a glance in daylight. */
+/* The hearth bg rides brighter in the car so it reads at a glance in daylight.
+   Unlike the base .player-hearth-bg, this one needs to catch taps - tapping
+   anywhere outside the card should wake faded chrome, same as tapping the
+   card itself. */
 .car-bg {
   filter: brightness(1.28) saturate(1.05);
+  pointer-events: auto;
 }
 
 .car-card {

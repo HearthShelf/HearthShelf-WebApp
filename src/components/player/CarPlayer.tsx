@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useSleepTimer } from '@/hooks/useSleepTimer'
-import { useIdleFade } from '@/hooks/useIdleFade'
 import { useDraggableCard } from '@/hooks/useDraggableCard'
 import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
 import { formatTimestamp } from '@hearthshelf/core'
@@ -21,7 +20,7 @@ type Sheet = 'more' | 'speed' | 'sleep' | null
 /**
  * Big-touch, glance-friendly player for in-car browsers. A draggable + resizable
  * card (sizing the card sizes the controls), with the core transport always
- * visible and everything else behind "More". After a minute idle, non-essential
+ * visible and everything else behind "More". After 30s idle, non-essential
  * chrome fades; the core transport stays. Skip controls keep the timer alive but
  * do NOT reveal the faded chrome.
  */
@@ -42,7 +41,10 @@ export function CarPlayer({
   prevCh,
   nextCh,
   onExit,
-  idleMs = 60_000,
+  scrubber,
+  faded,
+  wake,
+  tick,
 }: {
   libraryItemId: string
   title: string
@@ -60,8 +62,15 @@ export function CarPlayer({
   prevCh: () => void
   nextCh: () => void
   onExit: () => void
-  /** Idle timeout before chrome fades (ms). Defaults to one minute. */
-  idleMs?: number
+  /** Whether the scrubber tracks the current chapter or the whole book - the
+   * Settings > Playback "Progress bar" preference, same as the desktop/mini
+   * player. */
+  scrubber: 'chapter' | 'book'
+  /** Idle-fade state, owned by the caller (PlayerPage) so the hearth
+   * background behind the card can also wake the chrome on tap. */
+  faded: boolean
+  wake: () => void
+  tick: () => void
 }) {
   const navigate = useNavigate()
   const skipFwd = useSettingsStore((s) => s.skipForward)
@@ -70,12 +79,14 @@ export function CarPlayer({
 
   const [sheet, setSheet] = useState<Sheet>(null)
 
-  // Idle-fade: a "wake" reveals chrome + resets; "tick" only resets the timer.
-  const { faded, wake, tick } = useIdleFade(true, idleMs)
   const { rect, onDragHandlePointerDown, onResizeHandlePointerDown, dragging } =
     useDraggableCard(true, wake)
 
   const bookRatio = duration > 0 ? pos / duration : 0
+  const chSpan = Math.max(1, cur.end - cur.start)
+  const chPos = Math.max(0, Math.min(chSpan, pos - cur.start))
+  const chRatio = chPos / chSpan
+  const scrubRatio = scrubber === 'chapter' ? chRatio : bookRatio
 
   const clickRatio = (e: React.MouseEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect()
@@ -159,20 +170,33 @@ export function CarPlayer({
           <div className="car-sub">{cur.title}</div>
         </div>
 
-        {/* Big scrubber over the whole book. */}
+        {/* Big scrubber - chapter or whole book, per the scrubber setting. */}
         <div
           className="scrub seekable car-scrub"
           onClick={(e) => {
             wake()
-            seekClamp(clickRatio(e) * duration)
+            seekClamp(
+              scrubber === 'chapter'
+                ? cur.start + clickRatio(e) * chSpan
+                : clickRatio(e) * duration
+            )
           }}
         >
-          <i style={{ width: bookRatio * 100 + '%' }} />
-          <b style={{ left: bookRatio * 100 + '%' }} />
+          <i style={{ width: scrubRatio * 100 + '%' }} />
+          <b style={{ left: scrubRatio * 100 + '%' }} />
         </div>
         <div className="p-times car-times">
-          <span>{formatTimestamp(pos)}</span>
-          <span>-{formatTimestamp(duration - pos)}</span>
+          {scrubber === 'chapter' ? (
+            <>
+              <span>{formatTimestamp(chPos)}</span>
+              <span>-{formatTimestamp(chSpan - chPos)}</span>
+            </>
+          ) : (
+            <>
+              <span>{formatTimestamp(pos)}</span>
+              <span>-{formatTimestamp(duration - pos)}</span>
+            </>
+          )}
         </div>
 
         {/* Core transport - always visible, even when faded. The skip controls

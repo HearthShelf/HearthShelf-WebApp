@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { PlayerProvider } from '@/player/PlayerProvider'
 import { MediaUIProvider, type MediaUI } from '@/components/shared/MediaUIContext'
 import { CarPlayer } from '@/components/player/CarPlayer'
+import { useIdleFade } from '@/hooks/useIdleFade'
 import cozyHearth from '@/assets/img/SittingInTheHearth.webp'
 
 // Minimal stub so shared components (Cover) can read the media seam. No covers,
@@ -32,6 +33,8 @@ export function CarPlayerHarness() {
   const ci = Math.min(CHAPTERS.length - 1, Math.floor(pos / 1800))
   const cur = CHAPTERS[ci]
   const seekClamp = (sec: number) => setPos(Math.max(0, Math.min(duration, sec)))
+  // Short idle timeout in the harness so the fade can be eyeballed quickly.
+  const idleFade = useIdleFade(true, 1500)
 
   return (
     <PlayerProvider>
@@ -41,6 +44,7 @@ export function CarPlayerHarness() {
         className="player-hearth-bg car-bg"
         aria-hidden="true"
         style={{ backgroundImage: `url("${cozyHearth}")` }}
+        onPointerDown={idleFade.wake}
       />
       <CarPlayer
         libraryItemId="dev-stub"
@@ -59,7 +63,10 @@ export function CarPlayerHarness() {
         prevCh={() => seekClamp(CHAPTERS[Math.max(0, ci - 1)].start)}
         nextCh={() => seekClamp(CHAPTERS[Math.min(CHAPTERS.length - 1, ci + 1)].start)}
         onExit={() => alert('exit car mode')}
-        idleMs={1500}
+        scrubber="chapter"
+        faded={idleFade.faded}
+        wake={idleFade.wake}
+        tick={idleFade.tick}
       />
     </div>
     </MediaUIProvider>
