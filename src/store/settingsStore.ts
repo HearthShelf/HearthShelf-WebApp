@@ -96,6 +96,10 @@ export interface SettingsState {
   // Car mode (in-car browser player)
   carMode: CarMode
   carPlayerRect: CarPlayerRect | null
+  // Whether the secondary chrome (background, head, secondary row, sidebar)
+  // auto-fades after carFadeSec idle. Off keeps everything always visible.
+  carFadeEnabled: boolean
+  carFadeSec: number
 
   // Reveal the Advanced panel (browser/UA diagnostics) on the Account page.
   showAdvanced: boolean
@@ -139,6 +143,8 @@ export const useSettingsStore = create<SettingsState>()(
 
       carMode: 'auto',
       carPlayerRect: null,
+      carFadeEnabled: true,
+      carFadeSec: 30,
       showAdvanced: false,
 
       queueMode: 'manual',

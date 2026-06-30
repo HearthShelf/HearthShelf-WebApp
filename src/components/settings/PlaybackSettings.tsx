@@ -132,6 +132,30 @@ export function PlaybackSettings() {
             />
           }
         />
+
+        <SetRow
+          title="Fade controls when idle"
+          desc="Dim the background and hide secondary controls after a few seconds idle - the cover, title, scrubber, and main transport always stay visible."
+          control={<Toggle on={s.carFadeEnabled} onChange={(v) => set('carFadeEnabled', v)} />}
+        />
+
+        {s.carFadeEnabled && (
+          <SetRow
+            title="Fade delay"
+            desc="How long to wait, with no taps, before fading."
+            control={null}
+            stacked
+          >
+            <Slider
+              value={s.carFadeSec}
+              min={10}
+              max={120}
+              step={5}
+              onChange={(v) => set('carFadeSec', v)}
+              formatLabel={(v) => `${v}s`}
+            />
+          </SetRow>
+        )}
       </div>
 
       <div className="nav-label" style={{ padding: '20px 4px 10px' }}>

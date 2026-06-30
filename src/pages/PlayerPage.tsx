@@ -362,10 +362,14 @@ export function PlayerPage() {
   const hearthBgPlayer = useSettingsStore((s) => s.hearthBgPlayer)
   const isMobile = useIsMobile()
   const carMode = useCarMode()
+  const carFadeEnabled = useSettingsStore((s) => s.carFadeEnabled)
+  const carFadeSec = useSettingsStore((s) => s.carFadeSec)
   const setSetting = useSettingsStore((s) => s.set)
   // Owned here (not inside CarPlayer) so the hearth background behind the
   // card can also wake the chrome on tap - both need the same fade state.
-  const carIdleFade = useIdleFade(carMode, 30_000)
+  // Settings > Playback > Car mode controls whether this fades at all and
+  // after how long; disabling it just keeps faded permanently false.
+  const carIdleFade = useIdleFade(carMode && carFadeEnabled, carFadeSec * 1000)
   // Mirror into the shared store so AppShell's sidebar fades in step with the
   // rest of the car player's chrome instead of hard-hiding/showing. Reset on
   // unmount so leaving /player always restores the sidebar immediately.
