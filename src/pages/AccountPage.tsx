@@ -25,15 +25,40 @@ type Section =
   | 'plan'
   | 'profile'
 
-const NAV: { id: Section; icon: string; label: string }[] = [
-  { id: 'servers', icon: 'dns', label: 'My servers' },
-  { id: 'playback', icon: 'graphic_eq', label: 'Playback' },
-  { id: 'reading', icon: 'menu_book', label: 'Reading' },
-  { id: 'appearance', icon: 'palette', label: 'Appearance' },
-  { id: 'connections', icon: 'hub', label: 'Connections' },
-  { id: 'account', icon: 'person', label: 'Account' },
-  { id: 'plan', icon: 'workspace_premium', label: 'Subscription' },
-  { id: 'profile', icon: 'manage_accounts', label: 'Profile & sign-in' },
+const NAV: { label: string; items: { id: Section; icon: string; label: string }[] }[] = [
+  {
+    label: 'You',
+    items: [
+      { id: 'account', icon: 'person', label: 'Account' },
+      { id: 'appearance', icon: 'palette', label: 'Appearance' },
+    ],
+  },
+  {
+    label: 'Listening',
+    items: [
+      { id: 'playback', icon: 'graphic_eq', label: 'Playback' },
+    ],
+  },
+  {
+    label: 'Reading',
+    items: [
+      { id: 'reading', icon: 'menu_book', label: 'Reading' },
+    ],
+  },
+  {
+    label: 'Library',
+    items: [
+      { id: 'connections', icon: 'hub', label: 'Connections' },
+    ],
+  },
+  {
+    label: 'HearthShelf',
+    items: [
+      { id: 'servers', icon: 'dns', label: 'My servers' },
+      { id: 'plan', icon: 'workspace_premium', label: 'Subscription' },
+      { id: 'profile', icon: 'manage_accounts', label: 'Profile & sign-in' },
+    ],
+  },
 ]
 
 /**
@@ -49,18 +74,28 @@ export function AccountPage() {
   const [section, setSection] = useState<Section>('servers')
 
   return (
-    <div className="page config-wrap fade-in">
+    <div className="page fade-in settings-shell">
+      <div className="page-head">
+        <div className="eyebrow">Make it yours</div>
+        <h1 className="title-xl">Settings</h1>
+      </div>
+
+      <div className="settings-layout">
       <nav className="config-nav">
-        <div className="cn-label">Account</div>
-        {NAV.map((n) => (
-          <button
-            key={n.id}
-            className={'cn-item' + (section === n.id ? ' on' : '')}
-            onClick={() => setSection(n.id)}
-          >
-            <Icon name={n.icon} fill={section === n.id} />
-            {n.label}
-          </button>
+        {NAV.map((group) => (
+          <div key={group.label}>
+            <div className="cn-label">{group.label}</div>
+            {group.items.map((n) => (
+              <button
+                key={n.id}
+                className={'cn-item' + (section === n.id ? ' on' : '')}
+                onClick={() => setSection(n.id)}
+              >
+                <Icon name={n.icon} fill={section === n.id} />
+                {n.label}
+              </button>
+            ))}
+          </div>
         ))}
       </nav>
       <div className="config-body">
@@ -72,6 +107,7 @@ export function AccountPage() {
         {section === 'account' && <AccountSettings />}
         {section === 'plan' && <Subscription />}
         {section === 'profile' && <Profile />}
+      </div>
       </div>
     </div>
   )
