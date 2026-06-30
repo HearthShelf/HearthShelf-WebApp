@@ -7,6 +7,8 @@ import {
   renameNarrator,
   type AbsNarratorItem,
 } from '@/api/absLibrary'
+import { getNarratorImageNames, narratorImageUrl } from '@/api/absNarratorImages'
+import { tintFor } from '@/components/shared/Cover'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useToast } from '@/hooks/useToast'
@@ -51,6 +53,16 @@ export function NarratorsPage() {
     enabled,
     staleTime: 5 * 60 * 1000,
   })
+
+  // Which narrators have a HearthShelf photo (server-wide, normalized names).
+  const { data: imageNames } = useQuery({
+    queryKey: ['narrator-images', target?.serverId],
+    queryFn: () => getNarratorImageNames(target!),
+    enabled: Boolean(target),
+    staleTime: 60 * 1000,
+  })
+  const hasNarratorImage = (n: string) =>
+    Boolean(imageNames?.has(n.trim().toLowerCase()))
 
   const byNarrator = useMemo(() => {
     const map = new Map<string, AbsNarratorItem[]>()
@@ -238,14 +250,41 @@ export function NarratorsPage() {
                         </button>
                       </td>
                       <td>
-                        <button
-                          className="tbl-link"
-                          onClick={() =>
-                            navigate(`/library?narrator=${encodeURIComponent(p.name)}`)
-                          }
-                        >
-                          {p.name}
-                        </button>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                          {target && hasNarratorImage(p.name) ? (
+                            <img
+                              src={narratorImageUrl(target, p.name)}
+                              alt=""
+                              style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flex: 'none' }}
+                            />
+                          ) : (
+                            <span
+                              aria-hidden
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: '50%',
+                                flex: 'none',
+                                display: 'grid',
+                                placeItems: 'center',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: '#fff',
+                                background: tintFor(p.name),
+                              }}
+                            >
+                              {p.name.slice(0, 1).toUpperCase()}
+                            </span>
+                          )}
+                          <button
+                            className="tbl-link"
+                            onClick={() =>
+                              navigate(`/library?narrator=${encodeURIComponent(p.name)}`)
+                            }
+                          >
+                            {p.name}
+                          </button>
+                        </span>
                       </td>
                       <td className="mono">{p.count}</td>
                       <td>
@@ -284,6 +323,10 @@ export function NarratorsPage() {
           person={editing}
           saving={busy}
           onSave={doSave}
+          hasImage={hasNarratorImage(editing.name)}
+          onChanged={() =>
+            qc.invalidateQueries({ queryKey: ['narrator-images', target?.serverId] })
+          }
           onClose={() => setEditing(null)}
         />
       )}

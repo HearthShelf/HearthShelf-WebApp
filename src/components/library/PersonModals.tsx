@@ -5,6 +5,11 @@ import { tintFor } from '@/components/shared/Cover'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { absMediaUrl } from '@/api/absClient'
 import { matchAuthor, deleteAuthor, uploadAuthorImage } from '@/api/absLibrary'
+import {
+  narratorImageUrl,
+  uploadNarratorImage,
+  deleteNarratorImage,
+} from '@/api/absNarratorImages'
 import type { Person } from '@/components/library/PersonCard'
 
 interface EditProps {
@@ -18,6 +23,9 @@ interface EditProps {
   onChanged?: () => void
   /** Remove this author/narrator (authors only have a delete record). */
   onDelete?: () => void
+  /** Narrators have no ABS record; this flags whether one has a HearthShelf photo
+   *  (from /hs/narrators) so the modal can show + offer to remove it. */
+  hasImage?: boolean
 }
 
 function initialsOf(name: string): string {
@@ -36,6 +44,7 @@ export function PersonEditModal({
   onClose,
   onChanged,
   onDelete,
+  hasImage,
 }: EditProps) {
   const [name, setName] = useState(person.name)
   const [description, setDescription] = useState('')
@@ -49,11 +58,17 @@ export function PersonEditModal({
   const [busy, setBusy] = useState<null | 'match' | 'upload' | 'delete'>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const hasPhoto = isAuthor && Boolean(person.imagePath)
-  const photoSrc =
-    target && hasPhoto
+  // Narrator photos are removable in-session, so track a local override.
+  const [narratorRemoved, setNarratorRemoved] = useState(false)
+  const narratorHasPhoto = !isAuthor && Boolean(hasImage) && !narratorRemoved
+  const authorHasPhoto = isAuthor && Boolean(person.imagePath)
+  const photoSrc = !target
+    ? null
+    : authorHasPhoto
       ? absMediaUrl(target, `/api/authors/${person.id}/image`) + `&v=${imgV}`
-      : null
+      : narratorHasPhoto
+        ? narratorImageUrl(target, person.name, imgV + 1)
+        : null
 
   const dirty =
     (name.trim() !== '' && name !== person.name) ||
@@ -89,8 +104,27 @@ export function PersonEditModal({
     if (!file || !target) return
     setBusy('upload')
     try {
-      await uploadAuthorImage(target, person.id, file)
+      if (isAuthor) {
+        await uploadAuthorImage(target, person.id, file)
+      } else {
+        // Narrators: HearthShelf-native photo store, keyed by name.
+        await uploadNarratorImage(target, person.name, file)
+        setNarratorRemoved(false)
+      }
       setImgV((v) => v + 1)
+      onChanged?.()
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  // Remove a narrator's HearthShelf photo (narrators have no record to delete).
+  const removeNarratorPhoto = async () => {
+    if (!target) return
+    setBusy('delete')
+    try {
+      await deleteNarratorImage(target, person.name)
+      setNarratorRemoved(true)
       onChanged?.()
     } finally {
       setBusy(null)
@@ -156,7 +190,7 @@ export function PersonEditModal({
         </div>
       </div>
 
-      {isAuthor && (
+      {isAuthor ? (
         <div className="pe-photo-actions" style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
           <button
             type="button"
@@ -170,6 +204,31 @@ export function PersonEditModal({
           <button type="button" className="btn-sm btn-ghost" disabled={busy !== null} onClick={pickFile}>
             <Icon name="upload" /> {busy === 'upload' ? 'Uploading…' : 'Upload photo'}
           </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={onFile}
+          />
+        </div>
+      ) : (
+        // Narrators: HearthShelf-native photo (ABS has no narrator record), keyed
+        // by name and stored on the server's HS backend.
+        <div className="pe-photo-actions" style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+          <button type="button" className="btn-sm btn-accent" disabled={busy !== null} onClick={pickFile}>
+            <Icon name="upload" /> {busy === 'upload' ? 'Uploading…' : 'Upload photo'}
+          </button>
+          {narratorHasPhoto && (
+            <button
+              type="button"
+              className="btn-sm btn-ghost danger"
+              disabled={busy !== null}
+              onClick={removeNarratorPhoto}
+            >
+              <Icon name="delete" /> {busy === 'delete' ? 'Removing…' : 'Remove photo'}
+            </button>
+          )}
           <input
             ref={fileRef}
             type="file"
