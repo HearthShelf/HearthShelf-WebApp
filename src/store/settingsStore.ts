@@ -92,6 +92,9 @@ export interface SettingsState {
   carMode: CarMode
   carPlayerRect: CarPlayerRect | null
 
+  // Reveal the Advanced panel (browser/UA diagnostics) on the Account page.
+  showAdvanced: boolean
+
   // Queue
   queueMode: QueueMode
   queueAutoRules: AutoRulePref[]
@@ -127,6 +130,7 @@ export const useSettingsStore = create<SettingsState>()(
 
       carMode: 'auto',
       carPlayerRect: null,
+      showAdvanced: false,
 
       queueMode: 'manual',
       queueAutoRules: DEFAULT_AUTO_RULE_PREFS,

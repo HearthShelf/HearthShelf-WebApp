@@ -22,6 +22,11 @@
   --sidebar-w: 76px;
 }
 
+/* Car mode owns the screen: no sidebar column, content fills edge to edge. */
+.app.car-shell {
+  grid-template-columns: 1fr;
+}
+
 /* signature cover-glow - fixed bloom behind the content column */
 .app-glow {
   position: absolute;

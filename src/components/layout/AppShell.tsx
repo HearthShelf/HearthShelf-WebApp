@@ -7,6 +7,7 @@ import { useConnectActiveServer } from '@/hooks/useConnectActiveServer'
 import { useApplySettings } from '@/hooks/useApplySettings'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useNavCollapsed } from '@/hooks/useNavCollapsed'
+import { useCarMode } from '@/hooks/useCarMode'
 
 /**
  * Persistent app frame (design: .app grid + cover-glow bloom), ported from the
@@ -25,6 +26,10 @@ export function AppShell() {
   const isMobile = useIsMobile()
   // Icon-rail toggle - only meaningful on desktop, where the sidebar is shown.
   const navCollapsed = useNavCollapsed()
+  // Car mode on the player route owns the whole screen: drop the sidebar so the
+  // big-touch player isn't sharing space with the nav rail.
+  const carMode = useCarMode()
+  const carShell = carMode && pathname === '/player'
 
   // Drive the connection to the active server for the whole shell.
   useConnectActiveServer()
@@ -36,18 +41,19 @@ export function AppShell() {
       className={
         'app' +
         (isMobile ? ' has-mobile-nav' : '') +
-        (navCollapsed && !isMobile ? ' nav-collapsed' : '')
+        (navCollapsed && !isMobile ? ' nav-collapsed' : '') +
+        (carShell ? ' car-shell' : '')
       }
     >
       <div className="app-glow" />
-      <Sidebar />
+      {!carShell && <Sidebar />}
       <div className="main">
         {!immersive && !isMobile && <AppBar />}
         <div className="content">
           <Outlet />
         </div>
       </div>
-      <MiniPlayer />
+      {!carShell && <MiniPlayer />}
       {/* MobileNav (bottom tab bar + "More" drawer) lives at the .app level, a
           sibling of the mini-player - NOT inside .main - so its drawer can layer
           ABOVE the mini-player. Nested in .main it was trapped in .main's lower
