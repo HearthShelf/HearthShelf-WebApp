@@ -5,7 +5,7 @@ import {
   type CoverStyle,
 } from '@/store/settingsStore'
 import { Icon } from '@/components/common/Icon'
-import { SetRow, Seg } from '@/components/settings/controls'
+import { SetRow, Seg, Toggle } from '@/components/settings/controls'
 
 // Appearance: theme, accent colour, and cover style. Theme is applied to the
 // document root via data-theme (see useApplySettings); accent sets the --accent
@@ -77,6 +77,12 @@ export function AppearanceSettings() {
               ]}
             />
           }
+        />
+
+        <SetRow
+          title="Card background"
+          desc="Show a subtle surface behind book cards and shelf items."
+          control={<Toggle on={s.cardBg} onChange={(v) => set('cardBg', v)} />}
         />
       </div>
     </section>

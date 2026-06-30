@@ -81,11 +81,16 @@ export interface SettingsState {
   accentMode: AccentMode
   accentHex: string
   coverStyle: CoverStyle
+  cardBg: boolean
+  useGravatar: boolean
 
   // Playback
   scrubber: ScrubberScope
+  // Preset values; 0 means "custom" (use skipForwardCustom / skipBackCustom)
   skipForward: number
+  skipForwardCustom: number
   skipBack: number
+  skipBackCustom: number
   hearthBgPlayer: boolean
 
   // Car mode (in-car browser player)
@@ -122,10 +127,14 @@ export const useSettingsStore = create<SettingsState>()(
       accentMode: 'manual',
       accentHex: EMBER,
       coverStyle: 'floating',
+      cardBg: true,
+      useGravatar: false,
 
       scrubber: 'chapter',
       skipForward: 30,
+      skipForwardCustom: 45,
       skipBack: 15,
+      skipBackCustom: 20,
       hearthBgPlayer: true,
 
       carMode: 'auto',

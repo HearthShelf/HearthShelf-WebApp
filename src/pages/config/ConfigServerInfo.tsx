@@ -6,7 +6,7 @@ import {
   adminContentKeys,
   type ABSServerSettings,
 } from '@/api/absAdmin'
-import { setServerName } from '@/api/absHosted'
+import { setServerName, getServerVersions, hostedKeys } from '@/api/absHosted'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
 import { Icon } from '@/components/common/Icon'
@@ -34,6 +34,64 @@ export function ConfigServerInfo() {
       <ServerNameSetting />
 
       <ScannerDisplaySettings />
+
+      <AdvancedServerInfo />
+    </>
+  )
+}
+
+// Version details behind a toggle: the audiobookshelf server version and the
+// HearthShelf backend version this box is running. Both reads are public.
+function AdvancedServerInfo() {
+  const { target } = useActiveServer()
+  const [open, setOpen] = useState(false)
+
+  const { data } = useQuery({
+    queryKey: hostedKeys.versions(target?.serverId ?? ''),
+    queryFn: () => getServerVersions(target!),
+    enabled: Boolean(target) && open,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  return (
+    <>
+      <div
+        className="cfg-line"
+        style={{ marginTop: 'var(--s6)', cursor: 'pointer' }}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Icon name="code" style={{ color: 'var(--text-muted)' }} />
+        <div className="cl-meta" style={{ flex: 1 }}>
+          <div className="cl-t">Advanced</div>
+          <div className="cl-d">Version details for support and troubleshooting.</div>
+        </div>
+        <Icon name={open ? 'expand_less' : 'expand_more'} style={{ color: 'var(--text-muted)' }} />
+      </div>
+
+      {open && (
+        <div className="cfg-card" style={{ marginTop: 10 }}>
+          <div className="cfg-line">
+            <Icon name="dns" style={{ color: 'var(--text-muted)' }} />
+            <div className="cl-meta" style={{ flex: 1 }}>
+              <div className="cl-t">audiobookshelf</div>
+              <div className="cl-d">The underlying media server version.</div>
+            </div>
+            <span style={{ color: 'var(--text-muted)' }}>
+              {data?.absVersion ? `v${data.absVersion}` : '-'}
+            </span>
+          </div>
+          <div className="cfg-line">
+            <Icon name="local_fire_department" style={{ color: 'var(--text-muted)' }} />
+            <div className="cl-meta" style={{ flex: 1 }}>
+              <div className="cl-t">HearthShelf</div>
+              <div className="cl-d">The HearthShelf backend running on this box.</div>
+            </div>
+            <span style={{ color: 'var(--text-muted)' }}>
+              {data?.hsVersion ? `v${data.hsVersion}` : 'Not detected'}
+            </span>
+          </div>
+        </div>
+      )}
     </>
   )
 }

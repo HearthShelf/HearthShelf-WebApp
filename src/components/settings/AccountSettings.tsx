@@ -1,12 +1,16 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useUser } from '@clerk/clerk-react'
+import { useQuery } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
+import { getMe } from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
+import { Avatar } from '@/components/common/Avatar'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { Loader2 } from 'lucide-react'
+import { Toggle } from '@/components/settings/controls'
 import { isCarBrowser } from '@/hooks/useCarMode'
 import { useSettingsStore } from '@/store/settingsStore'
 
-// Formats a Clerk createdAt date to a short "Jun 28, 2026" day label.
 function fmtDay(d: Date | null | undefined): string {
   if (!d) return '-'
   return d.toLocaleDateString(undefined, {
@@ -16,15 +20,22 @@ function fmtDay(d: Date | null | undefined): string {
   })
 }
 
-/**
- * Account: an at-a-glance HearthShelf-style account card. Clerk owns deep
- * identity (the Profile & sign-in tab has email, password, devices, connected
- * accounts), so this is the light, read-only summary - display name, email,
- * account type, member-since - read from Clerk's useUser plus the active server.
- */
 export function AccountSettings() {
   const { user, isLoaded } = useUser()
-  const { server, servers } = useActiveServer()
+  const { server, servers, target } = useActiveServer()
+  const useGravatar = useSettingsStore((s) => s.useGravatar)
+  const setSetting = useSettingsStore((s) => s.set)
+
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadErr, setUploadErr] = useState<string | null>(null)
+
+  const { data: me } = useQuery({
+    queryKey: ['me', target?.serverUrl],
+    queryFn: () => getMe(target!),
+    enabled: !!target,
+    staleTime: 60_000,
+  })
 
   if (!isLoaded) return <LoadingSpinner className="py-12" label="Loading account..." />
   if (!user) return null
@@ -33,21 +44,42 @@ export function AccountSettings() {
     user.fullName || user.username || user.primaryEmailAddress?.emailAddress || 'You'
   const email = user.primaryEmailAddress?.emailAddress ?? 'Not set'
   const memberSince = fmtDay(user.createdAt)
-  // In the hosted front door everyone is a HearthShelf account holder; the role
-  // hint comes from the active linked server when present.
   const accountType =
     server?.role === 'admin' ? 'Server admin' : 'HearthShelf account'
 
-  const rows: [string, string, string][] = [
+  const handlePhotoClick = () => {
+    setUploadErr(null)
+    fileRef.current?.click()
+  }
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setUploadErr(null)
+    try {
+      await user.setProfileImage({ file })
+    } catch {
+      setUploadErr('Photo upload failed. Try a smaller image.')
+    } finally {
+      setUploading(false)
+      // Reset so the same file can be re-selected
+      e.target.value = ''
+    }
+  }
+
+  // Permissions from the active server (update/delete/download/upload booleans)
+  const perms = me?.permissions
+    ? Object.entries(me.permissions).filter(([, v]) => v === true)
+    : []
+  const isAdmin = me?.type === 'admin' || me?.type === 'root'
+
+  const infoRows: [string, string, string][] = [
     ['person', 'Display name', displayName],
     ['email', 'Email', email],
     ['badge', 'Account type', accountType],
     ['calendar_today', 'Member since', memberSince],
-    [
-      'dns',
-      'Linked servers',
-      servers.length === 1 ? '1 server' : `${servers.length} servers`,
-    ],
+    ['dns', 'Linked servers', servers.length === 1 ? '1 server' : `${servers.length} servers`],
   ]
 
   return (
@@ -56,13 +88,59 @@ export function AccountSettings() {
         <Icon name="person" />
         <h2>Account</h2>
       </div>
-      <p className="t-muted mb-4 text-[13px]">
-        A quick look at your HearthShelf account. Manage email, password and
-        sign-in in the Profile &amp; sign-in tab.
-      </p>
 
+      {/* Profile photo */}
+      <div className="set-group" style={{ marginBottom: 'var(--s4)' }}>
+        <div className="cfg-line">
+          <Icon name="account_circle" style={{ color: 'var(--text-muted)' }} />
+          <div className="cl-meta" style={{ flex: 1 }}>
+            <div className="cl-t">Profile photo</div>
+            <div className="cl-d">Used across HearthShelf. Click to change.</div>
+          </div>
+          <button
+            className="acct-avatar-btn"
+            onClick={handlePhotoClick}
+            disabled={uploading}
+            title="Change profile photo"
+          >
+            {uploading ? (
+              <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-muted)' }} />
+            ) : (
+              <Avatar name={displayName} imageUrl={user.imageUrl} size={52} />
+            )}
+            <span className="acct-avatar-badge">
+              <Icon name="photo_camera" />
+            </span>
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handlePhotoChange}
+          />
+        </div>
+        {uploadErr && (
+          <div className="cfg-line" style={{ color: 'var(--primary)', fontSize: 13 }}>
+            <Icon name="error" style={{ color: 'var(--primary)' }} />
+            {uploadErr}
+          </div>
+        )}
+        <div className="cfg-line">
+          <Icon name="public" style={{ color: 'var(--text-muted)' }} />
+          <div className="cl-meta" style={{ flex: 1 }}>
+            <div className="cl-t">Use Gravatar</div>
+            <div className="cl-d">
+              Show your Gravatar (linked to your email) when no photo is uploaded.
+            </div>
+          </div>
+          <Toggle on={useGravatar} onChange={(v) => setSetting('useGravatar', v)} />
+        </div>
+      </div>
+
+      {/* Account info */}
       <div className="cfg-card">
-        {rows.map(([icon, label, value]) => (
+        {infoRows.map(([icon, label, value]) => (
           <div className="cfg-line" key={label}>
             <Icon name={icon} style={{ color: 'var(--text-muted)' }} />
             <div className="cl-meta" style={{ flex: 1 }}>
@@ -73,17 +151,33 @@ export function AccountSettings() {
         ))}
       </div>
 
+      {/* Server permissions (only shown when a server is linked and responding) */}
+      {me && (isAdmin || perms.length > 0) && (
+        <>
+          <div className="section-head" style={{ marginTop: 'var(--s6)' }}>
+            <Icon name="verified_user" />
+            <h2>Permissions</h2>
+          </div>
+          <div className="meta-chips">
+            {isAdmin && (
+              <span className="chip">
+                <Icon name="check" /> admin
+              </span>
+            )}
+            {perms.map(([k]) => (
+              <span className="chip" key={k}>
+                <Icon name="check" /> {k}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+
       <AdvancedPanel />
     </section>
   )
 }
 
-/**
- * Advanced: collapsed by default, behind a toggle. Surfaces the live browser
- * user-agent (the diagnostic for car-mode auto-detection) plus whether the
- * current UA matches our car-browser pattern, so a mismatch is visible and the
- * pattern can be widened.
- */
 function AdvancedPanel() {
   const showAdvanced = useSettingsStore((s) => s.showAdvanced)
   const set = useSettingsStore((s) => s.set)
@@ -98,14 +192,17 @@ function AdvancedPanel() {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
-      // Clipboard blocked (insecure context / permissions); the UA is still
-      // selectable on screen, so this is a soft failure.
+      // Clipboard blocked; UA is still selectable on screen.
     }
   }
 
   return (
     <>
-      <div className="cfg-line" style={{ marginTop: 18, cursor: 'pointer' }} onClick={() => set('showAdvanced', !showAdvanced)}>
+      <div
+        className="cfg-line"
+        style={{ marginTop: 18, cursor: 'pointer' }}
+        onClick={() => set('showAdvanced', !showAdvanced)}
+      >
         <Icon name="code" style={{ color: 'var(--text-muted)' }} />
         <div className="cl-meta" style={{ flex: 1 }}>
           <div className="cl-t">Advanced</div>
@@ -150,11 +247,7 @@ function AdvancedPanel() {
                 {ua || 'Unavailable'}
               </div>
             </div>
-            <button
-              className="btn-sm btn-ghost"
-              style={{ flex: 'none' }}
-              onClick={copyUa}
-            >
+            <button className="btn-sm btn-ghost" style={{ flex: 'none' }} onClick={copyUa}>
               <Icon name={copied ? 'check' : 'content_copy'} />
               {copied ? 'Copied' : 'Copy'}
             </button>

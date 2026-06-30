@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { useParams, useNavigate, Navigate } from 'react-router-dom'
 import { UserProfile } from '@clerk/clerk-react'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Loader2, Sparkles, Check } from 'lucide-react'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useServers } from '@/hooks/useServers'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { fetchMyPlan, ApiError, type Plan } from '@/api/controlPlane'
@@ -54,9 +56,9 @@ const NAV: { label: string; items: { id: Section; icon: string; label: string }[
   {
     label: 'HearthShelf',
     items: [
+      { id: 'profile', icon: 'manage_accounts', label: 'HearthShelf Account' },
       { id: 'servers', icon: 'dns', label: 'My servers' },
       { id: 'plan', icon: 'workspace_premium', label: 'Subscription' },
-      { id: 'profile', icon: 'manage_accounts', label: 'Profile & sign-in' },
     ],
   },
 ]
@@ -70,8 +72,53 @@ const NAV: { label: string; items: { id: Section; icon: string; label: string }[
  *  - Profile & sign-in: Clerk's own UserProfile (email, password, devices,
  *    connected accounts), skinned to the dark shell.
  */
-export function AccountPage() {
-  const [section, setSection] = useState<Section>('servers')
+const SECTIONS = NAV.flatMap((g) => g.items.map((i) => i.id))
+const DEFAULT_SECTION: Section = 'servers'
+
+// Bare /account: on desktop redirect to the default section (the two-pane view
+// always shows one); on a phone show the drill-down section list instead.
+export function AccountIndexRedirect() {
+  const isMobile = useIsMobile()
+  if (isMobile) return <AccountPage menuMode />
+  return <Navigate to={`/account/${DEFAULT_SECTION}`} replace />
+}
+
+export function AccountPage({ menuMode = false }: { menuMode?: boolean }) {
+  const { section: param } = useParams()
+  const navigate = useNavigate()
+  const isMobile = useIsMobile()
+
+  // Unknown section ids fall back to the default rather than rendering blank.
+  const section = (SECTIONS.includes(param as Section) ? param : DEFAULT_SECTION) as Section
+
+  // On a phone the layout drills down: the bare /account shows the section list
+  // (menu); picking a section shows its detail with a back button. Desktop keeps
+  // both panes side by side.
+  const mobileMenu = isMobile && menuMode
+  const wrapMode = isMobile ? (mobileMenu ? ' cfg-menu' : ' cfg-detail') : ''
+
+  const renderSection = () => {
+    switch (section) {
+      case 'servers':
+        return <MyServers />
+      case 'playback':
+        return <PlaybackSettings />
+      case 'reading':
+        return <ReadingSettings />
+      case 'appearance':
+        return <AppearanceSettings />
+      case 'connections':
+        return <ConnectionsSettings />
+      case 'account':
+        return <AccountSettings />
+      case 'plan':
+        return <Subscription />
+      case 'profile':
+        return <Profile />
+      default:
+        return <MyServers />
+    }
+  }
 
   return (
     <div className="page fade-in settings-shell">
@@ -80,34 +127,35 @@ export function AccountPage() {
         <h1 className="title-xl">Settings</h1>
       </div>
 
-      <div className="settings-layout">
-      <nav className="config-nav">
-        {NAV.map((group) => (
-          <div key={group.label}>
-            <div className="cn-label">{group.label}</div>
-            {group.items.map((n) => (
-              <button
-                key={n.id}
-                className={'cn-item' + (section === n.id ? ' on' : '')}
-                onClick={() => setSection(n.id)}
-              >
-                <Icon name={n.icon} fill={section === n.id} />
-                {n.label}
+      <div className={'config-wrap' + wrapMode}>
+        <nav className="config-nav">
+          {NAV.map((group) => (
+            <div key={group.label}>
+              <div className="cn-label">{group.label}</div>
+              {group.items.map((n) => (
+                <button
+                  key={n.id}
+                  className={'cn-item' + (section === n.id ? ' on' : '')}
+                  onClick={() => navigate(`/account/${n.id}`)}
+                >
+                  <Icon name={n.icon} fill={section === n.id} />
+                  {n.label}
+                  <Icon name="chevron_right" className="cn-chev" />
+                </button>
+              ))}
+            </div>
+          ))}
+        </nav>
+        {!mobileMenu && (
+          <div className="config-body">
+            {isMobile && (
+              <button className="cfg-back" onClick={() => navigate('/account')}>
+                <Icon name="arrow_back" /> All settings
               </button>
-            ))}
+            )}
+            {renderSection()}
           </div>
-        ))}
-      </nav>
-      <div className="config-body">
-        {section === 'servers' && <MyServers />}
-        {section === 'playback' && <PlaybackSettings />}
-        {section === 'reading' && <ReadingSettings />}
-        {section === 'appearance' && <AppearanceSettings />}
-        {section === 'connections' && <ConnectionsSettings />}
-        {section === 'account' && <AccountSettings />}
-        {section === 'plan' && <Subscription />}
-        {section === 'profile' && <Profile />}
-      </div>
+        )}
       </div>
     </div>
   )
@@ -241,8 +289,8 @@ function Profile() {
   return (
     <section>
       <div className="section-head">
-        <Icon name="person" />
-        <h2>Profile &amp; sign-in</h2>
+        <Icon name="manage_accounts" />
+        <h2>HearthShelf Account</h2>
       </div>
       {/* Clerk owns identity: email, password, security, connected accounts,
           active devices. Skinned to the dark shell via clerkAppearance. */}

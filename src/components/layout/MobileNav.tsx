@@ -6,6 +6,7 @@ import { useActiveLibrary, libraryIcon } from '@/hooks/useActiveLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { Avatar } from '@/components/common/Avatar'
 import { Icon } from '@/components/common/Icon'
+import { getMe } from '@/api/absLibrary'
 import { fetchAdminMe, ApiError } from '@/api/controlPlane'
 
 // Which primary tab (or "more") a path belongs to, so the matching bottom-bar
@@ -86,7 +87,7 @@ function MobileDrawer({
   const navigate = useNavigate()
   const { user } = useUser()
   const { signOut } = useClerk()
-  const { server } = useActiveServer()
+  const { server, target } = useActiveServer()
   const { libraries, active, select } = useActiveLibrary()
   const isPodcast = active?.mediaType === 'podcast'
 
@@ -97,6 +98,16 @@ function MobileDrawer({
       !(e instanceof ApiError && (e.status === 403 || e.status === 401)) && count < 2,
     staleTime: 5 * 60_000,
   })
+
+  // ABS *server* admin (distinct from the platform admin above). Gates the
+  // Server (/config) drawer row, mirroring the desktop sidebar.
+  const { data: absMe } = useQuery({
+    queryKey: ['abs-me', target?.serverId],
+    queryFn: () => getMe(target!),
+    enabled: Boolean(target),
+    staleTime: 5 * 60 * 1000,
+  })
+  const isServerAdmin = absMe?.type === 'admin' || absMe?.type === 'root'
 
   useEffect(() => {
     if (!open) return
@@ -133,6 +144,7 @@ function MobileDrawer({
   const account: DrawerRowDef[] = [
     { id: 'settings', icon: 'person', label: 'Account', to: '/account' },
   ]
+  if (isServerAdmin) account.push({ id: 'config', icon: 'dns', label: 'Server', to: '/config' })
   if (adminMe) account.push({ id: 'admin', icon: 'shield_person', label: 'Platform admin', to: '/admin' })
   groups.push({ sec: 'Account', rows: account })
 

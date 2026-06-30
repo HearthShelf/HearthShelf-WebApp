@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   getUsers,
+  getOnlineUserIds,
   deleteUser,
   setUserActive,
   createUser,
@@ -11,6 +12,7 @@ import {
   adminKeys,
 } from '@/api/absAdmin'
 import type { ABSAdminUser } from '@/api/absAdmin'
+import { getMe } from '@/api/absLibrary'
 import type { UserFormSubmit } from '@/components/config/UserForm'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
@@ -28,6 +30,7 @@ export function ConfigUsers() {
   const { toast, show } = useToast()
   const { target } = useActiveServer()
   const [pendingDelete, setPendingDelete] = useState<ABSAdminUser | null>(null)
+  const [pendingDisable, setPendingDisable] = useState<ABSAdminUser | null>(null)
   const [adding, setAdding] = useState(false)
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -35,6 +38,25 @@ export function ConfigUsers() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: adminKeys.users(target?.serverId ?? ''),
     queryFn: () => getUsers(target!),
+    enabled: Boolean(target),
+    staleTime: 60 * 1000,
+  })
+
+  // Live presence (open socket) - the real "online now" signal. isActive on the
+  // user record is the account-enabled flag, not presence, so the Status column
+  // reads online state from here. Refreshes on a short interval.
+  const { data: onlineIds } = useQuery({
+    queryKey: adminKeys.usersOnline(target?.serverId ?? ''),
+    queryFn: () => getOnlineUserIds(target!),
+    enabled: Boolean(target),
+    refetchInterval: 30 * 1000,
+  })
+
+  // The signed-in admin, so we can stop them disabling or deleting their own
+  // account (which would lock them out with no in-app way back).
+  const { data: me } = useQuery({
+    queryKey: ['me', target?.serverId ?? ''],
+    queryFn: () => getMe(target!),
     enabled: Boolean(target),
     staleTime: 60 * 1000,
   })
@@ -61,13 +83,30 @@ export function ConfigUsers() {
 
   if (!target) return <LoadingSpinner className="py-12" label="Connecting..." />
 
-  const toggleActive = async (u: ABSAdminUser) => {
-    await setUserActive(target, u.id, !u.isActive)
+  const isSelf = (u: ABSAdminUser) => me?.id === u.id
+
+  // Enabling is harmless and immediate. Disabling is gated: never your own
+  // account, and always behind a confirm so it can't happen on a stray click.
+  const onToggleActive = (u: ABSAdminUser) => {
+    if (isSelf(u)) {
+      show("You can't disable your own account.")
+      return
+    }
+    if (u.isActive) {
+      setPendingDisable(u)
+    } else {
+      void setActive(u, true)
+    }
+  }
+  const setActive = async (u: ABSAdminUser, isActive: boolean) => {
+    await setUserActive(target, u.id, isActive)
     qc.invalidateQueries({ queryKey: adminKeys.users(target.serverId) })
+    show(isActive ? `Enabled ${u.username}` : `Disabled ${u.username}`)
   }
   const doDelete = async (u: ABSAdminUser) => {
     await deleteUser(target, u.id)
     qc.invalidateQueries({ queryKey: adminKeys.users(target.serverId) })
+    show(`Deleted ${u.username}`)
   }
 
   const create = async (values: UserFormSubmit) => {
@@ -146,12 +185,19 @@ export function ConfigUsers() {
                     {u.lastSeen ? fmtSessDate(u.lastSeen).day : 'never'}
                   </td>
                   <td>
-                    {u.isActive ? (
+                    {!u.isActive ? (
+                      <span style={{ color: 'var(--primary)' }}>
+                        <Icon name="block" style={{ fontSize: 15, verticalAlign: '-3px' }} />{' '}
+                        Disabled
+                      </span>
+                    ) : onlineIds?.has(u.id) ? (
                       <span style={{ color: '#a7c896' }}>
-                        <span className="online-dot" /> Active
+                        <span className="online-dot" /> Online
                       </span>
                     ) : (
-                      <span style={{ color: 'var(--text-faint)' }}>Disabled</span>
+                      <span style={{ color: 'var(--text-muted)' }}>
+                        <span className="online-dot off" /> Offline
+                      </span>
                     )}
                   </td>
                   <td>
@@ -163,14 +209,16 @@ export function ConfigUsers() {
                       >
                         <Icon name="edit" />
                       </button>
-                      <button
-                        className="tbl-icon"
-                        title={u.isActive ? 'Disable' : 'Enable'}
-                        onClick={() => void toggleActive(u)}
-                      >
-                        <Icon name={u.isActive ? 'block' : 'check_circle'} />
-                      </button>
-                      {u.type !== 'root' && (
+                      {!isSelf(u) && (
+                        <button
+                          className="tbl-icon"
+                          title={u.isActive ? 'Disable' : 'Enable'}
+                          onClick={() => onToggleActive(u)}
+                        >
+                          <Icon name={u.isActive ? 'block' : 'check_circle'} />
+                        </button>
+                      )}
+                      {u.type !== 'root' && !isSelf(u) && (
                         <button
                           className="tbl-icon"
                           title="Delete user"
@@ -198,6 +246,17 @@ export function ConfigUsers() {
             setAdding(false)
             setFormError(null)
           }}
+        />
+      )}
+
+      {pendingDisable && (
+        <ConfirmDialog
+          title="Disable user"
+          message={`Disable "${pendingDisable.username}"? They won't be able to sign in until you enable the account again.`}
+          confirmLabel="Disable user"
+          danger
+          onConfirm={() => void setActive(pendingDisable, false)}
+          onClose={() => setPendingDisable(null)}
         />
       )}
 

@@ -1543,12 +1543,13 @@
 .merge-avatar { width: 38px; height: 38px; border-radius: 50%; flex: none; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: #fff; background: linear-gradient(150deg, color-mix(in oklab, var(--cv) 80%, #fff 8%), color-mix(in oklab, var(--cv) 60%, #000 10%)); }
 .merge-preview { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px; padding: 10px 12px; border-radius: var(--r-row); background: var(--fill); font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
 
-/* ---- settings: two-column nav + content (reuses .config-nav / .cn-item) ---- */
-.settings-layout { display: flex; gap: var(--s8); align-items: flex-start; }
-.settings-layout .config-nav { display: flex; flex-direction: column; gap: 2px; }
+/* ---- settings: reuses .config-wrap drill-down (nav + content / mobile menu). ---
+   The .page wrapper already centers and pads, so strip config-wrap's own outer
+   box here; only the flex layout (and the global cfg-menu/cfg-detail mobile
+   behavior) is wanted. */
+.settings-shell .config-wrap { max-width: none; margin: 0; padding: 0; }
 @media (max-width: 760px) {
-  .settings-layout { flex-direction: column; gap: var(--s5); }
-  .settings-layout .config-nav { width: 100%; position: static; flex-direction: row; flex-wrap: wrap; }
+  .settings-shell .config-wrap { padding: 0; }
 }
 
 /* ---- live search dropdown ---- */
@@ -2295,6 +2296,21 @@
 .set-row-stack { flex-direction: column; align-items: stretch; gap: var(--s4); }
 .set-row-stack .sr-meta { flex: none; }
 
+/* Settings slider */
+.set-slider-wrap { display: flex; align-items: center; gap: 10px; }
+.set-slider { -webkit-appearance: none; appearance: none; flex: 1; height: 6px; border-radius: 99px; background: linear-gradient(90deg, var(--accent) var(--fill, 0%), var(--fill-strong) var(--fill, 0%)); outline: none; cursor: pointer; }
+.set-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--c-highest); border: 2.5px solid var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,0.35); cursor: grab; }
+.set-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--c-highest); border: 2.5px solid var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,0.35); cursor: grab; }
+.set-slider-val { font-size: 13px; font-weight: 600; color: var(--text-muted); min-width: 32px; text-align: right; }
+
+/* Custom number input for skip seconds */
+.set-skip-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.set-num-wrap { display: flex; align-items: center; gap: 4px; }
+.set-num { width: 56px; background: var(--fill); border: 1px solid var(--hairline); border-radius: var(--r-pill); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; padding: 6px 10px; text-align: center; outline: none; }
+.set-num:focus { border-color: var(--accent); }
+.set-num::-webkit-inner-spin-button, .set-num::-webkit-outer-spin-button { -webkit-appearance: none; }
+.set-num-suffix { font-size: 13px; color: var(--text-muted); }
+
 .rule-list { display: flex; flex-direction: column; gap: 6px; }
 .rule-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--fill); border: 1px solid var(--hairline); border-radius: 12px; cursor: grab; }
 .rule-row.dragging { opacity: 0.5; }
@@ -2874,6 +2890,12 @@
 .cfg-line .cl-t { font-size: 14px; font-weight: 500; }
 
 .cfg-line .cl-d { font-size: 12.5px; color: var(--text-muted); margin-top: 3px; line-height: 1.5; }
+
+/* Profile photo upload button */
+.acct-avatar-btn { position: relative; background: none; border: none; padding: 0; cursor: pointer; border-radius: 50%; flex: none; }
+.acct-avatar-btn:disabled { opacity: 0.6; cursor: default; }
+.acct-avatar-badge { position: absolute; bottom: 0; right: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; pointer-events: none; }
+.acct-avatar-badge .ms { font-size: 12px; }
 
 .field { display: flex; flex-direction: column; gap: 7px; margin-bottom: var(--s4); }
 

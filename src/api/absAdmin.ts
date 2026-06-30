@@ -48,6 +48,7 @@ export type ABSAdminLibrary = ABSLibrary
 // re-fetches against the new target).
 export const adminKeys = {
   users: (serverId: string) => ['admin', serverId, 'users'] as const,
+  usersOnline: (serverId: string) => ['admin', serverId, 'users-online'] as const,
   libraries: (serverId: string) => ['admin', serverId, 'libraries'] as const,
   tagNames: (serverId: string) => ['admin', serverId, 'tag-names'] as const,
   searchProviders: (serverId: string) => ['admin', serverId, 'search-providers'] as const,
@@ -70,6 +71,14 @@ export interface UserFormValues {
 
 export function getUsers(t: AbsTarget): Promise<ABSUsersResponse> {
   return absGet<ABSUsersResponse>(t, '/api/users')
+}
+
+// The ids of users currently connected (open socket). ABS returns the live
+// `usersOnline` array here; `isActive` on the user list is the account-enabled
+// flag, NOT presence - so the Users table reads online state from this instead.
+export async function getOnlineUserIds(t: AbsTarget): Promise<Set<string>> {
+  const res = await absGet<{ usersOnline?: { id: string }[] }>(t, '/api/users/online')
+  return new Set((res.usersOnline ?? []).map((u) => u.id))
 }
 
 // Create an ABS user. ABS echoes back the created user on `user`. type defaults

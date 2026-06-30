@@ -13,6 +13,7 @@
  * surface errors rather than break the page.
  */
 import { getAbsToken } from '@/lib/absTokens'
+import { mintGrant } from '@/api/controlPlane'
 import type { AbsTarget } from './absLibrary'
 
 export type HSMode = 'slim' | 'aio' | 'hosted'
@@ -66,6 +67,36 @@ export const hostedKeys = {
   status: (serverId: string) => ['hosted', 'status', serverId] as const,
   hsdirect: (serverId: string) => ['hosted', 'hsdirect', serverId] as const,
   emailRelay: (serverId: string) => ['hosted', 'email-relay', serverId] as const,
+  versions: (serverId: string) => ['hosted', 'versions', serverId] as const,
+}
+
+// --- Versions (ABS + HearthShelf backend) ------------------------------------
+//
+// Both reads are public (no auth): ABS reports its version on /status, and the
+// HearthShelf backend echoes its own version on /hs/runtime. Either may be
+// absent (older box, or a slim ABS with no HS backend), so both are nullable.
+
+export interface ServerVersions {
+  /** audiobookshelf server version, e.g. "2.35.1". */
+  absVersion: string | null
+  /** HearthShelf backend version, e.g. "0.1.0". null if no HS backend. */
+  hsVersion: string | null
+}
+
+export async function getServerVersions(t: AbsTarget): Promise<ServerVersions> {
+  const base = origin(t)
+  const [abs, hs] = await Promise.all([
+    fetch(`${base}/status`)
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null),
+    fetch(`${base}/hs/runtime`)
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null),
+  ])
+  return {
+    absVersion: (abs as { serverVersion?: string } | null)?.serverVersion ?? null,
+    hsVersion: (hs as { hsVersion?: string } | null)?.hsVersion ?? null,
+  }
 }
 
 // --- Runtime: server name ----------------------------------------------------
