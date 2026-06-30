@@ -7,6 +7,7 @@ import {
   deleteApiKey,
   getServiceAccountIds,
   tagServiceAccount,
+  serviceAccountKeys,
   adminSectionKeys,
   adminKeys,
   type ABSApiKey,
@@ -42,9 +43,6 @@ export function ConfigApiKeys() {
   const [pendingRevoke, setPendingRevoke] = useState<ABSApiKey | null>(null)
   // When set, the new key's owner gets tagged as a service account after create.
   const [asServiceAccount, setAsServiceAccount] = useState(false)
-  // Bumped after tagging so the local (localStorage-backed) service-account set
-  // is re-read - it has no query to invalidate.
-  const [tagBump, setTagBump] = useState(0)
   // Keys owned by tagged service accounts are hidden by default - they're
   // managed on the Service Accounts page and would just clutter this list.
   const [showServiceKeys, setShowServiceKeys] = useState(false)
@@ -79,12 +77,17 @@ export function ConfigApiKeys() {
   )
   const userById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users])
 
-  // Service accounts are tagged locally per server (no Node backend on the
-  // WebApp data path); their keys are grouped on the Service Accounts page.
+  // Tagged service accounts come from the connected server's HearthShelf backend
+  // (/hs/service-accounts); their keys are grouped on the Service Accounts page.
+  const { data: trackedData } = useQuery({
+    queryKey: serviceAccountKeys.ids(target?.serverId ?? ''),
+    queryFn: () => getServiceAccountIds(target!),
+    enabled: Boolean(target),
+    staleTime: 60 * 1000,
+  })
   const serviceUserIds = useMemo(
-    () => new Set(target ? getServiceAccountIds(target) : []),
-    // tagBump forces a re-read after we tag a new owner (no query to invalidate).
-    [target, tagBump]
+    () => new Set(trackedData?.ids ?? []),
+    [trackedData]
   )
 
   const isServiceKey = (k: ABSApiKey): boolean => serviceUserIds.has(k.userId)
@@ -118,11 +121,11 @@ export function ConfigApiKeys() {
         EXPIRY_OPTIONS[expiryIdx]?.seconds
       )
       // Optionally group the owner under Service Accounts. ABS has no machine-user
-      // flag, so "service account" is just our local per-server tag; applying it
-      // here mirrors creating the key as a service account.
+      // flag, so "service account" is just our tag; applying it here mirrors
+      // creating the key as a service account.
       if (asServiceAccount && !serviceUserIds.has(userId)) {
-        tagServiceAccount(target, userId)
-        setTagBump((n) => n + 1)
+        await tagServiceAccount(target, userId)
+        qc.invalidateQueries({ queryKey: serviceAccountKeys.ids(target.serverId) })
       }
       setCreatedToken(res.apiKey.apiKey ?? null)
       setCreating(false)

@@ -1,26 +1,279 @@
+import { useState, useEffect, useRef } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Icon } from '@/components/common/Icon'
+import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { useToast } from '@/hooks/useToast'
+import { useActiveServer } from '@/hooks/useActiveServer'
+import {
+  getQgAdminConfig,
+  saveQgAdminConfig,
+  type QgAdminConfig,
+  type QgAdminConfigPatch,
+} from '@/api/absQuestGiver'
 
-// QuestGiver's AI settings (provider, model, API key, rate limits) are stored in
-// the self-hosted HearthShelf backend on the server itself, not in ABS. The
-// hosted app talks straight to ABS and has no path to that config, so this is an
-// informative panel rather than the editable form.
+const PROVIDER_LABELS: Record<string, string> = {
+  openai: 'OpenAI (or compatible)',
+  anthropic: 'Anthropic Claude',
+  gemini: 'Google Gemini',
+}
+
+// Inline marker shown next to a field whose value is pinned by an environment
+// variable (the env value overrides the database, so the field is read-only).
+function EnvLockTag() {
+  return (
+    <span
+      title="This value is set by an environment variable and overrides the database. Remove the env var to edit it here."
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        fontSize: 11.5,
+        fontWeight: 600,
+        color: 'var(--text-muted)',
+        marginLeft: 8,
+      }}
+    >
+      <Icon name="lock" style={{ fontSize: 14 }} /> Set by environment
+    </span>
+  )
+}
+
+// QuestGiver's AI settings are stored in the HearthShelf database and edited
+// here. Any field whose QG_* / DISCOVER_ENABLED environment variable is set
+// overrides the database and shows as read-only ("Set by environment"). The API
+// key is held server-side and never sent back to the browser - leave it blank to
+// keep the current one.
 export function ConfigQuestGiver() {
+  const qc = useQueryClient()
+  const { toast, show } = useToast()
+  const { target } = useActiveServer()
+  const { data, isLoading } = useQuery({
+    queryKey: ['qg-admin-config', target?.serverId],
+    queryFn: () => getQgAdminConfig(target!),
+    enabled: Boolean(target),
+    staleTime: 30 * 1000,
+  })
+
+  const [form, setForm] = useState<QgAdminConfigPatch>({})
+  const [keyInput, setKeyInput] = useState('')
+
+  // Hydrate the editable form when a *new* server config arrives (e.g. first
+  // load or after an external refetch). Guarded by updated identity so typing in
+  // the form - which doesn't change `data` - never clobbers user edits.
+  const hydratedFrom = useRef<QgAdminConfig | null>(null)
+  useEffect(() => {
+    if (data && hydratedFrom.current !== data) {
+      hydratedFrom.current = data
+      setForm({
+        provider: data.provider ?? '',
+        model: data.model ?? '',
+        baseUrl: data.baseUrl ?? '',
+        limit: data.limit ?? 'off',
+        enabled: data.enabled,
+        discoverEnabled: data.discoverEnabled,
+      })
+      setKeyInput('')
+    }
+  }, [data])
+
+  const save = useMutation({
+    mutationFn: (patch: QgAdminConfigPatch) => saveQgAdminConfig(target!, patch),
+    onSuccess: (next: QgAdminConfig) => {
+      qc.setQueryData(['qg-admin-config', target!.serverId], next)
+      qc.invalidateQueries({ queryKey: ['qg-config'] }) // live status pill
+      show('QuestGiver settings saved')
+      setKeyInput('')
+    },
+    onError: () => show('Could not save - admin permission required'),
+  })
+
+  const set = <K extends keyof QgAdminConfigPatch>(
+    key: K,
+    value: QgAdminConfigPatch[K]
+  ) => setForm((f) => ({ ...f, [key]: value }))
+
+  const onSave = () => {
+    const patch: QgAdminConfigPatch = { ...form }
+    if (keyInput.trim()) patch.apiKey = keyInput.trim()
+    save.mutate(patch)
+  }
+
+  if (!target || isLoading || !data) {
+    return (
+      <>
+        <div className="page-head">
+          <div className="eyebrow">Admin</div>
+          <h1 className="title-xl">QuestGiver</h1>
+        </div>
+        <LoadingSpinner className="py-12" label="Loading..." />
+      </>
+    )
+  }
+
   return (
     <>
       <div className="page-head">
         <div className="eyebrow">Admin</div>
         <h1 className="title-xl">QuestGiver</h1>
-        <p className="page-sub">The next-listen matchmaker.</p>
-      </div>
-
-      <div className="empty-state">
-        <Icon name="explore" />
-        <h3>Configured on the server</h3>
-        <p>
-          QuestGiver's AI provider, model, and limits are managed on the server
-          itself. Sign in on the server to change them.
+        <p className="page-sub">
+          The next-listen matchmaker. Settings are stored in HearthShelf; any
+          field set by an environment variable overrides what you save here.
         </p>
       </div>
+
+      <div className="section-head">
+        <Icon name="toggle_on" />
+        <h2>Feature</h2>
+      </div>
+      <div className="cfg-card">
+        <div className="set-row">
+          <div className="sr-meta">
+            <div className="sr-t">
+              QuestGiver enabled
+              {data.env.enabled && <EnvLockTag />}
+            </div>
+            <div className="sr-d">
+              Turn the AI recommender on or off. The built-in heuristic still
+              works when no AI provider is set.
+            </div>
+          </div>
+          <div
+            className={'toggle' + ((data.env.enabled ? data.enabled : form.enabled) ? ' on' : '')}
+            role="switch"
+            aria-checked={data.env.enabled ? data.enabled : !!form.enabled}
+            aria-disabled={data.env.enabled}
+            style={data.env.enabled ? { opacity: 0.6, pointerEvents: 'none' } : undefined}
+            onClick={() => !data.env.enabled && set('enabled', !form.enabled)}
+          >
+            <i />
+          </div>
+        </div>
+        <div className="set-row" style={{ marginTop: 'var(--s4)' }}>
+          <div className="sr-meta">
+            <div className="sr-t">
+              Discover shelves
+              {data.env.discoverEnabled && <EnvLockTag />}
+            </div>
+            <div className="sr-d">
+              Show the ambient Discover page and its history-driven shelves, plus
+              the QuestGiver prompt in the sidebar and on Discover.
+            </div>
+          </div>
+          <div
+            className={
+              'toggle' +
+              ((data.env.discoverEnabled ? data.discoverEnabled : form.discoverEnabled) ? ' on' : '')
+            }
+            role="switch"
+            aria-checked={data.env.discoverEnabled ? data.discoverEnabled : !!form.discoverEnabled}
+            aria-disabled={data.env.discoverEnabled}
+            style={data.env.discoverEnabled ? { opacity: 0.6, pointerEvents: 'none' } : undefined}
+            onClick={() => !data.env.discoverEnabled && set('discoverEnabled', !form.discoverEnabled)}
+          >
+            <i />
+          </div>
+        </div>
+      </div>
+
+      <div className="section-head" style={{ marginTop: 'var(--s6)' }}>
+        <Icon name="smart_toy" />
+        <h2>AI provider</h2>
+      </div>
+      <div className="cfg-card">
+        <div className="field full">
+          <label>Provider{data.env.provider && <EnvLockTag />}</label>
+          <select
+            className="fld"
+            value={data.env.provider ? (data.provider ?? '') : (form.provider ?? '')}
+            disabled={data.env.provider}
+            onChange={(e) => set('provider', e.target.value)}
+          >
+            <option value="">None (use heuristic)</option>
+            {data.validProviders.map((p) => (
+              <option key={p} value={p}>
+                {PROVIDER_LABELS[p] ?? p}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field full">
+          <label>Model{data.env.model && <EnvLockTag />}</label>
+          <input
+            className="fld"
+            placeholder="e.g. claude-sonnet-4-6"
+            value={data.env.model ? (data.model ?? '') : (form.model ?? '')}
+            disabled={data.env.model}
+            onChange={(e) => set('model', e.target.value)}
+          />
+        </div>
+        <div className="field full">
+          <label>API key{data.env.apiKey && <EnvLockTag />}</label>
+          <input
+            className="fld"
+            type="password"
+            autoComplete="off"
+            placeholder={
+              data.env.apiKey
+                ? '•••••••• (from environment)'
+                : data.hasKey
+                  ? '•••••••• (leave blank to keep)'
+                  : 'Paste API key'
+            }
+            value={keyInput}
+            disabled={data.env.apiKey}
+            onChange={(e) => setKeyInput(e.target.value)}
+          />
+        </div>
+        <div className="field full">
+          <label>Base URL (optional){data.env.baseUrl && <EnvLockTag />}</label>
+          <input
+            className="fld"
+            placeholder="For OpenAI-compatible endpoints (OpenRouter, Ollama, …)"
+            value={data.env.baseUrl ? (data.baseUrl ?? '') : (form.baseUrl ?? '')}
+            disabled={data.env.baseUrl}
+            onChange={(e) => set('baseUrl', e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="section-head" style={{ marginTop: 'var(--s6)' }}>
+        <Icon name="speed" />
+        <h2>Rate limit</h2>
+      </div>
+      <div className="cfg-card">
+        <div className="field full">
+          <label>Per-user cap{data.env.limit && <EnvLockTag />}</label>
+          <input
+            className="fld"
+            placeholder="off, or N/day · N/week · N/month"
+            value={data.env.limit ? data.limit : (form.limit ?? 'off')}
+            disabled={data.env.limit}
+            onChange={(e) => set('limit', e.target.value)}
+          />
+          <p className="sr-d" style={{ marginTop: 6 }}>
+            Examples: <code>off</code>, <code>5/day</code>, <code>20/week</code>,{' '}
+            <code>50/month</code>.
+          </p>
+        </div>
+      </div>
+
+      {!Object.values(data.env).every(Boolean) && (
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 'var(--s5)' }}>
+          <button
+            className="btn btn-primary"
+            disabled={save.isPending}
+            onClick={onSave}
+          >
+            <Icon name="save" /> {save.isPending ? 'Saving…' : 'Save settings'}
+          </button>
+        </div>
+      )}
+
+      {toast && (
+        <div className="p-toast">
+          <Icon name="check_circle" fill /> {toast}
+        </div>
+      )}
     </>
   )
 }

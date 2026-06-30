@@ -448,45 +448,52 @@ export async function deleteApiKey(t: AbsTarget, keyId: string): Promise<void> {
 // --- Service accounts (machine logins) --------------------------------------
 //
 // Service accounts ARE regular ABS admin users; "service account" is just a
-// local grouping the admin applies. The self-hosted app persists the tagged ids
-// in its Node backend, but the WebApp talks straight to ABS with no such store,
-// so we keep the tag set in localStorage keyed per server. Tokens for an account
-// are minted via the API-key endpoints above (filtered by userId).
+// grouping HearthShelf applies. The accounts and their API keys live entirely in
+// ABS - this only persists which ABS user ids the admin has tagged. That tagged
+// set is owned by the connected server's own HearthShelf backend at
+// /hs/service-accounts (mounted alongside /hs/hosted/* which the connect flow
+// already uses), so the framing survives restarts and follows the instance
+// across devices - unlike a per-browser store. Reached cross-origin with the
+// per-server ABS bearer, the same way absQuestGiver hits /hs/questgiver/*.
 
-const SVC_TAG_PREFIX = 'hs:service-accounts:'
-
-function svcTagKey(serverId: string): string {
-  return SVC_TAG_PREFIX + serverId
+// Query key for the tagged-id read (scoped per server so a switch re-fetches).
+export const serviceAccountKeys = {
+  ids: (serverId: string) => ['service-accounts', serverId, 'ids'] as const,
 }
 
-export function getServiceAccountIds(t: AbsTarget): string[] {
-  try {
-    const raw = localStorage.getItem(svcTagKey(t.serverId))
-    const parsed = raw ? (JSON.parse(raw) as unknown) : []
-    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : []
-  } catch {
-    return []
-  }
+async function svcFetch<T>(t: AbsTarget, path: string, options: RequestInit = {}): Promise<T> {
+  const token = getAbsToken(t.serverId)
+  if (!token) throw new AbsError(401, 'not_connected')
+  const origin = t.serverUrl.replace(/\/$/, '')
+  const res = await fetch(`${origin}/hs/service-accounts${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    },
+  })
+  if (!res.ok) throw new AbsError(res.status, `service-accounts ${res.status}`)
+  return res.json() as Promise<T>
 }
 
-function setServiceAccountIds(t: AbsTarget, ids: string[]): void {
-  try {
-    localStorage.setItem(svcTagKey(t.serverId), JSON.stringify([...new Set(ids)]))
-  } catch {
-    // localStorage unavailable (private mode); the grouping just won't persist.
-  }
+// The ABS user ids HearthShelf has tagged as service accounts.
+export function getServiceAccountIds(t: AbsTarget): Promise<{ ids: string[] }> {
+  return svcFetch<{ ids: string[] }>(t, '')
 }
 
-export function tagServiceAccount(t: AbsTarget, userId: string): string[] {
-  const next = [...getServiceAccountIds(t), userId]
-  setServiceAccountIds(t, next)
-  return [...new Set(next)]
+export function tagServiceAccount(t: AbsTarget, userId: string): Promise<{ ids: string[] }> {
+  return svcFetch<{ ids: string[] }>(t, '', {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  })
 }
 
-export function untagServiceAccount(t: AbsTarget, userId: string): string[] {
-  const next = getServiceAccountIds(t).filter((id) => id !== userId)
-  setServiceAccountIds(t, next)
-  return next
+export function untagServiceAccount(t: AbsTarget, userId: string): Promise<{ ids: string[] }> {
+  return svcFetch<{ ids: string[] }>(t, `/${encodeURIComponent(userId)}`, {
+    method: 'DELETE',
+  })
 }
 
 // ===========================================================================

@@ -11,6 +11,7 @@ import {
   getServiceAccountIds,
   tagServiceAccount,
   untagServiceAccount,
+  serviceAccountKeys,
   adminKeys,
   adminSectionKeys,
   type ABSAdminUser,
@@ -316,8 +317,6 @@ export function ConfigServiceAccounts() {
   const [editBusy, setEditBusy] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<ABSAdminUser | null>(null)
-  // Bump to re-read the localStorage tag set after tag/untag.
-  const [tagVersion, setTagVersion] = useState(0)
 
   const { data: me } = useQuery({
     queryKey: ['abs-me', target?.serverId],
@@ -339,13 +338,19 @@ export function ConfigServiceAccounts() {
     staleTime: 60 * 1000,
   })
 
+  const { data: trackedData } = useQuery({
+    queryKey: serviceAccountKeys.ids(target?.serverId ?? ''),
+    queryFn: () => getServiceAccountIds(target!),
+    enabled: Boolean(target),
+    staleTime: 60 * 1000,
+  })
   const trackedIds = useMemo(
-    () => new Set(target ? getServiceAccountIds(target) : []),
-    [target, tagVersion]
+    () => new Set(trackedData?.ids ?? []),
+    [trackedData]
   )
 
   // A service account is any account an admin tagged here. They are regular ABS
-  // admin users; the tag is a local grouping persisted per server.
+  // admin users; the tag is a grouping persisted on the server per instance.
   const accounts = useMemo(() => {
     const users = usersData?.users ?? []
     return users.filter((u) => trackedIds.has(u.id))
@@ -365,20 +370,20 @@ export function ConfigServiceAccounts() {
         email: form.email.trim() || null,
         type: 'admin',
       })
-      tagServiceAccount(target, res.user.id)
-      setTagVersion((v) => v + 1)
+      await tagServiceAccount(target, res.user.id)
       setCreatedCreds({ username, password })
       setForm({ username: '', password: '', email: '' })
       setAdding(false)
       qc.invalidateQueries({ queryKey: adminKeys.users(target.serverId) })
+      qc.invalidateQueries({ queryKey: serviceAccountKeys.ids(target.serverId) })
     } catch (e) {
       setAddError(e instanceof AbsError ? e.message : 'Could not create account')
     }
   }
 
-  const untag = (u: ABSAdminUser) => {
-    untagServiceAccount(target, u.id)
-    setTagVersion((v) => v + 1)
+  const untag = async (u: ABSAdminUser) => {
+    await untagServiceAccount(target, u.id)
+    qc.invalidateQueries({ queryKey: serviceAccountKeys.ids(target.serverId) })
   }
 
   const saveEdit = async (values: UserFormSubmit) => {
@@ -397,12 +402,12 @@ export function ConfigServiceAccounts() {
   }
 
   // Permanently delete the underlying ABS account (and its tokens), then drop the
-  // local tag. ABS forbids deleting root, so the root account never offers it.
+  // tag. ABS forbids deleting root, so the root account never offers it.
   const doDelete = async (u: ABSAdminUser) => {
     await deleteUser(target, u.id)
-    untagServiceAccount(target, u.id)
-    setTagVersion((v) => v + 1)
+    await untagServiceAccount(target, u.id)
     qc.invalidateQueries({ queryKey: adminKeys.users(target.serverId) })
+    qc.invalidateQueries({ queryKey: serviceAccountKeys.ids(target.serverId) })
   }
 
   return (
@@ -682,7 +687,7 @@ export function ConfigServiceAccounts() {
           message={`Move "${pendingUntag.username}" back to the Users list? The account and its tokens are not deleted - it just stops being grouped here.`}
           confirmLabel="Remove"
           onConfirm={() => {
-            untag(pendingUntag)
+            void untag(pendingUntag)
             setPendingUntag(null)
           }}
           onClose={() => setPendingUntag(null)}

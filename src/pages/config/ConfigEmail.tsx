@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import {
   getEmailSettings,
   updateEmailSettings,
@@ -10,9 +10,86 @@ import {
   type ABSEmailSettings,
   type ABSEreaderDevice,
 } from '@/api/absAdmin'
+import {
+  getEmailRelayStatus,
+  enableEmailRelay,
+  hostedKeys,
+} from '@/api/absHosted'
 import { useActiveServer } from '@/hooks/useActiveServer'
+import { useToast } from '@/hooks/useToast'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+
+// "Use HearthShelf email" - the 1-click relay. Only shown on a paired box that
+// can offer it (available) or already has it on (active). When active, SMTP setup
+// below is unnecessary. Enabling points ABS's SMTP at the loopback relay.
+function EmailRelayCard() {
+  const qc = useQueryClient()
+  const { toast, show } = useToast()
+  const { target } = useActiveServer()
+  const { data: relay } = useQuery({
+    queryKey: hostedKeys.emailRelay(target?.serverId ?? ''),
+    queryFn: () => getEmailRelayStatus(target!),
+    enabled: Boolean(target),
+    staleTime: 30 * 1000,
+    retry: false,
+  })
+
+  const enable = useMutation({
+    mutationFn: () => enableEmailRelay(target!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: hostedKeys.emailRelay(target!.serverId) })
+      qc.invalidateQueries({ queryKey: adminContentKeys.email(target!.serverId) })
+      show('Now sending through HearthShelf')
+    },
+    onError: () => show('Could not turn on HearthShelf email'),
+  })
+
+  // Only relevant on a paired box that offers the relay or already uses it.
+  if (!relay || !relay.paired || (!relay.available && !relay.active)) return null
+
+  return (
+    <>
+      <div className="section-head">
+        <Icon name="mark_email_read" />
+        <h2>Use HearthShelf email</h2>
+        {relay.active && (
+          <span style={{ marginLeft: 'auto' }}>
+            <span className="badge-pill" style={{ color: '#7fbd6f' }}>
+              Connected
+            </span>
+          </span>
+        )}
+      </div>
+      <div className="cfg-card">
+        <div className="set-row">
+          <div className="sr-meta">
+            <div className="sr-t">Send through HearthShelf</div>
+            <div className="sr-d">
+              {relay.active
+                ? 'Sending through HearthShelf - no SMTP setup needed below.'
+                : 'Send ebooks and invites through HearthShelf without setting up your own SMTP server.'}
+            </div>
+          </div>
+          {!relay.active && (
+            <button
+              className="btn btn-primary"
+              disabled={enable.isPending}
+              onClick={() => enable.mutate()}
+            >
+              <Icon name="bolt" /> {enable.isPending ? 'Turning on…' : 'Turn on'}
+            </button>
+          )}
+        </div>
+      </div>
+      {toast && (
+        <div className="p-toast">
+          <Icon name="check_circle" fill /> {toast}
+        </div>
+      )}
+    </>
+  )
+}
 
 // Email (editable SMTP form + eReader devices). Thin wrapper: fetches settings,
 // then mounts the form keyed on the loaded data so form state initializes
@@ -126,6 +203,12 @@ function EmailForm({ settings }: { settings: ABSEmailSettings }) {
         <p className="page-sub">SMTP server used to send ebooks to e-readers.</p>
       </div>
 
+      <EmailRelayCard />
+
+      <div className="section-head">
+        <Icon name="dns" />
+        <h2>SMTP server</h2>
+      </div>
       <div className="cfg-card">
         <Field label="SMTP host">
           <input

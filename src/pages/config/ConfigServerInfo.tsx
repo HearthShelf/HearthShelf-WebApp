@@ -6,15 +6,17 @@ import {
   adminContentKeys,
   type ABSServerSettings,
 } from '@/api/absAdmin'
+import { setServerName } from '@/api/absHosted'
 import { useActiveServer } from '@/hooks/useActiveServer'
+import { useToast } from '@/hooks/useToast'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 
-// General server settings. The server NAME is owned by the hosted control plane
-// (it's how the server appears in the app switcher), not by ABS, so it's shown
-// read-only here. Scanner + display settings are ABS-native and editable.
+// General server settings. The server name (the display name this server is
+// known by) is editable here via the HearthShelf backend; scanner + display
+// settings are ABS-native and editable too.
 export function ConfigServerInfo() {
-  const { target, server } = useActiveServer()
+  const { target } = useActiveServer()
 
   if (!target) return <LoadingSpinner className="py-12" label="Connecting..." />
 
@@ -29,29 +31,78 @@ export function ConfigServerInfo() {
         <Icon name="badge" />
         <h2>Server</h2>
       </div>
-      <div className="cfg-card">
-        <div className="cfg-line">
-          <Icon name="dns" style={{ color: 'var(--text-muted)' }} />
-          <div className="cl-meta" style={{ flex: 1 }}>
-            <div className="cl-t">Server name</div>
-            <div className="cl-d">How this server appears in HearthShelf.</div>
-          </div>
-          <span style={{ color: 'var(--text-muted)' }}>{server?.name ?? 'HearthShelf'}</span>
-        </div>
-        <div className="cfg-line">
-          <Icon name="lan" style={{ color: 'var(--text-muted)' }} />
-          <div className="cl-meta" style={{ flex: 1 }}>
-            <div className="cl-t">Connection</div>
-            <div className="cl-d">This server is connected to HearthShelf.</div>
-          </div>
-          <span className="badge-pill" style={{ color: '#7fbd6f' }}>
-            Connected
-          </span>
-        </div>
-      </div>
+      <ServerNameSetting />
 
       <ScannerDisplaySettings />
     </>
+  )
+}
+
+function ServerNameSetting() {
+  const qc = useQueryClient()
+  const { toast, show } = useToast()
+  const { target, server } = useActiveServer()
+  const [name, setName] = useState(server?.name ?? '')
+  const [saving, setSaving] = useState(false)
+
+  const dirty = name.trim() !== (server?.name ?? '') && name.trim().length >= 2
+
+  const save = async () => {
+    if (!target || !dirty) return
+    setSaving(true)
+    try {
+      await setServerName(target, name.trim())
+      // The switcher reads the server list from the control plane; refresh it so
+      // the new name shows everywhere.
+      qc.invalidateQueries({ queryKey: ['servers'] })
+      show('Server name saved')
+    } catch {
+      show('Could not save the server name')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="cfg-card">
+      <div className="cfg-line" style={{ gap: 12 }}>
+        <Icon name="dns" style={{ color: 'var(--text-muted)' }} />
+        <div className="cl-meta" style={{ flex: 'none', width: 150 }}>
+          <div className="cl-t">Server name</div>
+          <div className="cl-d">How this server appears in HearthShelf.</div>
+        </div>
+        <input
+          className="fld"
+          style={{ flex: 1 }}
+          placeholder="My HearthShelf"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <button
+          className="btn-sm btn-green"
+          style={{ flex: 'none' }}
+          disabled={saving || !dirty}
+          onClick={() => void save()}
+        >
+          <Icon name="save" /> {saving ? 'Saving...' : 'Save'}
+        </button>
+      </div>
+      <div className="cfg-line">
+        <Icon name="lan" style={{ color: 'var(--text-muted)' }} />
+        <div className="cl-meta" style={{ flex: 1 }}>
+          <div className="cl-t">Connection</div>
+          <div className="cl-d">This server is connected to HearthShelf.</div>
+        </div>
+        <span className="badge-pill" style={{ color: '#7fbd6f' }}>
+          Connected
+        </span>
+      </div>
+      {toast && (
+        <div className="p-toast">
+          <Icon name="check_circle" fill /> {toast}
+        </div>
+      )}
+    </div>
   )
 }
 

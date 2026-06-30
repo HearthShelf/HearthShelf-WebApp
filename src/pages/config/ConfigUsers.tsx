@@ -7,6 +7,7 @@ import {
   setUserActive,
   createUser,
   getServiceAccountIds,
+  serviceAccountKeys,
   adminKeys,
 } from '@/api/absAdmin'
 import type { ABSAdminUser } from '@/api/absAdmin'
@@ -39,14 +40,20 @@ export function ConfigUsers() {
   })
 
   // Service accounts are machine logins, not people. They live on their own
-  // Config page, so keep them out of this human-user list. On the WebApp data
-  // path the only signal is the locally-tagged id set (no Node backend / runtime
-  // serviceUsername like the self-hosted app has). ABS itself does not expose a
-  // distinct non-human user type - service accounts are regular admin users - so
-  // tagged ids are all we can filter on here.
+  // Config page, so keep them out of this human-user list. The tagged-id set is
+  // owned by the connected server's HearthShelf backend (/hs/service-accounts),
+  // so it's consistent across devices and survives restarts. ABS itself exposes
+  // no distinct non-human user type - service accounts are regular admin users -
+  // so the tagged ids are what we filter on.
+  const { data: trackedData } = useQuery({
+    queryKey: serviceAccountKeys.ids(target?.serverId ?? ''),
+    queryFn: () => getServiceAccountIds(target!),
+    enabled: Boolean(target),
+    staleTime: 60 * 1000,
+  })
   const serviceUserIds = useMemo(
-    () => new Set(target ? getServiceAccountIds(target) : []),
-    [target]
+    () => new Set(trackedData?.ids ?? []),
+    [trackedData]
   )
   const allUsers = data?.users ?? []
   const users = allUsers.filter((u) => !serviceUserIds.has(u.id))

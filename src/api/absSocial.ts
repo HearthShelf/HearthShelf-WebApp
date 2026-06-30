@@ -37,6 +37,54 @@ function origin(t: AbsTarget): string {
   return t.serverUrl.replace(/\/$/, '')
 }
 
+export const socialKeys = {
+  communityConfig: (serverId: string) => ['social', 'community-config', serverId] as const,
+}
+
+/**
+ * Instance-wide community config. `defaultShare` is the server's default for
+ * whether a listener appears on the leaderboard before they choose for
+ * themselves; `canEdit` is true only for admins (the PUT is admin-only).
+ * Reads degrade to a neutral, non-editable default on any failure.
+ */
+export interface CommunityConfig {
+  defaultShare: boolean
+  canEdit: boolean
+}
+
+export async function getCommunityConfig(t: AbsTarget): Promise<CommunityConfig> {
+  const token = getAbsToken(t.serverId)
+  if (!token) return { defaultShare: true, canEdit: false }
+  try {
+    const res = await fetch(`${origin(t)}/hs/social/community-config`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    })
+    if (!res.ok) return { defaultShare: true, canEdit: false }
+    return (await res.json()) as CommunityConfig
+  } catch {
+    return { defaultShare: true, canEdit: false }
+  }
+}
+
+export async function setCommunityConfig(
+  t: AbsTarget,
+  defaultShare: boolean
+): Promise<CommunityConfig> {
+  const token = getAbsToken(t.serverId)
+  if (!token) throw new Error('no token')
+  const res = await fetch(`${origin(t)}/hs/social/community-config`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({ defaultShare }),
+  })
+  if (!res.ok) throw new Error(`community-config ${res.status}`)
+  return (await res.json()) as CommunityConfig
+}
+
 interface RawEntry {
   rank?: number
   userId?: string
