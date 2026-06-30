@@ -3,8 +3,9 @@ import { cn } from '@/lib/cn'
 
 /**
  * The HearthShelf wordmark: Libre Baskerville, "Hearth" in gold + "Shelf"
- * inking dark on light / cream on dark. Mirrors the design system's
- * .t-wordmark role.
+ * inking dark on light / cream on dark. Uses the design.css `.wordmark` rules
+ * (what the sidebar `.brand` lockup is sized/coloured around), matching the
+ * self-hosted shell.
  */
 export function Wordmark({
   className,
@@ -14,7 +15,7 @@ export function Wordmark({
   style?: CSSProperties
 }) {
   return (
-    <span className={cn('t-wordmark select-none', className)} style={style}>
+    <span className={cn('wordmark select-none', className)} style={style}>
       <span className="lt">Hearth</span>
       <span className="bd">Shelf</span>
     </span>

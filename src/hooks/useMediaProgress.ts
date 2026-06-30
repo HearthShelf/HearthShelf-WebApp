@@ -6,8 +6,8 @@ import { useConnectActiveServer } from '@/hooks/useConnectActiveServer'
 /**
  * A lookup of the user's per-item listening progress, keyed by libraryItemId,
  * for the active server. Backed by /api/me (mediaProgress[]); shared across
- * tiles, shelves, and detail pages. Refreshed when a session syncs
- * (mark-finished / save-progress invalidate the same key).
+ * tiles, shelves, and detail pages. Refreshed when progress lands: the player
+ * invalidates this key after each saveProgress, and mark-finished does too.
  */
 export function useMediaProgress(): Map<string, MediaProgress> {
   const { target } = useActiveServer()

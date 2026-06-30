@@ -10,6 +10,7 @@ import type {
   ABSBookMetadata,
   ABSBookMedia,
   ABSLibraryItem,
+  ABSLibraryFolder,
   ABSNarrator,
   ABSSeries,
   ABSLibraryAuthor,
@@ -26,15 +27,31 @@ export interface AbsLibrary {
   name: string
   mediaType: 'book' | 'podcast'
   icon: string
+  /** On-disk roots, for targeting an upload at a specific folder. */
+  folders: ABSLibraryFolder[]
+}
+
+interface RawLibrary {
+  id: string
+  name?: string
+  mediaType?: 'book' | 'podcast'
+  icon?: string
+  folders?: ABSLibraryFolder[]
 }
 
 interface LibrariesResponse {
-  libraries: AbsLibrary[]
+  libraries: RawLibrary[]
 }
 
 export async function getLibraries(t: AbsTarget): Promise<AbsLibrary[]> {
   const data = await absGet<LibrariesResponse>(t, '/api/libraries')
-  return data.libraries ?? []
+  return (data.libraries ?? []).map((l) => ({
+    id: l.id,
+    name: l.name ?? '',
+    mediaType: l.mediaType ?? 'book',
+    icon: l.icon ?? '',
+    folders: l.folders ?? [],
+  }))
 }
 
 /** A library item as we render it in a grid (from the minified list form). */
@@ -1036,7 +1053,7 @@ export interface AbsMe {
   id: string
   username: string
   type: string
-  permissions: { update: boolean; delete: boolean; download: boolean } | null
+  permissions: { update: boolean; delete: boolean; download: boolean; upload: boolean } | null
 }
 
 /** The signed-in user on the active server, for gating admin batch actions. */
@@ -1045,7 +1062,7 @@ export async function getMe(t: AbsTarget): Promise<AbsMe> {
     id?: string
     username?: string
     type?: string
-    permissions?: { update?: boolean; delete?: boolean; download?: boolean }
+    permissions?: { update?: boolean; delete?: boolean; download?: boolean; upload?: boolean }
   }>(t, '/api/me')
   return {
     id: data.id ?? '',
@@ -1056,6 +1073,7 @@ export async function getMe(t: AbsTarget): Promise<AbsMe> {
           update: Boolean(data.permissions.update),
           delete: Boolean(data.permissions.delete),
           download: Boolean(data.permissions.download),
+          upload: Boolean(data.permissions.upload),
         }
       : null,
   }

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAudioPlayer } from '@/hooks/useAudioPlayer'
-import { useRef } from 'react'
 import {
   saveProgress,
   syncPlaySession,
@@ -60,19 +60,25 @@ const PlayerContext = createContext<PlayerApi | null>(null)
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [now, setNow] = useState<NowPlaying | null>(null)
-  // Position at the last session sync, to derive listened-time deltas. Reset when
-  // the book (and its session) changes.
-  const lastSyncPosRef = useRef<number>(0)
+  const qc = useQueryClient()
 
   const target: AbsTarget | null = now
     ? { serverId: now.serverId, serverUrl: now.serverUrl }
     : null
 
   const play = useCallback((n: NowPlaying) => {
-    // New book = new session: reset the listened-delta baseline to its start.
-    lastSyncPosRef.current = n.startAtSec ?? 0
     setNow(n)
   }, [])
+
+  // After progress lands on ABS, refresh the views that read it (home hero,
+  // shelves, in-progress) so they don't serve a stale snapshot.
+  const refreshProgress = useCallback(
+    (serverId: string) => {
+      void qc.invalidateQueries({ queryKey: ['abs-media-progress', serverId] })
+      void qc.invalidateQueries({ queryKey: ['abs-items-in-progress', serverId] })
+    },
+    [qc]
+  )
 
   // When a book finishes, auto-advance to the next queued item (unless the queue
   // is off). We pop the queue, load the item on the SAME server, and autoplay it.
@@ -114,19 +120,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     startAtSec: now?.startAtSec ?? 0,
     autoplayOnLoad: now?.autoplay ?? false,
     onSaveProgress: useCallback(
-      (sec: number) => {
+      (sec: number, listened: number) => {
         if (!target || !now) return
         // Stateless progress PATCH keeps the resume point current.
-        void saveProgress(target, now.itemId, sec, now.totalDurationSec)
+        void saveProgress(target, now.itemId, sec, now.totalDurationSec).then(() =>
+          refreshProgress(target.serverId)
+        )
         // AND sync the open play session so ABS accrues listening time + records
         // a session (the PATCH alone never does - that's why stats showed 0h).
-        if (now.playSessionId) {
-          const listened = Math.max(0, sec - lastSyncPosRef.current)
-          lastSyncPosRef.current = sec
+        // `listened` is real wall-clock played-time, which ABS ADDS to the
+        // session total - reporting a position delta here counted seeks as
+        // listening and inflated history.
+        if (now.playSessionId && listened > 0) {
           void syncPlaySession(target, now.playSessionId, sec, listened, now.totalDurationSec)
         }
       },
-      [target, now]
+      [target, now, refreshProgress]
     ),
     onBookEnded,
   })
@@ -136,15 +145,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // hides. Used by the swipe-to-dismiss gesture on the mini-player.
   const close = useCallback(() => {
     if (player.playing) player.togglePlay()
-    // Close the ABS play session so its final listened-time is recorded and the
-    // session is marked closed (a final sync delta on the way out).
+    // Pausing above flushes a final progress + listened-time sync. Here we just
+    // mark the session closed at the final position (listened-time already
+    // accrued via the sync path; reporting it again would double-count it).
     if (target && now?.playSessionId) {
-      const sec = player.positionSec
-      const listened = Math.max(0, sec - lastSyncPosRef.current)
-      void closePlaySession(target, now.playSessionId, sec, listened, now.totalDurationSec)
+      void closePlaySession(target, now.playSessionId, player.positionSec, 0, now.totalDurationSec)
+      refreshProgress(target.serverId)
     }
     setNow(null)
-  }, [player, target, now])
+  }, [player, target, now, refreshProgress])
 
   const api = useMemo<PlayerApi>(
     () => ({

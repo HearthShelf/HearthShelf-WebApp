@@ -18,8 +18,13 @@ interface UsePlayerArgs {
   startAtSec: number
   /** Start playing as soon as the track set loads (vs. load paused). */
   autoplayOnLoad?: boolean
-  /** Called (throttled) to persist the current global position. */
-  onSaveProgress: (currentTimeSec: number) => void
+  /**
+   * Called (throttled) to persist progress. `listenedSec` is the wall-clock time
+   * the audio actually played since the last call (0 if it was only seeked/opened),
+   * so callers can report true listened-time and skip no-op writes that would
+   * clobber newer server-side progress.
+   */
+  onSaveProgress: (currentTimeSec: number, listenedSec: number) => void
   /** Called when the LAST track of the book finishes (for queue auto-advance). */
   onBookEnded?: () => void
 }
@@ -139,20 +144,40 @@ export function useAudioPlayer({
     const audio = audioRef.current
     if (!audio || tracks.length === 0) return
 
+    // Wall-clock seconds actually played since the last save. Built from the
+    // gap between timeupdate events while playing (seeks/opens don't add to it),
+    // so we report true listened-time and never write progress the user never
+    // reached. Drained on every save.
+    const listenedRef = { current: 0 }
+
     const save = (force = false) => {
       const now = Date.now()
       if (force || now - lastSaveRef.current > 10_000) {
         lastSaveRef.current = now
-        onSaveProgress(positionRef.current)
+        const listened = listenedRef.current
+        listenedRef.current = 0
+        // Only persist when the user actually engaged: real played-time, or a
+        // deliberate seek away from the seed position. A bare open/teardown that
+        // never moved must not echo startAtSec back and clobber newer progress
+        // (e.g. progress made on another device since this book was opened).
+        const moved = positionRef.current !== startAtSec
+        if (listened > 0 || moved) onSaveProgress(positionRef.current, listened)
       }
     }
     // Track position in a ref so the interval/handlers see the latest value.
     const positionRef = { current: startAtSec }
+    // Previous global position, to derive played-time from natural advancement.
+    const prevPosRef = { current: startAtSec }
 
     const onTime = () => {
       const idx = currentTrackRef.current
       const base = tracks[idx]?.startOffsetSec ?? 0
       const global = base + audio.currentTime
+      // A small forward step at ~playback rate is real listening; a large jump
+      // is a seek/track-swap and contributes no listened-time.
+      const step = global - prevPosRef.current
+      if (step > 0 && step < 10) listenedRef.current += step
+      prevPosRef.current = global
       positionRef.current = global
       setPositionSec(global)
       save()

@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Icon } from '@/components/common/Icon'
 import { useActiveLibrary, libraryIcon } from '@/hooks/useActiveLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
+import { getMe } from '@/api/absLibrary'
 
 /**
  * Combined Server + Library switcher.
@@ -156,12 +158,36 @@ function SearchBox() {
   )
 }
 
+// Upload is an admin/upload-permission action, so the button only shows when the
+// active server's account allows it - matching the self-hosted app's app bar.
+function UploadButton() {
+  const navigate = useNavigate()
+  const { target } = useActiveServer()
+  const { data: me } = useQuery({
+    queryKey: ['abs-me', target?.serverId],
+    queryFn: () => getMe(target as NonNullable<typeof target>),
+    enabled: Boolean(target),
+    staleTime: 5 * 60 * 1000,
+  })
+  const canUpload =
+    me?.type === 'admin' || me?.type === 'root' || me?.permissions?.upload === true
+  if (!canUpload) return null
+  return (
+    <button type="button" className="ab-ico" title="Upload" onClick={() => navigate('/upload')}>
+      <Icon name="upload" />
+    </button>
+  )
+}
+
 export function AppBar() {
   return (
     <header className="appbar">
       <LibrarySwitcher />
       <SearchBox />
       <div className="ab-spacer" />
+      <div className="ab-actions">
+        <UploadButton />
+      </div>
     </header>
   )
 }
