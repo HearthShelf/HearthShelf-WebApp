@@ -234,6 +234,7 @@ export function MobilePlayer({
   const ui = useMediaUI()
   const skipFwd = useSettingsStore((s) => s.skipForward)
   const skipBack = useSettingsStore((s) => s.skipBack)
+  const scrubber = useSettingsStore((s) => s.scrubber)
   const queueMode = useSettingsStore((s) => s.queueMode)
   const autoRules = useSettingsStore((s) => s.queueAutoRules)
   const setSetting = useSettingsStore((s) => s.set)
@@ -280,6 +281,14 @@ export function MobilePlayer({
   }, [chapters, pos, duration])
   const chPos = Math.max(0, pos - cur.start)
   const bookRatio = duration ? pos / duration : 0
+  // Chapter-scoped progress, so the bar can track the current chapter when the
+  // Playback setting is 'chapter' (matches the desktop PlayerPage).
+  const chSpan = cur.end - cur.start
+  const chRatio = chSpan > 0 ? Math.min(1, chPos / chSpan) : 0
+  // The bar honours the scrubber setting: ratio shown + where a tap seeks to.
+  const onChapter = scrubber === 'chapter'
+  const scrubRatio = onChapter ? chRatio : bookRatio
+  const seekRatio = (r: number) => (onChapter ? cur.start + r * chSpan : r * duration)
   const seekClamp = (s: number) => seek(Math.max(0, Math.min(duration, Math.round(s))))
   const clickRatio = (e: React.MouseEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect()
@@ -633,15 +642,15 @@ export function MobilePlayer({
             }}
           >
             <span style={{ color: 'var(--text)', fontWeight: 500 }}>
-              {Math.round(bookRatio * 100)}%
+              {Math.round(scrubRatio * 100)}%
             </span>
             <span>
-              Ch {ci + 1} / {chapters.length || 1}
+              {onChapter ? cur.title : `Ch ${ci + 1} / ${chapters.length || 1}`}
             </span>
           </div>
-          <div className="scrub seekable" onClick={(e) => seekClamp(clickRatio(e) * duration)}>
-            <i style={{ width: bookRatio * 100 + '%' }} />
-            <b style={{ left: bookRatio * 100 + '%' }} />
+          <div className="scrub seekable" onClick={(e) => seekClamp(seekRatio(clickRatio(e)))}>
+            <i style={{ width: scrubRatio * 100 + '%' }} />
+            <b style={{ left: scrubRatio * 100 + '%' }} />
           </div>
           <div
             style={{
@@ -654,8 +663,8 @@ export function MobilePlayer({
               marginTop: 8,
             }}
           >
-            <span>{formatTimestamp(pos)}</span>
-            <span>-{formatTimestamp(duration - pos)}</span>
+            <span>{formatTimestamp(onChapter ? chPos : pos)}</span>
+            <span>-{formatTimestamp(onChapter ? Math.max(0, chSpan - chPos) : duration - pos)}</span>
           </div>
         </div>
 
@@ -1436,9 +1445,9 @@ export function MobilePlayer({
               </div>
             </div>
             <div style={{ width: '100%', maxWidth: 360, marginTop: 18 }}>
-              <div className="scrub seekable" onClick={(e) => seekClamp(clickRatio(e) * duration)}>
-                <i style={{ width: bookRatio * 100 + '%' }} />
-                <b style={{ left: bookRatio * 100 + '%' }} />
+              <div className="scrub seekable" onClick={(e) => seekClamp(seekRatio(clickRatio(e)))}>
+                <i style={{ width: scrubRatio * 100 + '%' }} />
+                <b style={{ left: scrubRatio * 100 + '%' }} />
               </div>
               <div
                 style={{
@@ -1450,8 +1459,8 @@ export function MobilePlayer({
                   marginTop: 9,
                 }}
               >
-                <span>{formatTimestamp(pos)}</span>
-                <span>-{formatTimestamp(duration - pos)}</span>
+                <span>{formatTimestamp(onChapter ? chPos : pos)}</span>
+                <span>-{formatTimestamp(onChapter ? Math.max(0, chSpan - chPos) : duration - pos)}</span>
               </div>
             </div>
           </div>
