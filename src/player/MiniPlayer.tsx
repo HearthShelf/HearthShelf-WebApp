@@ -6,6 +6,7 @@ import { useSleepTimer } from '@/hooks/useSleepTimer'
 import { Icon } from '@/components/common/Icon'
 import { tintFor } from '@/components/shared/Cover'
 import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
+import { Scrubber } from '@/components/player/Scrubber'
 import { formatTimestamp } from '@hearthshelf/core'
 
 type Pop = 'speed' | 'sleep' | 'chapters' | null
@@ -94,10 +95,8 @@ export function MiniPlayer() {
   const localPos = Math.max(0, currentTime - offset)
   const pct = span > 0 ? Math.min(100, (localPos / span) * 100) : 0
 
-  const onScrub = (e: React.MouseEvent<HTMLDivElement>) => {
+  const onScrub = (ratio: number) => {
     if (span <= 0) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
     seekTo(offset + ratio * span)
   }
 
@@ -202,10 +201,7 @@ export function MiniPlayer() {
         </div>
         <div className="pb-time">
           <span>{formatTimestamp(localPos)}</span>
-          <div className="scrub" onClick={onScrub}>
-            <i style={{ width: pct + '%' }} />
-            <b style={{ left: pct + '%' }} />
-          </div>
+          <Scrubber className="scrub" ratio={pct / 100} onSeek={onScrub} />
           <span>-{formatTimestamp(Math.max(0, span - localPos))}</span>
         </div>
       </div>

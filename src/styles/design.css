@@ -914,6 +914,10 @@
   border-radius: 99px;
   overflow: hidden;
 }
+.prog-line.seekable {
+  cursor: pointer;
+  touch-action: none;
+}
 .prog-line > i {
   display: block;
   height: 100%;
@@ -927,6 +931,19 @@
   border-radius: 99px;
   position: relative;
   cursor: pointer;
+  touch-action: none;
+}
+/* Widen the drag/tap hit area beyond the visible 6px bar (to ~24px tall)
+   without changing the bar's own box size or layout footprint - an overlay,
+   not padding, so nothing downstream that sizes around .scrub shifts. */
+.scrub::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 24px;
+  transform: translateY(-50%);
 }
 .scrub > i {
   position: absolute;
@@ -945,6 +962,11 @@
   background: #fff;
   transform: translate(-50%, -50%);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: width 0.15s ease, height 0.15s ease;
+}
+.scrub.dragging > b {
+  width: 18px;
+  height: 18px;
 }
 .stars {
   display: inline-flex;
@@ -1864,16 +1886,30 @@
   text-overflow: ellipsis;
 }
 
-/* Bigger scrubber + hit area than the desktop player. */
+/* Bigger scrubber + hit area than the desktop player. The padded zone is
+   faintly visible (not just an invisible hit target) so the draggable area
+   reads clearly at a glance/touch while driving. */
 .car-scrub {
   width: 100%;
   height: 10px;
   padding: 14px 0;
   background-clip: content-box;
+  position: relative;
+}
+.car-scrub::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.06);
 }
 .car-scrub b {
   width: 26px;
   height: 26px;
+}
+.car-scrub.dragging b {
+  width: 30px;
+  height: 30px;
 }
 .car-times {
   font-size: clamp(12px, 3cqw, 16px);

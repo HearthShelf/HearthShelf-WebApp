@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useSleepTimer } from '@/hooks/useSleepTimer'
 import { useDraggableCard } from '@/hooks/useDraggableCard'
+import { Scrubber } from '@/components/player/Scrubber'
 import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
 import { formatTimestamp } from '@hearthshelf/core'
 import { Cover } from '@/components/shared/Cover'
@@ -88,11 +89,6 @@ export function CarPlayer({
   const chRatio = chPos / chSpan
   const scrubRatio = scrubber === 'chapter' ? chRatio : bookRatio
 
-  const clickRatio = (e: React.MouseEvent<HTMLDivElement>) => {
-    const r = e.currentTarget.getBoundingClientRect()
-    return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))
-  }
-
   // Skip controls must not bubble to the card's wake handler - otherwise a
   // nudge would reveal the faded chrome. They tick() (keep the timer alive)
   // via their own onClick instead.
@@ -171,20 +167,14 @@ export function CarPlayer({
         </div>
 
         {/* Big scrubber - chapter or whole book, per the scrubber setting. */}
-        <div
-          className="scrub seekable car-scrub"
-          onClick={(e) => {
+        <Scrubber
+          className="scrub car-scrub"
+          ratio={scrubRatio}
+          onSeek={(r) => {
             wake()
-            seekClamp(
-              scrubber === 'chapter'
-                ? cur.start + clickRatio(e) * chSpan
-                : clickRatio(e) * duration
-            )
+            seekClamp(scrubber === 'chapter' ? cur.start + r * chSpan : r * duration)
           }}
-        >
-          <i style={{ width: scrubRatio * 100 + '%' }} />
-          <b style={{ left: scrubRatio * 100 + '%' }} />
-        </div>
+        />
         <div className="p-times car-times">
           {scrubber === 'chapter' ? (
             <>

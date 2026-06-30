@@ -7,6 +7,7 @@ import { useBookmarks } from '@/hooks/useBookmarks'
 import { useSleepTimer } from '@/hooks/useSleepTimer'
 import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
 import { RecentListens } from '@/components/player/RecentListens'
+import { Scrubber } from '@/components/player/Scrubber'
 import { Cover } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
 import { formatTimestamp } from '@hearthshelf/core'
@@ -290,10 +291,6 @@ export function MobilePlayer({
   const scrubRatio = onChapter ? chRatio : bookRatio
   const seekRatio = (r: number) => (onChapter ? cur.start + r * chSpan : r * duration)
   const seekClamp = (s: number) => seek(Math.max(0, Math.min(duration, Math.round(s))))
-  const clickRatio = (e: React.MouseEvent<HTMLDivElement>) => {
-    const r = e.currentTarget.getBoundingClientRect()
-    return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))
-  }
   const prevCh = () => seekClamp(chPos > 4 ? cur.start : chapters[Math.max(0, ci - 1)]?.start ?? 0)
   const nextCh = () => seekClamp(chapters[Math.min(chapters.length - 1, ci + 1)]?.start ?? cur.start)
   const rewind = () => seekClamp(pos - skipBack)
@@ -648,10 +645,7 @@ export function MobilePlayer({
               {onChapter ? cur.title : `Ch ${ci + 1} / ${chapters.length || 1}`}
             </span>
           </div>
-          <div className="scrub seekable" onClick={(e) => seekClamp(seekRatio(clickRatio(e)))}>
-            <i style={{ width: scrubRatio * 100 + '%' }} />
-            <b style={{ left: scrubRatio * 100 + '%' }} />
-          </div>
+          <Scrubber className="scrub" ratio={scrubRatio} onSeek={(r) => seekClamp(seekRatio(r))} />
           <div
             style={{
               display: 'flex',
@@ -1445,10 +1439,7 @@ export function MobilePlayer({
               </div>
             </div>
             <div style={{ width: '100%', maxWidth: 360, marginTop: 18 }}>
-              <div className="scrub seekable" onClick={(e) => seekClamp(seekRatio(clickRatio(e)))}>
-                <i style={{ width: scrubRatio * 100 + '%' }} />
-                <b style={{ left: scrubRatio * 100 + '%' }} />
-              </div>
+              <Scrubber className="scrub" ratio={scrubRatio} onSeek={(r) => seekClamp(seekRatio(r))} />
               <div
                 style={{
                   display: 'flex',

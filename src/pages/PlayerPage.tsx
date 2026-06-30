@@ -11,6 +11,7 @@ import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
 import { RecentListens } from '@/components/player/RecentListens'
 import { MobilePlayer } from '@/components/player/MobilePlayer'
 import { CarPlayer } from '@/components/player/CarPlayer'
+import { Scrubber } from '@/components/player/Scrubber'
 import { useCarMode } from '@/hooks/useCarMode'
 import { useIdleFade } from '@/hooks/useIdleFade'
 import { setCarFaded } from '@/hooks/useCarFaded'
@@ -507,10 +508,6 @@ export function PlayerPage() {
   const chRatio = chSpan > 0 ? Math.min(1, chPos / chSpan) : 0
   const bookRatio = duration > 0 ? pos / duration : 0
 
-  const clickRatio = (e: React.MouseEvent<HTMLDivElement>) => {
-    const r = e.currentTarget.getBoundingClientRect()
-    return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))
-  }
   const seekClamp = (sec: number) => seekTo(Math.max(0, Math.min(duration, sec)))
   const prevCh = () =>
     seekClamp(chPos > 4 ? cur.start : chapters[Math.max(0, ci - 1)]?.start ?? 0)
@@ -654,12 +651,12 @@ export function PlayerPage() {
         {/* secondary context line - the metric the main scrubber is NOT showing */}
         {scrubber === 'book' ? (
           <>
-            <div
-              className="prog-line seekable"
-              onClick={(e) => seekClamp(cur.start + clickRatio(e) * chSpan)}
-            >
-              <i style={{ width: chRatio * 100 + '%' }} />
-            </div>
+            <Scrubber
+              className="prog-line"
+              knob={false}
+              ratio={chRatio}
+              onSeek={(r) => seekClamp(cur.start + r * chSpan)}
+            />
             <div className="p-times">
               <span>{cur.title}</span>
               <span>-{formatTimestamp(chSpan - chPos)} in ch</span>
@@ -667,12 +664,12 @@ export function PlayerPage() {
           </>
         ) : (
           <>
-            <div
-              className="prog-line seekable"
-              onClick={(e) => seekClamp(clickRatio(e) * duration)}
-            >
-              <i style={{ width: bookRatio * 100 + '%' }} />
-            </div>
+            <Scrubber
+              className="prog-line"
+              knob={false}
+              ratio={bookRatio}
+              onSeek={(r) => seekClamp(r * duration)}
+            />
             <div className="p-times">
               <span>{formatTimestamp(pos)} elapsed</span>
               <span>{formatTimestamp(duration - pos)} left</span>
@@ -686,21 +683,13 @@ export function PlayerPage() {
             {scrubber === 'book' ? 'Full book' : cur.title}
           </div>
           {scrubber === 'book' ? (
-            <div
-              className="scrub seekable"
-              onClick={(e) => seekClamp(clickRatio(e) * duration)}
-            >
-              <i style={{ width: bookRatio * 100 + '%' }} />
-              <b style={{ left: bookRatio * 100 + '%' }} />
-            </div>
+            <Scrubber className="scrub" ratio={bookRatio} onSeek={(r) => seekClamp(r * duration)} />
           ) : (
-            <div
-              className="scrub seekable"
-              onClick={(e) => seekClamp(cur.start + clickRatio(e) * chSpan)}
-            >
-              <i style={{ width: chRatio * 100 + '%' }} />
-              <b style={{ left: chRatio * 100 + '%' }} />
-            </div>
+            <Scrubber
+              className="scrub"
+              ratio={chRatio}
+              onSeek={(r) => seekClamp(cur.start + r * chSpan)}
+            />
           )}
           <div className="p-times">
             {scrubber === 'book' ? (
