@@ -13,6 +13,7 @@ import { MobilePlayer } from '@/components/player/MobilePlayer'
 import { CarPlayer } from '@/components/player/CarPlayer'
 import { useCarMode } from '@/hooks/useCarMode'
 import { useIdleFade } from '@/hooks/useIdleFade'
+import { setCarFaded } from '@/hooks/useCarFaded'
 import { useBookmarks } from '@/hooks/useBookmarks'
 import { useToast } from '@/hooks/useToast'
 import { useQueueStore, type QueueMode, type AutoRuleId } from '@/store/queueStore'
@@ -365,6 +366,13 @@ export function PlayerPage() {
   // Owned here (not inside CarPlayer) so the hearth background behind the
   // card can also wake the chrome on tap - both need the same fade state.
   const carIdleFade = useIdleFade(carMode, 30_000)
+  // Mirror into the shared store so AppShell's sidebar fades in step with the
+  // rest of the car player's chrome instead of hard-hiding/showing. Reset on
+  // unmount so leaving /player always restores the sidebar immediately.
+  useEffect(() => {
+    setCarFaded(carMode && carIdleFade.faded)
+    return () => setCarFaded(false)
+  }, [carMode, carIdleFade.faded])
 
   // Full sleep-timer controller (three modes + stop behaviours).
   const sleepCtl = useSleepTimer()

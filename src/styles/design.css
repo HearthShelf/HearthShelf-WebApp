@@ -22,9 +22,24 @@
   --sidebar-w: 76px;
 }
 
-/* Car mode owns the screen: no sidebar column, content fills edge to edge. */
+/* Car mode owns the screen: no sidebar column, content fills edge to edge.
+   The sidebar itself stays mounted (see AppShell) and overlays on top so it
+   can fade with the rest of the car player's chrome instead of being hard
+   shown/hidden - tapping anywhere wakes it back in along with everything
+   else. */
 .app.car-shell {
   grid-template-columns: 1fr;
+}
+.app.car-shell .sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 10;
+  width: var(--sidebar-w);
+  transition: opacity 0.5s ease;
+}
+.app.car-shell-faded .sidebar {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* signature cover-glow - fixed bloom behind the content column */
@@ -1749,7 +1764,12 @@
   overflow: hidden;
   touch-action: none;
   user-select: none;
-  transition: opacity 0.5s ease;
+  transition:
+    opacity 0.5s ease,
+    background-color 0.5s ease,
+    backdrop-filter 0.5s ease,
+    border-color 0.5s ease,
+    box-shadow 0.5s ease;
 }
 .car-card.dragging {
   transition: none;
@@ -2001,7 +2021,16 @@
   transform: rotate(90deg);
 }
 
-/* Faded (idle) state: shed everything but cover, titles, scrubber, transport. */
+/* Faded (idle) state: shed everything but cover, title, scrubber, transport.
+   The card's own dark backdrop fades away too (not just its opacity, since
+   the cover/title/scrubber/transport inside it must stay fully visible) so
+   more of the hearth background photo shows through while idle. */
+.car-card.faded {
+  background: transparent;
+  backdrop-filter: none;
+  border-color: transparent;
+  box-shadow: none;
+}
 .car-card.faded .car-head,
 .car-card.faded .car-secondary,
 .car-card.faded .car-sheet,

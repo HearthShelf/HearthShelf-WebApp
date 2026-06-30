@@ -8,6 +8,7 @@ import { useApplySettings } from '@/hooks/useApplySettings'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useNavCollapsed } from '@/hooks/useNavCollapsed'
 import { useCarMode } from '@/hooks/useCarMode'
+import { useCarFaded } from '@/hooks/useCarFaded'
 
 /**
  * Persistent app frame (design: .app grid + cover-glow bloom), ported from the
@@ -26,10 +27,14 @@ export function AppShell() {
   const isMobile = useIsMobile()
   // Icon-rail toggle - only meaningful on desktop, where the sidebar is shown.
   const navCollapsed = useNavCollapsed()
-  // Car mode on the player route owns the whole screen: drop the sidebar so the
-  // big-touch player isn't sharing space with the nav rail.
+  // Car mode on the player route owns the whole screen: the sidebar fades out
+  // (in step with the rest of the car player's chrome) so the big-touch
+  // player isn't sharing space with the nav rail while idle, but reappears on
+  // the same wake gesture as everything else - it stays mounted rather than
+  // being hard-hidden so that "tap to bring it back" feels consistent.
   const carMode = useCarMode()
   const carShell = carMode && pathname === '/player'
+  const carFaded = useCarFaded()
 
   // Drive the connection to the active server for the whole shell.
   useConnectActiveServer()
@@ -42,11 +47,15 @@ export function AppShell() {
         'app' +
         (isMobile ? ' has-mobile-nav' : '') +
         (navCollapsed && !isMobile ? ' nav-collapsed' : '') +
-        (carShell ? ' car-shell' : '')
+        (carShell ? ' car-shell' : '') +
+        (carShell && carFaded ? ' car-shell-faded' : '')
       }
     >
       <div className="app-glow" />
-      {!carShell && <Sidebar />}
+      {/* In car mode the sidebar overlays the player (car-shell takes its grid
+          column away) instead of unmounting, so it can fade with the rest of
+          the chrome and reappear on the same wake gesture. */}
+      <Sidebar />
       <div className="main">
         {!immersive && !isMobile && <AppBar />}
         <div className="content">
