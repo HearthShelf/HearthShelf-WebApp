@@ -6,6 +6,8 @@ import {
   getSeries,
   getAuthors,
   getMe,
+  updateAuthor,
+  renameNarrator,
   batchDeleteItems,
   batchScanItems,
   batchQuickMatchItems,
@@ -13,7 +15,6 @@ import {
   type AbsLibraryItem,
   type AbsSeries,
 } from '@/api/absLibrary'
-import { absMediaUrl } from '@/api/absClient'
 import { useToast } from '@/hooks/useToast'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
@@ -29,6 +30,9 @@ import { AzJumpRail } from '@/components/library/AzJumpRail'
 import { letterOf } from '@hearthshelf/core'
 import { BatchEditModal } from '@/components/library/BatchEditModal'
 import { AddToListModal } from '@/components/library/AddToListModal'
+import { PersonCard, type Person } from '@/components/library/PersonCard'
+import { PersonEditModal, PersonDeleteModal } from '@/components/library/PersonModals'
+import { MergeModal, type MergeItem } from '@/components/common/MergeModal'
 import { Dropdown, MItem } from '@/components/common/Dropdown'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
@@ -122,6 +126,11 @@ export function LibraryPage() {
   const [batchAdding, setBatchAdding] = useState(false)
   const [sSort, setSSort] = useState<'Name' | 'Books'>('Name')
   const [pSort, setPSort] = useState<'Name' | 'Books'>('Books')
+  const [personSel, setPersonSel] = useState<Set<string>>(new Set())
+  const [personEditing, setPersonEditing] = useState<Person | null>(null)
+  const [personDeleting, setPersonDeleting] = useState<Person[] | null>(null)
+  const [personMerging, setPersonMerging] = useState(false)
+  const [personBusy, setPersonBusy] = useState(false)
 
   const setViewPersist = (v: View) => {
     setView(v)
@@ -269,6 +278,142 @@ export function LibraryPage() {
     a.sort(pSort === 'Name' ? (x, y) => x.name.localeCompare(y.name) : (x, y) => y.count - x.count)
     return a
   }, [narrators, pSort])
+
+  // Build Person[] for PersonCard (needs books list for cover strip).
+  const authorPeople = useMemo((): Person[] => {
+    const booksByAuthor = new Map<string, AbsLibraryItem[]>()
+    for (const it of allItems) {
+      const raw = it.media.metadata.authorName
+      if (!raw) continue
+      for (const name of raw.split(',').map((s) => s.trim()).filter(Boolean)) {
+        const arr = booksByAuthor.get(name) ?? []
+        arr.push(it)
+        booksByAuthor.set(name, arr)
+      }
+    }
+    return sortedAuthors.map((p) => {
+      const absAuthor = authorsData?.authors.find((a) => a.name === p.name)
+      const books = (booksByAuthor.get(p.name) ?? []).map((it) => ({
+        id: it.id,
+        title: it.media.metadata.title ?? '',
+        author: it.media.metadata.authorName ?? '',
+        mediaType: 'book' as const,
+        durationSec: it.media.duration ?? 0,
+        narrator: it.media.metadata.narratorName ?? '',
+      }))
+      return {
+        id: absAuthor?.id ?? p.name,
+        name: p.name,
+        kind: 'author' as const,
+        count: p.count,
+        imagePath: absAuthor?.imagePath ?? null,
+        books,
+      }
+    })
+  }, [sortedAuthors, allItems, authorsData])
+
+  const narratorPeople = useMemo((): Person[] => {
+    const booksByNarrator = new Map<string, AbsLibraryItem[]>()
+    for (const it of allItems) {
+      const raw = it.media.metadata.narratorName
+      if (!raw) continue
+      for (const name of raw.split(',').map((s) => s.trim()).filter(Boolean)) {
+        const arr = booksByNarrator.get(name) ?? []
+        arr.push(it)
+        booksByNarrator.set(name, arr)
+      }
+    }
+    return sortedNarrators.map((p) => ({
+      id: p.name,
+      name: p.name,
+      kind: 'narrator' as const,
+      count: p.count,
+      books: (booksByNarrator.get(p.name) ?? []).map((it) => ({
+        id: it.id,
+        title: it.media.metadata.title ?? '',
+        author: it.media.metadata.authorName ?? '',
+        mediaType: 'book' as const,
+        durationSec: it.media.duration ?? 0,
+        narrator: it.media.metadata.narratorName ?? '',
+      })),
+    }))
+  }, [sortedNarrators, allItems])
+
+  const personAnySelected = personSel.size > 0
+  const togglePersonSel = (id: string) =>
+    setPersonSel((s) => {
+      const n = new Set(s)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+
+  const personList = tab === 'authors' ? authorPeople : narratorPeople
+  const selectedPeople = personList.filter((p) => personSel.has(p.id))
+  const selectedPersonItems: MergeItem[] = selectedPeople.map((p) => ({
+    id: p.id,
+    name: p.name,
+    numBooks: p.count,
+  }))
+
+  const invalidatePersons = () => {
+    qc.invalidateQueries({ queryKey: ['library-authors', target?.serverId, activeId] })
+    qc.invalidateQueries({ queryKey: allItemsKey })
+  }
+
+  const doPersonSave = async (patch: { name: string; description?: string }) => {
+    if (!personEditing || !target || !activeId) return
+    setPersonBusy(true)
+    try {
+      if (personEditing.kind === 'author' && personEditing.id !== personEditing.name) {
+        await updateAuthor(target, personEditing.id, patch)
+      } else {
+        await renameNarrator(target, activeId, personEditing.name, patch.name)
+      }
+      await invalidatePersons()
+      setPersonEditing(null)
+    } catch {
+      // leave modal open so user can retry
+    } finally {
+      setPersonBusy(false)
+    }
+  }
+
+  const doPersonMerge = async (canonicalName: string) => {
+    if (!target || !activeId) return
+    for (const item of selectedPersonItems) {
+      if (item.name === canonicalName) continue
+      if (tab === 'authors') {
+        const person = selectedPeople.find((p) => p.id === item.id)
+        if (person && person.id !== person.name) {
+          await updateAuthor(target, person.id, { name: canonicalName })
+        }
+      } else {
+        await renameNarrator(target, activeId, item.name, canonicalName)
+      }
+    }
+    await invalidatePersons()
+    setPersonSel(new Set())
+  }
+
+  const doPersonDelete = async () => {
+    if (!personDeleting || !target || !activeId) return
+    setPersonBusy(true)
+    try {
+      for (const p of personDeleting) {
+        if (p.kind === 'narrator') {
+          await renameNarrator(target, activeId, p.name, 'Unknown')
+        }
+      }
+      await invalidatePersons()
+      setPersonSel(new Set())
+      setPersonDeleting(null)
+    } catch {
+      // leave modal open
+    } finally {
+      setPersonBusy(false)
+    }
+  }
 
   const seriesList = useMemo(() => {
     const list: AbsSeries[] = [...(seriesData?.results ?? [])]
@@ -758,11 +903,37 @@ export function LibraryPage() {
       {/* ---- Authors / Narrators ---- */}
       {(tab === 'authors' || tab === 'narrators') && (
         <>
-          <div className="toolbar2">
-            {!isMobile && (
+          <div className={'toolbar2' + (personAnySelected ? ' sel-bar' : '')}>
+            {!personAnySelected && !isMobile && (
               <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
                 Hover to select, edit, or merge
               </span>
+            )}
+            {personSel.size === 1 && (
+              <button
+                className="btn-sm btn-ghost"
+                onClick={() => setPersonEditing(selectedPeople[0])}
+              >
+                <Icon name="edit" /> Edit
+              </button>
+            )}
+            {personSel.size >= 2 && (
+              <button className="btn-sm btn-primary" onClick={() => setPersonMerging(true)}>
+                <Icon name="merge" /> Merge {personSel.size}
+              </button>
+            )}
+            {personAnySelected && (
+              <button
+                className="btn-sm btn-ghost danger"
+                onClick={() => setPersonDeleting(selectedPeople)}
+              >
+                <Icon name="delete" /> Remove {personSel.size}
+              </button>
+            )}
+            {personAnySelected && (
+              <button className="btn-sm btn-ghost" onClick={() => setPersonSel(new Set())}>
+                Clear
+              </button>
             )}
             <div className="tb-spacer" />
             <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>Sort</span>
@@ -779,14 +950,12 @@ export function LibraryPage() {
             </div>
           </div>
           {(() => {
-            const list = tab === 'authors' ? sortedAuthors : sortedNarrators
-            // When sorted A-Z, tag the first card of each letter bucket so the
-            // jump rail can scroll to it.
+            const list = personList
             const seen = new Set<string>()
             const showRail = isMobile && pSort === 'Name'
             return (
               <div className={'az-wrap' + (showRail ? ' has-rail' : '')}>
-                <div className="author-grid">
+                <div className="person-grid">
                   {list.map((p) => {
                     const letter = letterOf(p.name)
                     let dataLetter: string | undefined
@@ -794,37 +963,25 @@ export function LibraryPage() {
                       seen.add(letter)
                       dataLetter = letter
                     }
-                    const authorId = authorIdByName.get(p.name)
                     return (
-                      <div
-                        className="author-card"
-                        key={p.name}
-                        data-cv={p.cv}
-                        data-letter={dataLetter}
-                        onClick={() => {
-                          if (tab === 'narrators') {
-                            const href = ui.narratorHref?.(p.name)
-                            if (href) navigate(href)
-                            else goBooks()
-                            return
-                          }
-                          if (authorId) {
-                            const href = ui.authorHref?.(authorId) ?? `/author/${authorId}`
+                      <div key={p.id} data-letter={dataLetter}>
+                        <PersonCard
+                          person={p}
+                          selected={personSel.has(p.id)}
+                          anySelected={personAnySelected}
+                          onToggleSelect={() => togglePersonSel(p.id)}
+                          onOpen={() => {
+                            if (tab === 'narrators') {
+                              const href = ui.narratorHref?.(p.name)
+                              if (href) navigate(href)
+                              else goBooks()
+                              return
+                            }
+                            const href = ui.authorHref?.(p.id) ?? `/author/${p.id}`
                             navigate(href)
-                          }
-                        }}
-                      >
-                        <AuthorAvatar
-                          name={p.name}
-                          cv={p.cv}
-                          initials={p.initials}
-                          authorId={tab === 'authors' ? authorId : undefined}
-                          narrator={tab === 'narrators'}
+                          }}
+                          onEdit={() => setPersonEditing(p)}
                         />
-                        <div className="author-name">{p.name}</div>
-                        <div className="author-books">
-                          {p.count} {p.count === 1 ? 'book' : 'books'}
-                        </div>
                       </div>
                     )
                   })}
@@ -834,6 +991,31 @@ export function LibraryPage() {
             )
           })()}
         </>
+      )}
+
+      {personMerging && (
+        <MergeModal
+          kind={tab === 'authors' ? 'author' : 'narrator'}
+          items={selectedPersonItems}
+          onMerge={doPersonMerge}
+          onClose={() => setPersonMerging(false)}
+        />
+      )}
+      {personEditing && (
+        <PersonEditModal
+          person={personEditing}
+          saving={personBusy}
+          onSave={doPersonSave}
+          onClose={() => setPersonEditing(null)}
+        />
+      )}
+      {personDeleting && (
+        <PersonDeleteModal
+          people={personDeleting}
+          deleting={personBusy}
+          onConfirm={doPersonDelete}
+          onClose={() => setPersonDeleting(null)}
+        />
       )}
 
       {batchEditing && (
@@ -871,47 +1053,3 @@ export function LibraryPage() {
   )
 }
 
-// Author/narrator avatar: real author photo (from the active server, tokenized)
-// when present, otherwise the gradient initials. A mic badge marks narrators.
-function AuthorAvatar({
-  name,
-  cv,
-  initials,
-  authorId,
-  narrator,
-}: {
-  name: string
-  cv: string
-  initials: string
-  authorId?: string
-  narrator: boolean
-}) {
-  const { target } = useActiveServer()
-  const [imgOk, setImgOk] = useState(Boolean(authorId))
-  const photoSrc =
-    target && authorId ? absMediaUrl(target, `/api/authors/${authorId}/image`) : null
-  return (
-    <div
-      className={'author-av' + (narrator ? ' nar-av-lg' : '')}
-      style={{
-        background: `linear-gradient(150deg, ${cv}, color-mix(in oklab, ${cv} 45%, #000))`,
-      }}
-    >
-      {imgOk && photoSrc ? (
-        <img
-          className="author-photo"
-          src={photoSrc}
-          alt={name}
-          loading="lazy"
-          onError={() => setImgOk(false)}
-        />
-      ) : null}
-      {initials}
-      {narrator && (
-        <span className="nar-mic">
-          <Icon name="mic" fill />
-        </span>
-      )}
-    </div>
-  )
-}

@@ -907,6 +907,15 @@ export async function getAuthors(t: AbsTarget, libraryId: string): Promise<Autho
   }
 }
 
+/** Update an author's name and/or description. */
+export async function updateAuthor(
+  t: AbsTarget,
+  authorId: string,
+  patch: { name?: string; description?: string }
+): Promise<void> {
+  await absPatch(t, `/api/authors/${encodeURIComponent(authorId)}`, patch)
+}
+
 // --- Batch item actions (admin / write) -------------------------------------
 
 export interface BatchMediaPayload {
