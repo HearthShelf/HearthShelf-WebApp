@@ -6,7 +6,14 @@
  * item's /cover endpoint). Only the fields we render are typed.
  */
 import { absGet, absPatch, absPost, absMediaUrl } from './absClient'
-import type { ABSBookMetadata, ABSBookMedia, ABSLibraryItem } from '@hearthshelf/core'
+import type {
+  ABSBookMetadata,
+  ABSBookMedia,
+  ABSLibraryItem,
+  ABSNarrator,
+  ABSSeries,
+  ABSLibraryAuthor,
+} from '@hearthshelf/core'
 
 export interface AbsTarget {
   serverId: string
@@ -615,11 +622,7 @@ export async function getListeningSessions(
 // --- narrators (people view) ------------------------------------------------
 
 /** A narrator summary as returned by ABS's library narrators endpoint. */
-export interface AbsNarrator {
-  id: string
-  name: string
-  numBooks: number
-}
+export type AbsNarrator = ABSNarrator
 
 interface NarratorsResponse {
   narrators?: AbsNarrator[]
@@ -828,13 +831,7 @@ export async function getAllLibraryItemsFull(
 
 // --- Series (with book counts + cover items) --------------------------------
 
-export interface AbsSeries {
-  id: string
-  name: string
-  nameIgnorePrefix: string
-  description: string | null
-  books: AbsLibraryItem[]
-}
+export type AbsSeries = ABSSeries
 
 export interface SeriesListResponse {
   results: AbsSeries[]
@@ -875,14 +872,7 @@ export async function getSeries(
 
 // --- Authors (library author list: id, name, image, book count) -------------
 
-export interface AbsLibraryAuthor {
-  id: string
-  name: string
-  description: string | null
-  imagePath: string | null
-  numBooks: number
-  addedAt: number
-}
+export type AbsLibraryAuthor = ABSLibraryAuthor
 
 export interface AuthorsResponse {
   authors: AbsLibraryAuthor[]

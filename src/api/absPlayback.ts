@@ -9,14 +9,9 @@
  */
 import { absGet, absPost, absDelete, absMediaUrl } from './absClient'
 import type { AbsTarget } from './absLibrary'
+import type { ABSBookmark } from '@hearthshelf/core'
 
-export interface AbsBookmark {
-  libraryItemId: string
-  title: string
-  /** Bookmark position in whole seconds. */
-  time: number
-  createdAt: number
-}
+export type AbsBookmark = ABSBookmark
 
 interface RawBookmark {
   libraryItemId: string

@@ -12,6 +12,37 @@
 import { absGet, absPost, absPatch, absDelete, absMediaUrl, AbsError } from '@/api/absClient'
 import type { AbsTarget } from '@/api/absLibrary'
 import { getAbsToken } from '@/lib/absTokens'
+import type {
+  ABSUserPermissions,
+  ABSAdminUser,
+  ABSUsersResponse,
+  ABSLibraryFolder,
+  ABSLibrarySettings,
+  ABSLibrary,
+  ABSBackup,
+  ABSBackupsResponse,
+  ABSApiKeyUserRef,
+  ABSApiKey,
+  ABSApiKeysResponse,
+  ABSServerSettings,
+} from '@hearthshelf/core'
+
+export type {
+  ABSUserPermissions,
+  ABSAdminUser,
+  ABSUsersResponse,
+  ABSLibraryFolder,
+  ABSLibrarySettings,
+  ABSBackup,
+  ABSBackupsResponse,
+  ABSApiKeyUserRef,
+  ABSApiKey,
+  ABSApiKeysResponse,
+  ABSServerSettings,
+}
+
+// The full admin library shape is core's canonical ABSLibrary.
+export type ABSAdminLibrary = ABSLibrary
 
 // React Query keys for admin reads (scoped per server so a server switch
 // re-fetches against the new target).
@@ -23,37 +54,6 @@ export const adminKeys = {
 }
 
 // --- Users ------------------------------------------------------------------
-
-export interface ABSUserPermissions {
-  download: boolean
-  update: boolean
-  delete: boolean
-  upload: boolean
-  createEreader: boolean
-  accessAllLibraries: boolean
-  accessAllTags: boolean
-  accessExplicitContent: boolean
-  selectedTagsNotAccessible: boolean
-  librariesAccessible: string[]
-  itemTagsSelected: string[]
-}
-
-export interface ABSAdminUser {
-  id: string
-  username: string
-  email: string | null
-  type: string
-  isActive: boolean
-  isLocked: boolean
-  lastSeen: number | null
-  createdAt: number
-  permissions?: ABSUserPermissions
-  librariesAccessible?: string[]
-}
-
-export interface ABSUsersResponse {
-  users: ABSAdminUser[]
-}
 
 export type ABSUserType = 'admin' | 'user' | 'guest'
 
@@ -135,42 +135,6 @@ export async function getAllTagNames(t: AbsTarget): Promise<{ tags: string[] }> 
 }
 
 // --- Libraries (admin CRUD + scan) ------------------------------------------
-
-export interface ABSLibraryFolder {
-  id: string
-  fullPath: string
-}
-
-export interface ABSLibrarySettings {
-  coverAspectRatio: number
-  disableWatcher: boolean
-  autoScanCronExpression: string | null
-  skipMatchingMediaWithAsin?: boolean
-  skipMatchingMediaWithIsbn?: boolean
-  audiobooksOnly?: boolean
-  epubsAllowScriptedContent?: boolean
-  hideSingleBookSeries?: boolean
-  onlyShowLaterBooksInContinueSeries?: boolean
-  metadataPrecedence?: string[]
-  podcastSearchRegion?: string
-  markAsFinishedTimeRemaining: number | null
-  markAsFinishedPercentComplete: number | null
-}
-
-// The full admin library shape (richer than the browse AbsLibrary): folders,
-// settings, provider and displayOrder are needed by the edit modal + reorder.
-export interface ABSAdminLibrary {
-  id: string
-  name: string
-  icon: string
-  mediaType: 'book' | 'podcast'
-  provider: string
-  folders: ABSLibraryFolder[]
-  settings: ABSLibrarySettings
-  displayOrder: number
-  createdAt: number
-  lastUpdate: number
-}
 
 export interface ABSLibrariesAdminResponse {
   libraries: ABSAdminLibrary[]
@@ -395,20 +359,6 @@ export async function deleteSession(t: AbsTarget, sessionId: string): Promise<vo
 // GET/POST /api/backups -> { backups, backupLocation }; DELETE /api/backups/:id
 // echoes the updated list. Download/apply are GET routes (token via query).
 
-export interface ABSBackup {
-  id: string
-  datePretty: string
-  filename: string
-  fileSize: number
-  createdAt: number
-  serverVersion: string
-}
-
-export interface ABSBackupsResponse {
-  backups: ABSBackup[]
-  backupLocation: string
-}
-
 export async function getBackups(t: AbsTarget): Promise<ABSBackupsResponse> {
   const res = await absGet<Partial<ABSBackupsResponse>>(t, '/api/backups')
   return { backups: res.backups ?? [], backupLocation: res.backupLocation ?? '' }
@@ -468,31 +418,6 @@ export async function getLogs(t: AbsTarget): Promise<{ currentDailyLogs: ABSLogE
 
 // --- API keys ---------------------------------------------------------------
 // GET/POST /api/api-keys; DELETE /api/api-keys/:id
-
-export interface ABSApiKeyUserRef {
-  id: string
-  username: string
-  type: string
-}
-
-export interface ABSApiKey {
-  id: string
-  name: string
-  description: string | null
-  expiresAt: number | null
-  lastUsedAt: number | null
-  isActive: boolean
-  createdAt: string
-  userId: string
-  user?: ABSApiKeyUserRef
-  createdByUser?: ABSApiKeyUserRef | null
-  // ABS returns the raw token on `apiKey` only on the create response.
-  apiKey?: string
-}
-
-export interface ABSApiKeysResponse {
-  apiKeys: ABSApiKey[]
-}
 
 export async function getApiKeys(t: AbsTarget): Promise<ABSApiKeysResponse> {
   const res = await absGet<{ apiKeys?: ABSApiKey[] }>(t, '/api/api-keys')
@@ -594,21 +519,9 @@ export const adminContentKeys = {
 // full serverSettings blob, so we read it from there. PATCH /api/settings
 // persists a partial and echoes the updated settings back.
 
-export interface ABSServerSettings {
-  scannerFindCovers?: boolean
-  scannerParseSubtitle?: boolean
-  scannerPreferMatchedMetadata?: boolean
-  scannerDisableWatcher?: boolean
-  storeCoverWithItem?: boolean
-  dateFormat?: string
-  timeFormat?: string
-  language?: string
-  [key: string]: unknown
-}
-
 export async function getServerSettings(t: AbsTarget): Promise<ABSServerSettings> {
   const res = await absPost<{ serverSettings?: ABSServerSettings }>(t, '/api/authorize')
-  return res?.serverSettings ?? {}
+  return res?.serverSettings ?? ({} as ABSServerSettings)
 }
 
 export async function updateServerSettings(
