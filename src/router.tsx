@@ -19,6 +19,7 @@ import { SearchPage } from '@/pages/SearchPage'
 import { UploadPage } from '@/pages/UploadPage'
 import { RequestsPage } from '@/pages/RequestsPage'
 import { DiscoverPage } from '@/pages/DiscoverPage'
+import { QuestGiverPage } from '@/pages/QuestGiverPage'
 import { StatsPage } from '@/pages/StatsPage'
 import { SessionsPage } from '@/pages/SessionsPage'
 import { PlayerPage } from '@/pages/PlayerPage'
@@ -80,8 +81,10 @@ export const router = createBrowserRouter([
       { path: '/search', element: withShell(<SearchPage />) },
       { path: '/upload', element: withShell(<UploadPage />) },
 
-      // Discover + Requests (ReadMeABook). Both self-gate inside the page on the
+      // QuestGiver + Discover + Requests. All self-gate inside the page on the
       // active server's /hs/* feature flag and redirect home when it's off.
+      // QuestGiver and Discover share the /hs/questgiver/config flag.
+      { path: '/questgiver', element: withShell(<QuestGiverPage />) },
       { path: '/discover', element: withShell(<DiscoverPage />) },
       { path: '/requests', element: withShell(<RequestsPage />) },
 

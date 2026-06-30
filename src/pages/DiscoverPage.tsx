@@ -6,11 +6,11 @@ import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
 import {
-  useDiscoverConfig,
   useMonthlyShelf,
   useDiscoverFeedbackQuery,
   usePopular,
 } from '@/hooks/useDiscover'
+import { useQgConfig } from '@/hooks/useQuestGiver'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { BookTile } from '@/components/library/BookTile'
@@ -31,14 +31,16 @@ export function DiscoverPage() {
   const { activeId } = useActiveLibrary()
   const progressById = useMediaProgress()
 
-  // Route gate: Discover is admin-gated. A stale /discover link redirects home
-  // when the feature is off on the active server.
-  const { data: config, isLoading: configLoading } = useDiscoverConfig()
+  // Route gate: Discover shares QuestGiver's config and is default-enabled. A
+  // stale /discover link redirects home only when the backend explicitly disables
+  // it (discoverEnabled === false) on the active server.
+  const { data: config, isLoading: configLoading } = useQgConfig()
+  const discoverEnabled = config?.discoverEnabled !== false
 
   const { data, isLoading } = useQuery({
     queryKey: ['discover', 'all-items', target?.serverId, activeId],
     queryFn: () => getAllLibraryItemsFull(target!, activeId as string),
-    enabled: Boolean(target) && Boolean(activeId) && config?.enabled === true,
+    enabled: Boolean(target) && Boolean(activeId) && discoverEnabled,
   })
 
   const items = useMemo(() => data?.results ?? [], [data])
@@ -76,7 +78,7 @@ export function DiscoverPage() {
   }, [popular, byId])
 
   if (configLoading) return <LoadingSpinner />
-  if (!config?.enabled) return <Navigate to="/" replace />
+  if (!discoverEnabled) return <Navigate to="/" replace />
   if (isLoading) return <LoadingSpinner />
 
   return (

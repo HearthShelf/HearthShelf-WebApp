@@ -10,7 +10,7 @@ import { useActiveServer } from '@/hooks/useActiveServer'
 import { getMe } from '@/api/absLibrary'
 import { fetchAdminMe, ApiError } from '@/api/controlPlane'
 import { useRmabEnabled } from '@/hooks/useRmab'
-import { useDiscoverEnabled } from '@/hooks/useDiscover'
+import { useDiscoverEnabled, useQuestGiverEnabled } from '@/hooks/useQuestGiver'
 
 // Which nav group a path belongs to. Browse surfaces (series, authors, search,
 // item detail) keep Library lit, matching the self-hosted shell.
@@ -29,6 +29,7 @@ function groupForPath(path: string): string {
   if (path.startsWith('/podcasts/')) return 'podcasts'
   if (path.startsWith('/collections')) return 'collections'
   if (path.startsWith('/playlists')) return 'playlists'
+  if (path.startsWith('/questgiver')) return 'questgiver'
   if (path.startsWith('/discover')) return 'discover'
   if (path.startsWith('/requests')) return 'requests'
   if (path.startsWith('/stats')) return 'stats'
@@ -114,7 +115,7 @@ export function Sidebar() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const { target } = useActiveServer()
-  const { itemCount, active: activeLib } = useActiveLibrary()
+  const { active: activeLib } = useActiveLibrary()
   const group = groupForPath(pathname)
   const isPodcast = activeLib?.mediaType === 'podcast'
 
@@ -133,9 +134,10 @@ export function Sidebar() {
   // ReadMeABook feature gates: each nav item shows ONLY when the active server's
   // HearthShelf backend reports the feature enabled (defaults false until known,
   // so nothing flickers in on a server without the feature).
+  const questGiverEnabled = useQuestGiverEnabled()
   const discoverEnabled = useDiscoverEnabled()
   const rmabEnabled = useRmabEnabled()
-  const showDiscoverGroup = discoverEnabled || rmabEnabled
+  const showFindGroup = questGiverEnabled || discoverEnabled || rmabEnabled
 
   const Item = ({ id, icon, label, to, badge }: NavItemDef) => {
     const active = group === id
@@ -160,7 +162,7 @@ export function Sidebar() {
 
       <nav className="nav">
         <Item id="home" icon="home" label="Home" to="/" />
-        <Item id="library" icon="grid_view" label="Library" to="/library" badge={itemCount} />
+        <Item id="library" icon="grid_view" label="Library" to="/library" />
 
         {isPodcast ? (
           <>
@@ -181,9 +183,12 @@ export function Sidebar() {
           </>
         )}
 
-        {showDiscoverGroup && (
+        {showFindGroup && (
           <>
             <div className="nav-label">Find</div>
+            {questGiverEnabled && (
+              <Item id="questgiver" icon="favorite" label="QuestGiver" to="/questgiver" />
+            )}
             {discoverEnabled && (
               <Item id="discover" icon="explore" label="Discover" to="/discover" />
             )}

@@ -1,19 +1,21 @@
 /**
- * Discover hooks for the active server. Config drives the nav item + route gate;
- * the data hooks (monthly AI shelf, per-item feedback, popular signals) all hit
- * the active server's /hs/discover* backend and degrade gracefully (see
- * absDiscover.ts), so the page never breaks when the backend is absent.
+ * Discover DATA hooks for the active server. The monthly AI shelf, per-item
+ * feedback, and popular signals all hit the active server's /hs/discover* backend
+ * and degrade gracefully (see absDiscover.ts), so the page never breaks when the
+ * backend is absent.
+ *
+ * Enablement is NOT here: Discover and QuestGiver share ONE config endpoint
+ * (/hs/questgiver/config). useDiscoverEnabled is re-exported from useQuestGiver so
+ * the nav item + route gate read the shared, default-enabled flag.
  */
 import { useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import {
-  getDiscoverConfig,
   getMonthlyShelf,
   getDiscoverFeedback,
   setDiscoverFeedback,
   getPopular,
-  type DiscoverConfig,
   type DiscoverFeedbackMap,
   type DiscoverVote,
   type MonthlyShelf,
@@ -22,25 +24,9 @@ import {
 import { buildDiscoverSummary, discoverCandidates } from '@hearthshelf/core'
 import type { AbsLibraryItem, MediaProgress } from '@/api/absLibrary'
 
-const NO_TARGET: DiscoverConfig = { enabled: false }
-
-// Shared Discover config query - drives the nav item and the route gate.
-export function useDiscoverConfig() {
-  const { target } = useActiveServer()
-  return useQuery<DiscoverConfig>({
-    queryKey: ['discover', 'config', target?.serverId],
-    queryFn: () => (target ? getDiscoverConfig(target) : Promise.resolve(NO_TARGET)),
-    enabled: Boolean(target),
-    staleTime: 5 * 60 * 1000,
-  })
-}
-
-// True only when the backend reports Discover enabled. Defaults to false until
-// known, so the nav item doesn't flicker in on a server without the feature.
-export function useDiscoverEnabled(): boolean {
-  const { data } = useDiscoverConfig()
-  return data?.enabled === true
-}
+// Discover enablement comes from the SHARED QuestGiver config, not a Discover-only
+// endpoint. Re-exported here so existing Discover importers keep working.
+export { useDiscoverEnabled } from '@/hooks/useQuestGiver'
 
 // The month's AI-curated shelf. Long staleTime - it only changes once a month.
 export function useMonthlyShelf(

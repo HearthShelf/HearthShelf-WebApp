@@ -40,11 +40,6 @@ export interface PopularItem {
   inProgressBy: number
 }
 
-/** Admin gate for the Discover surface. False until the backend confirms it. */
-export interface DiscoverConfig {
-  enabled: boolean
-}
-
 const EMPTY_SHELF: MonthlyShelf = { month: '', engine: 'none', intro: '', picks: [] }
 
 function origin(t: AbsTarget): string {
@@ -65,19 +60,6 @@ async function dFetch<T>(t: AbsTarget, path: string, options: RequestInit = {}):
   })
   if (!res.ok) throw new Error(`Discover ${res.status}`)
   return res.json() as Promise<T>
-}
-
-/**
- * Is Discover enabled on this server? Returns { enabled: false } on any failure
- * so the nav + gate hide the surface when the backend doesn't expose it.
- */
-export async function getDiscoverConfig(t: AbsTarget): Promise<DiscoverConfig> {
-  try {
-    const data = await dFetch<{ enabled?: boolean; discoverEnabled?: boolean }>(t, '/config')
-    return { enabled: data.enabled === true || data.discoverEnabled === true }
-  } catch {
-    return { enabled: false }
-  }
 }
 
 /**
