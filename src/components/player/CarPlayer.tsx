@@ -42,6 +42,7 @@ export function CarPlayer({
   prevCh,
   nextCh,
   onExit,
+  idleMs = 60_000,
 }: {
   libraryItemId: string
   title: string
@@ -59,6 +60,8 @@ export function CarPlayer({
   prevCh: () => void
   nextCh: () => void
   onExit: () => void
+  /** Idle timeout before chrome fades (ms). Defaults to one minute. */
+  idleMs?: number
 }) {
   const navigate = useNavigate()
   const skipFwd = useSettingsStore((s) => s.skipForward)
@@ -68,7 +71,7 @@ export function CarPlayer({
   const [sheet, setSheet] = useState<Sheet>(null)
 
   // Idle-fade: a "wake" reveals chrome + resets; "tick" only resets the timer.
-  const { faded, wake, tick } = useIdleFade(true)
+  const { faded, wake, tick } = useIdleFade(true, idleMs)
   const { rect, onDragHandlePointerDown, onResizeHandlePointerDown, dragging } =
     useDraggableCard(true, wake)
 
@@ -78,6 +81,11 @@ export function CarPlayer({
     const r = e.currentTarget.getBoundingClientRect()
     return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))
   }
+
+  // Skip controls must not bubble to the card's wake handler - otherwise a
+  // nudge would reveal the faded chrome. They tick() (keep the timer alive)
+  // via their own onClick instead.
+  const stopWake = (e: React.PointerEvent) => e.stopPropagation()
 
   // Core transport reporters: skip controls tick (keep awake, no reveal);
   // play/pause is a full wake so chrome comes back when you start fiddling.
@@ -167,23 +175,45 @@ export function CarPlayer({
           <span>-{formatTimestamp(duration - pos)}</span>
         </div>
 
-        {/* Core transport - always visible, even when faded. */}
+        {/* Core transport - always visible, even when faded. The skip controls
+            stop pointer propagation so they DON'T trigger the card's wake: you
+            can nudge playback while idle without the chrome flashing back. */}
         <div className="car-transport">
-          <button className="car-skip lite" title="Previous chapter" onClick={onPrevCh}>
+          <button
+            className="car-skip lite"
+            title="Previous chapter"
+            onPointerDown={stopWake}
+            onClick={onPrevCh}
+          >
             <Icon name="skip_previous" fill />
           </button>
-          <button className="car-skip" title={`Back ${skipBack}s`} onClick={onBack}>
+          <button
+            className="car-skip"
+            title={`Back ${skipBack}s`}
+            onPointerDown={stopWake}
+            onClick={onBack}
+          >
             <Icon name="replay" />
             <small>{skipBack}</small>
           </button>
           <button className="car-play" onClick={onPlay} aria-label={isPlaying ? 'Pause' : 'Play'}>
             <Icon name={isPlaying ? 'pause' : 'play_arrow'} fill />
           </button>
-          <button className="car-skip" title={`Forward ${skipFwd}s`} onClick={onFwd}>
+          <button
+            className="car-skip"
+            title={`Forward ${skipFwd}s`}
+            onPointerDown={stopWake}
+            onClick={onFwd}
+          >
             <Icon name="replay" style={{ transform: 'scaleX(-1)' }} />
             <small>{skipFwd}</small>
           </button>
-          <button className="car-skip lite" title="Next chapter" onClick={onNextCh}>
+          <button
+            className="car-skip lite"
+            title="Next chapter"
+            onPointerDown={stopWake}
+            onClick={onNextCh}
+          >
             <Icon name="skip_next" fill />
           </button>
         </div>

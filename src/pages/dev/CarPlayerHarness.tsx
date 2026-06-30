@@ -59,6 +59,7 @@ export function CarPlayerHarness() {
         prevCh={() => seekClamp(CHAPTERS[Math.max(0, ci - 1)].start)}
         nextCh={() => seekClamp(CHAPTERS[Math.min(CHAPTERS.length - 1, ci + 1)].start)}
         onExit={() => alert('exit car mode')}
+        idleMs={1500}
       />
     </div>
     </MediaUIProvider>
