@@ -1,16 +1,23 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Modal } from '@/components/common/Modal'
 import { Icon } from '@/components/common/Icon'
 import { tintFor } from '@/components/shared/Cover'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { absMediaUrl } from '@/api/absClient'
+import { matchAuthor, deleteAuthor, uploadAuthorImage } from '@/api/absLibrary'
 import type { Person } from '@/components/library/PersonCard'
 
 interface EditProps {
   person: Person
   saving: boolean
-  onSave: (patch: { name: string; description?: string }) => void
+  /** Persist name/description/asin/imageUrl (authors). The narrator path uses
+   *  only name (it's a credit string, not a record). */
+  onSave: (patch: { name: string; description?: string; asin?: string; imageUrl?: string }) => void
   onClose: () => void
+  /** Re-fetch the parent list after an in-modal action (match/upload/delete). */
+  onChanged?: () => void
+  /** Remove this author/narrator (authors only have a delete record). */
+  onDelete?: () => void
 }
 
 function initialsOf(name: string): string {
@@ -19,18 +26,88 @@ function initialsOf(name: string): string {
   return name.slice(0, 2).toUpperCase()
 }
 
-// Rename a person and (authors only) edit their description. Saving a name that
-// matches another person in the library merges them, server-side.
-export function PersonEditModal({ person, saving, onSave, onClose }: EditProps) {
+// Rename a person and (authors) edit description / ASIN / photo. Saving a name
+// that matches another person in the library merges them, server-side. Authors
+// also support a metadata quick-match, web/upload photo, and remove.
+export function PersonEditModal({
+  person,
+  saving,
+  onSave,
+  onClose,
+  onChanged,
+  onDelete,
+}: EditProps) {
   const [name, setName] = useState(person.name)
   const [description, setDescription] = useState('')
+  const [asin, setAsin] = useState('')
+  const [imageUrl, setImageUrl] = useState('')
   const isAuthor = person.kind === 'author'
-  const dirty = name.trim() !== '' && name !== person.name
 
   const { target } = useActiveServer()
+  // Bump to cache-bust the <img> after a match/upload swaps the photo.
+  const [imgV, setImgV] = useState(0)
+  const [busy, setBusy] = useState<null | 'match' | 'upload' | 'delete'>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
   const hasPhoto = isAuthor && Boolean(person.imagePath)
   const photoSrc =
-    target && hasPhoto ? absMediaUrl(target, `/api/authors/${person.id}/image`) : null
+    target && hasPhoto
+      ? absMediaUrl(target, `/api/authors/${person.id}/image`) + `&v=${imgV}`
+      : null
+
+  const dirty =
+    (name.trim() !== '' && name !== person.name) ||
+    description.trim() !== '' ||
+    asin.trim() !== '' ||
+    imageUrl.trim() !== ''
+
+  const save = () =>
+    onSave({
+      name: name.trim(),
+      description: isAuthor && description.trim() ? description : undefined,
+      asin: isAuthor && asin.trim() ? asin.trim() : undefined,
+      imageUrl: isAuthor && imageUrl.trim() ? imageUrl.trim() : undefined,
+    })
+
+  // Quick-match against Audible (the ABS "+1") - pulls photo, bio, and ASIN.
+  const quickMatch = async () => {
+    if (!target) return
+    setBusy('match')
+    try {
+      await matchAuthor(target, person.id, name.trim() || person.name)
+      setImgV((v) => v + 1)
+      onChanged?.()
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const pickFile = () => fileRef.current?.click()
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !target) return
+    setBusy('upload')
+    try {
+      await uploadAuthorImage(target, person.id, file)
+      setImgV((v) => v + 1)
+      onChanged?.()
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const remove = async () => {
+    if (!target) return
+    setBusy('delete')
+    try {
+      await deleteAuthor(target, person.id)
+      onDelete?.()
+      onClose()
+    } finally {
+      setBusy(null)
+    }
+  }
 
   return (
     <Modal
@@ -38,18 +115,25 @@ export function PersonEditModal({ person, saving, onSave, onClose }: EditProps) 
       onClose={onClose}
       foot={
         <>
-          <button className="btn btn-ghost" onClick={onClose}>
+          {isAuthor && (
+            <button
+              type="button"
+              className="btn btn-danger"
+              style={{ marginRight: 'auto' }}
+              disabled={busy !== null || saving}
+              onClick={remove}
+            >
+              <Icon name="delete" /> {busy === 'delete' ? 'Removing…' : 'Remove'}
+            </button>
+          )}
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
             Cancel
           </button>
           <button
+            type="button"
             className="btn btn-primary"
             disabled={!dirty || saving}
-            onClick={() =>
-              onSave({
-                name: name.trim(),
-                description: isAuthor ? description : undefined,
-              })
-            }
+            onClick={save}
           >
             {saving ? 'Saving…' : 'Save'}
           </button>
@@ -72,6 +156,30 @@ export function PersonEditModal({ person, saving, onSave, onClose }: EditProps) 
         </div>
       </div>
 
+      {isAuthor && (
+        <div className="pe-photo-actions" style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn-sm btn-accent"
+            disabled={busy !== null}
+            onClick={quickMatch}
+            title="Match against Audible (+1): fetch photo, bio, and ASIN"
+          >
+            <Icon name="auto_fix_high" /> {busy === 'match' ? 'Matching…' : 'Quick match'}
+          </button>
+          <button type="button" className="btn-sm btn-ghost" disabled={busy !== null} onClick={pickFile}>
+            <Icon name="upload" /> {busy === 'upload' ? 'Uploading…' : 'Upload photo'}
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={onFile}
+          />
+        </div>
+      )}
+
       <label className="fld-label" htmlFor="pe-name">
         Name
       </label>
@@ -82,26 +190,46 @@ export function PersonEditModal({ person, saving, onSave, onClose }: EditProps) 
         autoFocus
         onChange={(e) => setName(e.target.value)}
       />
+
       {isAuthor && (
         <>
-          <label
-            className="fld-label"
-            htmlFor="pe-desc"
-            style={{ marginTop: 14 }}
-          >
+          <label className="fld-label" htmlFor="pe-desc" style={{ marginTop: 14 }}>
             Description
           </label>
           <textarea
             id="pe-desc"
             className="fld"
             rows={4}
-            placeholder={person.id ? 'Add a short bio…' : ''}
+            placeholder="Add a short bio…"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             style={{ resize: 'vertical' }}
           />
+
+          <label className="fld-label" htmlFor="pe-asin" style={{ marginTop: 14 }}>
+            ASIN
+          </label>
+          <input
+            id="pe-asin"
+            className="fld"
+            value={asin}
+            placeholder="e.g. B0BVB123 (links the Audible identity)"
+            onChange={(e) => setAsin(e.target.value)}
+          />
+
+          <label className="fld-label" htmlFor="pe-img" style={{ marginTop: 14 }}>
+            Photo from a web address
+          </label>
+          <input
+            id="pe-img"
+            className="fld"
+            value={imageUrl}
+            placeholder="https://…/photo.jpg (downloaded on save)"
+            onChange={(e) => setImageUrl(e.target.value)}
+          />
         </>
       )}
+
       {name.trim() !== '' && name !== person.name && (
         <p className="pr-d" style={{ marginTop: 12 }}>
           If another {isAuthor ? 'author' : 'narrator'} already has this name,

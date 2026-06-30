@@ -361,7 +361,12 @@ export function LibraryPage() {
     qc.invalidateQueries({ queryKey: allItemsKey })
   }
 
-  const doPersonSave = async (patch: { name: string; description?: string }) => {
+  const doPersonSave = async (patch: {
+    name: string
+    description?: string
+    asin?: string
+    imageUrl?: string
+  }) => {
     if (!personEditing || !target || !activeId) return
     setPersonBusy(true)
     try {
@@ -1006,6 +1011,8 @@ export function LibraryPage() {
           person={personEditing}
           saving={personBusy}
           onSave={doPersonSave}
+          onChanged={invalidatePersons}
+          onDelete={invalidatePersons}
           onClose={() => setPersonEditing(null)}
         />
       )}

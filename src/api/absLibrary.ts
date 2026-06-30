@@ -5,7 +5,8 @@
  * minified item form for lists (denormalized title/authorName, cover via the
  * item's /cover endpoint). Only the fields we render are typed.
  */
-import { absGet, absPatch, absPost, absMediaUrl } from './absClient'
+import { absGet, absPatch, absPost, absDelete, absMediaUrl } from './absClient'
+import { getAbsToken } from '@/lib/absTokens'
 import type {
   ABSBookMetadata,
   ABSBookMedia,
@@ -907,13 +908,68 @@ export async function getAuthors(t: AbsTarget, libraryId: string): Promise<Autho
   }
 }
 
-/** Update an author's name and/or description. */
+/**
+ * Update an author's editable fields. ABS auto-merges when the new name matches
+ * another author in the same library. `imageUrl` makes ABS download and store a
+ * photo from the web; `asin` links the Audible identity.
+ */
 export async function updateAuthor(
   t: AbsTarget,
   authorId: string,
-  patch: { name?: string; description?: string }
+  patch: { name?: string; description?: string; asin?: string; imageUrl?: string }
 ): Promise<void> {
   await absPatch(t, `/api/authors/${encodeURIComponent(authorId)}`, patch)
+}
+
+/**
+ * Quick-match an author against the metadata provider (Audible) by name - the
+ * "+1" match in ABS. ABS fetches the author's photo, bio, and ASIN and stores
+ * them server-side. Returns whether anything was updated + the new imagePath.
+ */
+export async function matchAuthor(
+  t: AbsTarget,
+  authorId: string,
+  name: string,
+  region = 'us'
+): Promise<{ updated: boolean; imagePath: string | null }> {
+  const res = await absPost<{ updated?: boolean; author?: { imagePath?: string | null } }>(
+    t,
+    `/api/authors/${encodeURIComponent(authorId)}/match`,
+    { q: name, region }
+  )
+  return { updated: Boolean(res?.updated), imagePath: res?.author?.imagePath ?? null }
+}
+
+/**
+ * Remove an author record. ABS strips the author credit from each item's
+ * metadata but keeps the books and their audio files.
+ */
+export async function deleteAuthor(t: AbsTarget, authorId: string): Promise<void> {
+  await absDelete(t, `/api/authors/${encodeURIComponent(authorId)}`)
+}
+
+/**
+ * Upload a local image file as an author's photo (multipart). absPost only does
+ * JSON, so this posts FormData directly to the server origin with the per-server
+ * bearer token - the same pattern the Upload page uses.
+ */
+export async function uploadAuthorImage(
+  t: AbsTarget,
+  authorId: string,
+  file: File
+): Promise<void> {
+  const form = new FormData()
+  form.append('file', file)
+  const token = getAbsToken(t.serverId)
+  const res = await fetch(
+    `${t.serverUrl.replace(/\/$/, '')}/api/authors/${encodeURIComponent(authorId)}/image`,
+    {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: form,
+    }
+  )
+  if (!res.ok) throw new Error(`author image upload failed (${res.status})`)
 }
 
 // --- Batch item actions (admin / write) -------------------------------------
