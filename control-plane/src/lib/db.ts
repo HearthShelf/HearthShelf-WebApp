@@ -178,6 +178,43 @@ export async function deleteLink(env: Env, clerkUserId: string, serverId: string
     .run()
 }
 
+// --- user prefs (MyHS account-level) ---------------------------------------
+
+/** The user's default server_id, or null when unset. Reads the one-row-per-user
+ *  prefs table; a fresh device with no default shows the picker. */
+export async function getDefaultServer(env: Env, clerkUserId: string): Promise<string | null> {
+  const r = await env.DB.prepare(`SELECT default_server_id FROM user_prefs WHERE clerk_user_id = ?`)
+    .bind(clerkUserId)
+    .first<{ default_server_id: string | null }>()
+  return r?.default_server_id ?? null
+}
+
+/** Set (or with null, clear) the user's default server. One scalar per user, so
+ *  there's no cross-row invariant to maintain - the previous default is simply
+ *  overwritten. */
+export async function setDefaultServer(env: Env, clerkUserId: string, serverId: string | null): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO user_prefs (clerk_user_id, default_server_id, updated_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT (clerk_user_id) DO UPDATE SET
+       default_server_id = excluded.default_server_id, updated_at = excluded.updated_at`,
+  )
+    .bind(clerkUserId, serverId, now())
+    .run()
+}
+
+/** Clear the default only if it currently points at serverId. Called when a link
+ *  is forgotten so a dangling default doesn't linger, without disturbing a
+ *  default that points elsewhere. */
+export async function clearDefaultServerIf(env: Env, clerkUserId: string, serverId: string): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE user_prefs SET default_server_id = NULL, updated_at = ?
+       WHERE clerk_user_id = ? AND default_server_id = ?`,
+  )
+    .bind(now(), clerkUserId, serverId)
+    .run()
+}
+
 /** How many users are still linked to a server (to decide last-one-out cleanup). */
 export async function countLinksForServer(env: Env, serverId: string): Promise<number> {
   const r = await env.DB.prepare(`SELECT COUNT(*) AS n FROM links WHERE server_id = ?`)

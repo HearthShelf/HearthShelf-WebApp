@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Server, MoreVertical, ExternalLink, Trash2 } from 'lucide-react'
-import { useUnlinkServer } from '@/hooks/useServers'
+import { Server, MoreVertical, ExternalLink, Trash2, Star } from 'lucide-react'
+import { useUnlinkServer, useSetDefaultServer, useClearDefaultServer } from '@/hooks/useServers'
 import { useActiveServerStore } from '@/store/activeServer'
 import { ServerStatusDot } from '@/components/ServerStatusDot'
 import { Menu, MenuItem } from '@/components/ui/Menu'
@@ -22,6 +22,8 @@ import type { LinkedServer } from '@/types/server'
 export function ServerRow({ server, active }: { server: LinkedServer; active?: boolean }) {
   const navigate = useNavigate()
   const unlink = useUnlinkServer()
+  const setDefault = useSetDefaultServer()
+  const clearDefault = useClearDefaultServer()
   const setActiveServer = useActiveServerStore((s) => s.setActiveServer)
   const [menu, setMenu] = useState<{ x: number; y: number; align: 'left' | 'right' } | null>(null)
   const [confirmRemove, setConfirmRemove] = useState(false)
@@ -54,6 +56,21 @@ export function ServerRow({ server, active }: { server: LinkedServer; active?: b
     })
   }
 
+  // Toggle this server as the account default (the one a fresh device opens to).
+  function toggleDefault() {
+    setMenu(null)
+    if (server.isDefault) {
+      clearDefault.mutate(server.id, {
+        onError: (err) => notify.error(notify.fromError(err, 'Could not update default')),
+      })
+    } else {
+      setDefault.mutate(server.id, {
+        onSuccess: () => notify.success(`${server.name} is now your default`),
+        onError: (err) => notify.error(notify.fromError(err, 'Could not set default')),
+      })
+    }
+  }
+
   return (
     <li>
       <div className="group relative" onContextMenu={openMenuFromContext}>
@@ -70,9 +87,14 @@ export function ServerRow({ server, active }: { server: LinkedServer; active?: b
             <Server size={18} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate font-medium text-card-foreground">{server.name}</span>
+            <span className="flex items-center gap-1.5 font-medium text-card-foreground">
+              <span className="truncate">{server.name}</span>
+              {server.isDefault && (
+                <Star size={13} className="shrink-0 fill-primary text-primary" aria-label="Default server" />
+              )}
+            </span>
             <span className="t-muted block truncate text-[12px]">
-              {active ? 'Currently browsing' : 'Tap to open this library'}
+              {active ? 'Currently browsing' : server.isDefault ? 'Your default library' : 'Tap to open this library'}
             </span>
           </span>
           <ServerStatusDot serverId={server.id} />
@@ -102,6 +124,9 @@ export function ServerRow({ server, active }: { server: LinkedServer; active?: b
         <Menu x={menu.x} y={menu.y} align={menu.align} onClose={() => setMenu(null)}>
           <MenuItem icon={<ExternalLink size={16} />} onSelect={open}>
             Open
+          </MenuItem>
+          <MenuItem icon={<Star size={16} />} onSelect={toggleDefault}>
+            {server.isDefault ? 'Remove as default' : 'Make default'}
           </MenuItem>
           <MenuItem
             icon={<Trash2 size={16} />}

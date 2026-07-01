@@ -61,7 +61,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 interface ServersResponse {
-  servers: Array<{ id: string; name: string; url: string; role: 'admin' | 'user' }>
+  servers: Array<{ id: string; name: string; url: string; role: 'admin' | 'user'; is_default?: boolean }>
 }
 
 /** List the servers the signed-in user has linked. */
@@ -69,7 +69,24 @@ export async function fetchLinkedServers(): Promise<LinkedServer[]> {
   const data = await request<ServersResponse>('/servers')
   // The control plane doesn't track live reachability; the per-server view
   // probes the server directly. Mark unknown until then.
-  return data.servers.map((s) => ({ ...s, status: 'unknown' as const }))
+  return data.servers.map((s) => ({
+    id: s.id,
+    name: s.name,
+    url: s.url,
+    role: s.role,
+    status: 'unknown' as const,
+    ...(s.is_default ? { isDefault: true } : {}),
+  }))
+}
+
+/** Set this server as the user's default (a fresh device auto-connects here). */
+export async function setDefaultServer(serverId: string): Promise<void> {
+  await request(`/servers/${encodeURIComponent(serverId)}/default`, { method: 'POST' })
+}
+
+/** Clear the user's default server (fresh devices return to the picker). */
+export async function clearDefaultServer(serverId: string): Promise<void> {
+  await request(`/servers/${encodeURIComponent(serverId)}/default`, { method: 'DELETE' })
 }
 
 export type Plan = 'free' | 'pro'

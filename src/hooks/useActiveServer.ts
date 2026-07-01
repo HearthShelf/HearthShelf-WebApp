@@ -34,12 +34,18 @@ export function useActiveServer(): ActiveServer {
   const activeServerId = useActiveServerStore((s) => s.activeServerId)
   const setActiveServer = useActiveServerStore((s) => s.setActiveServer)
 
-  // Resolve the persisted id against the live list; fall back to the first
-  // server when the selection is empty or stale (e.g. it was just unlinked).
+  // Resolve which server this device browses. Precedence:
+  //   1. this device's own explicit pick (persisted activeServerId), if still valid
+  //   2. the user's MyHS default server (isDefault), so a fresh device lands there
+  //   3. the first linked server (single-server case, zero clicks)
+  // A fresh device has no local pick, so it auto-connects to the default; without
+  // a default it falls to the first server.
   const resolved = useMemo<LinkedServer | null>(() => {
     if (!servers || servers.length === 0) return null
     const picked = activeServerId ? servers.find((s) => s.id === activeServerId) : undefined
-    return picked ?? servers[0]
+    if (picked) return picked
+    const preferred = servers.find((s) => s.isDefault)
+    return preferred ?? servers[0]
   }, [servers, activeServerId])
 
   // Persist the resolution so the store and the live list stay in sync. Runs when

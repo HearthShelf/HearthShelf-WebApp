@@ -5,6 +5,8 @@
  *   GET    /servers               - list linked servers (+ accept pending invites)
  *   POST   /servers/:id/grant     - mint a short-TTL grant for one server
  *   DELETE /servers/:id           - unlink a server from this user
+ *   POST   /servers/:id/default   - set this server as the user's default
+ *   DELETE /servers/:id/default   - clear the user's default server
  *   POST   /servers/:id/invite    - invite someone by email (admin only)
  *   GET    /servers/:id/invites   - list pending invites (admin only)
  *
@@ -35,6 +37,9 @@ import {
   upsertServerCertPending,
   recordServerCertResult,
   getServerCert,
+  getDefaultServer,
+  setDefaultServer,
+  clearDefaultServerIf,
 } from '../lib/db'
 import { mintGrant } from '../lib/signing'
 import { getPlan } from '../lib/admin'
@@ -103,7 +108,7 @@ servers.get('/servers', async (c) => {
   await acceptPendingInvites(c, user)
 
   const zone = hsDirectZone(c.env)
-  const links = await listLinksForUser(c.env, user.userId)
+  const [links, defaultId] = await Promise.all([listLinksForUser(c.env, user.userId), getDefaultServer(c.env, user.userId)])
   const out: LinkedServerDTO[] = links.map((l) => {
     // The hs.direct fallback host, when this server has an active cert. `url` is
     // the PREFERRED address (the user's own domain if they set one, else the
@@ -117,6 +122,7 @@ servers.get('/servers', async (c) => {
       url: l.public_url,
       ...(fallback ? { fallback_url: fallback } : {}),
       role: l.role,
+      ...(l.server_id === defaultId ? { is_default: true } : {}),
     }
   })
   return c.json({ servers: out })
@@ -220,6 +226,31 @@ servers.delete('/servers/:id', async (c) => {
   if (!user) return c.json({ error: 'unauthorized' }, 401)
   const serverId = c.req.param('id')
   await deleteLink(c.env, user.userId, serverId)
+  // Forgetting the default server clears the default so a fresh device falls
+  // back to the picker rather than pointing at a server the user no longer has.
+  await clearDefaultServerIf(c.env, user.userId, serverId)
+  return c.json({ ok: true })
+})
+
+// Set this server as the user's default - the one a fresh device auto-connects
+// to. Stored per MyHS user (not per device), so it follows the account.
+servers.post('/servers/:id/default', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return c.json({ error: 'unauthorized' }, 401)
+  const serverId = c.req.param('id')
+  // Only a server the user is actually linked to can be their default.
+  const link = await getLink(c.env, user.userId, serverId)
+  if (!link) return c.json({ error: 'not_linked' }, 404)
+  await setDefaultServer(c.env, user.userId, serverId)
+  return c.json({ ok: true })
+})
+
+// Clear the user's default (fresh devices go back to the picker).
+servers.delete('/servers/:id/default', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return c.json({ error: 'unauthorized' }, 401)
+  const serverId = c.req.param('id')
+  await clearDefaultServerIf(c.env, user.userId, serverId)
   return c.json({ ok: true })
 })
 

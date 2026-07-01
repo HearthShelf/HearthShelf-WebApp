@@ -17,4 +17,7 @@ export interface LinkedServer {
   status: 'online' | 'offline' | 'unknown'
   /** Optional owner/role hint for UI affordances. */
   role?: 'admin' | 'user'
+  /** The user's chosen default server - a fresh device auto-connects here.
+   *  At most one linked server is the default. */
+  isDefault?: boolean
 }

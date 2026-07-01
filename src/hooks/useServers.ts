@@ -10,6 +10,8 @@ import {
   redeemPairingCode,
   unlinkServer,
   inviteToServer,
+  setDefaultServer,
+  clearDefaultServer,
   type ServerStatusResponse,
 } from '@/api/controlPlane'
 import type { LinkedServer } from '@/types/server'
@@ -57,6 +59,28 @@ export function useUnlinkServer() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (serverId: string) => unlinkServer(serverId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: SERVERS_KEY }),
+  })
+}
+
+/**
+ * Set (or clear) the user's default server - the one a fresh device
+ * auto-connects to. Stored per MyHS account (control plane), so it follows the
+ * user across devices. Pass null to clear. Invalidates the server list so the
+ * `isDefault` flags update everywhere.
+ */
+export function useSetDefaultServer() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (serverId: string | null) => (serverId ? setDefaultServer(serverId) : Promise.resolve()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: SERVERS_KEY }),
+  })
+}
+
+export function useClearDefaultServer() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (serverId: string) => clearDefaultServer(serverId),
     onSuccess: () => qc.invalidateQueries({ queryKey: SERVERS_KEY }),
   })
 }

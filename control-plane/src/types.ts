@@ -60,6 +60,9 @@ export interface LinkedServerDTO {
    *  domain. Absent when the server has never provisioned hs.direct. */
   fallback_url?: string
   role: 'admin' | 'user'
+  /** True for the user's chosen default server - the one a fresh device
+   *  auto-connects to. At most one linked server has this set. */
+  is_default?: boolean
 }
 
 /** Claims carried by a grant assertion (the JWT HS verifies offline). */
