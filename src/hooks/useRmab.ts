@@ -55,13 +55,12 @@ function useInvalidateRequests() {
 // safe failure when no server is connected.
 function useTargetMutation<TArgs, TResult>(
   fn: (t: AbsTarget, args: TArgs) => Promise<TResult>,
-  fallback: TResult
+  fallback: TResult,
 ) {
   const { target } = useActiveServer()
   const invalidate = useInvalidateRequests()
   return useMutation({
-    mutationFn: (args: TArgs) =>
-      target ? fn(target, args) : Promise.resolve(fallback),
+    mutationFn: (args: TArgs) => (target ? fn(target, args) : Promise.resolve(fallback)),
     onSuccess: invalidate,
   })
 }
@@ -69,7 +68,7 @@ function useTargetMutation<TArgs, TResult>(
 export function useSubmitRequest() {
   return useTargetMutation(
     (t, audiobook: Parameters<typeof submitRequest>[1]) => submitRequest(t, audiobook),
-    { success: false } as Awaited<ReturnType<typeof submitRequest>>
+    { success: false } as Awaited<ReturnType<typeof submitRequest>>,
   )
 }
 

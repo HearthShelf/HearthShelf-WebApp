@@ -42,10 +42,9 @@ export const useRememberedAccounts = create<RememberedState>()(
         set((s) => ({
           accounts: [...s.accounts.filter((x) => x.userId !== a.userId), a],
         })),
-      forget: (handle) =>
-        set((s) => ({ accounts: s.accounts.filter((x) => x.handle !== handle) })),
+      forget: (handle) => set((s) => ({ accounts: s.accounts.filter((x) => x.handle !== handle) })),
       setAll: (accounts) => set({ accounts }),
     }),
-    { name: 'hearthshelf:remembered' }
-  )
+    { name: 'hearthshelf:remembered' },
+  ),
 )

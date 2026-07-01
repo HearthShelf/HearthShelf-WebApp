@@ -70,8 +70,8 @@ export function AdminAdminsPage() {
         </Button>
       </form>
       <p className="t-muted mt-2 text-[12px]">
-        They get access on their next sign-in. Seeded by email; the Clerk id fills in
-        automatically once they authenticate.
+        They get access on their next sign-in. Seeded by email; the Clerk id fills in automatically
+        once they authenticate.
       </p>
 
       <div className="mt-6">
@@ -101,7 +101,9 @@ export function AdminAdminsPage() {
                     {a.role !== 'admin' ? ` - ${a.role}` : ''}
                   </span>
                   <span className="t-mono block truncate text-[12px] text-muted-foreground">
-                    {a.clerk_user_id.startsWith('seed:') ? 'pending first sign-in' : a.clerk_user_id}
+                    {a.clerk_user_id.startsWith('seed:')
+                      ? 'pending first sign-in'
+                      : a.clerk_user_id}
                   </span>
                 </span>
                 <button
@@ -124,8 +126,8 @@ export function AdminAdminsPage() {
           title="Remove this admin?"
           message={
             <>
-              {pendingRemove.email || pendingRemove.clerk_user_id} will lose platform-admin
-              access immediately.
+              {pendingRemove.email || pendingRemove.clerk_user_id} will lose platform-admin access
+              immediately.
             </>
           }
           confirmLabel="Remove"

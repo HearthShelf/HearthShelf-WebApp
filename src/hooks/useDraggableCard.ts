@@ -52,15 +52,12 @@ interface DraggableCard {
  * corner grip), clamped to the viewport and persisted to settings. `onChange`
  * fires on every move so the caller can treat dragging as a "wake" interaction.
  */
-export function useDraggableCard(
-  enabled: boolean,
-  onInteract?: () => void
-): DraggableCard {
+export function useDraggableCard(enabled: boolean, onInteract?: () => void): DraggableCard {
   const saved = useSettingsStore((s) => s.carPlayerRect)
   const set = useSettingsStore((s) => s.set)
 
   const [rect, setRect] = useState<CarPlayerRect>(() =>
-    saved ? fitToViewport(saved) : defaultRect()
+    saved ? fitToViewport(saved) : defaultRect(),
   )
   const [dragging, setDragging] = useState(false)
 
@@ -94,16 +91,13 @@ export function useDraggableCard(
       setDragging(true)
       onInteract?.()
     },
-    [enabled, rect, onInteract]
+    [enabled, rect, onInteract],
   )
 
-  const onDragHandlePointerDown = useCallback(
-    (e: React.PointerEvent) => begin('move', e),
-    [begin]
-  )
+  const onDragHandlePointerDown = useCallback((e: React.PointerEvent) => begin('move', e), [begin])
   const onResizeHandlePointerDown = useCallback(
     (e: React.PointerEvent) => begin('resize', e),
-    [begin]
+    [begin],
   )
 
   useEffect(() => {

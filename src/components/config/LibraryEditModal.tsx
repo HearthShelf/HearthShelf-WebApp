@@ -1,10 +1,6 @@
 import { useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  getSearchProviders,
-  checkFolderExists,
-  adminKeys,
-} from '@/api/absAdmin'
+import { getSearchProviders, checkFolderExists, adminKeys } from '@/api/absAdmin'
 import type {
   ABSAdminLibrary,
   ABSLibrarySettings,
@@ -187,7 +183,7 @@ export function LibraryEditModal({
   const isBook = library.mediaType === 'book'
   const TABS = useMemo(
     () => ['Details', 'Settings', ...(isBook ? ['Scanner'] : []), 'Schedule', 'Tools'] as const,
-    [isBook]
+    [isBook],
   )
   const [tab, setTab] = useState<string>('Details')
 
@@ -204,7 +200,7 @@ export function LibraryEditModal({
   const [provider, setProvider] = useState(library.provider)
   const [icon, setIcon] = useState(library.icon)
   const [folders, setFolders] = useState<LibraryFolderInput[]>(
-    library.folders.map((f) => ({ id: f.id, fullPath: f.fullPath }))
+    library.folders.map((f) => ({ id: f.id, fullPath: f.fullPath })),
   )
   const [newFolder, setNewFolder] = useState('')
   const [newFolderState, setNewFolderState] = useState<
@@ -265,7 +261,7 @@ export function LibraryEditModal({
     const afterKey = folders.map((f) => f.fullPath).join(',')
     if (beforeKey !== afterKey) {
       patch.folders = folders.map((f) =>
-        f.id ? { id: f.id, fullPath: f.fullPath } : { fullPath: f.fullPath }
+        f.id ? { id: f.id, fullPath: f.fullPath } : { fullPath: f.fullPath },
       )
     }
 
@@ -297,9 +293,7 @@ export function LibraryEditModal({
     const before = library.settings as unknown as Record<string, unknown>
     for (const [k, v] of Object.entries(nextSettings)) {
       const prev = before[k]
-      const differs = Array.isArray(v)
-        ? JSON.stringify(v) !== JSON.stringify(prev)
-        : v !== prev
+      const differs = Array.isArray(v) ? JSON.stringify(v) !== JSON.stringify(prev) : v !== prev
       if (differs) {
         ;(changedSettings as Record<string, unknown>)[k] = v
       }
@@ -353,7 +347,9 @@ export function LibraryEditModal({
             </Field>
             <Field label="Icon">
               <select className="fld" value={icon} onChange={(e) => setIcon(e.target.value)}>
-                {ICON_OPTIONS.every((o) => o.value !== icon) && <option value={icon}>{icon}</option>}
+                {ICON_OPTIONS.every((o) => o.value !== icon) && (
+                  <option value={icon}>{icon}</option>
+                )}
                 {ICON_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
@@ -433,9 +429,9 @@ export function LibraryEditModal({
                 </button>
               </div>
               <p className="hint" style={{ margin: '4px 2px 0', fontSize: 12 }}>
-                Drag to reorder. The folder must exist on the server (inside the
-                container). Removing a folder also removes its items from
-                AudiobookShelf - the files on disk are kept.
+                Drag to reorder. The folder must exist on the server (inside the container).
+                Removing a folder also removes its items from AudiobookShelf - the files on disk are
+                kept.
               </p>
             </div>
           </>
@@ -542,10 +538,7 @@ export function LibraryEditModal({
         {/* --- Scanner (metadata precedence, books only) --- */}
         {tab === 'Scanner' && isBook && (
           <>
-            <div
-              className="cfg-line"
-              style={{ justifyContent: 'space-between', marginBottom: 4 }}
-            >
+            <div className="cfg-line" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
               <div className="cl-meta">
                 <div className="cl-t">Metadata order of precedence</div>
                 <div className="cl-d">
@@ -626,8 +619,8 @@ export function LibraryEditModal({
               </Field>
             )}
             <p className="hint" style={{ margin: '4px 2px 0', fontSize: 12 }}>
-              Standard cron format (minute hour day month weekday). Example:{' '}
-              <code>0 0 * * 1</code> runs every Monday at midnight.
+              Standard cron format (minute hour day month weekday). Example: <code>0 0 * * 1</code>{' '}
+              runs every Monday at midnight.
             </p>
           </div>
         )}
@@ -641,8 +634,8 @@ export function LibraryEditModal({
                   <div className="cl-meta" style={{ flex: 1 }}>
                     <div className="cl-t">Match all books</div>
                     <div className="cl-d">
-                      Quick-match every book in this library against the metadata
-                      provider. Runs in the background.
+                      Quick-match every book in this library against the metadata provider. Runs in
+                      the background.
                     </div>
                   </div>
                   <button className="btn-sm" onClick={() => setConfirmMatch(true)}>
@@ -656,8 +649,8 @@ export function LibraryEditModal({
                 <div className="cl-meta" style={{ flex: 1 }}>
                   <div className="cl-t">Remove metadata files</div>
                   <div className="cl-d">
-                    Delete metadata sidecar files written into each {library.mediaType} folder
-                    on disk.
+                    Delete metadata sidecar files written into each {library.mediaType} folder on
+                    disk.
                   </div>
                 </div>
                 <div className="t-actions" style={{ gap: 8 }}>

@@ -10,7 +10,7 @@ export function CollectionsPage() {
   const { data, isLoading, isError, refetch } = useCollections(
     target ?? { serverId: '', serverUrl: '' },
     activeId ?? undefined,
-    Boolean(target) && connected
+    Boolean(target) && connected,
   )
 
   if (!target) return null
@@ -40,7 +40,11 @@ export function CollectionsPage() {
         <div className="empty-state">
           <Icon name="error" />
           <h3>Could not load collections.</h3>
-          <button className="btn-sm btn-ghost" style={{ margin: '0 auto' }} onClick={() => refetch()}>
+          <button
+            className="btn-sm btn-ghost"
+            style={{ margin: '0 auto' }}
+            onClick={() => refetch()}
+          >
             Try again
           </button>
         </div>
@@ -57,11 +61,7 @@ export function CollectionsPage() {
       {collections.length > 0 && (
         <div className="coll-grid">
           {collections.map((c) => (
-            <div
-              key={c.id}
-              className="coll-card"
-              onClick={() => navigate(`/collections/${c.id}`)}
-            >
+            <div key={c.id} className="coll-card" onClick={() => navigate(`/collections/${c.id}`)}>
               <div className="coll-stack">
                 <div className="stack-more" style={{ borderRadius: 8, width: 72, height: 72 }}>
                   <Icon name="folder_special" />
@@ -70,8 +70,7 @@ export function CollectionsPage() {
               <div className="coll-meta">
                 <h3>{c.name}</h3>
                 <div className="coll-count">
-                  <Icon name="auto_stories" /> {c.itemCount}{' '}
-                  {c.itemCount === 1 ? 'book' : 'books'}
+                  <Icon name="auto_stories" /> {c.itemCount} {c.itemCount === 1 ? 'book' : 'books'}
                 </div>
               </div>
             </div>

@@ -32,7 +32,8 @@ export function InfraLogsPage() {
     queryKey: ['infra-logs', source, severity, serverId.trim()],
     queryFn: () => fetchInfraLogs(params),
     refetchInterval: 30_000,
-    retry: (count, e) => !(e instanceof ApiError && (e.status === 403 || e.status === 401)) && count < 2,
+    retry: (count, e) =>
+      !(e instanceof ApiError && (e.status === 403 || e.status === 401)) && count < 2,
   })
 
   const forbidden = error instanceof ApiError && error.status === 403
@@ -42,8 +43,8 @@ export function InfraLogsPage() {
     <div>
       <div className="flex items-start justify-between gap-4">
         <p className="t-muted text-[13px]">
-          Warnings and errors from the cert broker, control plane, and linked
-          servers. Newest first; auto-refreshes. Retained 30 days.
+          Warnings and errors from the cert broker, control plane, and linked servers. Newest first;
+          auto-refreshes. Retained 30 days.
         </p>
         <button
           type="button"
@@ -60,8 +61,7 @@ export function InfraLogsPage() {
         <Panel>
           <AlertTriangle size={18} className="text-muted-foreground" />
           <span className="t-body">
-            This view is limited to platform admins. Your account isn&apos;t on the admin
-            roster.
+            This view is limited to platform admins. Your account isn&apos;t on the admin roster.
           </span>
         </Panel>
       ) : (

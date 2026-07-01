@@ -3,11 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getItemDetail, getMe } from '@/api/absLibrary'
-import {
-  getBookDetailFull,
-  itemFileDownloadUrl,
-  itemCoverFullUrl,
-} from '@/api/absBookDetail'
+import { getBookDetailFull, itemFileDownloadUrl, itemCoverFullUrl } from '@/api/absBookDetail'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
 import { useMarkFinished } from '@/hooks/useMarkFinished'
 import { useBookmarks } from '@/hooks/useBookmarks'
@@ -99,8 +95,7 @@ export function ItemDetailPage() {
   // Load this book into the GLOBAL player when it opens (paused at the saved
   // position), unless it's already the now-playing book - so navigating back to
   // a playing book doesn't restart it.
-  const alreadyPlaying =
-    player.now?.itemId === itemId && player.now?.serverId === target?.serverId
+  const alreadyPlaying = player.now?.itemId === itemId && player.now?.serverId === target?.serverId
   useEffect(() => {
     if (!playable || !target || alreadyPlaying) return
     player.play({
@@ -231,7 +226,8 @@ export function ItemDetailPage() {
           )}
           {finished && (
             <div className="dc-prog-cap" style={{ color: '#a7c896' }}>
-              <Icon name="check_circle" fill style={{ fontSize: 14, verticalAlign: '-2px' }} /> Finished
+              <Icon name="check_circle" fill style={{ fontSize: 14, verticalAlign: '-2px' }} />{' '}
+              Finished
             </div>
           )}
         </div>

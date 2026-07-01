@@ -20,7 +20,12 @@ import { useRememberedAccounts, type RememberedAccount } from '@/store/remembere
 
 export type SwitchOutcome =
   | { ok: true }
-  | { ok: false; reason: 'pin' | 'locked_out' | 'gone' | 'error'; message?: string; attemptsLeft?: number }
+  | {
+      ok: false
+      reason: 'pin' | 'locked_out' | 'gone' | 'error'
+      message?: string
+      attemptsLeft?: number
+    }
 
 export function useAccountSwitch() {
   const { signIn, setActive, isLoaded } = useSignIn()
@@ -70,7 +75,7 @@ export function useAccountSwitch() {
         return { ok: false, reason: 'error', message: (e as Error).message }
       }
     },
-    [isLoaded, signIn, setActive, forget]
+    [isLoaded, signIn, setActive, forget],
   )
 
   /**
@@ -128,7 +133,7 @@ export function useAccountSwitch() {
         forget(account.handle)
       }
     },
-    [forget]
+    [forget],
   )
 
   return { switchTo, loginWithPassword, signInAnotherUser, forgetAccount, ready: isLoaded }

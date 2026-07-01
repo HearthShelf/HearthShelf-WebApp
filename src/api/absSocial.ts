@@ -68,7 +68,7 @@ export async function getCommunityConfig(t: AbsTarget): Promise<CommunityConfig>
 
 export async function setCommunityConfig(
   t: AbsTarget,
-  defaultShare: boolean
+  defaultShare: boolean,
 ): Promise<CommunityConfig> {
   const token = getAbsToken(t.serverId)
   if (!token) throw new Error('no token')

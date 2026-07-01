@@ -72,7 +72,7 @@ export function getIntegrationsConfig(t: AbsTarget): Promise<IntegrationsConfig>
 
 export function saveIntegrationsConfig(
   t: AbsTarget,
-  patch: IntegrationsConfigPatch
+  patch: IntegrationsConfigPatch,
 ): Promise<IntegrationsConfig> {
   return intFetch<IntegrationsConfig>(t, '/config', {
     method: 'PUT',

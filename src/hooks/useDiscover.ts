@@ -32,17 +32,11 @@ export { useDiscoverEnabled } from '@/hooks/useQuestGiver'
 export function useMonthlyShelf(
   items: AbsLibraryItem[],
   progressById: Map<string, MediaProgress>,
-  enabled: boolean
+  enabled: boolean,
 ) {
   const { target } = useActiveServer()
-  const summary = useMemo(
-    () => buildDiscoverSummary(items, progressById),
-    [items, progressById]
-  )
-  const candidates = useMemo(
-    () => discoverCandidates(items, progressById),
-    [items, progressById]
-  )
+  const summary = useMemo(() => buildDiscoverSummary(items, progressById), [items, progressById])
+  const candidates = useMemo(() => discoverCandidates(items, progressById), [items, progressById])
   return useQuery<MonthlyShelf>({
     queryKey: ['discover', 'monthly', target?.serverId, summary, candidates.length],
     queryFn: () =>

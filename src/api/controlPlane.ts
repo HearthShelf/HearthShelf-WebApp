@@ -105,9 +105,7 @@ export interface ServerStatusResponse {
 
 /** Live reachability of one linked server (control plane probes its health). */
 export async function fetchServerStatus(serverId: string): Promise<ServerStatusResponse> {
-  return request<ServerStatusResponse>(
-    `/servers/${encodeURIComponent(serverId)}/status`
-  )
+  return request<ServerStatusResponse>(`/servers/${encodeURIComponent(serverId)}/status`)
 }
 
 interface RedeemResponse {
@@ -118,7 +116,7 @@ interface RedeemResponse {
 /** Link a server to the signed-in user by redeeming a pairing code. */
 export async function redeemPairingCode(
   code: string,
-  displayName?: string
+  displayName?: string,
 ): Promise<RedeemResponse> {
   return request<RedeemResponse>('/pairing/redeem', {
     method: 'POST',
@@ -294,7 +292,7 @@ export async function fetchAuditLog(limit = 100): Promise<AuditEntry[]> {
 export async function inviteToServer(
   serverId: string,
   email: string,
-  role: 'admin' | 'user' = 'user'
+  role: 'admin' | 'user' = 'user',
 ): Promise<InviteResponse> {
   return request<InviteResponse>(`/servers/${encodeURIComponent(serverId)}/invite`, {
     method: 'POST',
@@ -337,7 +335,7 @@ interface SwitchTicketResponse {
  */
 export async function requestSwitchTicket(
   handle: string,
-  pin?: string
+  pin?: string,
 ): Promise<SwitchTicketResponse> {
   return request<SwitchTicketResponse>('/accounts/switch-token', {
     method: 'POST',
@@ -355,7 +353,7 @@ export async function requestSwitchTicket(
  */
 export async function forgetRemembered(
   handle: string,
-  opts?: { pin?: string; confirmForgot?: boolean }
+  opts?: { pin?: string; confirmForgot?: boolean },
 ): Promise<void> {
   await request(`/accounts/remembered/${encodeURIComponent(handle)}`, {
     method: 'DELETE',
@@ -375,6 +373,8 @@ interface RememberedSnapshot {
 export async function refreshRemembered(handles: string[]): Promise<RememberedSnapshot[]> {
   if (handles.length === 0) return []
   const q = encodeURIComponent(handles.join(','))
-  const data = await request<{ accounts: RememberedSnapshot[] }>(`/accounts/remembered?handles=${q}`)
+  const data = await request<{ accounts: RememberedSnapshot[] }>(
+    `/accounts/remembered?handles=${q}`,
+  )
   return data.accounts
 }

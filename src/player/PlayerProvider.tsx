@@ -74,9 +74,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const skipForward = useSettingsStore((s) => s.skipForward)
   const skipBack = useSettingsStore((s) => s.skipBack)
 
-  const target: AbsTarget | null = now
-    ? { serverId: now.serverId, serverUrl: now.serverUrl }
-    : null
+  const target: AbsTarget | null = now ? { serverId: now.serverId, serverUrl: now.serverUrl } : null
 
   const play = useCallback((n: NowPlaying) => {
     setNow(n)
@@ -89,7 +87,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       void qc.invalidateQueries({ queryKey: ['abs-media-progress', serverId] })
       void qc.invalidateQueries({ queryKey: ['abs-items-in-progress', serverId] })
     },
-    [qc]
+    [qc],
   )
 
   // When a book finishes, auto-advance to the next queued item (unless the queue
@@ -138,7 +136,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (!target || !now) return
         // Stateless progress PATCH keeps the resume point current.
         void saveProgress(target, now.itemId, sec, now.totalDurationSec).then(() =>
-          refreshProgress(target.serverId)
+          refreshProgress(target.serverId),
         )
         // AND sync the open play session so ABS accrues listening time + records
         // a session (the PATCH alone never does - that's why stats showed 0h).
@@ -149,7 +147,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           void syncPlaySession(target, now.playSessionId, sec, listened, now.totalDurationSec)
         }
       },
-      [target, now, refreshProgress]
+      [target, now, refreshProgress],
     ),
     onBookEnded,
   })
@@ -205,7 +203,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       sleepArmed: player.sleepArmed,
       sleepRemainingMs: player.sleepRemainingMs,
     }),
-    [now, play, close, player]
+    [now, play, close, player],
   )
 
   return <PlayerContext.Provider value={api}>{children}</PlayerContext.Provider>

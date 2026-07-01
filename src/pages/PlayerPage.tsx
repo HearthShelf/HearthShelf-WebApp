@@ -168,12 +168,13 @@ function QueuePanel({
   const toggleRule = (id: AutoRuleId) =>
     setSetting(
       'queueAutoRules',
-      autoRules.map((r) => (r.id === id ? { ...r, on: !r.on } : r))
+      autoRules.map((r) => (r.id === id ? { ...r, on: !r.on } : r)),
     )
 
-  const panelSub = queueMode === 'manual'
-    ? `${items.length + 1} in queue · drag to reorder`
-    : `${items.length + 1} in queue`
+  const panelSub =
+    queueMode === 'manual'
+      ? `${items.length + 1} in queue · drag to reorder`
+      : `${items.length + 1} in queue`
 
   return (
     <div className="pp-inner">
@@ -313,11 +314,7 @@ function QueuePanel({
                 <div className="q-t">{q.title}</div>
                 <div className="q-s">{q.author}</div>
               </div>
-              <span
-                className="bm-x"
-                title="Remove"
-                onClick={() => remove(q.libraryItemId)}
-              >
+              <span className="bm-x" title="Remove" onClick={() => remove(q.libraryItemId)}>
                 <Icon name="close" />
               </span>
             </div>
@@ -343,15 +340,7 @@ export function PlayerPage() {
   // browsing the whole library.
   const { data: inProgress } = useItemsInProgress(target as AbsTarget, undefined, Boolean(target))
   const resumeBook = inProgress?.[0]
-  const {
-    now,
-    playing,
-    positionSec,
-    togglePlay,
-    seekTo,
-    rate,
-    setRate,
-  } = usePlayer()
+  const { now, playing, positionSec, togglePlay, seekTo, rate, setRate } = usePlayer()
 
   const libraryItemId = now?.itemId ?? null
   const title = now?.title ?? ''
@@ -386,7 +375,7 @@ export function PlayerPage() {
   // back in.
   const carIdleFade = useIdleFade(
     carMode && carFadeEnabled && Boolean(libraryItemId),
-    carFadeSec * 1000
+    carFadeSec * 1000,
   )
   // Mirror into the shared store so AppShell's sidebar fades in step with the
   // rest of the car player's chrome instead of hard-hiding/showing. Reset on
@@ -406,8 +395,7 @@ export function PlayerPage() {
   const [dragRatio, setDragRatio] = useState<number | null>(null)
   const { toast, show: setToast } = useToast()
 
-  const { bookmarks, addBookmark: addBookmarkApi, removeBookmark } =
-    useBookmarks(libraryItemId)
+  const { bookmarks, addBookmark: addBookmarkApi, removeBookmark } = useBookmarks(libraryItemId)
 
   // Full metadata for the details panel (narrator, year, genre, series,
   // description) - the player descriptor only carries title/author/duration.
@@ -420,8 +408,14 @@ export function PlayerPage() {
 
   // Normalize chapters to start/end seconds for the local math.
   const chapters = useMemo<Chap[]>(
-    () => rawChapters.map((c: AbsChapter) => ({ id: c.id, start: c.startSec, end: c.endSec, title: c.title })),
-    [rawChapters]
+    () =>
+      rawChapters.map((c: AbsChapter) => ({
+        id: c.id,
+        start: c.startSec,
+        end: c.endSec,
+        title: c.title,
+      })),
+    [rawChapters],
   )
 
   // Reset player-only UI when the book CHANGES (not on first mount).
@@ -447,11 +441,7 @@ export function PlayerPage() {
   // Keyboard shortcuts (player route only)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLSelectElement
-      )
-        return
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return
       if (e.key === ' ') {
         e.preventDefault()
         togglePlay()
@@ -481,8 +471,7 @@ export function PlayerPage() {
           <div className="eyebrow">By the hearth</div>
           <h1 className="cozy-h">Nothing playing</h1>
           <p className="cozy-sub">
-            The fire's lit and the chair's yours. Pull something off the shelf and
-            settle in.
+            The fire's lit and the chair's yours. Pull something off the shelf and settle in.
           </p>
           <div className="cozy-actions">
             <button className="btn btn-primary" onClick={() => navigate('/library')}>
@@ -557,7 +546,7 @@ export function PlayerPage() {
 
   const seekClamp = (sec: number) => seekTo(Math.max(0, Math.min(duration, sec)))
   const prevCh = () =>
-    seekClamp(chPos > 4 ? cur.start : chapters[Math.max(0, ci - 1)]?.start ?? 0)
+    seekClamp(chPos > 4 ? cur.start : (chapters[Math.max(0, ci - 1)]?.start ?? 0))
   const nextCh = () =>
     seekClamp(chapters[Math.min(chapters.length - 1, ci + 1)]?.start ?? cur.start)
 
@@ -650,17 +639,12 @@ export function PlayerPage() {
           </button>
           <div className="p-head-title">
             <div className="eyebrow">HearthShelf</div>
-            <h1
-              style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}
-            >
+            <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}>
               Listening
             </h1>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <span
-              className="pill sync-pill ok"
-              title="Your progress is saved as you listen"
-            >
+            <span className="pill sync-pill ok" title="Your progress is saved as you listen">
               <Icon name="cloud_done" /> Synced
             </span>
             {carModeSetting !== 'on' && (
@@ -837,10 +821,7 @@ export function PlayerPage() {
                         <span className="bm-n" onClick={jump}>
                           {b.title}
                         </span>
-                        <span
-                          className="bm-x"
-                          onClick={() => removeBookmark(b.time)}
-                        >
+                        <span className="bm-x" onClick={() => removeBookmark(b.time)}>
                           <Icon name="delete" style={{ fontSize: 17 }} />
                         </span>
                       </div>
@@ -912,9 +893,7 @@ export function PlayerPage() {
               onClick={() => togglePop('bookmark')}
             >
               <Icon name="bookmark_add" /> Bookmark
-              {bookmarks.length > 0 && (
-                <span className="badge-dot">{bookmarks.length}</span>
-              )}
+              {bookmarks.length > 0 && <span className="badge-dot">{bookmarks.length}</span>}
             </button>
             <button
               className={'pill' + (pop === 'recent' ? ' on' : '')}
@@ -954,8 +933,8 @@ export function PlayerPage() {
                 Read in browser
               </div>
               <div style={{ fontSize: 12.5, maxWidth: 280, lineHeight: 1.5 }}>
-                Open this book in the in-browser reader. Jump to where the audio
-                is from inside the reader.
+                Open this book in the in-browser reader. Jump to where the audio is from inside the
+                reader.
               </div>
               <button
                 className="btn btn-primary"
@@ -1025,19 +1004,14 @@ export function PlayerPage() {
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div className="pp-series-name">{detail.series.name}</div>
                     {detail.series.sequence && (
-                      <div className="pp-series-seq">
-                        Book {detail.series.sequence}
-                      </div>
+                      <div className="pp-series-seq">Book {detail.series.sequence}</div>
                     )}
                   </div>
                   <Icon name="chevron_right" />
                 </div>
               )}
               {detail?.description && (
-                <p
-                  className="desc"
-                  style={{ margin: '0 0 18px', whiteSpace: 'pre-line' }}
-                >
+                <p className="desc" style={{ margin: '0 0 18px', whiteSpace: 'pre-line' }}>
                   {stripHtml(detail.description)}
                 </p>
               )}

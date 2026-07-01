@@ -13,10 +13,7 @@ import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useToast } from '@/hooks/useToast'
 import type { Person } from '@/components/library/PersonCard'
-import {
-  PersonEditModal,
-  PersonDeleteModal,
-} from '@/components/library/PersonModals'
+import { PersonEditModal, PersonDeleteModal } from '@/components/library/PersonModals'
 import { MergeModal, type MergeItem } from '@/components/common/MergeModal'
 import { Dropdown, MItem } from '@/components/common/Dropdown'
 import { Icon } from '@/components/common/Icon'
@@ -61,8 +58,7 @@ export function NarratorsPage() {
     enabled: Boolean(target),
     staleTime: 60 * 1000,
   })
-  const hasNarratorImage = (n: string) =>
-    Boolean(imageNames?.has(n.trim().toLowerCase()))
+  const hasNarratorImage = (n: string) => Boolean(imageNames?.has(n.trim().toLowerCase()))
 
   const byNarrator = useMemo(() => {
     const map = new Map<string, AbsNarratorItem[]>()
@@ -82,9 +78,7 @@ export function NarratorsPage() {
   const people: Person[] = useMemo(() => {
     const list = [...(data ?? [])]
     list.sort(
-      sort === 'Name'
-        ? (a, b) => a.name.localeCompare(b.name)
-        : (a, b) => b.numBooks - a.numBooks
+      sort === 'Name' ? (a, b) => a.name.localeCompare(b.name) : (a, b) => b.numBooks - a.numBooks,
     )
     return list.map((n) => ({
       id: n.id,
@@ -144,14 +138,9 @@ export function NarratorsPage() {
     if (!deleting || !target || !activeId) return
     setBusy(true)
     try {
-      for (const p of deleting)
-        await renameNarrator(target, activeId, p.name, 'Unknown')
+      for (const p of deleting) await renameNarrator(target, activeId, p.name, 'Unknown')
       await invalidate()
-      show(
-        deleting.length === 1
-          ? 'Narrator removed'
-          : `${deleting.length} narrators removed`
-      )
+      show(deleting.length === 1 ? 'Narrator removed' : `${deleting.length} narrators removed`)
       setSelected(new Set())
       setDeleting(null)
     } catch {
@@ -171,9 +160,7 @@ export function NarratorsPage() {
       </div>
 
       {isLoading && <LoadingSpinner className="py-12" label="Loading narrators..." />}
-      {isError && (
-        <ErrorState message="Could not load narrators." onRetry={refetch} />
-      )}
+      {isError && <ErrorState message="Could not load narrators." onRetry={refetch} />}
 
       {data && (
         <>
@@ -186,10 +173,7 @@ export function NarratorsPage() {
             )}
             <div className="tb-spacer" />
             {selected.size === 1 && (
-              <button
-                className="btn-sm btn-ghost"
-                onClick={() => setEditing(selectedPeople[0])}
-              >
+              <button className="btn-sm btn-ghost" onClick={() => setEditing(selectedPeople[0])}>
                 <Icon name="edit" /> Edit
               </button>
             )}
@@ -255,7 +239,13 @@ export function NarratorsPage() {
                             <img
                               src={narratorImageUrl(target, p.name)}
                               alt=""
-                              style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flex: 'none' }}
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: '50%',
+                                objectFit: 'cover',
+                                flex: 'none',
+                              }}
                             />
                           ) : (
                             <span

@@ -63,10 +63,7 @@ export function RecentListens({
             onClick={() => onSeek(s.startTime)}
             title="Play from where this session started"
           >
-            <Icon
-              name={deviceIcon(s)}
-              style={{ color: 'var(--text-muted)', fontSize: 19 }}
-            />
+            <Icon name={deviceIcon(s)} style={{ color: 'var(--text-muted)', fontSize: 19 }} />
             <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>
                 {formatTimestamp(s.startTime)} {'→'} {formatTimestamp(s.currentTime)}

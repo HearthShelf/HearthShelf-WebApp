@@ -97,7 +97,9 @@ export function Scrubber({
   return (
     <div
       ref={trackRef}
-      className={'seekable' + (className ? ' ' + className : '') + (dragRatio !== null ? ' dragging' : '')}
+      className={
+        'seekable' + (className ? ' ' + className : '') + (dragRatio !== null ? ' dragging' : '')
+      }
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

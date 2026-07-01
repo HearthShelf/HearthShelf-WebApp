@@ -27,8 +27,8 @@ export function ActiveServerMediaUI({ children }: { children: ReactNode }) {
       <div className="mx-auto max-w-md py-16 text-center">
         <p className="t-h2">No server linked yet</p>
         <p className="t-muted mx-auto mt-2 max-w-sm text-[13px]">
-          Link your HearthShelf server with the pairing code from its setup screen
-          to reach your library from anywhere.
+          Link your HearthShelf server with the pairing code from its setup screen to reach your
+          library from anywhere.
         </p>
         <div className="mt-5">
           <Button onClick={() => (window.location.href = '/account')}>Link a server</Button>

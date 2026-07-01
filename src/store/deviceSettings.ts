@@ -19,6 +19,6 @@ export const useDeviceSettings = create<DeviceSettingsState>()(
       askedSharedDevice: false,
       markAskedSharedDevice: () => set({ askedSharedDevice: true }),
     }),
-    { name: 'hearthshelf:device-settings' }
-  )
+    { name: 'hearthshelf:device-settings' },
+  ),
 )

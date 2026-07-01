@@ -49,9 +49,7 @@ function StatusPill({ on }: { on: boolean }) {
     <span
       className="badge-pill"
       style={{
-        background: on
-          ? 'color-mix(in oklab, #5a9c52 20%, transparent)'
-          : 'var(--fill)',
+        background: on ? 'color-mix(in oklab, #5a9c52 20%, transparent)' : 'var(--fill)',
         color: on ? '#7fbd6f' : 'var(--text-muted)',
       }}
     >
@@ -78,8 +76,8 @@ export function ConfigIntegrations() {
         <div className="eyebrow">Admin</div>
         <h1 className="title-xl">Integrations</h1>
         <p className="page-sub">
-          External services HearthShelf talks to, and the metadata providers
-          AudiobookShelf uses for matching and search.
+          External services HearthShelf talks to, and the metadata providers AudiobookShelf uses for
+          matching and search.
         </p>
       </div>
 
@@ -289,10 +287,7 @@ function CustomProviders() {
         <div className="empty-state">
           <Icon name="extension_off" />
           <h3>No custom providers</h3>
-          <p>
-            Built-in providers (Audible, Google, iTunes, Open Library) are always
-            available.
-          </p>
+          <p>Built-in providers (Audible, Google, iTunes, Open Library) are always available.</p>
         </div>
       ) : (
         <div className="cfg-card">

@@ -87,16 +87,13 @@ export function ConfigUsers() {
     enabled: Boolean(target),
     staleTime: 60 * 1000,
   })
-  const serviceUserIds = useMemo(
-    () => new Set(trackedData?.ids ?? []),
-    [trackedData]
-  )
+  const serviceUserIds = useMemo(() => new Set(trackedData?.ids ?? []), [trackedData])
   const allUsers = data?.users ?? []
   const users = allUsers.filter((u) => !serviceUserIds.has(u.id))
   const serviceCount = allUsers.length - users.length
   // Disabled admin/root accounts - the trigger for the break-glass recovery card.
   const disabledAdmins = users.filter(
-    (u) => (u.type === 'admin' || u.type === 'root') && !u.isActive
+    (u) => (u.type === 'admin' || u.type === 'root') && !u.isActive,
   )
 
   if (!target) return <LoadingSpinner className="py-12" label="Connecting..." />
@@ -141,7 +138,7 @@ export function ConfigUsers() {
       show(
         r.count > 0
           ? `Re-enabled ${r.count} admin ${r.count === 1 ? 'account' : 'accounts'}`
-          : 'No disabled admins to recover'
+          : 'No disabled admins to recover',
       )
     } catch (e) {
       const code = e instanceof HostedError ? e.code : ''
@@ -188,8 +185,7 @@ export function ConfigUsers() {
 
       {serviceCount > 0 && (
         <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px' }}>
-          <Icon name="smart_toy" style={{ verticalAlign: '-3px' }} />{' '}
-          {serviceCount} machine{' '}
+          <Icon name="smart_toy" style={{ verticalAlign: '-3px' }} /> {serviceCount} machine{' '}
           {serviceCount === 1 ? 'account is' : 'accounts are'} hidden here.{' '}
           <span className="lnk" onClick={() => navigate('/config/service-accounts')}>
             Manage service accounts
@@ -289,7 +285,10 @@ export function ConfigUsers() {
       {disabledAdmins.length > 0 && (
         <div
           className="cfg-card"
-          style={{ marginTop: 'var(--s5)', borderColor: 'color-mix(in oklab, var(--primary) 40%, var(--hairline))' }}
+          style={{
+            marginTop: 'var(--s5)',
+            borderColor: 'color-mix(in oklab, var(--primary) 40%, var(--hairline))',
+          }}
         >
           <div className="cfg-line" style={{ alignItems: 'flex-start' }}>
             <Icon name="lock_reset" style={{ color: 'var(--primary)', marginTop: 2 }} />
@@ -299,9 +298,8 @@ export function ConfigUsers() {
                 {disabledAdmins.length === 1
                   ? '1 admin account is disabled.'
                   : `${disabledAdmins.length} admin accounts are disabled.`}{' '}
-                If you've locked yourself out, this re-enables every disabled admin
-                using this server's HearthShelf connection. Requires the server to
-                be connected to HearthShelf.
+                If you've locked yourself out, this re-enables every disabled admin using this
+                server's HearthShelf connection. Requires the server to be connected to HearthShelf.
               </div>
             </div>
             <button

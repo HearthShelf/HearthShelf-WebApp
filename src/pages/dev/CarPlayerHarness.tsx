@@ -38,38 +38,38 @@ export function CarPlayerHarness() {
 
   return (
     <PlayerProvider>
-    <MediaUIProvider value={STUB_UI}>
-    <div className="player car-mode hearth-bg">
-      <div
-        className="player-hearth-bg car-bg"
-        aria-hidden="true"
-        style={{ backgroundImage: `url("${cozyHearth}")` }}
-        onPointerDown={idleFade.wake}
-      />
-      <CarPlayer
-        libraryItemId="dev-stub"
-        title="The Wind-Up Bird Chronicle"
-        author="Haruki Murakami"
-        chapters={CHAPTERS}
-        ci={ci}
-        cur={cur}
-        pos={pos}
-        duration={duration}
-        isPlaying={playing}
-        rate={rate}
-        setRate={setRate}
-        togglePlay={() => setPlaying((p) => !p)}
-        seekClamp={seekClamp}
-        prevCh={() => seekClamp(CHAPTERS[Math.max(0, ci - 1)].start)}
-        nextCh={() => seekClamp(CHAPTERS[Math.min(CHAPTERS.length - 1, ci + 1)].start)}
-        onExit={() => alert('exit car mode')}
-        scrubber="chapter"
-        faded={idleFade.faded}
-        wake={idleFade.wake}
-        tick={idleFade.tick}
-      />
-    </div>
-    </MediaUIProvider>
+      <MediaUIProvider value={STUB_UI}>
+        <div className="player car-mode hearth-bg">
+          <div
+            className="player-hearth-bg car-bg"
+            aria-hidden="true"
+            style={{ backgroundImage: `url("${cozyHearth}")` }}
+            onPointerDown={idleFade.wake}
+          />
+          <CarPlayer
+            libraryItemId="dev-stub"
+            title="The Wind-Up Bird Chronicle"
+            author="Haruki Murakami"
+            chapters={CHAPTERS}
+            ci={ci}
+            cur={cur}
+            pos={pos}
+            duration={duration}
+            isPlaying={playing}
+            rate={rate}
+            setRate={setRate}
+            togglePlay={() => setPlaying((p) => !p)}
+            seekClamp={seekClamp}
+            prevCh={() => seekClamp(CHAPTERS[Math.max(0, ci - 1)].start)}
+            nextCh={() => seekClamp(CHAPTERS[Math.min(CHAPTERS.length - 1, ci + 1)].start)}
+            onExit={() => alert('exit car mode')}
+            scrubber="chapter"
+            faded={idleFade.faded}
+            wake={idleFade.wake}
+            tick={idleFade.tick}
+          />
+        </div>
+      </MediaUIProvider>
     </PlayerProvider>
   )
 }

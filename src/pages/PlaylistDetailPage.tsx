@@ -61,7 +61,11 @@ export function PlaylistDetailPage() {
         </span>
         <div className="tb-spacer" />
         {items[0] && (
-          <button type="button" className="btn btn-primary" onClick={() => ui.playItem(items[0].libraryItemId)}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => ui.playItem(items[0].libraryItemId)}
+          >
             <Icon name="play_arrow" fill /> Play
           </button>
         )}

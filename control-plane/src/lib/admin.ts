@@ -21,12 +21,7 @@ type AdminLookupContext = {
   req: { header(name: string): string | undefined }
 }
 import { bearer, verifyClerk, AuthError, type ClerkIdentity } from './clerk'
-import {
-  getPlatformAdmin,
-  backfillAdminClerkId,
-  getEntitlement,
-  type PlatformAdminRow,
-} from './db'
+import { getPlatformAdmin, backfillAdminClerkId, getEntitlement, type PlatformAdminRow } from './db'
 
 export interface AdminContext {
   user: ClerkIdentity
@@ -74,7 +69,7 @@ export async function resolveAdmin(c: AdminLookupContext): Promise<AdminContext 
  */
 export async function requireAdmin(
   c: Context<{ Bindings: Env; Variables: { admin: AdminContext } }>,
-  next: () => Promise<void>
+  next: () => Promise<void>,
 ) {
   const ctx = await resolveAdmin(c)
   if (!ctx) {

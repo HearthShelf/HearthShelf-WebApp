@@ -10,11 +10,7 @@ import {
   type ABSEmailSettings,
   type ABSEreaderDevice,
 } from '@/api/absAdmin'
-import {
-  getEmailRelayStatus,
-  enableEmailRelay,
-  hostedKeys,
-} from '@/api/absHosted'
+import { getEmailRelayStatus, enableEmailRelay, hostedKeys } from '@/api/absHosted'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
 import { Icon } from '@/components/common/Icon'
@@ -280,16 +276,11 @@ function EmailForm({ settings }: { settings: ABSEmailSettings }) {
               {testMsg}
             </span>
           )}
-          <button
-            className="btn-sm"
-            disabled={testing || !testAddress}
-            onClick={() => void test()}
-          >
+          <button className="btn-sm" disabled={testing || !testAddress} onClick={() => void test()}>
             <Icon name="send" /> {testing ? 'Sending...' : 'Send test'}
           </button>
           <button className="btn-sm btn-green" disabled={saving} onClick={() => void save()}>
-            {saved ? <Icon name="check" /> : <Icon name="save" />}{' '}
-            {saved ? 'Saved' : 'Save'}
+            {saved ? <Icon name="check" /> : <Icon name="save" />} {saved ? 'Saved' : 'Save'}
           </button>
         </div>
       </div>

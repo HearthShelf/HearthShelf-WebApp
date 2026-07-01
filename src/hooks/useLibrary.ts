@@ -45,7 +45,7 @@ export type ConnectState = 'idle' | 'connecting' | 'connected' | 'error'
  */
 export function useConnect(target: AbsTarget) {
   const [state, setState] = useState<ConnectState>(
-    hasAbsToken(target.serverId) ? 'connected' : 'idle'
+    hasAbsToken(target.serverId) ? 'connected' : 'idle',
   )
   const [error, setError] = useState<string | null>(null)
 
@@ -89,11 +89,7 @@ export function useShelves(target: AbsTarget, libraryId: string | undefined, ena
  * Personalized home shelves (book + series), keeping ABS's shelf type so the
  * home page renders book and series shelves distinctly.
  */
-export function useHomeShelves(
-  target: AbsTarget,
-  libraryId: string | undefined,
-  enabled: boolean
-) {
+export function useHomeShelves(target: AbsTarget, libraryId: string | undefined, enabled: boolean) {
   return useQuery<HomeShelf[]>({
     queryKey: ['abs-home-shelves', target.serverId, libraryId],
     queryFn: () => getHomeShelves(target, libraryId as string),
@@ -106,7 +102,7 @@ export function useHomeShelves(
 export function useItemsInProgress(
   target: AbsTarget,
   libraryId: string | undefined,
-  enabled: boolean
+  enabled: boolean,
 ) {
   return useQuery<AbsLibraryItem[]>({
     queryKey: ['abs-items-in-progress', target.serverId, libraryId],
@@ -134,7 +130,11 @@ export function useCollections(target: AbsTarget, libraryId: string | undefined,
   })
 }
 
-export function useCollection(target: AbsTarget, collectionId: string | undefined, enabled: boolean) {
+export function useCollection(
+  target: AbsTarget,
+  collectionId: string | undefined,
+  enabled: boolean,
+) {
   return useQuery<CollectionDetail>({
     queryKey: ['abs-collection', target.serverId, collectionId],
     queryFn: () => getCollection(target, collectionId as string),
@@ -156,7 +156,7 @@ export function useLibraryItems(
   target: AbsTarget,
   libraryId: string | undefined,
   page: number,
-  enabled: boolean
+  enabled: boolean,
 ) {
   return useQuery<LibraryItemsPage>({
     queryKey: ['abs-items', target.serverId, libraryId, page],
@@ -180,7 +180,7 @@ export function useLibrarySearch(
   target: AbsTarget,
   libraryId: string | undefined,
   query: string,
-  enabled: boolean
+  enabled: boolean,
 ) {
   const q = query.trim()
   return useQuery<AbsListItem[]>({
@@ -199,7 +199,7 @@ export function useLibrarySearchFull(
   target: AbsTarget,
   libraryId: string | undefined,
   query: string,
-  enabled: boolean
+  enabled: boolean,
 ) {
   const q = query.trim()
   return useQuery<LibrarySearchResults>({

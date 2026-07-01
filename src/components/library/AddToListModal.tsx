@@ -102,7 +102,7 @@ export function AddToListModal({
           target,
           libraryId,
           name,
-          ids.map((libraryItemId) => ({ libraryItemId }))
+          ids.map((libraryItemId) => ({ libraryItemId })),
         )
       }
       finish(`Created ${name}`)
@@ -111,7 +111,7 @@ export function AddToListModal({
     }
   }
 
-  const lists = tab === 'collection' ? collections ?? [] : playlists ?? []
+  const lists = tab === 'collection' ? (collections ?? []) : (playlists ?? [])
   const loading = tab === 'collection' ? cLoading : pLoading
 
   return (
@@ -160,9 +160,7 @@ export function AddToListModal({
               }
             >
               <span className="lr-ico">
-                <Icon
-                  name={tab === 'collection' ? 'folder_special' : 'queue_music'}
-                />
+                <Icon name={tab === 'collection' ? 'folder_special' : 'queue_music'} />
               </span>
               <span className="lr-t">{l.name}</span>
               <span className="lr-check">

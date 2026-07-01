@@ -32,7 +32,9 @@ export interface RenderedEmail {
  * is the one that explains what HearthShelf is and which library they're joining.
  */
 export function renderInviteEmail(params: InviteEmailParams): RenderedEmail {
-  const lib = params.serverName ? `the "${esc(params.serverName)}" library` : 'a HearthShelf library'
+  const lib = params.serverName
+    ? `the "${esc(params.serverName)}" library`
+    : 'a HearthShelf library'
   const url = esc(params.acceptUrl)
 
   const subject = params.serverName

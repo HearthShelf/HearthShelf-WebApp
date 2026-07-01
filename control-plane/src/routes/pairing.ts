@@ -301,7 +301,7 @@ pairing.post('/pairing/redeem', async (c) => {
         detail:
           'This server must be published at a public HTTPS address with a valid certificate before it can be linked. A bare IP or http:// URL will not work from app.hearthshelf.com.',
       },
-      422
+      422,
     )
   }
 

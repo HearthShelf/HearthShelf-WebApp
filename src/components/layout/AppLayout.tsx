@@ -44,10 +44,7 @@ export function AppLayout() {
               Admin
             </Link>
           )}
-          <Link
-            to="/account"
-            className="t-muted text-[13px] hover:text-foreground"
-          >
+          <Link to="/account" className="t-muted text-[13px] hover:text-foreground">
             Account
           </Link>
           <UserButton afterSignOutUrl="/sign-in" />

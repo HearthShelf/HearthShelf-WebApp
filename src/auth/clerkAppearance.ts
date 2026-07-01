@@ -38,8 +38,7 @@ export const clerkAppearance: Appearance = {
     headerSubtitle: 'text-muted-foreground',
 
     // Primary action (Continue / Sign in).
-    formButtonPrimary:
-      'bg-primary text-primary-foreground hover:opacity-90 normal-case',
+    formButtonPrimary: 'bg-primary text-primary-foreground hover:opacity-90 normal-case',
 
     // Social / OAuth buttons read as secondary surfaces.
     socialButtonsBlockButton:

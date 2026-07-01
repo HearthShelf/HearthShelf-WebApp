@@ -85,10 +85,7 @@ function UserMenu() {
           />
         </div>
       )}
-      <button
-        className={'user-chip' + (open ? ' on' : '')}
-        onClick={() => setOpen((o) => !o)}
-      >
+      <button className={'user-chip' + (open ? ' on' : '')} onClick={() => setOpen((o) => !o)}>
         <Avatar name={name} imageUrl={user?.imageUrl} size={36} />
         <span className="u-meta">
           <span className="u-name">{name}</span>

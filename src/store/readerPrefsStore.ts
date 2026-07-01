@@ -104,6 +104,6 @@ export const useReaderPrefs = create<ReaderPrefsStore>()(
       layout: 'scroll',
       set: (key, value) => set({ [key]: value } as Partial<ReaderPrefs>),
     }),
-    { name: 'hearthshelf:reader-prefs' }
-  )
+    { name: 'hearthshelf:reader-prefs' },
+  ),
 )

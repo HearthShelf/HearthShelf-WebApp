@@ -157,7 +157,7 @@ export async function getQgAdminConfig(t: AbsTarget): Promise<QgAdminConfig> {
 
 export async function saveQgAdminConfig(
   t: AbsTarget,
-  patch: QgAdminConfigPatch
+  patch: QgAdminConfigPatch,
 ): Promise<QgAdminConfig> {
   return qgFetch<QgAdminConfig>(t, '/admin/config', {
     method: 'PUT',
@@ -174,7 +174,7 @@ export async function qgRecommend(
   t: AbsTarget | null,
   profile: QgProfile,
   answers: QgAnswers,
-  candidates: QgCandidate[]
+  candidates: QgCandidate[],
 ): Promise<QgResult & { remaining?: number | null }> {
   if (t) {
     try {

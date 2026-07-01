@@ -48,7 +48,7 @@ export function Menu({
       role="menu"
       className={cn(
         'fixed z-50 min-w-[10rem] overflow-hidden rounded-lg border border-border bg-card p-1 shadow-xl',
-        align === 'right' && '-translate-x-full'
+        align === 'right' && '-translate-x-full',
       )}
       style={{ left: x, top: y }}
     >
@@ -77,7 +77,7 @@ export function MenuItem({
         'transition-colors',
         destructive
           ? 'text-destructive hover:bg-destructive/10'
-          : 'text-card-foreground hover:bg-accent'
+          : 'text-card-foreground hover:bg-accent',
       )}
     >
       {icon && <span className="shrink-0 text-muted-foreground">{icon}</span>}

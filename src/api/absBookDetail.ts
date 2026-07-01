@@ -114,10 +114,7 @@ interface RawDetailItem {
  * both the player needs (loaded separately) and these richer fields.
  */
 export async function getBookDetailFull(t: AbsTarget, itemId: string): Promise<BookDetailFull> {
-  const r = await absGet<RawDetailItem>(
-    t,
-    `/api/items/${encodeURIComponent(itemId)}?expanded=1`
-  )
+  const r = await absGet<RawDetailItem>(t, `/api/items/${encodeURIComponent(itemId)}?expanded=1`)
   const md = r.media?.metadata ?? {}
   const firstSeries = md.series?.[0]
   const audioFiles: BookAudioFile[] = (r.media?.audioFiles ?? []).map((f) => ({
@@ -172,7 +169,10 @@ export async function getBookDetailFull(t: AbsTarget, itemId: string): Promise<B
  * downloads can't set an Authorization header.
  */
 export function itemFileDownloadUrl(t: AbsTarget, itemId: string, ino: string): string | null {
-  return absMediaUrl(t, `/api/items/${encodeURIComponent(itemId)}/file/${encodeURIComponent(ino)}/download`)
+  return absMediaUrl(
+    t,
+    `/api/items/${encodeURIComponent(itemId)}/file/${encodeURIComponent(ino)}/download`,
+  )
 }
 
 /** Tokenized URL to download the whole item as a zip. Null without a token. */
@@ -194,7 +194,7 @@ export async function updateItemMetadata(
   t: AbsTarget,
   itemId: string,
   metadata: ItemMetadataPatch,
-  tags?: string[]
+  tags?: string[],
 ): Promise<void> {
   const body: { metadata: ItemMetadataPatch; tags?: string[] } = { metadata }
   if (tags) body.tags = tags
@@ -205,7 +205,7 @@ export async function updateItemMetadata(
 export async function updateItemChapters(
   t: AbsTarget,
   itemId: string,
-  chapters: { title: string; start: number; end: number }[]
+  chapters: { title: string; start: number; end: number }[],
 ): Promise<void> {
   await absPost(t, `/api/items/${encodeURIComponent(itemId)}/chapters`, { chapters })
 }
@@ -219,7 +219,7 @@ export async function deleteItemFile(t: AbsTarget, itemId: string, ino: string):
 export async function reorderItemTracks(
   t: AbsTarget,
   itemId: string,
-  orderedInos: string[]
+  orderedInos: string[],
 ): Promise<void> {
   await absPatch(t, `/api/items/${encodeURIComponent(itemId)}/tracks`, {
     orderedFileData: orderedInos.map((ino) => ({ ino })),
@@ -230,11 +230,14 @@ export async function reorderItemTracks(
 export async function embedItemMetadata(
   t: AbsTarget,
   itemId: string,
-  opts: { forceEmbedChapters?: boolean; backup?: boolean } = {}
+  opts: { forceEmbedChapters?: boolean; backup?: boolean } = {},
 ): Promise<void> {
   const p = new URLSearchParams()
   if (opts.forceEmbedChapters) p.set('forceEmbedChapters', '1')
   if (opts.backup) p.set('backup', '1')
   const qs = p.toString()
-  await absPost(t, `/api/tools/item/${encodeURIComponent(itemId)}/embed-metadata${qs ? '?' + qs : ''}`)
+  await absPost(
+    t,
+    `/api/tools/item/${encodeURIComponent(itemId)}/embed-metadata${qs ? '?' + qs : ''}`,
+  )
 }

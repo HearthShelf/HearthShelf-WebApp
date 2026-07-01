@@ -5,11 +5,7 @@ import { tintFor } from '@/components/shared/Cover'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { absMediaUrl } from '@/api/absClient'
 import { matchAuthor, deleteAuthor, uploadAuthorImage } from '@/api/absLibrary'
-import {
-  narratorImageUrl,
-  uploadNarratorImage,
-  deleteNarratorImage,
-} from '@/api/absNarratorImages'
+import { narratorImageUrl, uploadNarratorImage, deleteNarratorImage } from '@/api/absNarratorImages'
 import type { Person } from '@/components/library/PersonCard'
 
 interface EditProps {
@@ -191,7 +187,10 @@ export function PersonEditModal({
       </div>
 
       {isAuthor ? (
-        <div className="pe-photo-actions" style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        <div
+          className="pe-photo-actions"
+          style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}
+        >
           <button
             type="button"
             className="btn-sm btn-accent"
@@ -201,7 +200,12 @@ export function PersonEditModal({
           >
             <Icon name="auto_fix_high" /> {busy === 'match' ? 'Matching…' : 'Quick match'}
           </button>
-          <button type="button" className="btn-sm btn-ghost" disabled={busy !== null} onClick={pickFile}>
+          <button
+            type="button"
+            className="btn-sm btn-ghost"
+            disabled={busy !== null}
+            onClick={pickFile}
+          >
             <Icon name="upload" /> {busy === 'upload' ? 'Uploading…' : 'Upload photo'}
           </button>
           <input
@@ -215,8 +219,16 @@ export function PersonEditModal({
       ) : (
         // Narrators: HearthShelf-native photo (ABS has no narrator record), keyed
         // by name and stored on the server's HS backend.
-        <div className="pe-photo-actions" style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-          <button type="button" className="btn-sm btn-accent" disabled={busy !== null} onClick={pickFile}>
+        <div
+          className="pe-photo-actions"
+          style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}
+        >
+          <button
+            type="button"
+            className="btn-sm btn-accent"
+            disabled={busy !== null}
+            onClick={pickFile}
+          >
             <Icon name="upload" /> {busy === 'upload' ? 'Uploading…' : 'Upload photo'}
           </button>
           {narratorHasPhoto && (
@@ -291,8 +303,7 @@ export function PersonEditModal({
 
       {name.trim() !== '' && name !== person.name && (
         <p className="pr-d" style={{ marginTop: 12 }}>
-          If another {isAuthor ? 'author' : 'narrator'} already has this name,
-          they'll be merged.
+          If another {isAuthor ? 'author' : 'narrator'} already has this name, they'll be merged.
         </p>
       )}
     </Modal>
@@ -308,32 +319,21 @@ interface DeleteProps {
 
 // Remove an author record or strip a narrator credit. In both cases the books
 // and their files stay - only the credit is removed.
-export function PersonDeleteModal({
-  people,
-  deleting,
-  onConfirm,
-  onClose,
-}: DeleteProps) {
+export function PersonDeleteModal({ people, deleting, onConfirm, onClose }: DeleteProps) {
   const isAuthor = people[0]?.kind === 'author'
   const noun = isAuthor ? 'author' : 'narrator'
   const verb = isAuthor ? 'Delete' : 'Remove'
 
   return (
     <Modal
-      title={`${verb} ${people.length} ${
-        people.length === 1 ? noun : noun + 's'
-      }`}
+      title={`${verb} ${people.length} ${people.length === 1 ? noun : noun + 's'}`}
       onClose={onClose}
       foot={
         <>
           <button className="btn btn-ghost" onClick={onClose}>
             Cancel
           </button>
-          <button
-            className="btn btn-danger"
-            disabled={deleting}
-            onClick={onConfirm}
-          >
+          <button className="btn btn-danger" disabled={deleting} onClick={onConfirm}>
             {deleting ? 'Working…' : `${verb} ${people.length}`}
           </button>
         </>
@@ -344,15 +344,13 @@ export function PersonDeleteModal({
         <span>
           {isAuthor ? (
             <>
-              This removes the author credit from{' '}
-              {people.length === 1 ? 'their' : 'these'} books. The{' '}
-              <b>books and audio files stay</b> in your library.
+              This removes the author credit from {people.length === 1 ? 'their' : 'these'} books.
+              The <b>books and audio files stay</b> in your library.
             </>
           ) : (
             <>
-              This removes the narrator credit from{' '}
-              {people.length === 1 ? 'their' : 'these'} books. The{' '}
-              <b>books and audio files stay</b> in your library.
+              This removes the narrator credit from {people.length === 1 ? 'their' : 'these'} books.
+              The <b>books and audio files stay</b> in your library.
             </>
           )}
         </span>

@@ -148,11 +148,7 @@ function origin(t: AbsTarget): string {
 
 // Low-level fetch against /hs/rmab/* with the per-server ABS bearer token. Throws
 // on any non-ok response or missing token so callers can map to a safe default.
-async function rmabFetch<T>(
-  t: AbsTarget,
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
+async function rmabFetch<T>(t: AbsTarget, path: string, options: RequestInit = {}): Promise<T> {
   const token = getAbsToken(t.serverId)
   if (!token) throw new Error('no token')
   const res = await fetch(`${origin(t)}/hs/rmab${path}`, {
@@ -185,14 +181,9 @@ export async function getRmabConfig(t: AbsTarget): Promise<RmabConfig> {
 }
 
 /** List requests, optionally filtered by group. Empty list on any failure. */
-export async function listRequests(
-  t: AbsTarget,
-  group?: string
-): Promise<RmabRequestsResponse> {
+export async function listRequests(t: AbsTarget, group?: string): Promise<RmabRequestsResponse> {
   const qs =
-    group && group !== 'all'
-      ? `?status=${encodeURIComponent(group)}&take=100`
-      : '?take=100'
+    group && group !== 'all' ? `?status=${encodeURIComponent(group)}&take=100` : '?take=100'
   try {
     return await rmabFetch<RmabRequestsResponse>(t, `/requests${qs}`)
   } catch {
@@ -203,12 +194,12 @@ export async function listRequests(
 /** Search the RMAB catalog. Empty results on any failure. */
 export async function searchCatalog(
   t: AbsTarget,
-  query: string
+  query: string,
 ): Promise<{ results: RmabSearchResult[] }> {
   try {
     return await rmabFetch<{ results: RmabSearchResult[] }>(
       t,
-      `/search?q=${encodeURIComponent(query)}`
+      `/search?q=${encodeURIComponent(query)}`,
     )
   } catch {
     return { results: [] }
@@ -216,7 +207,7 @@ export async function searchCatalog(
 }
 
 export async function listWatchedAuthors(
-  t: AbsTarget
+  t: AbsTarget,
 ): Promise<{ success: boolean; authors: WatchedAuthor[] }> {
   try {
     return await rmabFetch<{ success: boolean; authors: WatchedAuthor[] }>(t, '/watched-authors')
@@ -226,7 +217,7 @@ export async function listWatchedAuthors(
 }
 
 export async function listWatchedSeries(
-  t: AbsTarget
+  t: AbsTarget,
 ): Promise<{ success: boolean; series: WatchedSeries[] }> {
   try {
     return await rmabFetch<{ success: boolean; series: WatchedSeries[] }>(t, '/watched-series')
@@ -246,7 +237,7 @@ export async function submitRequest(
     narrator?: string
     description?: string
     coverArtUrl?: string
-  }
+  },
 ): Promise<{ success: boolean; request?: RmabRequest; error?: string }> {
   try {
     return await rmabFetch(t, '/requests', {
@@ -260,7 +251,7 @@ export async function submitRequest(
 
 export async function cancelRequest(
   t: AbsTarget,
-  id: string
+  id: string,
 ): Promise<{ success: boolean; message?: string }> {
   try {
     return await rmabFetch(t, `/requests/${encodeURIComponent(id)}`, {
@@ -274,7 +265,7 @@ export async function cancelRequest(
 
 export async function retryRequest(
   t: AbsTarget,
-  id: string
+  id: string,
 ): Promise<{ success: boolean; message?: string }> {
   try {
     return await rmabFetch(t, `/requests/${encodeURIComponent(id)}`, {
@@ -292,7 +283,7 @@ export async function retryRequest(
  */
 export async function fetchEbook(
   t: AbsTarget,
-  requestId: string
+  requestId: string,
 ): Promise<{ success: boolean; message?: string; requestId?: string }> {
   try {
     return await rmabFetch(t, `/requests/${encodeURIComponent(requestId)}/ebook`, {
@@ -305,7 +296,7 @@ export async function fetchEbook(
 
 export async function watchAuthor(
   t: AbsTarget,
-  input: { authorAsin: string; authorName: string; coverArtUrl?: string }
+  input: { authorAsin: string; authorName: string; coverArtUrl?: string },
 ): Promise<{ success: boolean }> {
   try {
     return await rmabFetch(t, '/watched-authors', {
@@ -327,7 +318,7 @@ export async function unwatchAuthor(t: AbsTarget, id: string): Promise<{ success
 
 export async function watchSeries(
   t: AbsTarget,
-  input: { seriesAsin: string; seriesTitle: string; coverArtUrl?: string }
+  input: { seriesAsin: string; seriesTitle: string; coverArtUrl?: string },
 ): Promise<{ success: boolean }> {
   try {
     return await rmabFetch(t, '/watched-series', {

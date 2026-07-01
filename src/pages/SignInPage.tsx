@@ -34,12 +34,7 @@ export function SignInPage() {
         <img src="/flame.png" alt="" className="w-[4em]" />
         <Wordmark style={{ fontSize: '3em' }} />
       </div>
-      <SignIn
-        routing="path"
-        path="/sign-in"
-        signUpUrl="/sign-up"
-        fallbackRedirectUrl="/"
-      />
+      <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" fallbackRedirectUrl="/" />
     </div>
   )
 }

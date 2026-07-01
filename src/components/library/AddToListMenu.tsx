@@ -76,11 +76,7 @@ export function AddToListMenu({
           >
             <Icon name="folder_special" /> Collection
           </button>
-          <button
-            className="mp-item"
-            disabled={!libraryId}
-            onClick={() => setModalTab('playlist')}
-          >
+          <button className="mp-item" disabled={!libraryId} onClick={() => setModalTab('playlist')}>
             <Icon name="queue_music" /> Playlist
           </button>
         </div>

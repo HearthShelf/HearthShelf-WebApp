@@ -203,8 +203,8 @@ function ServerDetail({ serverId }: { serverId: string }) {
           title="Deregister this server?"
           message={
             <>
-              This removes the server, all its user links, invites, OAuth client, and cert
-              record. It cannot be undone - the operator would have to pair again from scratch.
+              This removes the server, all its user links, invites, OAuth client, and cert record.
+              It cannot be undone - the operator would have to pair again from scratch.
             </>
           }
           confirmLabel="Deregister"

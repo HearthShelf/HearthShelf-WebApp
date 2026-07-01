@@ -10,7 +10,8 @@ interface RmabBadgeProps {
 // dot | pulse | spin, derived from the status (matches the design reference).
 function indicator(status: string, progress?: number): 'dot' | 'pulse' | 'spin' {
   if (status === 'downloading') return !progress || progress <= 0 ? 'spin' : 'pulse'
-  if (status === 'searching' || status === 'processing' || status === 'awaiting_import') return 'spin'
+  if (status === 'searching' || status === 'processing' || status === 'awaiting_import')
+    return 'spin'
   return 'dot'
 }
 

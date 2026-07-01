@@ -57,13 +57,7 @@ export function Seg<T extends string | number>({
   )
 }
 
-export function Toggle({
-  on,
-  onChange,
-}: {
-  on: boolean
-  onChange: (v: boolean) => void
-}) {
+export function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       type="button"

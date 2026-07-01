@@ -102,10 +102,7 @@ export async function getServerVersions(t: AbsTarget): Promise<ServerVersions> {
 // --- Runtime: server name ----------------------------------------------------
 
 /** Set the server's own display name (Server Settings edit + onboarding). */
-export function setServerName(
-  t: AbsTarget,
-  name: string
-): Promise<{ serverName: string | null }> {
+export function setServerName(t: AbsTarget, name: string): Promise<{ serverName: string | null }> {
   return hsFetch<{ serverName: string | null }>(t, '/hs/runtime/server-name', {
     method: 'POST',
     body: JSON.stringify({ name }),
@@ -163,7 +160,7 @@ export function pollPairStatus(t: AbsTarget, code: string): Promise<PairStatus> 
 /** Start pairing with the control plane; returns the code to enter on app.hs.com. */
 export function startPairing(
   t: AbsTarget,
-  opts?: { controlPlaneUrl?: string; publicUrl?: string; name?: string }
+  opts?: { controlPlaneUrl?: string; publicUrl?: string; name?: string },
 ): Promise<PairResult> {
   return hsFetch<PairResult>(t, '/hs/hosted/pair', {
     method: 'POST',
@@ -241,7 +238,7 @@ export interface InviteResult {
 export function inviteFromServer(
   t: AbsTarget,
   email: string,
-  role: 'admin' | 'user'
+  role: 'admin' | 'user',
 ): Promise<InviteResult> {
   return hsFetch<InviteResult>(t, '/hs/hosted/invite', {
     method: 'POST',
@@ -269,7 +266,7 @@ export function getEmailRelayStatus(t: AbsTarget): Promise<EmailRelayStatus> {
 
 /** Point ABS's SMTP at the loopback relay (1-click "use HearthShelf email"). */
 export function enableEmailRelay(
-  t: AbsTarget
+  t: AbsTarget,
 ): Promise<{ ok: boolean; host: string; port: number }> {
   return hsFetch(t, '/hs/hosted/email-relay/apply', { method: 'POST' })
 }

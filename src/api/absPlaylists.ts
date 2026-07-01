@@ -54,7 +54,7 @@ function mapPlaylist(p: RawPlaylist): PlaylistSummary {
 export async function getPlaylists(t: AbsTarget, libraryId: string): Promise<PlaylistSummary[]> {
   const data = await absGet<{ results?: RawPlaylist[] }>(
     t,
-    `/api/libraries/${encodeURIComponent(libraryId)}/playlists`
+    `/api/libraries/${encodeURIComponent(libraryId)}/playlists`,
   )
   return (data.results ?? []).map(mapPlaylist)
 }

@@ -73,7 +73,7 @@ export function ConfigApiKeys() {
   const allKeys = data?.apiKeys ?? []
   const users = useMemo(
     () => (usersData?.users ?? []).filter((u) => u.type !== 'guest'),
-    [usersData]
+    [usersData],
   )
   const userById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users])
 
@@ -85,10 +85,7 @@ export function ConfigApiKeys() {
     enabled: Boolean(target),
     staleTime: 60 * 1000,
   })
-  const serviceUserIds = useMemo(
-    () => new Set(trackedData?.ids ?? []),
-    [trackedData]
-  )
+  const serviceUserIds = useMemo(() => new Set(trackedData?.ids ?? []), [trackedData])
 
   const isServiceKey = (k: ABSApiKey): boolean => serviceUserIds.has(k.userId)
   const hiddenServiceCount = allKeys.filter(isServiceKey).length
@@ -114,12 +111,7 @@ export function ConfigApiKeys() {
     if (!name || !userId) return
     setCreateError(null)
     try {
-      const res = await createApiKey(
-        target,
-        name,
-        userId,
-        EXPIRY_OPTIONS[expiryIdx]?.seconds
-      )
+      const res = await createApiKey(target, name, userId, EXPIRY_OPTIONS[expiryIdx]?.seconds)
       // Optionally group the owner under Service Accounts. ABS has no machine-user
       // flag, so "service account" is just our tag; applying it here mirrors
       // creating the key as a service account.
@@ -132,9 +124,7 @@ export function ConfigApiKeys() {
       qc.invalidateQueries({ queryKey: adminSectionKeys.apiKeys(target.serverId) })
     } catch (e) {
       // ABS 403s when a non-root admin targets a root user; surface its reason.
-      setCreateError(
-        e instanceof AbsError ? e.message : 'Could not create the key.'
-      )
+      setCreateError(e instanceof AbsError ? e.message : 'Could not create the key.')
     }
   }
   const revoke = async (k: ABSApiKey) => {
@@ -199,12 +189,8 @@ export function ConfigApiKeys() {
                 <tr key={k.id}>
                   <td style={{ fontWeight: 600 }}>{k.name}</td>
                   <td>{ownerName(k)}</td>
-                  <td className="num">
-                    {fmtSessDate(new Date(k.createdAt).getTime()).day}
-                  </td>
-                  <td className="num">
-                    {k.lastUsedAt ? fmtSessDate(k.lastUsedAt).day : 'never'}
-                  </td>
+                  <td className="num">{fmtSessDate(new Date(k.createdAt).getTime()).day}</td>
+                  <td className="num">{k.lastUsedAt ? fmtSessDate(k.lastUsedAt).day : 'never'}</td>
                   <td>
                     {k.isActive ? (
                       <span style={{ color: '#a7c896' }}>Active</span>
@@ -237,10 +223,7 @@ export function ConfigApiKeys() {
           foot={
             <>
               <div style={{ flex: 1 }} />
-              <button
-                className="btn-sm btn-ghost"
-                onClick={() => setCreating(false)}
-              >
+              <button className="btn-sm btn-ghost" onClick={() => setCreating(false)}>
                 Cancel
               </button>
               <button className="btn-sm btn-green" onClick={() => void create()}>
@@ -261,11 +244,7 @@ export function ConfigApiKeys() {
           </div>
           <div className="field full">
             <label>User</label>
-            <select
-              className="fld"
-              value={ownerId}
-              onChange={(e) => setOwnerId(e.target.value)}
-            >
+            <select className="fld" value={ownerId} onChange={(e) => setOwnerId(e.target.value)}>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.username}
@@ -335,10 +314,7 @@ export function ConfigApiKeys() {
           foot={
             <>
               <div style={{ flex: 1 }} />
-              <button
-                className="btn-sm btn-green"
-                onClick={() => setCreatedToken(null)}
-              >
+              <button className="btn-sm btn-green" onClick={() => setCreatedToken(null)}>
                 Done
               </button>
             </>

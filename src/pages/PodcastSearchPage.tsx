@@ -1,10 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  searchPodcasts,
-  addPodcast,
-  type PodcastDirectoryResult,
-} from '@/api/absPodcasts'
+import { searchPodcasts, addPodcast, type PodcastDirectoryResult } from '@/api/absPodcasts'
 import { getMe } from '@/api/absLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
@@ -33,8 +29,7 @@ export function PodcastSearchPage() {
     enabled: Boolean(target),
     staleTime: 5 * 60 * 1000,
   })
-  const canAdd =
-    me?.type === 'admin' || me?.type === 'root' || Boolean(me?.permissions?.update)
+  const canAdd = me?.type === 'admin' || me?.type === 'root' || Boolean(me?.permissions?.update)
 
   const run = async () => {
     const term = q.trim()

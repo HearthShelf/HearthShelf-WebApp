@@ -62,7 +62,11 @@ export function getServerSettings(t: AbsTarget, deviceId: string): Promise<Serve
 
 // Push a batch of changed keys. The server validates + applies per-key LWW and
 // reports which landed / were stale / failed validation.
-export function putServerSettings(t: AbsTarget, deviceId: string, changes: SettingChange[]): Promise<PushResult> {
+export function putServerSettings(
+  t: AbsTarget,
+  deviceId: string,
+  changes: SettingChange[],
+): Promise<PushResult> {
   return settingsFetch<PushResult>(t, '/hs/settings', {
     method: 'PUT',
     body: JSON.stringify({ deviceId, changes }),

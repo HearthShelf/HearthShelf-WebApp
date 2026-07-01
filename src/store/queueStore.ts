@@ -45,7 +45,7 @@ export const useQueueStore = create<QueueState>()(
         set((s) =>
           s.items.some((i) => i.libraryItemId === entry.libraryItemId)
             ? s
-            : { items: [...s.items, entry] }
+            : { items: [...s.items, entry] },
         ),
       remove: (id) =>
         set((s) => ({
@@ -79,6 +79,6 @@ export const useQueueStore = create<QueueState>()(
         setItem: (k, v) => sessionStorage.setItem(k, JSON.stringify(v)),
         removeItem: (k) => sessionStorage.removeItem(k),
       },
-    }
-  )
+    },
+  ),
 )

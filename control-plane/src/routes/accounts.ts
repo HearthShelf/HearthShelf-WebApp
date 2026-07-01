@@ -82,14 +82,24 @@ async function checkPin(env: Env, row: DeviceHandleRow, pin: string): Promise<Pi
   // Only count an actual attempt, not a bare probe with no PIN, so opening the
   // pad doesn't burn tries.
   if (!pin) {
-    return { ok: false, status: 403, error: 'pin_required', attemptsLeft: MAX_PIN_ATTEMPTS - row.pin_attempts }
+    return {
+      ok: false,
+      status: 403,
+      error: 'pin_required',
+      attemptsLeft: MAX_PIN_ATTEMPTS - row.pin_attempts,
+    }
   }
   const attempts = await bumpPinAttempts(env, row.handle)
   if (attempts >= MAX_PIN_ATTEMPTS) {
     await deleteDeviceHandle(env, row.handle)
     return { ok: false, status: 410, error: 'locked_out' }
   }
-  return { ok: false, status: 403, error: 'pin_required', attemptsLeft: MAX_PIN_ATTEMPTS - attempts }
+  return {
+    ok: false,
+    status: 403,
+    error: 'pin_required',
+    attemptsLeft: MAX_PIN_ATTEMPTS - attempts,
+  }
 }
 
 /**
@@ -188,12 +198,27 @@ accounts.get('/accounts/remembered', async (c) => {
   if (!user) return c.json({ error: 'unauthorized' }, 401)
 
   const raw = c.req.query('handles') ?? ''
-  const handles = raw.split(',').map((h) => h.trim()).filter(Boolean).slice(0, 20)
+  const handles = raw
+    .split(',')
+    .map((h) => h.trim())
+    .filter(Boolean)
+    .slice(0, 20)
 
-  const out: Array<{ handle: string; label: string | null; image_url: string | null; has_pin: boolean }> = []
+  const out: Array<{
+    handle: string
+    label: string | null
+    image_url: string | null
+    has_pin: boolean
+  }> = []
   for (const h of handles) {
     const row = await getDeviceHandle(c.env, h)
-    if (row) out.push({ handle: row.handle, label: row.label, image_url: row.image_url, has_pin: !!row.pin_hash })
+    if (row)
+      out.push({
+        handle: row.handle,
+        label: row.label,
+        image_url: row.image_url,
+        has_pin: !!row.pin_hash,
+      })
   }
   return c.json({ accounts: out })
 })

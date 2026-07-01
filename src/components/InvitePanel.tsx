@@ -24,12 +24,10 @@ export function InvitePanel({ serverId }: { serverId: string }) {
       {
         onSuccess: (r) => {
           setEmail('')
-          notify.success(
-            r.emailed ? `Invited ${r.email} - email sent` : `Invited ${r.email}`
-          )
+          notify.success(r.emailed ? `Invited ${r.email} - email sent` : `Invited ${r.email}`)
         },
         // Failures surface via the global mutation error toast.
-      }
+      },
     )
   }
 
@@ -40,8 +38,8 @@ export function InvitePanel({ serverId }: { serverId: string }) {
         <h2 className="t-h2">Invite someone</h2>
       </div>
       <p className="t-muted mb-4 text-[13px]">
-        They'll get an email to create a HearthShelf account, then this library
-        appears for them automatically.
+        They'll get an email to create a HearthShelf account, then this library appears for them
+        automatically.
       </p>
 
       <form onSubmit={submit} className="flex flex-wrap items-center gap-2">
@@ -54,7 +52,7 @@ export function InvitePanel({ serverId }: { serverId: string }) {
           className={cn(
             'h-10 min-w-[16rem] flex-1 rounded-lg border border-input bg-background px-3',
             'text-[15px] text-foreground placeholder:text-muted-foreground',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           )}
         />
         <select

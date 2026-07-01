@@ -16,7 +16,15 @@ export function SwitcherHarness() {
   }, [setAll])
 
   return (
-    <div className="dark" style={{ minHeight: '100vh', background: 'var(--background)', display: 'grid', placeItems: 'center' }}>
+    <div
+      className="dark"
+      style={{
+        minHeight: '100vh',
+        background: 'var(--background)',
+        display: 'grid',
+        placeItems: 'center',
+      }}
+    >
       <div className="user-wrap" style={{ width: 280, position: 'relative' }}>
         <div className="user-menu" style={{ position: 'static' }}>
           <AccountSwitcher onNavigate={(to) => alert('navigate ' + to)} showAdmin />

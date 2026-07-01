@@ -58,7 +58,7 @@ export async function mintGrant(
     email: string
     username: string
     role: 'admin' | 'user'
-  }
+  },
 ): Promise<string> {
   const { privateKey, kid, alg } = await loadSigningKey(env)
   const ttl = Number(env.GRANT_TTL_SECONDS || '300')

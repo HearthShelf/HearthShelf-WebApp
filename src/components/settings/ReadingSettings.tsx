@@ -22,8 +22,7 @@ export function ReadingSettings() {
         <h2>Reading</h2>
       </div>
       <p className="t-muted mb-4 text-[13px]">
-        Defaults for the in-browser ebook reader. You can also tweak these live
-        while reading.
+        Defaults for the in-browser ebook reader. You can also tweak these live while reading.
       </p>
 
       <SetRow

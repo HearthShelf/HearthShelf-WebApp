@@ -78,7 +78,7 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
         setBusy(false)
       }
     },
-    [switchTo, loginWithPassword]
+    [switchTo, loginWithPassword],
   )
 
   const onTapAccount = useCallback(
@@ -87,7 +87,7 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
       if (account.hasPin) setPinFor(account)
       else void doSwitch(account)
     },
-    [busy, ready, doSwitch]
+    [busy, ready, doSwitch],
   )
 
   /** "Forget this account" tap: PIN-less accounts confirm once and are done;
@@ -102,7 +102,7 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
       if (!window.confirm(`Forget ${account.label} on this device?`)) return
       void forgetRemembered(account.handle).finally(() => forget(account.handle))
     },
-    [forget]
+    [forget],
   )
 
   /** Verify the PIN for a forget attempt (does NOT switch accounts). */
@@ -120,7 +120,7 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
         return true
       }
     },
-    [forget]
+    [forget],
   )
 
   /** "Forgot PIN?" inside the forget pad: confirm, then force-remove without a
@@ -130,7 +130,7 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
     async (account: RememberedAccount) => {
       if (
         !window.confirm(
-          `This will remove ${account.label} from this device. You'll need to sign in again to use it here.`
+          `This will remove ${account.label} from this device. You'll need to sign in again to use it here.`,
         )
       )
         return
@@ -141,7 +141,7 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
         setForgetFor(null)
       }
     },
-    [forget]
+    [forget],
   )
 
   return (
@@ -150,7 +150,12 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
         <>
           <div className="switch-label">Switch account</div>
           {others.map((a) => (
-            <button key={a.handle} className="switch-row" onClick={() => onTapAccount(a)} disabled={busy}>
+            <button
+              key={a.handle}
+              className="switch-row"
+              onClick={() => onTapAccount(a)}
+              disabled={busy}
+            >
               <Avatar name={a.label} imageUrl={a.imageUrl} size={22} />
               <span className="switch-name">{a.label}</span>
               {a.hasPin && <Icon name="lock" className="switch-lock" />}
@@ -169,7 +174,12 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
       )}
 
       {!currentRemembered && (
-        <button onClick={() => { onDone?.(); void rememberCurrent() }}>
+        <button
+          onClick={() => {
+            onDone?.()
+            void rememberCurrent()
+          }}
+        >
           <Icon name="bookmark_add" /> Remember this account
         </button>
       )}
@@ -191,16 +201,32 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
       </button>
 
       <div className="sep" />
-      <button onClick={() => { onDone?.(); onNavigate('/account') }}>
+      <button
+        onClick={() => {
+          onDone?.()
+          onNavigate('/account')
+        }}
+      >
         <Icon name="person" /> Account settings
       </button>
       {showAdmin && (
-        <button onClick={() => { onDone?.(); onNavigate('/admin') }}>
+        <button
+          onClick={() => {
+            onDone?.()
+            onNavigate('/admin')
+          }}
+        >
           <Icon name="manage_accounts" /> Platform admin
         </button>
       )}
       <div className="sep" />
-      <button className="danger" onClick={() => { onDone?.(); void loginWithPassword() }}>
+      <button
+        className="danger"
+        onClick={() => {
+          onDone?.()
+          void loginWithPassword()
+        }}
+      >
         <Icon name="logout" /> Log out
       </button>
 

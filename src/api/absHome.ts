@@ -147,11 +147,11 @@ function mapSeries(r: RawSeries): AbsSeries {
 export async function getHomeShelves(
   t: AbsTarget,
   libraryId: string,
-  limit = 12
+  limit = 12,
 ): Promise<HomeShelf[]> {
   const raw = await absGet<RawPersonalizedShelf[]>(
     t,
-    `/api/libraries/${encodeURIComponent(libraryId)}/personalized?limit=${limit}`
+    `/api/libraries/${encodeURIComponent(libraryId)}/personalized?limit=${limit}`,
   )
   const out: HomeShelf[] = []
   for (const sh of raw ?? []) {
@@ -203,7 +203,7 @@ export function mergeHomeShelves(perLibrary: HomeShelf[][]): HomeShelf[] {
           sh.id,
           sh.type === 'series'
             ? { ...sh, series: [...sh.series] }
-            : { ...sh, items: [...sh.items] }
+            : { ...sh, items: [...sh.items] },
         )
         continue
       }
@@ -256,7 +256,7 @@ interface ItemsInProgressResponse {
  */
 export async function getItemsInProgress(
   t: AbsTarget,
-  libraryId?: string
+  libraryId?: string,
 ): Promise<AbsLibraryItem[]> {
   const data = await absGet<ItemsInProgressResponse>(t, '/api/me/items-in-progress')
   const items = (data.libraryItems ?? []).map(mapFullItem)
@@ -310,13 +310,13 @@ export async function searchLibraryFull(
   t: AbsTarget,
   libraryId: string,
   query: string,
-  limit = 24
+  limit = 24,
 ): Promise<LibrarySearchResults> {
   const q = query.trim()
   if (!q) return { books: [], series: [], authors: [], narrators: [] }
   const data = await absGet<RawSearchResponse>(
     t,
-    `/api/libraries/${encodeURIComponent(libraryId)}/search?q=${encodeURIComponent(q)}&limit=${limit}`
+    `/api/libraries/${encodeURIComponent(libraryId)}/search?q=${encodeURIComponent(q)}&limit=${limit}`,
   )
   const books = (data.book ?? [])
     .map((e) => e.libraryItem)

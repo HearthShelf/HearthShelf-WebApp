@@ -50,7 +50,7 @@ export function useActiveLibrary(routeId?: string): ActiveLibrary {
 
   const { data: libraries = [] } = useLibraries(
     target ?? { serverId: '', serverUrl: '' },
-    Boolean(target) && connected
+    Boolean(target) && connected,
   )
 
   const serverId = target?.serverId ?? ''
@@ -64,7 +64,7 @@ export function useActiveLibrary(routeId?: string): ActiveLibrary {
     target ?? { serverId: '', serverUrl: '' },
     activeId ?? undefined,
     0,
-    Boolean(target) && connected && Boolean(activeId)
+    Boolean(target) && connected && Boolean(activeId),
   )
 
   return {

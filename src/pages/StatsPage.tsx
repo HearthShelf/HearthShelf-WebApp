@@ -29,7 +29,7 @@ function hoursLabel(seconds: number): string {
 // Build a stable YYYY-MM-DD key in local time (matches ABS's byDay keys).
 function dayKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate()
+    d.getDate(),
   ).padStart(2, '0')}`
 }
 
@@ -194,9 +194,7 @@ export function StatsPage() {
                   <Cover itemId={b.id} title={b.title} fs={4} />
                   <div className="ml-meta">
                     <div className="ml-t">{b.title}</div>
-                    <div className="ml-s">
-                      {[b.author, b.narrator].filter(Boolean).join(' · ')}
-                    </div>
+                    <div className="ml-s">{[b.author, b.narrator].filter(Boolean).join(' · ')}</div>
                     <div className="ml-bar">
                       <i style={{ width: (b.hours / mlMax) * 100 + '%' }} />
                     </div>
@@ -236,7 +234,7 @@ export function StatsPage() {
                 c.ratio > 0
                   ? {
                       background: `color-mix(in oklab, var(--accent) ${Math.round(
-                        18 + c.ratio * 82
+                        18 + c.ratio * 82,
                       )}%, var(--c-highest))`,
                     }
                   : undefined

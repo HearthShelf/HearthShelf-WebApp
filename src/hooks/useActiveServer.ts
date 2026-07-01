@@ -53,7 +53,7 @@ export function useActiveServer(): ActiveServer {
 
   const target = useMemo<AbsTarget | null>(
     () => (resolved ? { serverId: resolved.id, serverUrl: resolved.url } : null),
-    [resolved]
+    [resolved],
   )
 
   return {

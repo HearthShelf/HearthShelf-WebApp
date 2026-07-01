@@ -80,9 +80,7 @@ export function SessionsPage() {
 
       {isLoading && <LoadingSpinner className="py-12" label="Loading history..." />}
 
-      {isError && !data && (
-        <ErrorState message="Could not load your history." onRetry={refetch} />
-      )}
+      {isError && !data && <ErrorState message="Could not load your history." onRetry={refetch} />}
 
       {data && sessions.length === 0 && (
         <div className="empty-state">
@@ -147,9 +145,7 @@ export function SessionsPage() {
                           <div className="ll-title">{s.title}</div>
                           <div className="ll-sub">{s.author}</div>
                         </div>
-                        <span className="sh-dur">
-                          {formatTimestamp(s.timeListeningSec)}
-                        </span>
+                        <span className="sh-dur">{formatTimestamp(s.timeListeningSec)}</span>
                         <span className="sh-when">
                           <Icon name={deviceIcon(s.device)} style={{ fontSize: 15 }} />
                           {when.time}
@@ -173,10 +169,7 @@ export function SessionsPage() {
           </div>
 
           {numPages > 1 && (
-            <div
-              className="toolbar2"
-              style={{ justifyContent: 'center', marginTop: 'var(--s6)' }}
-            >
+            <div className="toolbar2" style={{ justifyContent: 'center', marginTop: 'var(--s6)' }}>
               <button
                 className="pill"
                 disabled={page === 0}

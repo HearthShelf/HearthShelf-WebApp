@@ -101,10 +101,7 @@ export function ConfigBackups() {
             style={{ display: 'none' }}
             onChange={(e) => void onUpload(e.target.files?.[0])}
           />
-          <button
-            className="btn-sm btn-ghost"
-            onClick={() => fileRef.current?.click()}
-          >
+          <button className="btn-sm btn-ghost" onClick={() => fileRef.current?.click()}>
             <Icon name="upload" /> Upload
           </button>
           <button
@@ -123,10 +120,7 @@ export function ConfigBackups() {
       {data && (
         <>
           {data.backupLocation && (
-            <p
-              className="page-sub"
-              style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}
-            >
+            <p className="page-sub" style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}>
               {data.backupLocation}
             </p>
           )}

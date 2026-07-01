@@ -23,7 +23,7 @@ export function QuestGiverPicker({ books, picked, onToggle }: QuestGiverPickerPr
   // Selected books, in pick order is fine - we keep insertion order via the Set.
   const selected = useMemo(
     () => [...picked].map((id) => byId.get(id)).filter((b): b is QgBook => !!b),
-    [picked, byId]
+    [picked, byId],
   )
 
   const q = query.trim().toLowerCase()
@@ -31,7 +31,7 @@ export function QuestGiverPicker({ books, picked, onToggle }: QuestGiverPickerPr
     const unpicked = books.filter((b) => !picked.has(b.id))
     const matched = q
       ? unpicked.filter(
-          (b) => b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q)
+          (b) => b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q),
         )
       : unpicked
     return q ? matched.slice(0, 24) : matched.slice(0, GRID_LIMIT)
@@ -70,7 +70,7 @@ export function QuestGiverPicker({ books, picked, onToggle }: QuestGiverPickerPr
           { transform: `translate(${dx}px, ${dy}px) scale(${ds})`, opacity: 0.85 },
           { transform: 'translate(0, 0) scale(1)', opacity: 1 },
         ],
-        { duration: 360, easing: 'cubic-bezier(.2, .8, .2, 1)' }
+        { duration: 360, easing: 'cubic-bezier(.2, .8, .2, 1)' },
       )
     })
     prevRects.current = new Map()

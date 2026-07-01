@@ -83,12 +83,7 @@ function PodcastDetail({ podcast }: { podcast: AbsPodcast }) {
               <Icon name="notifications_active" /> Auto-download
             </button>
             {podcast.feedUrl && (
-              <a
-                className="pill"
-                href={podcast.feedUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <a className="pill" href={podcast.feedUrl} target="_blank" rel="noopener noreferrer">
                 <Icon name="rss_feed" /> RSS feed
               </a>
             )}

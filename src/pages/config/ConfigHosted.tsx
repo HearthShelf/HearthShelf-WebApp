@@ -33,9 +33,8 @@ function ReachabilityHelp({ port }: { port: number }) {
     <div className="banner info" style={{ marginTop: 'var(--s3)' }}>
       <Icon name="info" />
       <div>
-        Forward port <strong>{port}</strong> on your router to this machine so
-        people you invite can reach it from outside your network. Look for "port
-        forwarding" in your router's settings.
+        Forward port <strong>{port}</strong> on your router to this machine so people you invite can
+        reach it from outside your network. Look for "port forwarding" in your router's settings.
       </div>
     </div>
   )
@@ -113,8 +112,7 @@ export function ConfigHosted() {
     enabled: Boolean(target) && Boolean(status?.paired),
     staleTime: 10 * 1000,
     retry: false,
-    refetchInterval: (q) =>
-      q.state.data && q.state.data.status === 'pending' ? 4000 : false,
+    refetchInterval: (q) => (q.state.data && q.state.data.status === 'pending' ? 4000 : false),
   })
 
   // Port reachability via the hs.direct VPS connecting back to this box's IP.
@@ -188,8 +186,8 @@ export function ConfigHosted() {
         <div className="eyebrow">Admin</div>
         <h1 className="title-xl">HearthShelf Connect</h1>
         <p className="page-sub">
-          Connect this server to app.hearthshelf.com so people can reach it from
-          one place, and invite people to it by email.
+          Connect this server to app.hearthshelf.com so people can reach it from one place, and
+          invite people to it by email.
         </p>
       </div>
 
@@ -216,7 +214,7 @@ export function ConfigHosted() {
               onClick={() => {
                 if (
                   window.confirm(
-                    'Disconnect from app.hearthshelf.com? People you invited will lose access until you reconnect.'
+                    'Disconnect from app.hearthshelf.com? People you invited will lose access until you reconnect.',
                   )
                 )
                   disconnect.mutate()
@@ -249,8 +247,7 @@ export function ConfigHosted() {
           <div className="banner info" style={{ marginTop: 'var(--s4)' }}>
             <Icon name="key" />
             <div style={{ width: '100%' }}>
-              Enter this code on <strong>app.hearthshelf.com</strong> to finish
-              connecting:
+              Enter this code on <strong>app.hearthshelf.com</strong> to finish connecting:
               <div
                 style={{
                   display: 'flex',
@@ -260,10 +257,7 @@ export function ConfigHosted() {
                   marginTop: 6,
                 }}
               >
-                <span
-                  className="t-mono"
-                  style={{ fontSize: '1.4rem', letterSpacing: '0.1em' }}
-                >
+                <span className="t-mono" style={{ fontSize: '1.4rem', letterSpacing: '0.1em' }}>
                   {pairResult.code}
                 </span>
                 <button className="btn-sm btn-ghost" onClick={copyCode}>
@@ -273,7 +267,9 @@ export function ConfigHosted() {
                   <Icon name="open_in_new" /> Open app.hearthshelf.com
                 </button>
                 <span className="sr-d" style={{ marginLeft: 'auto' }}>
-                  {remaining ? `Expires in ${remaining}` : 'Code expired - re-pair to get a new one'}
+                  {remaining
+                    ? `Expires in ${remaining}`
+                    : 'Code expired - re-pair to get a new one'}
                 </span>
               </div>
               <div
@@ -284,8 +280,7 @@ export function ConfigHosted() {
                 }}
               >
                 <div className="sr-d">
-                  Waiting for you to enter the code - this finishes automatically
-                  the moment you do.
+                  Waiting for you to enter the code - this finishes automatically the moment you do.
                 </div>
               </div>
             </div>
@@ -295,8 +290,8 @@ export function ConfigHosted() {
         {!status.hasAbsAdminToken && status.paired && (
           <div className="banner warn" style={{ marginTop: 'var(--s4)' }}>
             <Icon name="warning" />
-            No admin token saved for provisioning - invited users can't be created
-            automatically until this is set.
+            No admin token saved for provisioning - invited users can't be created automatically
+            until this is set.
           </div>
         )}
 
@@ -306,9 +301,8 @@ export function ConfigHosted() {
               <div className="sr-t">Reachable from outside your network?</div>
               {hsDirect?.status === 'active' && (
                 <div className="sr-d" style={{ marginBottom: 6 }}>
-                  {serverName} has a secure web address set up by HearthShelf.
-                  People you invite reach it through the HearthShelf app - there's
-                  nothing to copy or share.
+                  {serverName} has a secure web address set up by HearthShelf. People you invite
+                  reach it through the HearthShelf app - there's nothing to copy or share.
                 </div>
               )}
               {hsDirect?.status === 'pending' && (
@@ -317,7 +311,12 @@ export function ConfigHosted() {
                 </div>
               )}
               <div
-                style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', flexWrap: 'wrap' }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--s3)',
+                  flexWrap: 'wrap',
+                }}
               >
                 <button
                   className="btn-sm btn-ghost"
@@ -334,8 +333,7 @@ export function ConfigHosted() {
                 )}
                 {portResult && !portResult.open && (
                   <span className="sr-d" style={{ color: 'var(--warn, #d9a45a)' }}>
-                    Not reachable - forward port {portResult.port} on your router to
-                    this machine.
+                    Not reachable - forward port {portResult.port} on your router to this machine.
                   </span>
                 )}
               </div>

@@ -68,7 +68,7 @@ export function LinkServerDialog({
           onClose()
         },
         onError: (err) => notify.error(notify.fromError(err, 'Could not link that server')),
-      }
+      },
     )
   }
 
@@ -79,10 +79,7 @@ export function LinkServerDialog({
       aria-modal="true"
       aria-labelledby="link-server-title"
     >
-      <div
-        className="absolute inset-0 bg-background/70 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" onClick={onClose} />
 
       <div className="relative w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
         <button
@@ -131,7 +128,7 @@ export function LinkServerDialog({
               className={cn(
                 'h-11 min-w-[12rem] flex-1 rounded-lg border border-input bg-background px-3',
                 'text-center font-mono text-[17px] tracking-[0.2em] text-foreground placeholder:text-muted-foreground placeholder:tracking-normal',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               )}
             />
             <Button type="submit" disabled={!codeComplete || link.isPending}>

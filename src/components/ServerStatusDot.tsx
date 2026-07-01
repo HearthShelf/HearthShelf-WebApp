@@ -33,13 +33,7 @@ export function ServerStatusDot({ serverId }: { serverId: string }) {
 
   return (
     <span className="flex items-center gap-2">
-      <span
-        className={cn(
-          'size-2 rounded-full',
-          DOT[state],
-          isLoading && 'animate-pulse'
-        )}
-      />
+      <span className={cn('size-2 rounded-full', DOT[state], isLoading && 'animate-pulse')} />
       <span className="t-muted text-[13px]">{LABEL[state]}</span>
     </span>
   )

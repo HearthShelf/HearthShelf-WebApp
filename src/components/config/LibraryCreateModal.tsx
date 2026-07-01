@@ -73,11 +73,7 @@ export function LibraryCreateModal({
           <button className="btn-sm btn-ghost" onClick={onClose}>
             Cancel
           </button>
-          <button
-            className="btn-sm btn-green"
-            disabled={!canSubmit}
-            onClick={submit}
-          >
+          <button className="btn-sm btn-green" disabled={!canSubmit} onClick={submit}>
             <Icon name="add" /> {busy ? 'Creating...' : 'Create library'}
           </button>
         </>
@@ -136,20 +132,20 @@ export function LibraryCreateModal({
         </div>
         {pathState === 'exists' && (
           <p className="hint" style={{ margin: '4px 2px 0', fontSize: 12, color: '#a7c896' }}>
-            <Icon name="check_circle" style={{ verticalAlign: '-3px' }} /> Folder found
-            on the server.
+            <Icon name="check_circle" style={{ verticalAlign: '-3px' }} /> Folder found on the
+            server.
           </p>
         )}
         {pathState === 'missing' && (
           <p className="hint" style={{ margin: '4px 2px 0', fontSize: 12, color: '#e8897f' }}>
-            <Icon name="error" style={{ verticalAlign: '-3px' }} /> Folder not found on
-            the server. You can still create the library, but it has nothing to scan.
+            <Icon name="error" style={{ verticalAlign: '-3px' }} /> Folder not found on the server.
+            You can still create the library, but it has nothing to scan.
           </p>
         )}
         {(pathState === 'idle' || pathState === 'checking' || pathState === 'unknown') && (
           <p className="hint" style={{ margin: '4px 2px 0', fontSize: 12 }}>
-            An absolute path on the server, inside the AudiobookShelf container
-            (e.g. <code>/audiobooks</code>).
+            An absolute path on the server, inside the AudiobookShelf container (e.g.{' '}
+            <code>/audiobooks</code>).
           </p>
         )}
       </div>

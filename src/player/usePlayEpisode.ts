@@ -42,6 +42,6 @@ export function usePlayEpisode(): (args: {
         playSessionId: session.playSessionId,
       })
     },
-    [player, target]
+    [player, target],
   )
 }

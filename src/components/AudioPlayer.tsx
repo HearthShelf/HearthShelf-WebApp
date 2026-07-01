@@ -118,7 +118,11 @@ export function AudioPlayer({
           aria-label={playing ? 'Pause' : 'Play'}
           className="flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90"
         >
-          {playing ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
+          {playing ? (
+            <Pause size={24} fill="currentColor" />
+          ) : (
+            <Play size={24} fill="currentColor" />
+          )}
         </button>
 
         <button
@@ -157,18 +161,14 @@ export function AudioPlayer({
           </select>
         </label>
 
-        <SleepMenu
-          armed={sleepArmed}
-          remainingMs={sleepRemainingMs}
-          onSet={setSleepMinutes}
-        />
+        <SleepMenu armed={sleepArmed} remainingMs={sleepRemainingMs} onSet={setSleepMinutes} />
 
         {chapters.length > 0 && (
           <button
             onClick={() => setShowChapters((v) => !v)}
             className={cn(
               'flex items-center gap-1.5 rounded-md border border-input px-2 py-1 text-[13px]',
-              showChapters ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground'
+              showChapters ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground',
             )}
           >
             <List size={15} />
@@ -187,7 +187,7 @@ export function AudioPlayer({
                   onClick={() => seekTo(c.startSec)}
                   className={cn(
                     'flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[13px] transition-colors hover:bg-accent',
-                    active && 'bg-secondary'
+                    active && 'bg-secondary',
                   )}
                 >
                   <span className="line-clamp-1 text-card-foreground">{c.title}</span>
@@ -221,7 +221,7 @@ function SleepMenu({
         onClick={() => setOpen((v) => !v)}
         className={cn(
           'flex items-center gap-1.5 rounded-md border border-input px-2 py-1 text-[13px]',
-          armed ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground'
+          armed ? 'bg-secondary text-secondary-foreground' : 'text-muted-foreground',
         )}
       >
         <Moon size={15} />

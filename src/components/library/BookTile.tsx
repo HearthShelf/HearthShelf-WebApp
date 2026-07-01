@@ -47,7 +47,7 @@ export function BookTile({
   const hasEbook = !!item.media.ebookFormat
   const ebookOnly = hasEbook && item.media.numAudioFiles === 0
   const open = () => ui.openItem(item.id)
-  const authorHref = authorId ? ui.authorHref?.(authorId) ?? `/author/${authorId}` : null
+  const authorHref = authorId ? (ui.authorHref?.(authorId) ?? `/author/${authorId}`) : null
   const stop = (fn: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation()
     fn()
@@ -61,9 +61,7 @@ export function BookTile({
 
   return (
     <div
-      className={
-        'book fade-in' + (compact ? ' compact' : '') + (selected ? ' sel' : '')
-      }
+      className={'book fade-in' + (compact ? ' compact' : '') + (selected ? ' sel' : '')}
       data-cv={tintFor(title ?? 'Untitled')}
       onClick={onClick}
     >
@@ -108,7 +106,7 @@ export function BookTile({
                   title={finished ? 'Mark not finished' : 'Mark finished'}
                   onClick={stop(() => {
                     void markFinished([item.id], !finished).then(() =>
-                      onToast?.(finished ? 'Marked not finished' : 'Marked finished')
+                      onToast?.(finished ? 'Marked not finished' : 'Marked finished'),
                     )
                   })}
                 >
@@ -122,10 +120,7 @@ export function BookTile({
       <div className="b-meta">
         <div className="b-title">{title ?? 'Untitled'}</div>
         {authorHref ? (
-          <div
-            className="b-author b-author-link"
-            onClick={stop(() => navigate(authorHref))}
-          >
+          <div className="b-author b-author-link" onClick={stop(() => navigate(authorHref))}>
             {authorName || 'Unknown author'}
           </div>
         ) : (

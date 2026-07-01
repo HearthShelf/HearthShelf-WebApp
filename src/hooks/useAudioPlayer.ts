@@ -129,7 +129,7 @@ export function useAudioPlayer({
       audio.addEventListener('loadedmetadata', onMeta)
       audio.load()
     },
-    [tracks, rate]
+    [tracks, rate],
   )
 
   // Seek to a global book position.
@@ -151,7 +151,7 @@ export function useAudioPlayer({
         audioRef.current.currentTime = local
       }
     },
-    [tracks, totalDurationSec, playing, loadTrack]
+    [tracks, totalDurationSec, playing, loadTrack],
   )
 
   const togglePlay = useCallback(() => {
@@ -163,7 +163,7 @@ export function useAudioPlayer({
 
   const skip = useCallback(
     (deltaSec: number) => seekTo(positionSec + deltaSec),
-    [positionSec, seekTo]
+    [positionSec, seekTo],
   )
 
   // Wire audio element events. Re-run when track set changes.

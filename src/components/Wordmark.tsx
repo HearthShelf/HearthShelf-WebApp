@@ -7,13 +7,7 @@ import { cn } from '@/lib/cn'
  * (what the sidebar `.brand` lockup is sized/coloured around), matching the
  * self-hosted shell.
  */
-export function Wordmark({
-  className,
-  style,
-}: {
-  className?: string
-  style?: CSSProperties
-}) {
+export function Wordmark({ className, style }: { className?: string; style?: CSSProperties }) {
   return (
     <span className={cn('wordmark select-none', className)} style={style}>
       <span className="lt">Hearth</span>

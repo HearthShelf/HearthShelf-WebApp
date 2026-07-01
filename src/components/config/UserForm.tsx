@@ -1,12 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getLibrariesAdmin, getAllTagNames, adminKeys } from '@/api/absAdmin'
-import type {
-  ABSAdminUser,
-  ABSUserPermissions,
-  ABSUserType,
-  UserFormValues,
-} from '@/api/absAdmin'
+import type { ABSAdminUser, ABSUserPermissions, ABSUserType, UserFormValues } from '@/api/absAdmin'
 import type { AbsTarget } from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
 import { Modal } from '@/components/common/Modal'
@@ -157,16 +152,16 @@ export function UserForm({ target, user, busy, error, onSubmit, onClose }: UserF
   const [type, setType] = useState<ABSUserType>((user?.type as ABSUserType) ?? 'user')
   const [isActive, setIsActive] = useState(user?.isActive ?? true)
   const [perms, setPerms] = useState<ABSUserPermissions>(
-    user?.permissions ?? defaultPermissions('user')
+    user?.permissions ?? defaultPermissions('user'),
   )
 
   const libOptions = useMemo(
     () => (libsData?.libraries ?? []).map((l) => ({ id: l.id, label: l.name })),
-    [libsData]
+    [libsData],
   )
   const tagOptions = useMemo(
     () => (tagsData?.tags ?? []).map((t) => ({ id: t, label: t })),
-    [tagsData]
+    [tagsData],
   )
   const libSel = useMemo(() => new Set(perms.librariesAccessible), [perms.librariesAccessible])
   const tagSel = useMemo(() => new Set(perms.itemTagsSelected), [perms.itemTagsSelected])
@@ -222,8 +217,8 @@ export function UserForm({ target, user, busy, error, onSubmit, onClose }: UserF
       {error && <p className="form-err">{error}</p>}
       {isRoot && (
         <p className="hint" style={{ marginTop: 0, color: 'var(--text-muted)' }}>
-          This is a root account. Some fields (account type) are locked, and only
-          another root user can change its password.
+          This is a root account. Some fields (account type) are locked, and only another root user
+          can change its password.
         </p>
       )}
 

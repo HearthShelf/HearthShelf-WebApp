@@ -26,17 +26,7 @@ type Pop = 'speed' | 'sleep' | 'chapters' | null
  *    requestPanel store, so the expand button just opens /player.
  */
 export function MiniPlayer() {
-  const {
-    now,
-    close,
-    playing,
-    positionSec,
-    togglePlay,
-    seekTo,
-    skip,
-    rate,
-    setRate,
-  } = usePlayer()
+  const { now, close, playing, positionSec, togglePlay, seekTo, skip, rate, setRate } = usePlayer()
 
   // Swipe-to-dismiss: drag the bar horizontally; past the threshold on release it
   // dismisses (which stops playback). Tracked in a ref during the gesture and
@@ -96,8 +86,7 @@ export function MiniPlayer() {
   const span = useChapter ? cur.end - cur.start : duration
   const offset = useChapter ? cur.start : 0
   // While dragging the scrubber, the labels preview the drag target.
-  const localPos =
-    scrubDrag === null ? Math.max(0, currentTime - offset) : scrubDrag * span
+  const localPos = scrubDrag === null ? Math.max(0, currentTime - offset) : scrubDrag * span
   const pct = span > 0 ? Math.min(100, (localPos / span) * 100) : 0
 
   const onScrub = (ratio: number) => {
@@ -139,11 +128,7 @@ export function MiniPlayer() {
           : undefined
       }
     >
-      <div
-        className="pb-now"
-        onClick={() => navigate('/player')}
-        style={{ cursor: 'pointer' }}
-      >
+      <div className="pb-now" onClick={() => navigate('/player')} style={{ cursor: 'pointer' }}>
         {/* The mini-player is global chrome mounted OUTSIDE the MediaUI provider,
             so it can't use <Cover> (which reads useMediaUI). The now-playing
             descriptor already carries a tokenized coverUrl captured at load. */}
@@ -180,11 +165,7 @@ export function MiniPlayer() {
             <Icon name="replay" />
             <small>{skipBack}</small>
           </button>
-          <button
-            className="pb-play"
-            onClick={togglePlay}
-            aria-label={playing ? 'Pause' : 'Play'}
-          >
+          <button className="pb-play" onClick={togglePlay} aria-label={playing ? 'Pause' : 'Play'}>
             <Icon name={playing ? 'pause' : 'play_arrow'} fill />
           </button>
           <button

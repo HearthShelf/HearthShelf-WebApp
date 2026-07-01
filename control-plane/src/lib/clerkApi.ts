@@ -20,7 +20,7 @@ export interface CreatedInvitation {
  */
 export async function createClerkInvitation(
   env: Env,
-  params: { email: string; redirectUrl: string; serverId: string; role: 'admin' | 'user' }
+  params: { email: string; redirectUrl: string; serverId: string; role: 'admin' | 'user' },
 ): Promise<CreatedInvitation> {
   // Treat a missing key as a (non-fatal) ClerkApiError so callers record the
   // pending invite anyway - the invitee still links on their next sign-in, they
@@ -64,7 +64,7 @@ export async function createClerkInvitation(
  */
 export async function createSignInToken(
   env: Env,
-  params: { userId: string; expiresInSeconds?: number }
+  params: { userId: string; expiresInSeconds?: number },
 ): Promise<{ token: string }> {
   if (!env.CLERK_SECRET_KEY) throw new ClerkApiError(0, 'CLERK_SECRET_KEY not configured')
 

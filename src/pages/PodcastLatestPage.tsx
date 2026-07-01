@@ -37,16 +37,14 @@ export function PodcastLatestPage() {
         <h1 className="title-xl">Latest episodes</h1>
         {data && (
           <p className="page-sub">
-            {episodes.length} recent{' '}
-            {episodes.length === 1 ? 'episode' : 'episodes'} across your podcasts
+            {episodes.length} recent {episodes.length === 1 ? 'episode' : 'episodes'} across your
+            podcasts
           </p>
         )}
       </div>
 
       {isLoading && <LoadingSpinner className="py-12" label="Loading episodes..." />}
-      {isError && (
-        <ErrorState message="Could not load recent episodes." onRetry={refetch} />
-      )}
+      {isError && <ErrorState message="Could not load recent episodes." onRetry={refetch} />}
 
       {data && episodes.length === 0 && (
         <div className="empty-state">

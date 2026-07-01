@@ -25,6 +25,6 @@ export const useActiveServerStore = create<ActiveServerState>()(
       activeServerId: null,
       setActiveServer: (id) => set({ activeServerId: id }),
     }),
-    { name: 'hs-active-server' }
-  )
+    { name: 'hs-active-server' },
+  ),
 )

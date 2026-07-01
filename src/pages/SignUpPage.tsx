@@ -12,12 +12,7 @@ export function SignUpPage() {
         <img src="/flame.png" alt="" className="w-[4em]" />
         <Wordmark style={{ fontSize: '3em' }} />
       </div>
-      <SignUp
-        routing="path"
-        path="/sign-up"
-        signInUrl="/sign-in"
-        fallbackRedirectUrl="/"
-      />
+      <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" fallbackRedirectUrl="/" />
     </div>
   )
 }

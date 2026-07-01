@@ -45,10 +45,8 @@ export function ConfigLibraries() {
   // query stays the single source of truth - no local copy, no effect.
   const order = useMemo(
     () =>
-      data?.libraries
-        ? [...data.libraries].sort((a, b) => a.displayOrder - b.displayOrder)
-        : [],
-    [data]
+      data?.libraries ? [...data.libraries].sort((a, b) => a.displayOrder - b.displayOrder) : [],
+    [data],
   )
 
   const [editId, setEditId] = useState<string | null>(null)
@@ -87,12 +85,12 @@ export function ConfigLibraries() {
     // the memo re-sorts to match), then persist.
     const renumbered = next.map((l, i) => ({ ...l, displayOrder: i }))
     qc.setQueryData<ABSLibrariesAdminResponse>(adminKeys.libraries(target.serverId), (prev) =>
-      prev ? { ...prev, libraries: renumbered } : prev
+      prev ? { ...prev, libraries: renumbered } : prev,
     )
     try {
       await reorderLibraries(
         target,
-        renumbered.map((l) => ({ id: l.id, newOrder: l.displayOrder }))
+        renumbered.map((l) => ({ id: l.id, newOrder: l.displayOrder })),
       )
       qc.invalidateQueries({ queryKey: adminKeys.libraries(target.serverId) })
     } catch {
@@ -162,7 +160,7 @@ export function ConfigLibraries() {
       flash(
         res.removed
           ? `Removed ${res.removed} ${ext} file${res.removed === 1 ? '' : 's'}.`
-          : `No ${ext} files found to remove.`
+          : `No ${ext} files found to remove.`,
       )
     } catch {
       flash('Could not remove metadata files.')

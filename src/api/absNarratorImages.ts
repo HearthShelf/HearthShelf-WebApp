@@ -24,11 +24,7 @@ export function narratorImageUrl(t: AbsTarget, name: string, v = 0): string {
 }
 
 /** Upload (or replace) a narrator's photo. Raw image bytes; admin only. */
-export async function uploadNarratorImage(
-  t: AbsTarget,
-  name: string,
-  file: File
-): Promise<void> {
+export async function uploadNarratorImage(t: AbsTarget, name: string, file: File): Promise<void> {
   const token = getAbsToken(t.serverId)
   const res = await fetch(`${origin(t)}/hs/narrators/${encodeURIComponent(name)}/image`, {
     method: 'PUT',

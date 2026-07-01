@@ -71,7 +71,7 @@ export function WebAppMediaUIProvider({
       narratorHref: (narrator) => `/library?narrator=${encodeURIComponent(narrator)}`,
       genreHref: (genre) => `/library?genre=${encodeURIComponent(genre)}`,
     }),
-    [target, navigate, player, qc]
+    [target, navigate, player, qc],
   )
 
   return <MediaUIProvider value={value}>{children}</MediaUIProvider>

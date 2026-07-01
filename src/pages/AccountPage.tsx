@@ -18,14 +18,7 @@ import { ConnectionsSettings } from '@/components/settings/ConnectionsSettings'
 import { AccountSettings } from '@/components/settings/AccountSettings'
 
 type Section =
-  | 'servers'
-  | 'playback'
-  | 'reading'
-  | 'appearance'
-  | 'connections'
-  | 'account'
-  | 'plan'
-  | 'profile'
+  'servers' | 'playback' | 'reading' | 'appearance' | 'connections' | 'account' | 'plan' | 'profile'
 
 const NAV: { label: string; items: { id: Section; icon: string; label: string }[] }[] = [
   {
@@ -37,21 +30,15 @@ const NAV: { label: string; items: { id: Section; icon: string; label: string }[
   },
   {
     label: 'Listening',
-    items: [
-      { id: 'playback', icon: 'graphic_eq', label: 'Playback' },
-    ],
+    items: [{ id: 'playback', icon: 'graphic_eq', label: 'Playback' }],
   },
   {
     label: 'Reading',
-    items: [
-      { id: 'reading', icon: 'menu_book', label: 'Reading' },
-    ],
+    items: [{ id: 'reading', icon: 'menu_book', label: 'Reading' }],
   },
   {
     label: 'Library',
-    items: [
-      { id: 'connections', icon: 'hub', label: 'Connections' },
-    ],
+    items: [{ id: 'connections', icon: 'hub', label: 'Connections' }],
   },
   {
     label: 'HearthShelf',
@@ -185,8 +172,8 @@ function MyServers() {
         <div className="rounded-lg border border-border bg-card p-8 text-center">
           <p className="font-medium text-card-foreground">No servers linked yet</p>
           <p className="t-muted mx-auto mt-1 max-w-sm text-[13px]">
-            Link your HearthShelf server with the pairing code from its setup screen
-            to reach your library from anywhere.
+            Link your HearthShelf server with the pairing code from its setup screen to reach your
+            library from anywhere.
           </p>
           <div className="mt-5">
             <Button onClick={() => setLinkOpen(true)}>
@@ -243,9 +230,7 @@ function Subscription() {
           <span
             className={
               'rounded-full px-3 py-1 text-[12px] font-medium ' +
-              (isPro
-                ? 'bg-primary/15 text-primary'
-                : 'bg-secondary text-secondary-foreground')
+              (isPro ? 'bg-primary/15 text-primary' : 'bg-secondary text-secondary-foreground')
             }
           >
             {isPro ? 'Active' : 'No subscription'}
@@ -276,10 +261,7 @@ function Subscription() {
 function PlanLine({ on, children }: { on?: boolean; children: React.ReactNode }) {
   return (
     <li className="flex items-center gap-2.5 text-[14px]">
-      <Check
-        size={16}
-        className={on ? 'text-primary' : 'text-muted-foreground/40'}
-      />
+      <Check size={16} className={on ? 'text-primary' : 'text-muted-foreground/40'} />
       <span className={on ? 'text-card-foreground' : 'text-muted-foreground'}>{children}</span>
     </li>
   )

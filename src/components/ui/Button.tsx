@@ -22,12 +22,7 @@ const SIZES: Record<Size, string> = {
   lg: 'h-12 px-6 text-[15px]',
 }
 
-export function Button({
-  variant = 'primary',
-  size = 'md',
-  className,
-  ...props
-}: ButtonProps) {
+export function Button({ variant = 'primary', size = 'md', className, ...props }: ButtonProps) {
   return (
     <button
       className={cn(
@@ -37,7 +32,7 @@ export function Button({
         'disabled:pointer-events-none disabled:opacity-50',
         VARIANTS[variant],
         SIZES[size],
-        className
+        className,
       )}
       {...props}
     />

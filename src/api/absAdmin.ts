@@ -101,7 +101,7 @@ export async function createUser(
     username: string
     password: string
     type?: ABSUserType
-  }
+  },
 ): Promise<{ user: ABSAdminUser }> {
   const res = await absPost<{ user: ABSAdminUser }>(t, '/api/users', {
     username: opts.username,
@@ -120,7 +120,7 @@ export async function createUser(
 export async function updateUser(
   t: AbsTarget,
   userId: string,
-  patch: Partial<UserFormValues> & { password?: string }
+  patch: Partial<UserFormValues> & { password?: string },
 ): Promise<{ success: boolean; user: ABSAdminUser }> {
   const body: Record<string, unknown> = {}
   if (patch.username !== undefined) body.username = patch.username
@@ -132,7 +132,7 @@ export async function updateUser(
   const res = await absPatch<{ success: boolean; user: ABSAdminUser }>(
     t,
     `/api/users/${userId}`,
-    body
+    body,
   )
   return res as { success: boolean; user: ABSAdminUser }
 }
@@ -140,7 +140,7 @@ export async function updateUser(
 export async function setUserActive(
   t: AbsTarget,
   userId: string,
-  isActive: boolean
+  isActive: boolean,
 ): Promise<void> {
   await absPatch(t, `/api/users/${userId}`, { isActive })
 }
@@ -188,7 +188,7 @@ export interface LibraryUpdatePayload {
 // so the wizard does not need to call scanLibrary after this.
 export async function createLibrary(
   t: AbsTarget,
-  opts: { name: string; mediaType: 'book' | 'podcast'; fullPath: string }
+  opts: { name: string; mediaType: 'book' | 'podcast'; fullPath: string },
 ): Promise<ABSAdminLibrary> {
   const res = await absPost<ABSAdminLibrary>(t, '/api/libraries', {
     name: opts.name,
@@ -206,14 +206,11 @@ export async function createLibrary(
 // origin directly with the in-memory token (absMediaUrl carries it as a query).
 export async function checkFolderExists(
   t: AbsTarget,
-  fullPath: string
+  fullPath: string,
 ): Promise<'exists' | 'missing' | 'unknown'> {
   const token = getAbsToken(t.serverId)
   if (!token) return 'unknown'
-  const url = absMediaUrl(
-    t,
-    `/api/filesystem?path=${encodeURIComponent(fullPath)}&level=0`
-  )
+  const url = absMediaUrl(t, `/api/filesystem?path=${encodeURIComponent(fullPath)}&level=0`)
   if (!url) return 'unknown'
   try {
     const res = await fetch(url)
@@ -225,18 +222,14 @@ export async function checkFolderExists(
   }
 }
 
-export async function scanLibrary(
-  t: AbsTarget,
-  libraryId: string,
-  force = false
-): Promise<void> {
+export async function scanLibrary(t: AbsTarget, libraryId: string, force = false): Promise<void> {
   await absPost(t, `/api/libraries/${libraryId}/scan${force ? '?force=1' : ''}`)
 }
 
 export async function updateLibrary(
   t: AbsTarget,
   libraryId: string,
-  patch: LibraryUpdatePayload
+  patch: LibraryUpdatePayload,
 ): Promise<unknown> {
   return absPatch(t, `/api/libraries/${libraryId}`, patch)
 }
@@ -256,7 +249,7 @@ export async function matchAllLibraryItems(t: AbsTarget, libraryId: string): Pro
 // [{ id, newOrder }]; newOrder is the 0-based position. Admin only.
 export async function reorderLibraries(
   t: AbsTarget,
-  order: { id: string; newOrder: number }[]
+  order: { id: string; newOrder: number }[],
 ): Promise<{ libraries: ABSAdminLibrary[] }> {
   const res = await absPost<{ libraries: ABSAdminLibrary[] }>(t, '/api/libraries/order', order)
   return res as { libraries: ABSAdminLibrary[] }
@@ -267,11 +260,11 @@ export async function reorderLibraries(
 export async function removeLibraryMetadata(
   t: AbsTarget,
   libraryId: string,
-  ext: 'json' | 'abs'
+  ext: 'json' | 'abs',
 ): Promise<{ found: number; removed: number }> {
   const res = await absPost<{ found?: number; removed?: number }>(
     t,
-    `/api/libraries/${libraryId}/remove-metadata?ext=${ext}`
+    `/api/libraries/${libraryId}/remove-metadata?ext=${ext}`,
   )
   return { found: res?.found ?? 0, removed: res?.removed ?? 0 }
 }
@@ -319,13 +312,11 @@ export async function getSearchProviders(t: AbsTarget): Promise<{
 // adminKeys is declared `as const` near the top; these are the additional reads
 // for the sections in this block, keyed per server so a switch re-fetches.
 export const adminSectionKeys = {
-  sessions: (serverId: string, page: number) =>
-    ['admin', serverId, 'sessions', page] as const,
+  sessions: (serverId: string, page: number) => ['admin', serverId, 'sessions', page] as const,
   backups: (serverId: string) => ['admin', serverId, 'backups'] as const,
   logs: (serverId: string) => ['admin', serverId, 'logs'] as const,
   apiKeys: (serverId: string) => ['admin', serverId, 'apikeys'] as const,
-  serviceAccounts: (serverId: string) =>
-    ['admin', serverId, 'service-accounts'] as const,
+  serviceAccounts: (serverId: string) => ['admin', serverId, 'service-accounts'] as const,
 }
 
 // --- Listening sessions (all users, admin) ---------------------------------
@@ -357,11 +348,11 @@ export interface ABSSessionsResponse {
 export async function getSessions(
   t: AbsTarget,
   page = 0,
-  itemsPerPage = 50
+  itemsPerPage = 50,
 ): Promise<ABSSessionsResponse> {
   const res = await absGet<Partial<ABSSessionsResponse>>(
     t,
-    `/api/sessions?page=${page}&itemsPerPage=${itemsPerPage}`
+    `/api/sessions?page=${page}&itemsPerPage=${itemsPerPage}`,
   )
   return {
     total: res.total ?? 0,
@@ -386,7 +377,7 @@ export async function deleteSession(t: AbsTarget, sessionId: string): Promise<vo
 // Returns a Map<userId, epochMs>.
 export async function getLastSeenByUser(
   t: AbsTarget,
-  sampleSize = 200
+  sampleSize = 200,
 ): Promise<Map<string, number>> {
   const { sessions } = await getSessions(t, 0, sampleSize)
   const last = new Map<string, number>()
@@ -473,7 +464,7 @@ export async function createApiKey(
   t: AbsTarget,
   name: string,
   userId: string,
-  expiresIn?: number | null
+  expiresIn?: number | null,
 ): Promise<{ apiKey: ABSApiKey }> {
   const res = await absPost<{ apiKey: ABSApiKey }>(t, '/api/api-keys', {
     name,
@@ -576,7 +567,7 @@ export async function getServerSettings(t: AbsTarget): Promise<ABSServerSettings
 
 export async function updateServerSettings(
   t: AbsTarget,
-  patch: Partial<ABSServerSettings>
+  patch: Partial<ABSServerSettings>,
 ): Promise<{ serverSettings: ABSServerSettings }> {
   const res = await absPatch<{ serverSettings: ABSServerSettings }>(t, '/api/settings', patch)
   return (res ?? { serverSettings: {} }) as { serverSettings: ABSServerSettings }
@@ -601,12 +592,9 @@ export interface ABSNotificationSettings {
 }
 
 export async function getNotifications(
-  t: AbsTarget
+  t: AbsTarget,
 ): Promise<{ settings: ABSNotificationSettings }> {
-  const res = await absGet<{ settings?: Partial<ABSNotificationSettings> }>(
-    t,
-    '/api/notifications'
-  )
+  const res = await absGet<{ settings?: Partial<ABSNotificationSettings> }>(t, '/api/notifications')
   const s = res.settings ?? {}
   return {
     settings: {
@@ -621,7 +609,7 @@ export async function getNotifications(
 
 export async function updateNotifications(
   t: AbsTarget,
-  settings: Partial<ABSNotificationSettings>
+  settings: Partial<ABSNotificationSettings>,
 ): Promise<void> {
   await absPatch(t, '/api/notifications', settings)
 }
@@ -630,7 +618,7 @@ export async function updateNotifications(
 export async function updateNotificationRule(
   t: AbsTarget,
   id: string,
-  patch: { enabled?: boolean }
+  patch: { enabled?: boolean },
 ): Promise<void> {
   await absPatch(t, `/api/notifications/${id}`, { id, ...patch })
 }
@@ -655,13 +643,8 @@ export interface ABSEmailSettings {
   ereaderDevices: ABSEreaderDevice[]
 }
 
-export async function getEmailSettings(
-  t: AbsTarget
-): Promise<{ settings: ABSEmailSettings }> {
-  const res = await absGet<{ settings?: Partial<ABSEmailSettings> }>(
-    t,
-    '/api/emails/settings'
-  )
+export async function getEmailSettings(t: AbsTarget): Promise<{ settings: ABSEmailSettings }> {
+  const res = await absGet<{ settings?: Partial<ABSEmailSettings> }>(t, '/api/emails/settings')
   const s = res.settings ?? {}
   return {
     settings: {
@@ -681,7 +664,7 @@ export async function getEmailSettings(
 // the server (never returned by GET), so only send it when the user enters one.
 export async function updateEmailSettings(
   t: AbsTarget,
-  patch: Partial<ABSEmailSettings> & { pass?: string }
+  patch: Partial<ABSEmailSettings> & { pass?: string },
 ): Promise<void> {
   await absPatch(t, '/api/emails/settings', patch)
 }
@@ -694,12 +677,12 @@ export async function sendTestEmail(t: AbsTarget): Promise<void> {
 // Replaces the full eReader device list (name + email per device).
 export async function updateEreaderDevices(
   t: AbsTarget,
-  ereaderDevices: ABSEreaderDevice[]
+  ereaderDevices: ABSEreaderDevice[],
 ): Promise<{ ereaderDevices: ABSEreaderDevice[] }> {
   const res = await absPost<{ ereaderDevices?: ABSEreaderDevice[] }>(
     t,
     '/api/emails/ereader-devices',
-    { ereaderDevices }
+    { ereaderDevices },
   )
   return { ereaderDevices: res?.ereaderDevices ?? ereaderDevices }
 }
@@ -730,11 +713,7 @@ export async function deleteTag(t: AbsTarget, tag: string): Promise<void> {
   await absDelete(t, `/api/tags/${b64Param(tag)}`)
 }
 
-export async function renameGenre(
-  t: AbsTarget,
-  genre: string,
-  newGenre: string
-): Promise<void> {
+export async function renameGenre(t: AbsTarget, genre: string, newGenre: string): Promise<void> {
   await absPost(t, '/api/genres/rename', { genre, newGenre })
 }
 
@@ -792,7 +771,7 @@ export async function getAuthSettings(t: AbsTarget): Promise<ABSAuthSettings> {
 
 export async function updateAuthSettings(
   t: AbsTarget,
-  patch: Partial<ABSAuthSettings> & { authOpenIDClientSecret?: string }
+  patch: Partial<ABSAuthSettings> & { authOpenIDClientSecret?: string },
 ): Promise<void> {
   await absPatch(t, '/api/auth-settings', patch)
 }
@@ -808,12 +787,9 @@ export interface ABSCustomProvider {
 }
 
 export async function getCustomProviders(
-  t: AbsTarget
+  t: AbsTarget,
 ): Promise<{ providers: ABSCustomProvider[] }> {
-  const res = await absGet<{ providers?: ABSCustomProvider[] }>(
-    t,
-    '/api/custom-metadata-providers'
-  )
+  const res = await absGet<{ providers?: ABSCustomProvider[] }>(t, '/api/custom-metadata-providers')
   return { providers: res.providers ?? [] }
 }
 
@@ -862,10 +838,7 @@ export interface ABSLibraryStats {
   longestItems: ABSLibraryStatsItem[]
 }
 
-export async function getLibraryStats(
-  t: AbsTarget,
-  libraryId: string
-): Promise<ABSLibraryStats> {
+export async function getLibraryStats(t: AbsTarget, libraryId: string): Promise<ABSLibraryStats> {
   const res = await absGet<Partial<ABSLibraryStats>>(t, `/api/libraries/${libraryId}/stats`)
   return {
     totalItems: res.totalItems ?? 0,

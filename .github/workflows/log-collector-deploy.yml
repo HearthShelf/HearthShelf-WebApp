@@ -9,8 +9,8 @@ on:
     branches:
       - main
     paths:
-      - "log-collector/**"
-      - ".github/workflows/log-collector-deploy.yml"
+      - 'log-collector/**'
+      - '.github/workflows/log-collector-deploy.yml'
   workflow_dispatch:
 
 permissions:

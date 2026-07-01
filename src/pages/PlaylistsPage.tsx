@@ -61,7 +61,12 @@ export function PlaylistsPage() {
               >
                 <div className="coll-stack">
                   {items.slice(0, 4).map((it) => (
-                    <Cover key={it.libraryItemId} itemId={it.libraryItemId} title={it.title} fs={6} />
+                    <Cover
+                      key={it.libraryItemId}
+                      itemId={it.libraryItemId}
+                      title={it.title}
+                      fs={6}
+                    />
                   ))}
                   {extra > 0 && <div className="stack-more">+{extra}</div>}
                 </div>

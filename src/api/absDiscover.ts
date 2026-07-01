@@ -71,7 +71,7 @@ async function dFetch<T>(t: AbsTarget, path: string, options: RequestInit = {}):
 export async function getMonthlyShelf(
   t: AbsTarget,
   summary: DiscoverSummary,
-  candidates: DiscoverCandidate[]
+  candidates: DiscoverCandidate[],
 ): Promise<MonthlyShelf> {
   if (!candidates.length) return EMPTY_SHELF
   try {
@@ -96,7 +96,7 @@ export async function getDiscoverFeedback(t: AbsTarget): Promise<DiscoverFeedbac
 export async function setDiscoverFeedback(
   t: AbsTarget,
   itemKey: string,
-  fb: { vote?: DiscoverVote | null; rating?: number | null }
+  fb: { vote?: DiscoverVote | null; rating?: number | null },
 ): Promise<DiscoverFeedbackMap> {
   try {
     const r = await dFetch<{ feedback: DiscoverFeedbackMap }>(t, '/feedback', {

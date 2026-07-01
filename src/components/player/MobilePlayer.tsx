@@ -18,14 +18,7 @@ import type { AbsChapter, AbsItemDetail } from '@/api/absLibrary'
 // This screen only reflects queue state - auto-advance is not yet wired in the
 // WebApp, so jumping to a queued book uses MediaUI.playItem.
 
-type ActionKey =
-  | 'chapters'
-  | 'speed'
-  | 'sleep'
-  | 'readalong'
-  | 'recent'
-  | 'details'
-  | 'addlist'
+type ActionKey = 'chapters' | 'speed' | 'sleep' | 'readalong' | 'recent' | 'details' | 'addlist'
 const MP_ACTIONS: ActionKey[] = [
   'chapters',
   'speed',
@@ -37,15 +30,7 @@ const MP_ACTIONS: ActionKey[] = [
 ]
 
 type SheetKind =
-  | 'queue'
-  | 'more'
-  | 'chapters'
-  | 'recent'
-  | 'list'
-  | 'rules'
-  | 'speed'
-  | 'sleep'
-  | null
+  'queue' | 'more' | 'chapters' | 'recent' | 'list' | 'rules' | 'speed' | 'sleep' | null
 
 const MODES: { v: QueueMode; l: string }[] = [
   { v: 'off', l: 'Off' },
@@ -249,7 +234,7 @@ export function MobilePlayer({
 
   const chapters = useMemo<Chap[]>(
     () => rawChapters.map((c) => ({ id: c.id, start: c.startSec, end: c.endSec, title: c.title })),
-    [rawChapters]
+    [rawChapters],
   )
 
   const [sheet, setSheet] = useState<SheetKind>(null)
@@ -289,11 +274,7 @@ export function MobilePlayer({
   // While dragging the scrubber, labels preview the drag target; otherwise
   // they track the live play position.
   const previewPos =
-    scrubDrag === null
-      ? pos
-      : onChapter
-        ? cur.start + scrubDrag * chSpan
-        : scrubDrag * duration
+    scrubDrag === null ? pos : onChapter ? cur.start + scrubDrag * chSpan : scrubDrag * duration
   const chPos = Math.max(0, previewPos - cur.start)
   const bookRatio = duration ? previewPos / duration : 0
   // Chapter-scoped progress, so the bar can track the current chapter when the
@@ -302,8 +283,10 @@ export function MobilePlayer({
   const scrubRatio = onChapter ? chRatio : bookRatio
   const seekRatio = (r: number) => (onChapter ? cur.start + r * chSpan : r * duration)
   const seekClamp = (s: number) => seek(Math.max(0, Math.min(duration, Math.round(s))))
-  const prevCh = () => seekClamp(chPos > 4 ? cur.start : chapters[Math.max(0, ci - 1)]?.start ?? 0)
-  const nextCh = () => seekClamp(chapters[Math.min(chapters.length - 1, ci + 1)]?.start ?? cur.start)
+  const prevCh = () =>
+    seekClamp(chPos > 4 ? cur.start : (chapters[Math.max(0, ci - 1)]?.start ?? 0))
+  const nextCh = () =>
+    seekClamp(chapters[Math.min(chapters.length - 1, ci + 1)]?.start ?? cur.start)
   const rewind = () => seekClamp(pos - skipBack)
   const forward = () => seekClamp(pos + skipFwd)
 
@@ -350,7 +333,7 @@ export function MobilePlayer({
   const toggleRule = (id: AutoRuleId) =>
     setSetting(
       'queueAutoRules',
-      autoRules.map((r) => (r.id === id ? { ...r, on: !r.on } : r))
+      autoRules.map((r) => (r.id === id ? { ...r, on: !r.on } : r)),
     )
 
   // Reader is deferred in the WebApp, so the read-along action stays hidden. The
@@ -543,7 +526,8 @@ export function MobilePlayer({
               opacity: curOp,
               transition: 'transform .35s ease, opacity .35s ease',
               touchAction: 'none',
-              boxShadow: '0 26px 60px -20px color-mix(in oklab, var(--glow-accent, var(--accent)) 72%, #000)',
+              boxShadow:
+                '0 26px 60px -20px color-mix(in oklab, var(--glow-accent, var(--accent)) 72%, #000)',
             }}
           >
             <Cover
@@ -652,9 +636,7 @@ export function MobilePlayer({
             <span style={{ color: 'var(--text)', fontWeight: 500 }}>
               {Math.round(scrubRatio * 100)}%
             </span>
-            <span>
-              {onChapter ? cur.title : `Ch ${ci + 1} / ${chapters.length || 1}`}
-            </span>
+            <span>{onChapter ? cur.title : `Ch ${ci + 1} / ${chapters.length || 1}`}</span>
           </div>
           <Scrubber
             className="scrub"
@@ -664,8 +646,7 @@ export function MobilePlayer({
             elapsed={formatTimestamp(onChapter ? chPos : previewPos)}
             chapter={cur.title}
             remain={
-              '-' +
-              formatTimestamp(onChapter ? Math.max(0, chSpan - chPos) : duration - previewPos)
+              '-' + formatTimestamp(onChapter ? Math.max(0, chSpan - chPos) : duration - previewPos)
             }
           />
         </div>
@@ -735,7 +716,9 @@ export function MobilePlayer({
           </button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'stretch', gap: 5, width: '100%', marginTop: 14 }}>
+        <div
+          style={{ display: 'flex', alignItems: 'stretch', gap: 5, width: '100%', marginTop: 14 }}
+        >
           {toolbar.map((a) => (
             <button key={a.key} className="mp-tool" onClick={a.on}>
               <Icon name={a.icon} />
@@ -862,7 +845,11 @@ export function MobilePlayer({
               {MODE_SUB[queueMode]}
             </span>
             {queueMode === 'auto' && (
-              <button className="mp-pill" style={{ flex: 'none' }} onClick={() => setSheet('rules')}>
+              <button
+                className="mp-pill"
+                style={{ flex: 'none' }}
+                onClick={() => setSheet('rules')}
+              >
                 <Icon name="tune" style={{ fontSize: 15 }} /> Auto rules
               </button>
             )}
@@ -882,7 +869,9 @@ export function MobilePlayer({
                 fill
                 style={{ width: 22, textAlign: 'center', color: 'var(--accent)', fontSize: 18 }}
               />
-              <div style={{ width: 46, height: 46, borderRadius: 9, overflow: 'hidden', flex: 'none' }}>
+              <div
+                style={{ width: 46, height: 46, borderRadius: 9, overflow: 'hidden', flex: 'none' }}
+              >
                 <Cover
                   itemId={libraryItemId}
                   title={title}
@@ -1063,9 +1052,7 @@ export function MobilePlayer({
               }}
             >
               <Icon name="settings" style={{ fontSize: 16, marginTop: 1 }} />
-              <span>
-                These live in Settings › Playback › Auto-queue. Changes apply everywhere.
-              </span>
+              <span>These live in Settings › Playback › Auto-queue. Changes apply everywhere.</span>
             </div>
           </div>
         </Sheet>
@@ -1102,10 +1089,15 @@ export function MobilePlayer({
         >
           {edit && (
             <div
-              style={{ padding: '0 20px 8px', fontSize: 11.5, lineHeight: 1.4, color: 'var(--text-muted)' }}
+              style={{
+                padding: '0 20px 8px',
+                fontSize: 11.5,
+                lineHeight: 1.4,
+                color: 'var(--text-muted)',
+              }}
             >
-              Drag an action between the two groups: the first four show under the
-              player, the rest live in this More menu.
+              Drag an action between the two groups: the first four show under the player, the rest
+              live in this More menu.
             </div>
           )}
           <div
@@ -1403,7 +1395,8 @@ export function MobilePlayer({
                 overflow: 'hidden',
                 position: 'relative',
                 cursor: 'pointer',
-                boxShadow: '0 30px 70px -20px color-mix(in oklab, var(--glow-accent, var(--accent)) 75%, #000)',
+                boxShadow:
+                  '0 30px 70px -20px color-mix(in oklab, var(--glow-accent, var(--accent)) 75%, #000)',
               }}
             >
               <Cover

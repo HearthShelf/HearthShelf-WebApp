@@ -73,8 +73,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
     enabled: Boolean(target),
     staleTime: 5 * 60 * 1000,
   })
-  const canEdit =
-    me?.type === 'admin' || me?.type === 'root' || Boolean(me?.permissions?.update)
+  const canEdit = me?.type === 'admin' || me?.type === 'root' || Boolean(me?.permissions?.update)
 
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
@@ -99,7 +98,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
     if (!books.length) return
     void markFinished(
       books.map((b) => b.id),
-      !allSeriesFinished
+      !allSeriesFinished,
     )
   }
   // Mark the current selection, toggling off if every selected book is finished.
@@ -117,7 +116,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
   for (const b of books) {
     const p = progressById.get(b.id)
     if (p?.isFinished) done++
-    sum += p?.isFinished ? 1 : p?.progress ?? 0
+    sum += p?.isFinished ? 1 : (p?.progress ?? 0)
     totalHours += (b.media.duration ?? 0) / 3600
   }
   const pct = books.length ? sum / books.length : 0
@@ -134,8 +133,8 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
       <div className="sp-top">
         <span className="sp-pct">{Math.round(pct * 100)}%</span>
         <span className="sp-cap">
-          {done} of {books.length} finished · {listenedHours.toFixed(0)}h of{' '}
-          {totalHours.toFixed(0)}h
+          {done} of {books.length} finished · {listenedHours.toFixed(0)}h of {totalHours.toFixed(0)}
+          h
         </span>
       </div>
       <div className="sp-track">
@@ -210,8 +209,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
         <h1 className="title-xl">{series.name}</h1>
         <div style={{ color: 'var(--text-muted)', fontSize: 14.5, margin: '8px 0 18px' }}>
           {author && `${author} · `}
-          {books.length} {books.length === 1 ? 'book' : 'books'} ·{' '}
-          {totalHours.toFixed(0)}h total
+          {books.length} {books.length === 1 ? 'book' : 'books'} · {totalHours.toFixed(0)}h total
         </div>
 
         {progEl}
@@ -325,12 +323,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
                   ) : (
                     <div className="sl-num">{i + 1}</div>
                   )}
-                  <Cover
-                    itemId={b.id}
-                    title={m.title ?? 'Untitled'}
-                    fs={6}
-                    className="sl-cover"
-                  />
+                  <Cover itemId={b.id} title={m.title ?? 'Untitled'} fs={6} className="sl-cover" />
                   <div className="sl-meta">
                     <div className="sl-title">
                       {m.title}

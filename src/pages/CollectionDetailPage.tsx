@@ -13,7 +13,7 @@ export function CollectionDetailPage() {
   const { data, isLoading, isError, refetch } = useCollection(
     target ?? { serverId: '', serverUrl: '' },
     collectionId,
-    Boolean(target) && connected
+    Boolean(target) && connected,
   )
 
   if (!target) return null
@@ -31,7 +31,11 @@ export function CollectionDetailPage() {
         <div className="empty-state">
           <Icon name="error" />
           <h3>Could not load this collection.</h3>
-          <button className="btn-sm btn-ghost" style={{ margin: '0 auto' }} onClick={() => refetch()}>
+          <button
+            className="btn-sm btn-ghost"
+            style={{ margin: '0 auto' }}
+            onClick={() => refetch()}
+          >
             Try again
           </button>
         </div>

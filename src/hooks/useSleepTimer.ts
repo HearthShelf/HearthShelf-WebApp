@@ -139,11 +139,7 @@ export function useSleepTimer(): SleepCtl {
     }
   }, [eoc, positionSec, chapters, fireStop])
 
-  const endsAt = sleeping
-    ? clockLabel(left)
-    : eoc
-      ? `ch ${eoc.idx + 1} ${eoc.at}`
-      : ''
+  const endsAt = sleeping ? clockLabel(left) : eoc ? `ch ${eoc.idx + 1} ${eoc.at}` : ''
 
   return {
     tab,

@@ -107,7 +107,7 @@ export function AuthorDetailPage() {
   )
 
   const statLine = `${books.length} ${books.length === 1 ? 'book' : 'books'} · ${hoursLabel(
-    totalSec
+    totalSec,
   )} · ${finished} finished`
 
   if (isMobile) {
@@ -187,11 +187,7 @@ export function AuthorDetailPage() {
           <Icon name="auto_stories" />
           <h2>Books</h2>
         </div>
-        {books.length > 0 ? (
-          bookGrid
-        ) : (
-          <p className="page-sub">No books found for this author.</p>
-        )}
+        {books.length > 0 ? bookGrid : <p className="page-sub">No books found for this author.</p>}
       </div>
     </div>
   )

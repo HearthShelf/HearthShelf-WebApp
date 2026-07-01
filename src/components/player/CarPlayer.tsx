@@ -83,8 +83,10 @@ export function CarPlayer({
   // target instead of the live play position (null = not dragging).
   const [dragRatio, setDragRatio] = useState<number | null>(null)
 
-  const { rect, onDragHandlePointerDown, onResizeHandlePointerDown, dragging } =
-    useDraggableCard(true, wake)
+  const { rect, onDragHandlePointerDown, onResizeHandlePointerDown, dragging } = useDraggableCard(
+    true,
+    wake,
+  )
 
   const chSpan = Math.max(1, cur.end - cur.start)
   // The absolute book position shown in the labels: the drag target while
@@ -135,9 +137,7 @@ export function CarPlayer({
 
   return (
     <div
-      className={
-        'car-card' + (dragging ? ' dragging' : '') + (faded ? ' faded' : '')
-      }
+      className={'car-card' + (dragging ? ' dragging' : '') + (faded ? ' faded' : '')}
       style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}
       onPointerDown={wake}
     >
@@ -251,8 +251,7 @@ export function CarPlayer({
             className={'car-pill' + (sheet === 'sleep' || sleepCtl.active ? ' on' : '')}
             onClick={() => toggleSheet('sleep')}
           >
-            <Icon name="bedtime" />{' '}
-            {sleepCtl.sleeping ? formatTimestamp(sleepCtl.left) : 'Sleep'}
+            <Icon name="bedtime" /> {sleepCtl.sleeping ? formatTimestamp(sleepCtl.left) : 'Sleep'}
           </button>
           <button
             className={'car-pill' + (sheet === 'more' ? ' on' : '')}
@@ -269,9 +268,7 @@ export function CarPlayer({
           {sheet === 'speed' && (
             <SpeedPopover speed={rate} setSpeed={setRate} onClose={() => setSheet(null)} />
           )}
-          {sheet === 'sleep' && (
-            <SleepPopover ctl={sleepCtl} onClose={() => setSheet(null)} />
-          )}
+          {sheet === 'sleep' && <SleepPopover ctl={sleepCtl} onClose={() => setSheet(null)} />}
           {sheet === 'more' && (
             <div className="car-more">
               <button
@@ -301,11 +298,7 @@ export function CarPlayer({
       )}
 
       {/* Resize grip - bottom-right corner. */}
-      <span
-        className="car-resize"
-        onPointerDown={onResizeHandlePointerDown}
-        aria-hidden
-      >
+      <span className="car-resize" onPointerDown={onResizeHandlePointerDown} aria-hidden>
         <Icon name="open_in_full" />
       </span>
     </div>

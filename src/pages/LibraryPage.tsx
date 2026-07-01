@@ -96,11 +96,9 @@ export function LibraryPage() {
 
   const tabParam = params.get('tab')
   const [tab, setTab] = useState<Tab>(() =>
-    tabParam === 'series' ||
-    tabParam === 'authors' ||
-    tabParam === 'narrators'
+    tabParam === 'series' || tabParam === 'authors' || tabParam === 'narrators'
       ? tabParam
-      : 'books'
+      : 'books',
   )
   const [mSearch, setMSearch] = useState('')
   const [prog, setProg] = useState<ProgFilter>('all')
@@ -197,8 +195,7 @@ export function LibraryPage() {
       list = list.filter((it) => {
         const p = progressById.get(it.id)
         if (prog === 'finished') return p?.isFinished
-        if (prog === 'in-progress')
-          return p && !p.isFinished && p.progress > 0
+        if (prog === 'in-progress') return p && !p.isFinished && p.progress > 0
         if (prog === 'not-started') return !p || p.progress === 0
         return true
       })
@@ -206,29 +203,21 @@ export function LibraryPage() {
     list = applyLibraryFilter(list, filter, (id) => progressById.get(id))
 
     const lastName = (n: string) => n.trim().split(/\s+/).pop() ?? n
-    const cmp: Record<
-      LibrarySort,
-      (a: AbsLibraryItem, b: AbsLibraryItem) => number
-    > = {
+    const cmp: Record<LibrarySort, (a: AbsLibraryItem, b: AbsLibraryItem) => number> = {
       Title: (a, b) =>
         (a.media.metadata.titleIgnorePrefix || a.media.metadata.title || '').localeCompare(
-          b.media.metadata.titleIgnorePrefix || b.media.metadata.title || ''
+          b.media.metadata.titleIgnorePrefix || b.media.metadata.title || '',
         ),
-      Author: (a, b) =>
-        a.media.metadata.authorName.localeCompare(b.media.metadata.authorName),
+      Author: (a, b) => a.media.metadata.authorName.localeCompare(b.media.metadata.authorName),
       'Author (Last, First)': (a, b) =>
-        lastName(a.media.metadata.authorName).localeCompare(
-          lastName(b.media.metadata.authorName)
-        ),
+        lastName(a.media.metadata.authorName).localeCompare(lastName(b.media.metadata.authorName)),
       'Published Year': (a, b) =>
-        Number(a.media.metadata.publishedYear ?? 0) -
-        Number(b.media.metadata.publishedYear ?? 0),
+        Number(a.media.metadata.publishedYear ?? 0) - Number(b.media.metadata.publishedYear ?? 0),
       'Date Added': (a, b) => a.addedAt - b.addedAt,
       Duration: (a, b) => (a.media.duration ?? 0) - (b.media.duration ?? 0),
       Size: (a, b) => (a.media.size ?? 0) - (b.media.size ?? 0),
       Progress: (a, b) =>
-        (progressById.get(a.id)?.progress ?? 0) -
-        (progressById.get(b.id)?.progress ?? 0),
+        (progressById.get(a.id)?.progress ?? 0) - (progressById.get(b.id)?.progress ?? 0),
       Random: () => 0,
     }
     const sorted = [...list].sort(cmp[sort])
@@ -252,7 +241,10 @@ export function LibraryPage() {
     for (const it of allItems) {
       const raw = it.media.metadata[field]
       if (!raw) continue
-      for (const name of raw.split(',').map((s) => s.trim()).filter(Boolean)) {
+      for (const name of raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)) {
         const cur = map.get(name)
         if (cur) cur.count++
         else map.set(name, { count: 1, cv: tintFor(it.media.metadata.title ?? name) })
@@ -285,7 +277,10 @@ export function LibraryPage() {
     for (const it of allItems) {
       const raw = it.media.metadata.authorName
       if (!raw) continue
-      for (const name of raw.split(',').map((s) => s.trim()).filter(Boolean)) {
+      for (const name of raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)) {
         const arr = booksByAuthor.get(name) ?? []
         arr.push(it)
         booksByAuthor.set(name, arr)
@@ -317,7 +312,10 @@ export function LibraryPage() {
     for (const it of allItems) {
       const raw = it.media.metadata.narratorName
       if (!raw) continue
-      for (const name of raw.split(',').map((s) => s.trim()).filter(Boolean)) {
+      for (const name of raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)) {
         const arr = booksByNarrator.get(name) ?? []
         arr.push(it)
         booksByNarrator.set(name, arr)
@@ -425,7 +423,7 @@ export function LibraryPage() {
     list.sort(
       sSort === 'Name'
         ? (a, b) => a.name.localeCompare(b.name)
-        : (a, b) => (b.books?.length ?? 0) - (a.books?.length ?? 0)
+        : (a, b) => (b.books?.length ?? 0) - (a.books?.length ?? 0),
     )
     return list
   }, [seriesData, sSort])
@@ -456,15 +454,20 @@ export function LibraryPage() {
   const batchDelete = () => {
     const ids = [...selected]
     if (!ids.length) return
-    if (!window.confirm(`Delete ${ids.length} book${ids.length === 1 ? '' : 's'}? Files are removed from disk.`)) return
+    if (
+      !window.confirm(
+        `Delete ${ids.length} book${ids.length === 1 ? '' : 's'}? Files are removed from disk.`,
+      )
+    )
+      return
     void batchAction(
       (idList) => batchDeleteItems(target!, idList),
-      `Deleted ${ids.length} book${ids.length === 1 ? '' : 's'}`
+      `Deleted ${ids.length} book${ids.length === 1 ? '' : 's'}`,
     )
   }
   const batchDownloadHref =
     target && activeId && selected.size
-      ? libraryDownloadUrl(target, activeId, [...selected]) ?? undefined
+      ? (libraryDownloadUrl(target, activeId, [...selected]) ?? undefined)
       : undefined
 
   const switchTab = (id: Tab) => {
@@ -602,9 +605,7 @@ export function LibraryPage() {
       </div>
 
       {isLoading && <LoadingSpinner className="py-12" label="Loading library..." />}
-      {isError && (
-        <ErrorState message="Could not load this library." onRetry={refetch} />
-      )}
+      {isError && <ErrorState message="Could not load this library." onRetry={refetch} />}
 
       {/* ---- Books ---- */}
       {tab === 'books' && data && (
@@ -614,10 +615,7 @@ export function LibraryPage() {
               <button className="pill" onClick={clearSel} title="Clear selection">
                 <Icon name="close" />
               </button>
-              <span
-                className="count-badge"
-                style={{ color: 'var(--accent)', fontWeight: 600 }}
-              >
+              <span className="count-badge" style={{ color: 'var(--accent)', fontWeight: 600 }}>
                 {selected.size} selected
               </span>
               {selected.size < books.length && (
@@ -631,9 +629,7 @@ export function LibraryPage() {
                 disabled={marking}
                 onClick={() => {
                   const ids = [...selected]
-                  const allFinished = ids.every(
-                    (id) => progressById.get(id)?.isFinished
-                  )
+                  const allFinished = ids.every((id) => progressById.get(id)?.isFinished)
                   void markFinished(ids, !allFinished).then(clearSel)
                 }}
               >
@@ -662,7 +658,7 @@ export function LibraryPage() {
                       onClick={() =>
                         void batchAction(
                           (ids) => batchQuickMatchItems(target!, ids),
-                          `Matching ${selected.size} book${selected.size === 1 ? '' : 's'}…`
+                          `Matching ${selected.size} book${selected.size === 1 ? '' : 's'}…`,
                         )
                       }
                     />
@@ -672,7 +668,7 @@ export function LibraryPage() {
                       onClick={() =>
                         void batchAction(
                           (ids) => batchScanItems(target!, ids),
-                          `Re-scanning ${selected.size} book${selected.size === 1 ? '' : 's'}…`
+                          `Re-scanning ${selected.size} book${selected.size === 1 ? '' : 's'}…`,
                         )
                       }
                     />
@@ -694,8 +690,7 @@ export function LibraryPage() {
                 onClick={() => setFill(!fill)}
                 title={fill ? 'Full width' : 'Boxed'}
               >
-                <Icon name={fill ? 'width_full' : 'width_normal'} />{' '}
-                {fill ? 'Full width' : 'Boxed'}
+                <Icon name={fill ? 'width_full' : 'width_normal'} /> {fill ? 'Full width' : 'Boxed'}
               </button>
               {view === 'grid' && (
                 <div className="scale-ctl" title="Cover size">
@@ -713,18 +708,13 @@ export function LibraryPage() {
                     <span
                       className="scale-tick"
                       style={{
-                        left:
-                          ((SCALE_DEFAULT - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) *
-                            100 +
-                          '%',
+                        left: ((SCALE_DEFAULT - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100 + '%',
                       }}
                     />
                     <span
                       className="scale-bubble"
                       style={{
-                        left:
-                          ((gridScale - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100 +
-                          '%',
+                        left: ((gridScale - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100 + '%',
                       }}
                     >
                       {gridScale === SCALE_DEFAULT ? 'Default' : `${gridScale}px`}
@@ -777,17 +767,13 @@ export function LibraryPage() {
                 {books.map((b) => {
                   const p = progressById.get(b.id)
                   const m = b.media.metadata
-                  const hours = b.media.duration
-                    ? Math.round(b.media.duration / 360) / 10
-                    : 0
+                  const hours = b.media.duration ? Math.round(b.media.duration / 360) / 10 : 0
                   return (
                     <div
                       className={'ll-row' + (selected.has(b.id) ? ' sel' : '')}
                       key={b.id}
                       data-cv={tintFor(m.title ?? 'Untitled')}
-                      onClick={() =>
-                        anySelected ? toggleSel(b.id) : ui.openItem(b.id)
-                      }
+                      onClick={() => (anySelected ? toggleSel(b.id) : ui.openItem(b.id))}
                     >
                       <Cover
                         itemId={b.id}
@@ -827,10 +813,7 @@ export function LibraryPage() {
                           <span>{Math.round(p.progress * 100)}%</span>
                         </div>
                       ) : (
-                        <span
-                          className="ll-col mono"
-                          style={{ fontFamily: 'var(--font-mono)' }}
-                        >
+                        <span className="ll-col mono" style={{ fontFamily: 'var(--font-mono)' }}>
                           {p?.isFinished ? 'Finished' : `${hours}h`}
                         </span>
                       )}
@@ -850,9 +833,7 @@ export function LibraryPage() {
             ) : (
               <div
                 className={
-                  'lib-grid' +
-                  (isCompact ? ' compact' : '') +
-                  (anySelected ? ' selecting' : '')
+                  'lib-grid' + (isCompact ? ' compact' : '') + (anySelected ? ' selecting' : '')
                 }
                 style={{ '--tile': `${gridScale}px` } as CSSProperties}
               >
@@ -887,11 +868,7 @@ export function LibraryPage() {
             <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>Sort</span>
             <div className="seg">
               {(['Name', 'Books'] as const).map((o) => (
-                <button
-                  key={o}
-                  className={sSort === o ? 'on' : ''}
-                  onClick={() => setSSort(o)}
-                >
+                <button key={o} className={sSort === o ? 'on' : ''} onClick={() => setSSort(o)}>
                   {o}
                 </button>
               ))}
@@ -944,11 +921,7 @@ export function LibraryPage() {
             <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>Sort</span>
             <div className="seg">
               {(['Name', 'Books'] as const).map((o) => (
-                <button
-                  key={o}
-                  className={pSort === o ? 'on' : ''}
-                  onClick={() => setPSort(o)}
-                >
+                <button key={o} className={pSort === o ? 'on' : ''} onClick={() => setPSort(o)}>
                   {o}
                 </button>
               ))}
@@ -1059,4 +1032,3 @@ export function LibraryPage() {
     </div>
   )
 }
-

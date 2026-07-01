@@ -122,8 +122,7 @@ function NotificationsForm({ settings }: { settings: ABSNotificationSettings }) 
             disabled={saving}
             onClick={() => void save()}
           >
-            {saved ? <Icon name="check" /> : <Icon name="save" />}{' '}
-            {saved ? 'Saved' : 'Save'}
+            {saved ? <Icon name="check" /> : <Icon name="save" />} {saved ? 'Saved' : 'Save'}
           </button>
         </div>
       </div>

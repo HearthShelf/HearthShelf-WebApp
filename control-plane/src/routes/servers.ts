@@ -566,6 +566,6 @@ servers.post('/servers/cert-status', async (c) => {
 servers.post('/servers/grant', (c) =>
   c.json(
     { error: 'not_implemented', detail: 'use POST /servers/:id/grant (user-authenticated)' },
-    501
-  )
+    501,
+  ),
 )

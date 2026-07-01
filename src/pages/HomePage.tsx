@@ -16,12 +16,7 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 import { useToast } from '@/hooks/useToast'
 import type { AbsLibraryItem, MediaProgress } from '@/api/absLibrary'
-import {
-  getHomeShelves,
-  getItemsInProgress,
-  mergeHomeShelves,
-  type HomeShelf,
-} from '@/api/absHome'
+import { getHomeShelves, getItemsInProgress, mergeHomeShelves, type HomeShelf } from '@/api/absHome'
 
 const SHELF_ICONS: Record<string, string> = {
   'recently-added': 'schedule',
@@ -195,7 +190,7 @@ export function HomePage() {
   const unified = unifiedPref && libraries.length > 1
 
   const [heroStyle, setHeroStyle] = useState<HeroStyle>(
-    () => (localStorage.getItem(HERO_KEY) as HeroStyle) || 'comfy'
+    () => (localStorage.getItem(HERO_KEY) as HeroStyle) || 'comfy',
   )
   const chooseHero = (h: HeroStyle) => {
     setHeroStyle(h)
@@ -214,7 +209,7 @@ export function HomePage() {
   const { data: singleInProgress } = useItemsInProgress(
     safeTarget,
     activeId ?? undefined,
-    enabled && !unified
+    enabled && !unified,
   )
 
   // --- unified reads: fan out one home-shelves query per library -----------
@@ -252,14 +247,10 @@ export function HomePage() {
     : (singleInProgress ?? [])
 
   const rawShelves: HomeShelf[] = unified
-    ? mergeHomeShelves(
-        unifiedShelfQueries.map((q) => (q.data as HomeShelf[] | undefined) ?? [])
-      )
+    ? mergeHomeShelves(unifiedShelfQueries.map((q) => (q.data as HomeShelf[] | undefined) ?? []))
     : (single.data ?? [])
 
-  const isLoading = unified
-    ? unifiedQueries.some((q) => q.isLoading)
-    : single.isLoading
+  const isLoading = unified ? unifiedQueries.some((q) => q.isLoading) : single.isLoading
   const isError = unified ? unifiedQueries.some((q) => q.isError) : single.isError
   const refetch = () => {
     if (unified) unifiedQueries.forEach((q) => void q.refetch())
@@ -276,7 +267,7 @@ export function HomePage() {
     .filter(
       (sh) =>
         sh.id !== 'continue-series' &&
-        (sh.type === 'series' ? sh.series.length > 0 : sh.items.length > 0)
+        (sh.type === 'series' ? sh.series.length > 0 : sh.items.length > 0),
     )
     .sort((a, b) => shelfRank(a.id) - shelfRank(b.id))
 

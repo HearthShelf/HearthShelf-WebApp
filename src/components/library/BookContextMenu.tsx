@@ -89,8 +89,7 @@ export function BookContextMenu({
     enabled: Boolean(pos),
     staleTime: 5 * 60 * 1000,
   })
-  const canEdit =
-    me?.type === 'admin' || me?.type === 'root' || Boolean(me?.permissions?.update)
+  const canEdit = me?.type === 'admin' || me?.type === 'root' || Boolean(me?.permissions?.update)
 
   const { title, authorName } = item.media.metadata
   const hasEbook = !!item.media.ebookFormat
@@ -138,7 +137,7 @@ export function BookContextMenu({
     fn()
   }
 
-  const authorHref = authorId ? ui.authorHref?.(authorId) ?? `/author/${authorId}` : null
+  const authorHref = authorId ? (ui.authorHref?.(authorId) ?? `/author/${authorId}`) : null
 
   const menu = pos && (
     <div
@@ -203,7 +202,7 @@ export function BookContextMenu({
         className={'mp-item' + (finished ? ' on' : '')}
         onClick={act(() => {
           void markFinished([item.id], !finished).then(() =>
-            onToast?.(finished ? 'Marked not finished' : 'Marked finished')
+            onToast?.(finished ? 'Marked not finished' : 'Marked finished'),
           )
         })}
       >
@@ -224,7 +223,7 @@ export function BookContextMenu({
             <button
               className="mp-item"
               onClick={act(() =>
-                navigate(ui.seriesHref?.(resolvedSeriesId) ?? `/series/${resolvedSeriesId}`)
+                navigate(ui.seriesHref?.(resolvedSeriesId) ?? `/series/${resolvedSeriesId}`),
               )}
             >
               <Icon name="collections_bookmark" /> Go to series

@@ -38,7 +38,13 @@ function fmtDuration(sec: number): string {
 }
 
 /** Render an optional nav link: a <Link> when href is given, else plain text. */
-function MaybeLink({ href, children }: { href: string | null | undefined; children: React.ReactNode }) {
+function MaybeLink({
+  href,
+  children,
+}: {
+  href: string | null | undefined
+  children: React.ReactNode
+}) {
   if (!href) return <span className="text-foreground">{children}</span>
   return (
     <Link to={href} className="text-foreground underline-offset-2 hover:underline">

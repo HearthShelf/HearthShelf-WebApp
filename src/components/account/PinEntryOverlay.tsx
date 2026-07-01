@@ -47,13 +47,10 @@ export function PinEntryOverlay({
     return () => cancelAnimationFrame(r)
   }, [])
 
-  const close = useCallback(
-    (done: () => void) => {
-      setOpen(false)
-      window.setTimeout(done, 250)
-    },
-    []
-  )
+  const close = useCallback((done: () => void) => {
+    setOpen(false)
+    window.setTimeout(done, 250)
+  }, [])
 
   const reject = useCallback(() => {
     setShake(true)
@@ -78,7 +75,7 @@ export function PinEntryOverlay({
         setChecking(false)
       }
     },
-    [verify, onSuccess, close, reject]
+    [verify, onSuccess, close, reject],
   )
 
   const press = useCallback(
@@ -91,7 +88,7 @@ export function PinEntryOverlay({
         return next
       })
     },
-    [checking, shake, submit]
+    [checking, shake, submit],
   )
 
   const backspace = useCallback(() => {
@@ -159,6 +156,6 @@ export function PinEntryOverlay({
         {footer && <div className="pin-footer">{footer}</div>}
       </div>
     </div>,
-    document.body
+    document.body,
   )
 }

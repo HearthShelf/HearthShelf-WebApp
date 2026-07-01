@@ -5,11 +5,7 @@ import { getAllLibraryItemsFull } from '@/api/absLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
-import {
-  useMonthlyShelf,
-  useDiscoverFeedbackQuery,
-  usePopular,
-} from '@/hooks/useDiscover'
+import { useMonthlyShelf, useDiscoverFeedbackQuery, usePopular } from '@/hooks/useDiscover'
 import { useQgConfig } from '@/hooks/useQuestGiver'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
@@ -47,7 +43,7 @@ export function DiscoverPage() {
   const byId = useMemo(() => new Map(items.map((it) => [it.id, it])), [items])
   const { shelves } = useMemo(
     () => buildDiscoverShelves(items, progressById),
-    [items, progressById]
+    [items, progressById],
   )
 
   const hasItems = items.length > 0
@@ -64,7 +60,7 @@ export function DiscoverPage() {
       .map((p) => ({ item: byId.get(p.id), reason: p.reason }))
       .filter(
         (x): x is { item: NonNullable<ReturnType<typeof byId.get>>; reason: string } =>
-          Boolean(x.item) && fbMap[x.item!.id]?.vote !== 'not_interested'
+          Boolean(x.item) && fbMap[x.item!.id]?.vote !== 'not_interested',
       )
   }, [monthly, byId, fbMap])
 

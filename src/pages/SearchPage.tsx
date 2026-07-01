@@ -49,7 +49,7 @@ export function SearchPage() {
     target ?? { serverId: '', serverUrl: '' },
     activeId ?? undefined,
     debouncedQ,
-    enabled
+    enabled,
   )
 
   if (!target) return null
@@ -68,9 +68,7 @@ export function SearchPage() {
         <h1 className="title-xl">{q ? `"${q}"` : 'Search'}</h1>
       </div>
 
-      {q.length < 2 && (
-        <p className="page-sub">Type at least two characters to search.</p>
-      )}
+      {q.length < 2 && <p className="page-sub">Type at least two characters to search.</p>}
 
       {q.length >= 2 && isLoading && <LoadingSpinner className="py-12" label="Searching..." />}
       {q.length >= 2 && isError && <ErrorState message="Search failed." onRetry={refetch} />}
@@ -130,12 +128,7 @@ export function SearchPage() {
               const cv = tintFor(a.name)
               const href = ui.authorHref?.(a.id) ?? `/author/${a.id}`
               return (
-                <div
-                  className="author-card"
-                  key={a.id}
-                  data-cv={cv}
-                  onClick={() => navigate(href)}
-                >
+                <div className="author-card" key={a.id} data-cv={cv} onClick={() => navigate(href)}>
                   <div
                     className="author-av"
                     style={{

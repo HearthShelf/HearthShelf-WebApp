@@ -43,9 +43,7 @@ export function PersonCard({
   onEdit,
 }: PersonCardProps) {
   const { target } = useActiveServer()
-  const [imgOk, setImgOk] = useState(
-    person.kind === 'author' && Boolean(person.imagePath)
-  )
+  const [imgOk, setImgOk] = useState(person.kind === 'author' && Boolean(person.imagePath))
   const cv = tintFor(person.name)
   const photoSrc =
     target && person.kind === 'author'
@@ -109,14 +107,10 @@ export function PersonCard({
         </div>
         <div className="pc-info">
           <div className="pc-name">{person.name}</div>
-          <div className="pc-role">
-            {person.kind === 'author' ? 'Author' : 'Narrator'}
-          </div>
+          <div className="pc-role">{person.kind === 'author' ? 'Author' : 'Narrator'}</div>
           <div className="pc-meta">
             {person.count} {person.count === 1 ? 'book' : 'books'}
-            {person.kind === 'author' && person.hours
-              ? ` · ${person.hours}h`
-              : ''}
+            {person.kind === 'author' && person.hours ? ` · ${person.hours}h` : ''}
           </div>
         </div>
       </div>

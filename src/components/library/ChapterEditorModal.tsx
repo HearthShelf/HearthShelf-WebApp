@@ -31,7 +31,7 @@ export function ChapterEditorModal({
 }: ChapterEditorModalProps) {
   const qc = useQueryClient()
   const [rows, setRows] = useState<EditableChapter[]>(
-    chapters.map((c) => ({ title: c.title, start: c.start, end: c.end }))
+    chapters.map((c) => ({ title: c.title, start: c.start, end: c.end })),
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)

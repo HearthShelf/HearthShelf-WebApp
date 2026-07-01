@@ -57,6 +57,6 @@ export function ImageZoomViewer({ src, alt, onClose }: ImageZoomViewerProps) {
         />
       </div>
     </div>,
-    document.body
+    document.body,
   )
 }

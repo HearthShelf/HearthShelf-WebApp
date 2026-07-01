@@ -213,7 +213,7 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
   }
   const back = useCallback(
     () => (inline && onClose ? onClose() : navigate(-1)),
-    [inline, onClose, navigate]
+    [inline, onClose, navigate],
   )
 
   // Keyboard: arrows page, Escape closes panel / exits.
@@ -229,8 +229,7 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
     return () => window.removeEventListener('keydown', onKey)
   }, [panel, back])
 
-  const setPref = <K extends keyof ReaderPrefs>(k: K, v: ReaderPrefs[K]) =>
-    prefs.set(k, v)
+  const setPref = <K extends keyof ReaderPrefs>(k: K, v: ReaderPrefs[K]) => prefs.set(k, v)
 
   const isPaged = prefs.layout === 'paged'
 
@@ -348,10 +347,7 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
         {loading && <LoadingSpinner className="reader-loading" label="Opening book..." />}
         {loadError && (
           <div className="reader-loading">
-            <ErrorState
-              message="Could not open this ebook."
-              onRetry={() => navigate(0)}
-            />
+            <ErrorState message="Could not open this ebook." onRetry={() => navigate(0)} />
           </div>
         )}
         <div ref={viewerRef} className="reader-viewer" />
@@ -363,8 +359,7 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
           <Icon name="chevron_left" />
         </button>
         <span className="rd-pgnum">
-          {Math.round(progress * 100)}%
-          {chapterLabel ? ` · ${chapterLabel}` : ''}
+          {Math.round(progress * 100)}%{chapterLabel ? ` · ${chapterLabel}` : ''}
         </span>
         <button className="rd-pg" onClick={next} title="Next">
           <Icon name="chevron_right" />

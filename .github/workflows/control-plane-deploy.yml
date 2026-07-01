@@ -8,8 +8,8 @@ on:
     branches:
       - main
     paths:
-      - "control-plane/**"
-      - ".github/workflows/control-plane-deploy.yml"
+      - 'control-plane/**'
+      - '.github/workflows/control-plane-deploy.yml'
   workflow_dispatch:
 
 permissions:

@@ -44,8 +44,7 @@ export function AccountSettings() {
     user.fullName || user.username || user.primaryEmailAddress?.emailAddress || 'You'
   const email = user.primaryEmailAddress?.emailAddress ?? 'Not set'
   const memberSince = fmtDay(user.createdAt)
-  const accountType =
-    server?.role === 'admin' ? 'Server admin' : 'HearthShelf account'
+  const accountType = server?.role === 'admin' ? 'Server admin' : 'HearthShelf account'
 
   const handlePhotoClick = () => {
     setUploadErr(null)
@@ -69,9 +68,7 @@ export function AccountSettings() {
   }
 
   // Permissions from the active server (update/delete/download/upload booleans)
-  const perms = me?.permissions
-    ? Object.entries(me.permissions).filter(([, v]) => v === true)
-    : []
+  const perms = me?.permissions ? Object.entries(me.permissions).filter(([, v]) => v === true) : []
   const isAdmin = me?.type === 'admin' || me?.type === 'root'
 
   const infoRows: [string, string, string][] = [

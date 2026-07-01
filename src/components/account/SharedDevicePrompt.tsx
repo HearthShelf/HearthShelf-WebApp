@@ -56,8 +56,8 @@ export function SharedDevicePromptCard({
               <div className="pin-title">Is this a shared screen?</div>
             </div>
             <p className="t-muted" style={{ textAlign: 'center', marginBottom: 20 }}>
-              A car display or family tablet, for example. We can remember accounts
-              here so anyone can switch without signing in each time.
+              A car display or family tablet, for example. We can remember accounts here so anyone
+              can switch without signing in each time.
             </p>
             <div style={{ display: 'flex', gap: 10, width: '100%' }}>
               <button
@@ -92,8 +92,8 @@ export function SharedDevicePromptCard({
               <div className="pin-title">Set a PIN? (optional)</div>
             </div>
             <p className="t-muted" style={{ textAlign: 'center', marginBottom: 12 }}>
-              A 4-digit PIN keeps {name}'s account private on this shared screen.
-              You can skip this and remember the account with no PIN.
+              A 4-digit PIN keeps {name}'s account private on this shared screen. You can skip this
+              and remember the account with no PIN.
             </p>
             <input
               inputMode="numeric"
@@ -196,7 +196,7 @@ export function SharedDevicePrompt() {
         finish()
       }
     },
-    [user, name, remember, finish]
+    [user, name, remember, finish],
   )
 
   if (!visible) return null
@@ -213,6 +213,6 @@ export function SharedDevicePrompt() {
       onSkipPin={() => void rememberWithPin(undefined)}
       onSavePin={() => void rememberWithPin(pin)}
     />,
-    document.body
+    document.body,
   )
 }

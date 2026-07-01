@@ -118,7 +118,7 @@ function mapPodcast(r: RawPodcastItem): AbsPodcast {
 export async function getPodcasts(t: AbsTarget, libraryId: string): Promise<AbsPodcast[]> {
   const data = await absGet<{ results?: RawPodcastItem[] }>(
     t,
-    `/api/libraries/${encodeURIComponent(libraryId)}/items?limit=0`
+    `/api/libraries/${encodeURIComponent(libraryId)}/items?limit=0`,
   )
   return (data.results ?? []).map(mapPodcast)
 }
@@ -127,7 +127,7 @@ export async function getPodcasts(t: AbsTarget, libraryId: string): Promise<AbsP
 export async function getPodcast(t: AbsTarget, itemId: string): Promise<AbsPodcast> {
   const data = await absGet<RawPodcastItem>(
     t,
-    `/api/items/${encodeURIComponent(itemId)}?expanded=1`
+    `/api/items/${encodeURIComponent(itemId)}?expanded=1`,
   )
   return mapPodcast(data)
 }
@@ -150,11 +150,11 @@ function recentPodcastTitle(r: RawRecentEpisode): string {
 export async function getLatestEpisodes(
   t: AbsTarget,
   libraryId: string,
-  limit = 50
+  limit = 50,
 ): Promise<AbsRecentEpisode[]> {
   const data = await absGet<{ episodes?: RawRecentEpisode[] }>(
     t,
-    `/api/libraries/${encodeURIComponent(libraryId)}/recent-episodes?limit=${limit}`
+    `/api/libraries/${encodeURIComponent(libraryId)}/recent-episodes?limit=${limit}`,
   )
   return (data.episodes ?? []).map((r) => ({
     ...mapEpisode(r),
@@ -194,13 +194,13 @@ interface RawDirectoryResult {
 /** Search the iTunes podcast directory (library-independent). Admin. */
 export async function searchPodcasts(
   t: AbsTarget,
-  term: string
+  term: string,
 ): Promise<PodcastDirectoryResult[]> {
   const q = term.trim()
   if (!q) return []
   const data = await absGet<RawDirectoryResult[]>(
     t,
-    `/api/search/podcast?term=${encodeURIComponent(q)}`
+    `/api/search/podcast?term=${encodeURIComponent(q)}`,
   )
   return (data ?? []).map((r) => ({
     id: r.id ?? 0,
@@ -225,12 +225,12 @@ export async function addPodcast(
   t: AbsTarget,
   libraryId: string,
   feedUrl: string,
-  opts: { folderId?: string; autoDownloadEpisodes?: boolean } = {}
+  opts: { folderId?: string; autoDownloadEpisodes?: boolean } = {},
 ): Promise<void> {
   const feed = await absPost<{ podcast?: { metadata?: RawPodcastMetadata } }>(
     t,
     '/api/podcasts/feed',
-    { rssFeed: feedUrl }
+    { rssFeed: feedUrl },
   )
   const md = feed?.podcast?.metadata ?? {}
   await absPost(t, '/api/podcasts', {
@@ -275,10 +275,7 @@ function mapDownload(r: RawDownload): EpisodeDownload {
 }
 
 /** Live podcast download-queue status for a library. Admin. */
-export async function getDownloadQueue(
-  t: AbsTarget,
-  libraryId: string
-): Promise<DownloadQueue> {
+export async function getDownloadQueue(t: AbsTarget, libraryId: string): Promise<DownloadQueue> {
   const data = await absGet<{
     currentDownload?: RawDownload | null
     queue?: RawDownload[]
@@ -308,7 +305,11 @@ interface RawPlaySession {
   }>
 }
 
-const PLAY_DEVICE = { deviceId: 'hearthshelf-web', clientName: 'HearthShelf', clientVersion: '0.1.0' }
+const PLAY_DEVICE = {
+  deviceId: 'hearthshelf-web',
+  clientName: 'HearthShelf',
+  clientVersion: '0.1.0',
+}
 const PLAY_MIME = ['audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/flac', 'audio/ogg']
 
 export interface PlayableEpisode {
@@ -330,12 +331,12 @@ export interface PlayableEpisode {
 export async function getPlayableEpisode(
   t: AbsTarget,
   itemId: string,
-  episodeId: string
+  episodeId: string,
 ): Promise<PlayableEpisode> {
   const session = await absPost<RawPlaySession>(
     t,
     `/api/items/${encodeURIComponent(itemId)}/play/${encodeURIComponent(episodeId)}`,
-    { deviceInfo: PLAY_DEVICE, supportedMimeTypes: PLAY_MIME }
+    { deviceInfo: PLAY_DEVICE, supportedMimeTypes: PLAY_MIME },
   )
   const raw = session?.audioTracks ?? []
   const tracks: AbsTrack[] = raw.map((tr) => ({
@@ -345,8 +346,7 @@ export async function getPlayableEpisode(
     durationSec: tr.duration ?? 0,
     url: absMediaUrl(t, tr.contentUrl),
   }))
-  const totalDurationSec =
-    session?.duration ?? tracks.reduce((s, tr) => s + tr.durationSec, 0)
+  const totalDurationSec = session?.duration ?? tracks.reduce((s, tr) => s + tr.durationSec, 0)
   return {
     tracks,
     totalDurationSec,

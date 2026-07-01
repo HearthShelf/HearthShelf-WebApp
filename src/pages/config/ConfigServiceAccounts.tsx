@@ -38,8 +38,7 @@ function initials(name: string): string {
 // password manager would. Uses crypto.getRandomValues over an unambiguous
 // alphabet (no look-alike 0/O, 1/l/I) and rejection-samples to avoid modulo bias.
 function generatePassword(length = 20): string {
-  const alphabet =
-    'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%^&*-_'
+  const alphabet = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%^&*-_'
   const max = Math.floor(256 / alphabet.length) * alphabet.length
   const out: string[] = []
   const buf = new Uint8Array(1)
@@ -151,9 +150,9 @@ function AccountKeys({
 
       {!canCreate && (
         <p style={{ fontSize: 13, color: 'var(--text-faint)', margin: '4px 0 10px' }}>
-          <Icon name="info" style={{ verticalAlign: '-3px' }} /> This is a root
-          account. Only a root user can mint tokens under it - sign in as root, or
-          create a separate service account for app access.
+          <Icon name="info" style={{ verticalAlign: '-3px' }} /> This is a root account. Only a root
+          user can mint tokens under it - sign in as root, or create a separate service account for
+          app access.
         </p>
       )}
 
@@ -182,12 +181,8 @@ function AccountKeys({
               {keys.map((k) => (
                 <tr key={k.id}>
                   <td style={{ fontWeight: 600 }}>{k.name}</td>
-                  <td className="num">
-                    {fmtSessDate(new Date(k.createdAt).getTime()).day}
-                  </td>
-                  <td className="num">
-                    {k.lastUsedAt ? fmtSessDate(k.lastUsedAt).day : 'never'}
-                  </td>
+                  <td className="num">{fmtSessDate(new Date(k.createdAt).getTime()).day}</td>
+                  <td className="num">{k.lastUsedAt ? fmtSessDate(k.lastUsedAt).day : 'never'}</td>
                   <td>
                     {k.isActive ? (
                       <span style={{ color: '#a7c896' }}>Active</span>
@@ -220,10 +215,7 @@ function AccountKeys({
           foot={
             <>
               <div style={{ flex: 1 }} />
-              <button
-                className="btn-sm btn-ghost"
-                onClick={() => setCreating(false)}
-              >
+              <button className="btn-sm btn-ghost" onClick={() => setCreating(false)}>
                 Cancel
               </button>
               <button className="btn-sm btn-green" onClick={() => void create()}>
@@ -233,8 +225,8 @@ function AccountKeys({
           }
         >
           <p style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 0 }}>
-            Mints a token under <strong>{account.username}</strong>. The app you
-            give it to acts as this account.
+            Mints a token under <strong>{account.username}</strong>. The app you give it to acts as
+            this account.
           </p>
           {createError && (
             <p
@@ -270,10 +262,7 @@ function AccountKeys({
           foot={
             <>
               <div style={{ flex: 1 }} />
-              <button
-                className="btn-sm btn-green"
-                onClick={() => setCreatedToken(null)}
-              >
+              <button className="btn-sm btn-green" onClick={() => setCreatedToken(null)}>
                 Done
               </button>
             </>
@@ -344,10 +333,7 @@ export function ConfigServiceAccounts() {
     enabled: Boolean(target),
     staleTime: 60 * 1000,
   })
-  const trackedIds = useMemo(
-    () => new Set(trackedData?.ids ?? []),
-    [trackedData]
-  )
+  const trackedIds = useMemo(() => new Set(trackedData?.ids ?? []), [trackedData])
 
   // A service account is any account an admin tagged here. They are regular ABS
   // admin users; the tag is a grouping persisted on the server per instance.
@@ -438,18 +424,13 @@ export function ConfigServiceAccounts() {
           maxWidth: 620,
         }}
       >
-        Service accounts are machine logins, not people. Use them to give another
-        app its own API token instead of sharing your personal one. They are
-        regular AudiobookShelf admin accounts - native ABS clients still see them
-        in the full user list.
+        Service accounts are machine logins, not people. Use them to give another app its own API
+        token instead of sharing your personal one. They are regular AudiobookShelf admin accounts -
+        native ABS clients still see them in the full user list.
       </p>
 
-      {usersLoading && (
-        <LoadingSpinner className="py-12" label="Loading accounts..." />
-      )}
-      {usersError && (
-        <ErrorState message="Could not load accounts." onRetry={refetch} />
-      )}
+      {usersLoading && <LoadingSpinner className="py-12" label="Loading accounts..." />}
+      {usersError && <ErrorState message="Could not load accounts." onRetry={refetch} />}
 
       {usersData && accounts.length === 0 && (
         <div className="empty-state">
@@ -490,18 +471,14 @@ export function ConfigServiceAccounts() {
                           <span className="tag-pill admin">Service</span>
                         </div>
                       </td>
-                      <td className="num">
-                        {u.lastSeen ? fmtSessDate(u.lastSeen).day : 'never'}
-                      </td>
+                      <td className="num">{u.lastSeen ? fmtSessDate(u.lastSeen).day : 'never'}</td>
                       <td>
                         {u.isActive ? (
                           <span style={{ color: '#a7c896' }}>
                             <span className="online-dot" /> Active
                           </span>
                         ) : (
-                          <span style={{ color: 'var(--text-faint)' }}>
-                            Disabled
-                          </span>
+                          <span style={{ color: 'var(--text-faint)' }}>Disabled</span>
                         )}
                       </td>
                       <td>
@@ -568,25 +545,18 @@ export function ConfigServiceAccounts() {
           foot={
             <>
               <div style={{ flex: 1 }} />
-              <button
-                className="btn-sm btn-ghost"
-                onClick={() => setAdding(false)}
-              >
+              <button className="btn-sm btn-ghost" onClick={() => setAdding(false)}>
                 Cancel
               </button>
-              <button
-                className="btn-sm btn-green"
-                onClick={() => void submitCreate()}
-              >
+              <button className="btn-sm btn-green" onClick={() => void submitCreate()}>
                 <Icon name="smart_toy" /> Create account
               </button>
             </>
           }
         >
           <p style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 0 }}>
-            Creates an AudiobookShelf admin account dedicated to another app. Pick
-            a password you can hand off - it is shown once here, then only the API
-            tokens you mint under it matter.
+            Creates an AudiobookShelf admin account dedicated to another app. Pick a password you
+            can hand off - it is shown once here, then only the API tokens you mint under it matter.
           </p>
           {addError && (
             <p
@@ -620,9 +590,7 @@ export function ConfigServiceAccounts() {
                 style={{ flex: 1 }}
                 type={showPw ? 'text' : 'password'}
                 value={form.password}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, password: e.target.value }))
-                }
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                 placeholder="Choose a strong password"
               />
               <button
@@ -664,18 +632,15 @@ export function ConfigServiceAccounts() {
           foot={
             <>
               <div style={{ flex: 1 }} />
-              <button
-                className="btn-sm btn-green"
-                onClick={() => setCreatedCreds(null)}
-              >
+              <button className="btn-sm btn-green" onClick={() => setCreatedCreds(null)}>
                 Done
               </button>
             </>
           }
         >
           <p style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 0 }}>
-            <strong>{createdCreds.username}</strong> is ready. Save its password
-            now - it won't be shown again. Expand the account to mint API tokens.
+            <strong>{createdCreds.username}</strong> is ready. Save its password now - it won't be
+            shown again. Expand the account to mint API tokens.
           </p>
           <SecretReveal value={createdCreds.password} />
         </Modal>

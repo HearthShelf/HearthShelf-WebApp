@@ -10,12 +10,7 @@
  * self-hosted reads (HearthShelf src/api/libraries.ts getAuthor / getOneSeries).
  */
 import { absGet } from './absClient'
-import {
-  getSeries,
-  type AbsTarget,
-  type AbsLibraryItem,
-  type AbsSeries,
-} from './absLibrary'
+import { getSeries, type AbsTarget, type AbsLibraryItem, type AbsSeries } from './absLibrary'
 
 // Raw full library item, as ABS returns it inside an author's libraryItems[] (or
 // a series' books[]). Only the fields we render are typed; mapper fills the rest.
@@ -134,7 +129,7 @@ export async function getAuthorFull(t: AbsTarget, authorId: string): Promise<Aut
 export async function getSeriesFull(
   t: AbsTarget,
   libraryId: string,
-  seriesId: string
+  seriesId: string,
 ): Promise<AbsSeries | null> {
   const res = await getSeries(t, libraryId, 0, 1000)
   return res.results.find((s) => s.id === seriesId) ?? null

@@ -20,15 +20,7 @@ import { ItemMatchTab } from '@/components/library/ItemMatchTab'
 import { ItemCoverTab } from '@/components/library/ItemCoverTab'
 import { ChapterEditorModal, type EditableChapter } from '@/components/library/ChapterEditorModal'
 
-function Field({
-  label,
-  full,
-  children,
-}: {
-  label: string
-  full?: boolean
-  children: ReactNode
-}) {
+function Field({ label, full, children }: { label: string; full?: boolean; children: ReactNode }) {
   return (
     <div className={'field' + (full ? ' full' : '')}>
       <label>{label}</label>
@@ -166,7 +158,11 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
               <input className="fld" value={title} onChange={(e) => setTitle(e.target.value)} />
             </Field>
             <Field label="Subtitle" full>
-              <input className="fld" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} />
+              <input
+                className="fld"
+                value={subtitle}
+                onChange={(e) => setSubtitle(e.target.value)}
+              />
             </Field>
             <Field label="Publish year">
               <input
@@ -176,7 +172,11 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
               />
             </Field>
             <Field label="Publisher">
-              <input className="fld" value={publisher} onChange={(e) => setPublisher(e.target.value)} />
+              <input
+                className="fld"
+                value={publisher}
+                onChange={(e) => setPublisher(e.target.value)}
+              />
             </Field>
             <Field label="ISBN">
               <input className="fld" value={isbn} onChange={(e) => setIsbn(e.target.value)} />
@@ -281,7 +281,7 @@ function FilesTab({
       await reorderItemTracks(
         target,
         item.id,
-        next.map((f) => f.ino)
+        next.map((f) => f.ino),
       )
       onChanged()
     } finally {
@@ -396,11 +396,15 @@ function ToolsTab({ target, itemId }: { target: AbsTarget; itemId: string }) {
         Write the current title, author, and cover back into the audio files so other players read
         them too. Runs as a background task.
       </p>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, fontSize: 14 }}>
+      <label
+        style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, fontSize: 14 }}
+      >
         <input type="checkbox" checked={chapters} onChange={(e) => setChapters(e.target.checked)} />
         Also embed chapter markers
       </label>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, fontSize: 14 }}>
+      <label
+        style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, fontSize: 14 }}
+      >
         <input type="checkbox" checked={backup} onChange={(e) => setBackup(e.target.checked)} />
         Keep a backup of the original files
       </label>

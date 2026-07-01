@@ -90,13 +90,13 @@ export interface LibraryItemsPage {
 export async function getLibraryItems(
   t: AbsTarget,
   libraryId: string,
-  opts: { page?: number; limit?: number } = {}
+  opts: { page?: number; limit?: number } = {},
 ): Promise<LibraryItemsPage> {
   const page = opts.page ?? 0
   const limit = opts.limit ?? 30
   const data = await absGet<LibraryItemsResponse>(
     t,
-    `/api/libraries/${encodeURIComponent(libraryId)}/items?minified=1&limit=${limit}&page=${page}`
+    `/api/libraries/${encodeURIComponent(libraryId)}/items?minified=1&limit=${limit}&page=${page}`,
   )
   return {
     items: (data.results ?? []).map((r) => ({
@@ -149,11 +149,11 @@ function mapRawItems(raw: RawListItem[]): AbsListItem[] {
 export async function getPersonalizedShelves(
   t: AbsTarget,
   libraryId: string,
-  limit = 12
+  limit = 12,
 ): Promise<Shelf[]> {
   const raw = await absGet<RawShelf[]>(
     t,
-    `/api/libraries/${encodeURIComponent(libraryId)}/personalized?limit=${limit}`
+    `/api/libraries/${encodeURIComponent(libraryId)}/personalized?limit=${limit}`,
   )
   return (raw ?? []).map((s) => ({
     id: s.id,
@@ -183,13 +183,13 @@ export async function searchLibrary(
   t: AbsTarget,
   libraryId: string,
   query: string,
-  limit = 24
+  limit = 24,
 ): Promise<AbsListItem[]> {
   const q = query.trim()
   if (!q) return []
   const data = await absGet<SearchResponse>(
     t,
-    `/api/libraries/${encodeURIComponent(libraryId)}/search?q=${encodeURIComponent(q)}&limit=${limit}`
+    `/api/libraries/${encodeURIComponent(libraryId)}/search?q=${encodeURIComponent(q)}&limit=${limit}`,
   )
   const entries = [...(data.book ?? []), ...(data.podcast ?? [])]
   return entries
@@ -232,11 +232,10 @@ export interface SeriesSummary {
 export async function getSeriesList(t: AbsTarget, libraryId: string): Promise<SeriesSummary[]> {
   const data = await absGet<{ results?: Array<{ id: string; name: string }> }>(
     t,
-    `/api/libraries/${encodeURIComponent(libraryId)}/series?limit=0`
+    `/api/libraries/${encodeURIComponent(libraryId)}/series?limit=0`,
   )
   return (data.results ?? []).map((s) => ({ id: s.id, name: s.name }))
 }
-
 
 export interface AuthorDetail {
   id: string
@@ -270,7 +269,7 @@ export interface CollectionSummary {
 /** List collections in a library. */
 export async function getCollections(
   t: AbsTarget,
-  libraryId: string
+  libraryId: string,
 ): Promise<CollectionSummary[]> {
   const data = await absGet<{
     results?: Array<{ id: string; name: string; books?: unknown[] }>
@@ -400,7 +399,7 @@ export async function syncPlaySession(
   sessionId: string,
   currentTimeSec: number,
   timeListenedSec: number,
-  durationSec: number
+  durationSec: number,
 ): Promise<void> {
   await absPost(t, `/api/session/${encodeURIComponent(sessionId)}/sync`, {
     currentTime: currentTimeSec,
@@ -415,7 +414,7 @@ export async function closePlaySession(
   sessionId: string,
   currentTimeSec: number,
   timeListenedSec: number,
-  durationSec: number
+  durationSec: number,
 ): Promise<void> {
   await absPost(t, `/api/session/${encodeURIComponent(sessionId)}/close`, {
     currentTime: currentTimeSec,
@@ -424,14 +423,21 @@ export async function closePlaySession(
   }).catch(() => {})
 }
 
-const PLAY_DEVICE = { deviceId: 'hearthshelf-web', clientName: 'HearthShelf', clientVersion: '0.1.0' }
+const PLAY_DEVICE = {
+  deviceId: 'hearthshelf-web',
+  clientName: 'HearthShelf',
+  clientVersion: '0.1.0',
+}
 const PLAY_MIME = ['audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/flac', 'audio/ogg']
 
 export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsItemDetail> {
   // Metadata comes from the item endpoint; playable tracks + true duration come
   // from a play session (ABS only exposes streamable tracks there).
   const [r, session] = await Promise.all([
-    absGet<RawItemDetail>(t, `/api/items/${encodeURIComponent(itemId)}?expanded=1&include=progress`),
+    absGet<RawItemDetail>(
+      t,
+      `/api/items/${encodeURIComponent(itemId)}?expanded=1&include=progress`,
+    ),
     absPost<RawPlaySession>(t, `/api/items/${encodeURIComponent(itemId)}/play`, {
       deviceInfo: PLAY_DEVICE,
       supportedMimeTypes: PLAY_MIME,
@@ -449,8 +455,7 @@ export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsIt
   // Prefer the session's chapters/duration (authoritative); fall back to the
   // item endpoint's chapters when no session (e.g. a book with no audio).
   const rawChapters = session?.chapters ?? r.media?.chapters ?? []
-  const durationSec =
-    session?.duration ?? tracks.reduce((s, tr) => s + tr.durationSec, 0)
+  const durationSec = session?.duration ?? tracks.reduce((s, tr) => s + tr.durationSec, 0)
   const firstSeries = md?.series?.[0]
   return {
     id: r.id,
@@ -461,7 +466,9 @@ export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsIt
     narrator: md?.narratorName || '',
     genre: md?.genres?.[0] || '',
     publishedYear: md?.publishedYear || '',
-    series: firstSeries ? { id: firstSeries.id, name: firstSeries.name, sequence: firstSeries.sequence } : null,
+    series: firstSeries
+      ? { id: firstSeries.id, name: firstSeries.name, sequence: firstSeries.sequence }
+      : null,
     description: md?.description || '',
     durationSec,
     coverUrl: itemCoverUrl(t, r.id, 480),
@@ -489,7 +496,7 @@ export async function saveProgress(
   t: AbsTarget,
   itemId: string,
   currentTimeSec: number,
-  durationSec: number
+  durationSec: number,
 ): Promise<void> {
   await absPatch(t, `/api/me/progress/${encodeURIComponent(itemId)}`, {
     currentTime: currentTimeSec,
@@ -501,7 +508,7 @@ export async function saveProgress(
 export async function setItemFinished(
   t: AbsTarget,
   itemId: string,
-  finished: boolean
+  finished: boolean,
 ): Promise<void> {
   await absPatch(t, `/api/me/progress/${encodeURIComponent(itemId)}`, {
     isFinished: finished,
@@ -611,13 +618,13 @@ interface RawSessionsResponse {
 
 export async function getListeningSessions(
   t: AbsTarget,
-  opts: { page?: number; itemsPerPage?: number } = {}
+  opts: { page?: number; itemsPerPage?: number } = {},
 ): Promise<ListeningSessionsPage> {
   const page = opts.page ?? 0
   const itemsPerPage = opts.itemsPerPage ?? 25
   const data = await absGet<RawSessionsResponse>(
     t,
-    `/api/me/listening-sessions?page=${page}&itemsPerPage=${itemsPerPage}`
+    `/api/me/listening-sessions?page=${page}&itemsPerPage=${itemsPerPage}`,
   )
   return {
     sessions: (data.sessions ?? []).map((s) => ({
@@ -652,13 +659,10 @@ interface NarratorsResponse {
  * are not first-class records), giving each a synthetic id, the display name,
  * and how many books credit them.
  */
-export async function getNarrators(
-  t: AbsTarget,
-  libraryId: string
-): Promise<AbsNarrator[]> {
+export async function getNarrators(t: AbsTarget, libraryId: string): Promise<AbsNarrator[]> {
   const data = await absGet<NarratorsResponse>(
     t,
-    `/api/libraries/${encodeURIComponent(libraryId)}/narrators`
+    `/api/libraries/${encodeURIComponent(libraryId)}/narrators`,
   )
   return (data.narrators ?? []).map((n) => ({
     id: n.id,
@@ -684,11 +688,11 @@ export interface AbsNarratorItem extends AbsListItem {
  */
 export async function getAllLibraryItems(
   t: AbsTarget,
-  libraryId: string
+  libraryId: string,
 ): Promise<AbsNarratorItem[]> {
   const data = await absGet<{ results?: RawListItem[] }>(
     t,
-    `/api/libraries/${encodeURIComponent(libraryId)}/items?minified=1&limit=0`
+    `/api/libraries/${encodeURIComponent(libraryId)}/items?minified=1&limit=0`,
   )
   return (data.results ?? []).map((r) => ({
     id: r.id,
@@ -710,13 +714,12 @@ export async function renameNarrator(
   t: AbsTarget,
   libraryId: string,
   oldName: string,
-  newName: string
+  newName: string,
 ): Promise<void> {
-  await absPatch(
-    t,
-    `/api/libraries/${encodeURIComponent(libraryId)}/narrators`,
-    { oldName, newName }
-  )
+  await absPatch(t, `/api/libraries/${encodeURIComponent(libraryId)}/narrators`, {
+    oldName,
+    newName,
+  })
 }
 
 // =============================================================================
@@ -825,11 +828,11 @@ export interface LibraryItemsFull {
  */
 export async function getAllLibraryItemsFull(
   t: AbsTarget,
-  libraryId: string
+  libraryId: string,
 ): Promise<LibraryItemsFull> {
   const data = await absGet<{ results?: RawFullItem[]; total?: number }>(
     t,
-    `/api/libraries/${encodeURIComponent(libraryId)}/items?minified=1&limit=0`
+    `/api/libraries/${encodeURIComponent(libraryId)}/items?minified=1&limit=0`,
   )
   const results = (data.results ?? []).map(mapFullItem)
   return { results, total: data.total ?? results.length }
@@ -849,7 +852,7 @@ export async function getSeries(
   t: AbsTarget,
   libraryId: string,
   page = 0,
-  limit = 1000
+  limit = 1000,
 ): Promise<SeriesListResponse> {
   const params = new URLSearchParams({
     page: String(page),
@@ -916,7 +919,7 @@ export async function getAuthors(t: AbsTarget, libraryId: string): Promise<Autho
 export async function updateAuthor(
   t: AbsTarget,
   authorId: string,
-  patch: { name?: string; description?: string; asin?: string; imageUrl?: string }
+  patch: { name?: string; description?: string; asin?: string; imageUrl?: string },
 ): Promise<void> {
   await absPatch(t, `/api/authors/${encodeURIComponent(authorId)}`, patch)
 }
@@ -930,12 +933,12 @@ export async function matchAuthor(
   t: AbsTarget,
   authorId: string,
   name: string,
-  region = 'us'
+  region = 'us',
 ): Promise<{ updated: boolean; imagePath: string | null }> {
   const res = await absPost<{ updated?: boolean; author?: { imagePath?: string | null } }>(
     t,
     `/api/authors/${encodeURIComponent(authorId)}/match`,
-    { q: name, region }
+    { q: name, region },
   )
   return { updated: Boolean(res?.updated), imagePath: res?.author?.imagePath ?? null }
 }
@@ -953,11 +956,7 @@ export async function deleteAuthor(t: AbsTarget, authorId: string): Promise<void
  * JSON, so this posts FormData directly to the server origin with the per-server
  * bearer token - the same pattern the Upload page uses.
  */
-export async function uploadAuthorImage(
-  t: AbsTarget,
-  authorId: string,
-  file: File
-): Promise<void> {
+export async function uploadAuthorImage(t: AbsTarget, authorId: string, file: File): Promise<void> {
   const form = new FormData()
   form.append('file', file)
   const token = getAbsToken(t.serverId)
@@ -967,7 +966,7 @@ export async function uploadAuthorImage(
       method: 'POST',
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       body: form,
-    }
+    },
   )
   if (!res.ok) throw new Error(`author image upload failed (${res.status})`)
 }
@@ -983,12 +982,12 @@ export interface BatchMediaPayload {
 export async function batchUpdateItems(
   t: AbsTarget,
   ids: string[],
-  mediaPayload: BatchMediaPayload
+  mediaPayload: BatchMediaPayload,
 ): Promise<void> {
   await absPost(
     t,
     '/api/items/batch/update',
-    ids.map((id) => ({ id, mediaPayload }))
+    ids.map((id) => ({ id, mediaPayload })),
   )
 }
 
@@ -1003,7 +1002,7 @@ export async function batchScanItems(t: AbsTarget, libraryItemIds: string[]): Pr
 export async function batchQuickMatchItems(
   t: AbsTarget,
   libraryItemIds: string[],
-  options: { provider?: string; overrideDetails?: boolean } = {}
+  options: { provider?: string; overrideDetails?: boolean } = {},
 ): Promise<void> {
   await absPost(t, '/api/items/batch/quickmatch', { libraryItemIds, options })
 }
@@ -1015,13 +1014,13 @@ export async function batchQuickMatchItems(
 export function libraryDownloadUrl(
   t: AbsTarget,
   libraryId: string,
-  itemIds: string[]
+  itemIds: string[],
 ): string | null {
   return absMediaUrl(
     t,
     `/api/libraries/${encodeURIComponent(libraryId)}/download?ids=${encodeURIComponent(
-      itemIds.join(',')
-    )}`
+      itemIds.join(','),
+    )}`,
   )
 }
 
@@ -1034,22 +1033,19 @@ export interface AbsListSummary {
 
 export async function getCollectionsList(
   t: AbsTarget,
-  libraryId: string
+  libraryId: string,
 ): Promise<AbsListSummary[]> {
   const data = await absGet<{ results?: Array<{ id: string; name?: string }> }>(
     t,
-    `/api/libraries/${encodeURIComponent(libraryId)}/collections`
+    `/api/libraries/${encodeURIComponent(libraryId)}/collections`,
   )
   return (data.results ?? []).map((c) => ({ id: c.id, name: c.name ?? 'Collection' }))
 }
 
-export async function getPlaylistsList(
-  t: AbsTarget,
-  libraryId: string
-): Promise<AbsListSummary[]> {
+export async function getPlaylistsList(t: AbsTarget, libraryId: string): Promise<AbsListSummary[]> {
   const data = await absGet<{ results?: Array<{ id: string; name?: string }> }>(
     t,
-    `/api/libraries/${encodeURIComponent(libraryId)}/playlists`
+    `/api/libraries/${encodeURIComponent(libraryId)}/playlists`,
   )
   return (data.results ?? []).map((p) => ({ id: p.id, name: p.name ?? 'Playlist' }))
 }
@@ -1058,7 +1054,7 @@ export async function createCollection(
   t: AbsTarget,
   libraryId: string,
   name: string,
-  books: string[]
+  books: string[],
 ): Promise<void> {
   await absPost(t, '/api/collections', { libraryId, name, books })
 }
@@ -1066,7 +1062,7 @@ export async function createCollection(
 export async function addBookToCollection(
   t: AbsTarget,
   collectionId: string,
-  libraryItemId: string
+  libraryItemId: string,
 ): Promise<void> {
   await absPost(t, `/api/collections/${encodeURIComponent(collectionId)}/book`, {
     id: libraryItemId,
@@ -1076,7 +1072,7 @@ export async function addBookToCollection(
 export async function addBooksToCollection(
   t: AbsTarget,
   collectionId: string,
-  libraryItemIds: string[]
+  libraryItemIds: string[],
 ): Promise<void> {
   await absPost(t, `/api/collections/${encodeURIComponent(collectionId)}/batch/add`, {
     books: libraryItemIds,
@@ -1087,7 +1083,7 @@ export async function createPlaylist(
   t: AbsTarget,
   libraryId: string,
   name: string,
-  items: { libraryItemId: string; episodeId?: string }[]
+  items: { libraryItemId: string; episodeId?: string }[],
 ): Promise<void> {
   await absPost(t, '/api/playlists', { libraryId, name, items })
 }
@@ -1095,7 +1091,7 @@ export async function createPlaylist(
 export async function addItemToPlaylist(
   t: AbsTarget,
   playlistId: string,
-  libraryItemId: string
+  libraryItemId: string,
 ): Promise<void> {
   await absPost(t, `/api/playlists/${encodeURIComponent(playlistId)}/item`, {
     libraryItemId,
@@ -1105,7 +1101,7 @@ export async function addItemToPlaylist(
 export async function addBooksToPlaylist(
   t: AbsTarget,
   playlistId: string,
-  libraryItemIds: string[]
+  libraryItemIds: string[],
 ): Promise<void> {
   await absPost(t, `/api/playlists/${encodeURIComponent(playlistId)}/batch/add`, {
     items: libraryItemIds.map((libraryItemId) => ({ libraryItemId })),

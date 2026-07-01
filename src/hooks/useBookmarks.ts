@@ -1,10 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  getBookmarks,
-  createBookmark,
-  deleteBookmark,
-  type AbsBookmark,
-} from '@/api/absPlayback'
+import { getBookmarks, createBookmark, deleteBookmark, type AbsBookmark } from '@/api/absPlayback'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import type { AbsTarget } from '@/api/absLibrary'
 

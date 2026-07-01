@@ -72,7 +72,10 @@ export interface AutoRulePref {
   on: boolean
 }
 
-export const DEFAULT_AUTO_RULE_PREFS: AutoRulePref[] = DEFAULT_AUTO_RULES.map((id) => ({ id, on: true }))
+export const DEFAULT_AUTO_RULE_PREFS: AutoRulePref[] = DEFAULT_AUTO_RULES.map((id) => ({
+  id,
+  on: true,
+}))
 
 export interface SettingsState {
   // Appearance
@@ -203,8 +206,8 @@ export const useSettingsStore = create<SettingsState>()(
         if (Object.keys(patch).length) set({ ...patch, meta } as Partial<SettingsState>)
       },
     }),
-    { name: 'hearthshelf:settings' }
-  )
+    { name: 'hearthshelf:settings' },
+  ),
 )
 
 // The scope of a synced key from the catalog ('account' | 'device').

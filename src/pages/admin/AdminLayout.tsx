@@ -55,8 +55,7 @@ export function AdminLayout() {
         <Panel>
           <ShieldAlert size={18} className="text-muted-foreground" />
           <span className="t-body">
-            This area is limited to platform admins. Your account isn&apos;t on the admin
-            roster.
+            This area is limited to platform admins. Your account isn&apos;t on the admin roster.
           </span>
         </Panel>
       ) : (
@@ -72,7 +71,7 @@ export function AdminLayout() {
                     'border-b-2 px-3 py-2 text-[13px] -mb-px',
                     isActive
                       ? 'border-primary text-foreground'
-                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                      : 'border-transparent text-muted-foreground hover:text-foreground',
                   )
                 }
               >

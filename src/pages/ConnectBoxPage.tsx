@@ -88,9 +88,7 @@ export function ConnectBoxPage() {
         // Grant in the fragment so it never hits a server log or referrer.
         // /connect-land is an SPA route on the box (NOT under /hs/, which nginx
         // proxies to the backend).
-        window.location.replace(
-          `${origin}/connect-land#grant=${encodeURIComponent(grant)}`
-        )
+        window.location.replace(`${origin}/connect-land#grant=${encodeURIComponent(grant)}`)
       } catch {
         setError('Could not start sign-in. Please try again.')
       }

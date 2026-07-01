@@ -54,7 +54,7 @@ export async function absGet<T>(t: AbsTarget, path: string): Promise<T> {
 export async function absPatch<T = unknown>(
   t: AbsTarget,
   path: string,
-  body: unknown
+  body: unknown,
 ): Promise<T | null> {
   return absRequest<T | null>(t, path, {
     method: 'PATCH',
@@ -70,7 +70,7 @@ export async function absPatch<T = unknown>(
 export async function absPost<T = unknown>(
   t: AbsTarget,
   path: string,
-  body?: unknown
+  body?: unknown,
 ): Promise<T | null> {
   return absRequest<T | null>(t, path, {
     method: 'POST',
@@ -88,7 +88,7 @@ async function absRequest<T>(
   t: AbsTarget,
   path: string,
   init: RequestInit,
-  isRetry = false
+  isRetry = false,
 ): Promise<T> {
   let token = getAbsToken(t.serverId)
   if (!token) {

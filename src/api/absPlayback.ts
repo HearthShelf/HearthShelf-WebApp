@@ -50,12 +50,12 @@ export async function createBookmark(
   t: AbsTarget,
   libraryItemId: string,
   time: number,
-  title: string
+  title: string,
 ): Promise<AbsBookmark> {
   const b = await absPost<RawBookmark>(
     t,
     `/api/me/item/${encodeURIComponent(libraryItemId)}/bookmark`,
-    { time: Math.round(time), title }
+    { time: Math.round(time), title },
   )
   return b
     ? mapBookmark(b, libraryItemId, Math.round(time))
@@ -69,11 +69,11 @@ export async function createBookmark(
 export async function deleteBookmark(
   t: AbsTarget,
   libraryItemId: string,
-  time: number
+  time: number,
 ): Promise<void> {
   await absDelete(
     t,
-    `/api/me/item/${encodeURIComponent(libraryItemId)}/bookmark/${Math.round(time)}`
+    `/api/me/item/${encodeURIComponent(libraryItemId)}/bookmark/${Math.round(time)}`,
   )
 }
 
@@ -119,11 +119,11 @@ interface RawRecentSessionsResponse {
 
 export async function getRecentSessions(
   t: AbsTarget,
-  itemsPerPage = 100
+  itemsPerPage = 100,
 ): Promise<RecentSession[]> {
   const data = await absGet<RawRecentSessionsResponse>(
     t,
-    `/api/me/listening-sessions?page=0&itemsPerPage=${itemsPerPage}`
+    `/api/me/listening-sessions?page=0&itemsPerPage=${itemsPerPage}`,
   )
   return (data.sessions ?? []).map((s) => ({
     id: s.id,

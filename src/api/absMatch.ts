@@ -55,7 +55,7 @@ export function searchBookMetadata(
   t: AbsTarget,
   provider: string,
   title: string,
-  author = ''
+  author = '',
 ): Promise<AbsMatchResult[]> {
   const p = new URLSearchParams({ provider, title, author })
   return absGet<AbsMatchResult[]>(t, `/api/search/books?${p.toString()}`)
@@ -66,7 +66,7 @@ export async function searchCovers(
   t: AbsTarget,
   provider: string,
   title: string,
-  author = ''
+  author = '',
 ): Promise<string[]> {
   const p = new URLSearchParams({ provider, title, author })
   const res = await absGet<{ results: string[] }>(t, `/api/search/covers?${p.toString()}`)
@@ -84,19 +84,11 @@ export interface MatchItemBody {
 }
 
 /** Apply a provider match to an item (writes selected fields / cover). */
-export async function matchItem(
-  t: AbsTarget,
-  itemId: string,
-  body: MatchItemBody
-): Promise<void> {
+export async function matchItem(t: AbsTarget, itemId: string, body: MatchItemBody): Promise<void> {
   await absPost(t, `/api/items/${itemId}/match`, body)
 }
 
 /** Set the item cover from an external image URL. */
-export async function updateItemCover(
-  t: AbsTarget,
-  itemId: string,
-  url: string
-): Promise<void> {
+export async function updateItemCover(t: AbsTarget, itemId: string, url: string): Promise<void> {
   await absPatch(t, `/api/items/${itemId}/cover`, { url })
 }

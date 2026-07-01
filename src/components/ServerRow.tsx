@@ -50,8 +50,7 @@ export function ServerRow({ server, active }: { server: LinkedServer; active?: b
         notify.success(`Removed ${server.name}`)
         setConfirmRemove(false)
       },
-      onError: (err) =>
-        notify.error(notify.fromError(err, `Could not remove ${server.name}`)),
+      onError: (err) => notify.error(notify.fromError(err, `Could not remove ${server.name}`)),
     })
   }
 
@@ -64,7 +63,7 @@ export function ServerRow({ server, active }: { server: LinkedServer; active?: b
           className={cn(
             'flex w-full items-center gap-4 rounded-lg border bg-card p-4 text-left',
             'transition-colors hover:bg-elevated',
-            active ? 'border-primary/60' : 'border-border'
+            active ? 'border-primary/60' : 'border-border',
           )}
         >
           <span className="flex size-10 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
@@ -92,7 +91,7 @@ export function ServerRow({ server, active }: { server: LinkedServer; active?: b
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             // Hidden until hover/focus on pointer devices; always shown on touch.
             'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
-            'max-[640px]:opacity-100'
+            'max-[640px]:opacity-100',
           )}
         >
           <MoreVertical size={18} />
@@ -123,8 +122,8 @@ export function ServerRow({ server, active }: { server: LinkedServer; active?: b
           message={
             <>
               <span className="font-medium text-card-foreground">{server.name}</span> will be
-              unlinked from your account. The server itself and its library stay untouched - you
-              can link it again later with a new pairing code.
+              unlinked from your account. The server itself and its library stay untouched - you can
+              link it again later with a new pairing code.
             </>
           }
           confirmLabel="Remove"

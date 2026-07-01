@@ -29,9 +29,8 @@ export function ConnectionsSettings() {
           <div className="cl-meta" style={{ flex: 1 }}>
             <div className="cl-t">Connected accounts</div>
             <div className="cl-d">
-              Google, Apple and other sign-in providers are managed by your
-              HearthShelf account. Open the Profile &amp; sign-in tab to connect
-              or remove them.
+              Google, Apple and other sign-in providers are managed by your HearthShelf account.
+              Open the Profile &amp; sign-in tab to connect or remove them.
             </div>
           </div>
         </div>
@@ -43,9 +42,9 @@ export function ConnectionsSettings() {
           <div className="cl-meta" style={{ flex: 1 }}>
             <div className="cl-t">Server integrations</div>
             <div className="cl-d">
-              ReadMeABook, external book links (Goodreads, Audible, Hardcover)
-              and similar integrations are set up by your server admin under
-              Server &rarr; Integrations on the server itself.
+              ReadMeABook, external book links (Goodreads, Audible, Hardcover) and similar
+              integrations are set up by your server admin under Server &rarr; Integrations on the
+              server itself.
             </div>
           </div>
         </div>

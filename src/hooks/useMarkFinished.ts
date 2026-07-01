@@ -23,8 +23,7 @@ export function useMarkFinished() {
   })
 
   return {
-    markFinished: (ids: string[], isFinished: boolean) =>
-      mutation.mutateAsync({ ids, isFinished }),
+    markFinished: (ids: string[], isFinished: boolean) => mutation.mutateAsync({ ids, isFinished }),
     isPending: mutation.isPending,
   }
 }

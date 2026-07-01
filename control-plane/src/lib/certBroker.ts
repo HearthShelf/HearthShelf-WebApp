@@ -61,7 +61,7 @@ export async function stableHost(env: Env, serverId: string): Promise<string> {
  */
 export async function mintCertGrant(
   env: Env,
-  params: { serverId: string }
+  params: { serverId: string },
 ): Promise<{ token: string; hash: string; host: string }> {
   const { privateKey, kid, alg } = await loadSigningKey(env)
   const hash = await serverHash(params.serverId)

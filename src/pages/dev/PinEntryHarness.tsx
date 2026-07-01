@@ -10,11 +10,28 @@ export function PinEntryHarness() {
   const [result, setResult] = useState<string>('')
 
   return (
-    <div className="dark" style={{ minHeight: '100vh', background: 'var(--background)', display: 'grid', placeItems: 'center' }}>
+    <div
+      className="dark"
+      style={{
+        minHeight: '100vh',
+        background: 'var(--background)',
+        display: 'grid',
+        placeItems: 'center',
+      }}
+    >
       <div style={{ textAlign: 'center', color: 'var(--text)' }}>
-        <p>PIN harness - correct PIN is <b>1234</b></p>
+        <p>
+          PIN harness - correct PIN is <b>1234</b>
+        </p>
         <p style={{ color: 'var(--text-muted)' }}>{result}</p>
-        <button className="pin-key" style={{ width: 120, aspectRatio: 'auto', padding: '10px 18px', borderRadius: 12 }} onClick={() => { setResult(''); setOpen(true) }}>
+        <button
+          className="pin-key"
+          style={{ width: 120, aspectRatio: 'auto', padding: '10px 18px', borderRadius: 12 }}
+          onClick={() => {
+            setResult('')
+            setOpen(true)
+          }}
+        >
           Reopen
         </button>
       </div>
@@ -22,8 +39,14 @@ export function PinEntryHarness() {
         <PinEntryOverlay
           name="Jaime"
           verify={(pin) => pin === '1234'}
-          onSuccess={() => { setResult('Unlocked'); setOpen(false) }}
-          onCancel={() => { setResult('Cancelled'); setOpen(false) }}
+          onSuccess={() => {
+            setResult('Unlocked')
+            setOpen(false)
+          }}
+          onCancel={() => {
+            setResult('Cancelled')
+            setOpen(false)
+          }}
         />
       )}
     </div>

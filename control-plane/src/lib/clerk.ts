@@ -86,7 +86,8 @@ export async function verifyClerk(env: Env, token: string): Promise<ClerkIdentit
   const emailVerified = payload[EMAIL_VERIFIED_CLAIM] === true
   if (!email) throw new AuthError('no email claim - add it to the Clerk JWT template')
 
-  const username = typeof payload[USERNAME_CLAIM] === 'string' ? (payload[USERNAME_CLAIM] as string) : ''
+  const username =
+    typeof payload[USERNAME_CLAIM] === 'string' ? (payload[USERNAME_CLAIM] as string) : ''
 
   return { userId, email, emailVerified, username }
 }

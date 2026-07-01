@@ -192,12 +192,7 @@ export function PlaybackSettings() {
         />
 
         {s.sleepFade && (
-          <SetRow
-            title="Fade length"
-            desc="How long the fade-out takes."
-            control={null}
-            stacked
-          >
+          <SetRow title="Fade length" desc="How long the fade-out takes." control={null} stacked>
             <Slider
               value={s.sleepFadeLen}
               min={5}

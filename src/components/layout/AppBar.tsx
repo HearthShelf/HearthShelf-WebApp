@@ -169,8 +169,7 @@ function UploadButton() {
     enabled: Boolean(target),
     staleTime: 5 * 60 * 1000,
   })
-  const canUpload =
-    me?.type === 'admin' || me?.type === 'root' || me?.permissions?.upload === true
+  const canUpload = me?.type === 'admin' || me?.type === 'root' || me?.permissions?.upload === true
   if (!canUpload) return null
   return (
     <button type="button" className="ab-ico" title="Upload" onClick={() => navigate('/upload')}>

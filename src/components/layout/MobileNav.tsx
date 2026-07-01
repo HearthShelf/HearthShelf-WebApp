@@ -139,7 +139,7 @@ function MobileDrawer({
   const forgotPin = async (account: RememberedAccount) => {
     if (
       !window.confirm(
-        `This will remove ${account.label} from this device. You'll need to sign in again to use it here.`
+        `This will remove ${account.label} from this device. You'll need to sign in again to use it here.`,
       )
     )
       return
@@ -205,7 +205,8 @@ function MobileDrawer({
     { id: 'settings', icon: 'person', label: 'Account', to: '/account' },
   ]
   if (isServerAdmin) account.push({ id: 'config', icon: 'dns', label: 'Server', to: '/config' })
-  if (adminMe) account.push({ id: 'admin', icon: 'shield_person', label: 'Platform admin', to: '/admin' })
+  if (adminMe)
+    account.push({ id: 'admin', icon: 'shield_person', label: 'Platform admin', to: '/admin' })
   groups.push({ sec: 'Account', rows: account })
 
   return (
@@ -257,17 +258,27 @@ function MobileDrawer({
           <button
             type="button"
             className="msheet-row"
-            onClick={() => { onClose(); void signInAnotherUser() }}
+            onClick={() => {
+              onClose()
+              void signInAnotherUser()
+            }}
           >
-            <span className="msheet-ic"><Icon name="person_add" /></span>
+            <span className="msheet-ic">
+              <Icon name="person_add" />
+            </span>
             <span className="msheet-label">Sign in another user</span>
           </button>
           <button
             type="button"
             className="msheet-row"
-            onClick={() => { onClose(); void loginWithPassword() }}
+            onClick={() => {
+              onClose()
+              void loginWithPassword()
+            }}
           >
-            <span className="msheet-ic"><Icon name="password" /></span>
+            <span className="msheet-ic">
+              <Icon name="password" />
+            </span>
             <span className="msheet-label">Log in without remembering this account</span>
           </button>
 
@@ -297,7 +308,11 @@ function MobileDrawer({
                       </span>
                     </span>
                     {on && (
-                      <Icon name="check" className="msheet-chev" style={{ color: 'var(--accent)' }} />
+                      <Icon
+                        name="check"
+                        className="msheet-chev"
+                        style={{ color: 'var(--accent)' }}
+                      />
                     )}
                   </button>
                 )
@@ -317,7 +332,10 @@ function MobileDrawer({
           <button
             type="button"
             className="msheet-row danger"
-            onClick={() => { onClose(); void loginWithPassword() }}
+            onClick={() => {
+              onClose()
+              void loginWithPassword()
+            }}
           >
             <span className="msheet-ic">
               <Icon name="logout" />
