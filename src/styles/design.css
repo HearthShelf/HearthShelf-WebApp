@@ -363,6 +363,29 @@
   font-size: 15px !important;
   color: var(--text-faint) !important;
 }
+.switch-row {
+  position: relative;
+  padding-right: 34px !important;
+}
+.switch-forget {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+}
+.switch-forget:hover {
+  background: var(--fill);
+  color: var(--text);
+}
+.switch-forget .ms {
+  font-size: 15px;
+}
 
 /* ---- Content column ------------------------------------------------ */
 .content {
@@ -4552,4 +4575,22 @@ select.fld { appearance: none; cursor: pointer; background-image: url("data:imag
 }
 .pin-key-icon .ms {
   font-size: clamp(24px, 7cqw, 30px);
+}
+
+.pin-footer {
+  margin-top: clamp(14px, 4cqw, 20px);
+  text-align: center;
+}
+.pin-footer button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: clamp(12px, 3.4cqw, 14px);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 6px 10px;
+}
+.pin-footer button:hover {
+  color: var(--text);
 }

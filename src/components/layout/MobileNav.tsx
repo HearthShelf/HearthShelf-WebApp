@@ -7,7 +7,7 @@ import { useActiveServer } from '@/hooks/useActiveServer'
 import { Avatar } from '@/components/common/Avatar'
 import { Icon } from '@/components/common/Icon'
 import { getMe } from '@/api/absLibrary'
-import { fetchAdminMe, ApiError } from '@/api/controlPlane'
+import { fetchAdminMe, ApiError, forgetRemembered } from '@/api/controlPlane'
 import { PinEntryOverlay } from '@/components/account/PinEntryOverlay'
 import { useRememberedAccounts, type RememberedAccount } from '@/store/rememberedAccounts'
 import { useAccountSwitch } from '@/auth/useAccountSwitch'
@@ -95,8 +95,10 @@ function MobileDrawer({
   const isPodcast = active?.mediaType === 'podcast'
 
   const remembered = useRememberedAccounts((s) => s.accounts)
+  const forgetLocal = useRememberedAccounts((s) => s.forget)
   const { switchTo, loginWithPassword } = useAccountSwitch()
   const [pinFor, setPinFor] = useState<RememberedAccount | null>(null)
+  const [forgetFor, setForgetFor] = useState<RememberedAccount | null>(null)
 
   const others = remembered.filter((a) => a.userId !== user?.id)
   const doSwitch = async (account: RememberedAccount, pin?: string): Promise<boolean> => {
@@ -111,6 +113,43 @@ function MobileDrawer({
     }
     await loginWithPassword()
     return false
+  }
+
+  const onForgetTap = (account: RememberedAccount, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (account.hasPin) {
+      setForgetFor(account)
+      return
+    }
+    if (!window.confirm(`Forget ${account.label} on this device?`)) return
+    void forgetRemembered(account.handle).finally(() => forgetLocal(account.handle))
+  }
+
+  const verifyForgetPin = async (account: RememberedAccount, pin: string): Promise<boolean> => {
+    try {
+      await forgetRemembered(account.handle, { pin })
+      forgetLocal(account.handle)
+      return true
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 403) return false
+      forgetLocal(account.handle)
+      return true
+    }
+  }
+
+  const forgotPin = async (account: RememberedAccount) => {
+    if (
+      !window.confirm(
+        `This will remove ${account.label} from this device. You'll need to sign in again to use it here.`
+      )
+    )
+      return
+    try {
+      await forgetRemembered(account.handle, { confirmForgot: true })
+    } finally {
+      forgetLocal(account.handle)
+      setForgetFor(null)
+    }
   }
 
   const { data: adminMe } = useQuery({
@@ -195,7 +234,7 @@ function MobileDrawer({
                 <button
                   type="button"
                   key={a.handle}
-                  className="msheet-row"
+                  className="msheet-row switch-row"
                   onClick={() => (a.hasPin ? setPinFor(a) : void doSwitch(a))}
                 >
                   <span className="msheet-ic">
@@ -203,6 +242,14 @@ function MobileDrawer({
                   </span>
                   <span className="msheet-label">{a.label}</span>
                   {a.hasPin && <Icon name="lock" className="switch-lock" />}
+                  <span
+                    className="switch-forget"
+                    role="button"
+                    aria-label={`Forget ${a.label} on this device`}
+                    onClick={(e) => onForgetTap(a, e)}
+                  >
+                    <Icon name="close" />
+                  </span>
                 </button>
               ))}
             </>
@@ -288,6 +335,22 @@ function MobileDrawer({
           verify={(pin) => doSwitch(pinFor, pin)}
           onSuccess={() => setPinFor(null)}
           onCancel={() => setPinFor(null)}
+        />
+      )}
+
+      {forgetFor && (
+        <PinEntryOverlay
+          name={forgetFor.label}
+          imageUrl={forgetFor.imageUrl}
+          title={`Enter ${forgetFor.label}'s PIN to forget this account`}
+          verify={(pin) => verifyForgetPin(forgetFor, pin)}
+          onSuccess={() => setForgetFor(null)}
+          onCancel={() => setForgetFor(null)}
+          footer={
+            <button type="button" onClick={() => void forgotPin(forgetFor)}>
+              Forgot PIN?
+            </button>
+          }
         />
       )}
     </div>

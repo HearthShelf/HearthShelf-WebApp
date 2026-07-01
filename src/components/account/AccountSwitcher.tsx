@@ -14,7 +14,7 @@ import { Avatar } from '@/components/common/Avatar'
 import { PinEntryOverlay } from '@/components/account/PinEntryOverlay'
 import { useRememberedAccounts, type RememberedAccount } from '@/store/rememberedAccounts'
 import { useAccountSwitch } from '@/auth/useAccountSwitch'
-import { rememberCurrentUser } from '@/api/controlPlane'
+import { rememberCurrentUser, forgetRemembered, ApiError } from '@/api/controlPlane'
 
 interface Props {
   /** Called after any navigation/action so the caller can close its menu. */
@@ -34,7 +34,11 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
 
   // The account whose PIN we're currently collecting (null = pad closed).
   const [pinFor, setPinFor] = useState<RememberedAccount | null>(null)
+  // The account we're forgetting - shows the pad in "forget" mode instead of
+  // "switch" mode (different title, offers the "forgot PIN?" escape hatch).
+  const [forgetFor, setForgetFor] = useState<RememberedAccount | null>(null)
   const [busy, setBusy] = useState(false)
+  const forget = useRememberedAccounts((s) => s.forget)
 
   // Don't offer to swap into whoever is already active.
   const others = accounts.filter((a) => a.userId !== user?.id)
@@ -87,16 +91,78 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
     [busy, ready, doSwitch]
   )
 
+  /** "Forget this account" tap: PIN-less accounts confirm once and are done;
+   *  PIN-protected accounts open the pad in forget mode. */
+  const onForgetTap = useCallback(
+    (account: RememberedAccount, e: React.MouseEvent) => {
+      e.stopPropagation()
+      if (account.hasPin) {
+        setForgetFor(account)
+        return
+      }
+      if (!window.confirm(`Forget ${account.label} on this device?`)) return
+      void forgetRemembered(account.handle).finally(() => forget(account.handle))
+    },
+    [forget]
+  )
+
+  /** Verify the PIN for a forget attempt (does NOT switch accounts). */
+  const verifyForgetPin = useCallback(
+    async (account: RememberedAccount, pin: string): Promise<boolean> => {
+      try {
+        await forgetRemembered(account.handle, { pin })
+        forget(account.handle)
+        return true
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 403) return false
+        // 410 (locked out) or anything else: the CP already dropped the handle
+        // (or it's already gone) - prune locally and treat as "succeeded".
+        forget(account.handle)
+        return true
+      }
+    },
+    [forget]
+  )
+
+  /** "Forgot PIN?" inside the forget pad: confirm, then force-remove without a
+   *  PIN. Only removes the local handle - never touches the account's session
+   *  anywhere else. */
+  const forgotPin = useCallback(
+    async (account: RememberedAccount) => {
+      if (
+        !window.confirm(
+          `This will remove ${account.label} from this device. You'll need to sign in again to use it here.`
+        )
+      )
+        return
+      try {
+        await forgetRemembered(account.handle, { confirmForgot: true })
+      } finally {
+        forget(account.handle)
+        setForgetFor(null)
+      }
+    },
+    [forget]
+  )
+
   return (
     <>
       {others.length > 0 && (
         <>
           <div className="switch-label">Switch account</div>
           {others.map((a) => (
-            <button key={a.handle} onClick={() => onTapAccount(a)} disabled={busy}>
+            <button key={a.handle} className="switch-row" onClick={() => onTapAccount(a)} disabled={busy}>
               <Avatar name={a.label} imageUrl={a.imageUrl} size={22} />
               <span className="switch-name">{a.label}</span>
               {a.hasPin && <Icon name="lock" className="switch-lock" />}
+              <span
+                className="switch-forget"
+                role="button"
+                aria-label={`Forget ${a.label} on this device`}
+                onClick={(e) => onForgetTap(a, e)}
+              >
+                <Icon name="close" />
+              </span>
             </button>
           ))}
           <div className="sep" />
@@ -151,6 +217,22 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
           }}
           onSuccess={() => setPinFor(null)}
           onCancel={() => setPinFor(null)}
+        />
+      )}
+
+      {forgetFor && (
+        <PinEntryOverlay
+          name={forgetFor.label}
+          imageUrl={forgetFor.imageUrl}
+          title={`Enter ${forgetFor.label}'s PIN to forget this account`}
+          verify={(pin) => verifyForgetPin(forgetFor, pin)}
+          onSuccess={() => setForgetFor(null)}
+          onCancel={() => setForgetFor(null)}
+          footer={
+            <button type="button" onClick={() => void forgotPin(forgetFor)}>
+              Forgot PIN?
+            </button>
+          }
         />
       )}
     </>

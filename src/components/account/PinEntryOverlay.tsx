@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon } from '@/components/common/Icon'
 import { Avatar } from '@/components/common/Avatar'
@@ -15,6 +15,11 @@ export interface PinEntryOverlayProps {
   verify: (pin: string) => boolean | Promise<boolean>
   onSuccess: () => void
   onCancel: () => void
+  /** Overrides the default "Enter {name}'s PIN" header (e.g. for a "forget this
+   *  account" flow that reuses the same pad). */
+  title?: string
+  /** Extra content below the number pad - e.g. a "Forgot PIN?" link. */
+  footer?: ReactNode
 }
 
 // Full-screen, touch-first PIN pad for switching into a PIN-protected account.
@@ -28,6 +33,8 @@ export function PinEntryOverlay({
   verify,
   onSuccess,
   onCancel,
+  title,
+  footer,
 }: PinEntryOverlayProps) {
   const [open, setOpen] = useState(false)
   const [pin, setPin] = useState('')
@@ -120,7 +127,7 @@ export function PinEntryOverlay({
 
         <div className="pin-who">
           <Avatar name={name} imageUrl={imageUrl} size={64} />
-          <div className="pin-title">Enter {name}'s PIN</div>
+          <div className="pin-title">{title ?? `Enter ${name}'s PIN`}</div>
         </div>
 
         <div className={'pin-dots' + (shake ? ' shake' : '')}>
@@ -148,6 +155,8 @@ export function PinEntryOverlay({
             <Icon name="backspace" />
           </button>
         </div>
+
+        {footer && <div className="pin-footer">{footer}</div>}
       </div>
     </div>,
     document.body

@@ -15,6 +15,15 @@
  *
  * The handle authorizes REQUESTING a switch, not being signed in; every mint
  * goes through Clerk and handles are revocable + short-lived.
+ *
+ * PIN scope: a PIN lives on the device_handles ROW, i.e. it is per remembered
+ * device, not per Clerk account. The same person remembering their account on
+ * two devices sets two independent PINs; forgetting/changing one never touches
+ * the other. Forgetting a PIN-protected handle normally requires that PIN
+ * (re-verified here, same as switch-token); the `confirm_forgot` escape hatch
+ * lets a caller who forgot the PIN remove the handle anyway after an explicit
+ * client-side confirmation - this only closes the swap path for THIS remembered
+ * device row, it does not touch the account's session anywhere else.
  */
 import { Hono, type Context } from 'hono'
 import type { Env } from '../types'
@@ -26,6 +35,7 @@ import {
   deleteDeviceHandle,
   bumpPinAttempts,
   resetPinAttempts,
+  type DeviceHandleRow,
 } from '../lib/db'
 import { serverSecret, hashPin, verifyPin, now } from '../lib/ids'
 import { createSignInToken, ClerkApiError } from '../lib/clerkApi'
@@ -49,6 +59,37 @@ async function requireUser(c: Context<{ Bindings: Env }>): Promise<ClerkIdentity
     if (err instanceof AuthError) return null
     throw err
   }
+}
+
+type PinCheck =
+  | { ok: true }
+  | { ok: false; status: 403; error: 'pin_required'; attemptsLeft: number }
+  | { ok: false; status: 410; error: 'locked_out' }
+
+/**
+ * Verify a PIN against a handle row, bumping/resetting the shared attempt
+ * counter and enforcing the lockout. Used by both switch-token and the forget
+ * flow, so a PIN guesser can't reset their budget by switching endpoints. On
+ * lockout the handle is deleted (shared fate: too many wrong guesses forgets
+ * the account here, whether you were trying to switch in or forget it).
+ */
+async function checkPin(env: Env, row: DeviceHandleRow, pin: string): Promise<PinCheck> {
+  if (!row.pin_hash || !row.pin_salt) return { ok: true }
+  if (pin && (await verifyPin(pin, row.pin_hash, row.pin_salt))) {
+    if (row.pin_attempts > 0) await resetPinAttempts(env, row.handle)
+    return { ok: true }
+  }
+  // Only count an actual attempt, not a bare probe with no PIN, so opening the
+  // pad doesn't burn tries.
+  if (!pin) {
+    return { ok: false, status: 403, error: 'pin_required', attemptsLeft: MAX_PIN_ATTEMPTS - row.pin_attempts }
+  }
+  const attempts = await bumpPinAttempts(env, row.handle)
+  if (attempts >= MAX_PIN_ATTEMPTS) {
+    await deleteDeviceHandle(env, row.handle)
+    return { ok: false, status: 410, error: 'locked_out' }
+  }
+  return { ok: false, status: 403, error: 'pin_required', attemptsLeft: MAX_PIN_ATTEMPTS - attempts }
 }
 
 /**
@@ -112,25 +153,10 @@ accounts.post('/accounts/switch-token', async (c) => {
   const row = await getDeviceHandle(c.env, handle)
   if (!row) return c.json({ error: 'unknown_handle' }, 404)
 
-  if (row.pin_hash && row.pin_salt) {
-    const pin = typeof body.pin === 'string' ? body.pin : ''
-    if (!pin || !(await verifyPin(pin, row.pin_hash, row.pin_salt))) {
-      // Wrong (or missing) PIN. Only count an actual attempt, not a bare probe
-      // with no PIN supplied, so opening the pad doesn't burn tries.
-      if (pin) {
-        const attempts = await bumpPinAttempts(c.env, handle)
-        if (attempts >= MAX_PIN_ATTEMPTS) {
-          // Too many wrong tries: forget the account on this device. The SPA
-          // prunes it from the roster and forces a fresh sign-in (410 = gone).
-          await deleteDeviceHandle(c.env, handle)
-          return c.json({ error: 'locked_out' }, 410)
-        }
-        return c.json({ error: 'pin_required', attempts_left: MAX_PIN_ATTEMPTS - attempts }, 403)
-      }
-      return c.json({ error: 'pin_required', attempts_left: MAX_PIN_ATTEMPTS - row.pin_attempts }, 403)
-    }
-    // Correct PIN clears the counter.
-    if (row.pin_attempts > 0) await resetPinAttempts(c.env, handle)
+  const pinCheck = await checkPin(c.env, row, typeof body.pin === 'string' ? body.pin : '')
+  if (!pinCheck.ok) {
+    if (pinCheck.error === 'locked_out') return c.json({ error: 'locked_out' }, 410)
+    return c.json({ error: 'pin_required', attempts_left: pinCheck.attemptsLeft }, 403)
   }
 
   let ticket: string
@@ -173,14 +199,43 @@ accounts.get('/accounts/remembered', async (c) => {
 })
 
 /**
- * Forget an account on this device. Any authenticated browser holding the handle
- * can forget it - matching the shared-screen model where the device owner
- * manages the roster. (Open question in the plan: gate forgetting a PIN account
- * behind its PIN.)
+ * Forget an account on this device. Any authenticated browser holding the
+ * handle can forget it - matching the shared-screen model where the device
+ * owner manages the roster.
+ *
+ * If the handle has a PIN, forgetting it normally requires that PIN (re-checked
+ * here, sharing the same attempt counter/lockout as switch-token). The
+ * `confirm_forgot: true` escape hatch skips the PIN check entirely, for the
+ * "I forgot my PIN" flow - the SPA must have already shown an explicit
+ * confirmation ("this removes {name} from this device") before setting it, since
+ * this endpoint has no other way to tell a forgotten PIN from an attacker who
+ * just wants the row gone. This only removes the LOCAL handle; it never touches
+ * the account's session on this or any other device.
  */
 accounts.delete('/accounts/remembered/:handle', async (c) => {
   const user = await requireUser(c)
   if (!user) return c.json({ error: 'unauthorized' }, 401)
-  await deleteDeviceHandle(c.env, c.req.param('handle'))
+
+  const handle = c.req.param('handle')
+  const row = await getDeviceHandle(c.env, handle)
+  if (!row) return c.json({ ok: true }) // already gone - forgetting is idempotent
+
+  let body: { pin?: string; confirm_forgot?: boolean } = {}
+  try {
+    body = await c.req.json()
+  } catch {
+    // No body at all is fine for a PIN-less handle.
+  }
+
+  if (!body.confirm_forgot) {
+    const pinCheck = await checkPin(c.env, row, typeof body.pin === 'string' ? body.pin : '')
+    if (!pinCheck.ok) {
+      // Lockout already deleted the row inside checkPin.
+      if (pinCheck.error === 'locked_out') return c.json({ ok: true })
+      return c.json({ error: 'pin_required', attempts_left: pinCheck.attemptsLeft }, 403)
+    }
+  }
+
+  await deleteDeviceHandle(c.env, handle)
   return c.json({ ok: true })
 })

@@ -345,9 +345,22 @@ export async function requestSwitchTicket(
   })
 }
 
-/** Forget a remembered account on this device (server-side revoke). */
-export async function forgetRemembered(handle: string): Promise<void> {
-  await request(`/accounts/remembered/${encodeURIComponent(handle)}`, { method: 'DELETE' })
+/**
+ * Forget a remembered account on this device (server-side revoke). If the
+ * handle has a PIN, it must be passed unless `confirmForgot` is set - which is
+ * the "I forgot my PIN" escape hatch and skips the PIN check entirely. The
+ * caller must have already shown an explicit confirmation before setting it;
+ * this only removes the local handle, it never signs the account out elsewhere.
+ * Throws ApiError(403, 'pin_required') on a wrong/missing PIN.
+ */
+export async function forgetRemembered(
+  handle: string,
+  opts?: { pin?: string; confirmForgot?: boolean }
+): Promise<void> {
+  await request(`/accounts/remembered/${encodeURIComponent(handle)}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ pin: opts?.pin, confirm_forgot: opts?.confirmForgot }),
+  })
 }
 
 interface RememberedSnapshot {
