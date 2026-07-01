@@ -301,3 +301,67 @@ export async function inviteToServer(
     body: JSON.stringify({ email, role }),
   })
 }
+
+// --- account switcher (device-remembered accounts) -------------------------
+
+interface RememberResponse {
+  handle: string
+  label: string
+  has_pin: boolean
+}
+
+/** Remember the CURRENT signed-in user on this device; returns the opaque handle
+ *  to store. An optional 4-digit PIN gates future switches into this account. */
+export async function rememberCurrentUser(opts?: {
+  pin?: string
+  label?: string
+  imageUrl?: string
+}): Promise<RememberResponse> {
+  return request<RememberResponse>('/accounts/remember', {
+    method: 'POST',
+    body: JSON.stringify({ pin: opts?.pin, label: opts?.label, image_url: opts?.imageUrl }),
+  })
+}
+
+interface SwitchTicketResponse {
+  ticket: string
+  expires_in: number
+}
+
+/**
+ * Mint a single-use Clerk sign-in ticket for a remembered handle. Throws
+ * ApiError on failure - callers should special-case:
+ *   403 pin_required  -> wrong/missing PIN (body carries attempts_left)
+ *   410 locked_out    -> too many wrong PINs; handle deleted, force re-login
+ *   404 unknown_handle-> revoked/expired; prune from the roster
+ */
+export async function requestSwitchTicket(
+  handle: string,
+  pin?: string
+): Promise<SwitchTicketResponse> {
+  return request<SwitchTicketResponse>('/accounts/switch-token', {
+    method: 'POST',
+    body: JSON.stringify({ handle, pin }),
+  })
+}
+
+/** Forget a remembered account on this device (server-side revoke). */
+export async function forgetRemembered(handle: string): Promise<void> {
+  await request(`/accounts/remembered/${encodeURIComponent(handle)}`, { method: 'DELETE' })
+}
+
+interface RememberedSnapshot {
+  handle: string
+  label: string | null
+  image_url: string | null
+  has_pin: boolean
+}
+
+/** Refresh label/avatar/pin-presence for the handles the browser holds. Any
+ *  handle the CP no longer knows is omitted, so the caller can prune it. */
+export async function refreshRemembered(handles: string[]): Promise<RememberedSnapshot[]> {
+  if (handles.length === 0) return []
+  const q = encodeURIComponent(handles.join(','))
+  const data = await request<{ accounts: RememberedSnapshot[] }>(`/accounts/remembered?handles=${q}`)
+  return data.accounts
+}

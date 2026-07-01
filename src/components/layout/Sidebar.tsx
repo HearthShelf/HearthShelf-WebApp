@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useUser, useClerk } from '@clerk/clerk-react'
+import { useUser } from '@clerk/clerk-react'
 import { useQuery } from '@tanstack/react-query'
 import { Wordmark } from '@/components/Wordmark'
 import { Avatar } from '@/components/common/Avatar'
 import { Icon } from '@/components/common/Icon'
+import { AccountSwitcher } from '@/components/account/AccountSwitcher'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getMe } from '@/api/absLibrary'
@@ -51,7 +52,6 @@ interface NavItemDef {
 
 function UserMenu() {
   const { user } = useUser()
-  const { signOut } = useClerk()
   const { server } = useActiveServer()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
@@ -73,27 +73,16 @@ function UserMenu() {
   }, [open])
 
   const name = user?.username || user?.firstName || user?.primaryEmailAddress?.emailAddress || '?'
-  const go = (to: string) => {
-    setOpen(false)
-    navigate(to)
-  }
 
   return (
     <div className="user-wrap" onClick={(e) => e.stopPropagation()}>
       {open && (
         <div className="user-menu">
-          <button onClick={() => go('/account')}>
-            <Icon name="person" /> Account settings
-          </button>
-          {adminMe && (
-            <button onClick={() => go('/admin')}>
-              <Icon name="manage_accounts" /> Platform admin
-            </button>
-          )}
-          <div className="sep" />
-          <button className="danger" onClick={() => signOut({ redirectUrl: '/sign-in' })}>
-            <Icon name="logout" /> Log out
-          </button>
+          <AccountSwitcher
+            onDone={() => setOpen(false)}
+            onNavigate={navigate}
+            showAdmin={!!adminMe}
+          />
         </div>
       )}
       <button

@@ -343,6 +343,27 @@
   margin: 6px;
 }
 
+/* Account-switcher rows inside the user menu / mobile drawer. */
+.switch-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 8px 12px 4px;
+}
+.switch-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.switch-lock {
+  font-size: 15px !important;
+  color: var(--text-faint) !important;
+}
+
 /* ---- Content column ------------------------------------------------ */
 .content {
   position: relative;
@@ -4400,3 +4421,135 @@ select.fld { appearance: none; cursor: pointer; background-image: url("data:imag
 .mp-carbtn:active { background: var(--fill); }
 
 .mp-clamp1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* =====================================================================
+   PIN entry overlay - touch-first PIN pad for switching into a
+   PIN-protected account. Full-bleed scrim (like modal-scrim) with a
+   container-query card so the pad scales at arm's length in car mode.
+   ===================================================================== */
+.pin-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(6, 5, 4, 0.72);
+  backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity 0.25s;
+  padding: 24px;
+}
+.pin-scrim.open {
+  opacity: 1;
+}
+
+.pin-card {
+  position: relative;
+  width: min(440px, 92vw);
+  background: var(--sheet);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-sheet);
+  box-shadow: var(--shadow-lift);
+  padding: clamp(24px, 6cqw, 40px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateY(16px) scale(0.98);
+  transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.3, 1);
+  container-type: inline-size;
+}
+.pin-scrim.open .pin-card {
+  transform: none;
+}
+
+.pin-cancel {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+
+.pin-who {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: clamp(18px, 5cqw, 28px);
+}
+.pin-title {
+  font-size: clamp(16px, 4.5cqw, 20px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+
+.pin-dots {
+  display: flex;
+  gap: clamp(14px, 4cqw, 20px);
+  margin-bottom: clamp(20px, 6cqw, 32px);
+}
+.pin-dot {
+  width: clamp(12px, 3.2cqw, 16px);
+  height: clamp(12px, 3.2cqw, 16px);
+  border-radius: 50%;
+  border: 2px solid var(--text-faint);
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.pin-dot.on {
+  background: var(--primary);
+  border-color: var(--primary);
+  transform: scale(1.05);
+}
+.pin-dots.shake {
+  animation: pin-shake 0.5s;
+}
+.pin-dots.shake .pin-dot {
+  border-color: var(--destructive);
+}
+.pin-dots.shake .pin-dot.on {
+  background: var(--destructive);
+  border-color: var(--destructive);
+}
+@keyframes pin-shake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-8px); }
+  40%, 60% { transform: translateX(8px); }
+}
+
+.pin-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(10px, 3cqw, 16px);
+  width: 100%;
+}
+.pin-key {
+  aspect-ratio: 1 / 1;
+  min-height: 56px;
+  border: none;
+  border-radius: 50%;
+  background: var(--fill);
+  color: var(--text);
+  font-size: clamp(22px, 7cqw, 30px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.pin-key:active {
+  background: var(--fill-strong);
+  transform: scale(0.95);
+}
+.pin-key:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.pin-key-empty {
+  background: none;
+  pointer-events: none;
+}
+.pin-key-icon .ms {
+  font-size: clamp(24px, 7cqw, 30px);
+}

@@ -8,6 +8,9 @@ import { Avatar } from '@/components/common/Avatar'
 import { Icon } from '@/components/common/Icon'
 import { getMe } from '@/api/absLibrary'
 import { fetchAdminMe, ApiError } from '@/api/controlPlane'
+import { PinEntryOverlay } from '@/components/account/PinEntryOverlay'
+import { useRememberedAccounts, type RememberedAccount } from '@/store/rememberedAccounts'
+import { useAccountSwitch } from '@/auth/useAccountSwitch'
 
 // Which primary tab (or "more") a path belongs to, so the matching bottom-bar
 // item lights up. Mirrors the sidebar grouping.
@@ -86,10 +89,29 @@ function MobileDrawer({
 }) {
   const navigate = useNavigate()
   const { user } = useUser()
-  const { signOut } = useClerk()
+  const { openSignIn } = useClerk()
   const { server, target } = useActiveServer()
   const { libraries, active, select } = useActiveLibrary()
   const isPodcast = active?.mediaType === 'podcast'
+
+  const remembered = useRememberedAccounts((s) => s.accounts)
+  const { switchTo, loginWithPassword } = useAccountSwitch()
+  const [pinFor, setPinFor] = useState<RememberedAccount | null>(null)
+
+  const others = remembered.filter((a) => a.userId !== user?.id)
+  const doSwitch = async (account: RememberedAccount, pin?: string): Promise<boolean> => {
+    const res = await switchTo(account, pin)
+    if (res.ok) {
+      window.location.assign('/')
+      return true
+    }
+    if (res.reason === 'pin') {
+      setPinFor(account)
+      return false
+    }
+    await loginWithPassword()
+    return false
+  }
 
   const { data: adminMe } = useQuery({
     queryKey: ['admin-me'],
@@ -166,6 +188,43 @@ function MobileDrawer({
         </div>
 
         <div className="msheet-scroll">
+          {others.length > 0 && (
+            <>
+              <div className="msheet-sec">Switch account</div>
+              {others.map((a) => (
+                <button
+                  type="button"
+                  key={a.handle}
+                  className="msheet-row"
+                  onClick={() => (a.hasPin ? setPinFor(a) : void doSwitch(a))}
+                >
+                  <span className="msheet-ic">
+                    <Avatar name={a.label} imageUrl={a.imageUrl} size={26} />
+                  </span>
+                  <span className="msheet-label">{a.label}</span>
+                  {a.hasPin && <Icon name="lock" className="switch-lock" />}
+                </button>
+              ))}
+            </>
+          )}
+          <div className="msheet-sec">Account</div>
+          <button
+            type="button"
+            className="msheet-row"
+            onClick={() => { onClose(); openSignIn() }}
+          >
+            <span className="msheet-ic"><Icon name="person_add" /></span>
+            <span className="msheet-label">Sign in another user</span>
+          </button>
+          <button
+            type="button"
+            className="msheet-row"
+            onClick={() => { onClose(); void loginWithPassword() }}
+          >
+            <span className="msheet-ic"><Icon name="password" /></span>
+            <span className="msheet-label">Log in with password</span>
+          </button>
+
           {libraries.length > 1 && (
             <>
               <div className="msheet-sec">Library</div>
@@ -212,7 +271,7 @@ function MobileDrawer({
           <button
             type="button"
             className="msheet-row danger"
-            onClick={() => signOut({ redirectUrl: '/sign-in' })}
+            onClick={() => { onClose(); void loginWithPassword() }}
           >
             <span className="msheet-ic">
               <Icon name="logout" />
@@ -221,6 +280,16 @@ function MobileDrawer({
           </button>
         </div>
       </aside>
+
+      {pinFor && (
+        <PinEntryOverlay
+          name={pinFor.label}
+          imageUrl={pinFor.imageUrl}
+          verify={(pin) => doSwitch(pinFor, pin)}
+          onSuccess={() => setPinFor(null)}
+          onCancel={() => setPinFor(null)}
+        />
+      )}
     </div>
   )
 }
