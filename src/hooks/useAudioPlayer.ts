@@ -10,7 +10,7 @@
  * (no play session). Streaming is direct to the server with a ?token= URL.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AbsChapter, AbsTrack } from '@/api/absLibrary'
+import type { AbsTrack } from '@/api/absLibrary'
 
 interface UsePlayerArgs {
   tracks: AbsTrack[]
@@ -27,11 +27,9 @@ interface UsePlayerArgs {
   onSaveProgress: (currentTimeSec: number, listenedSec: number) => void
   /** Called when the LAST track of the book finishes (for queue auto-advance). */
   onBookEnded?: () => void
-  /** Chapter list, for the OS/media-widget previous/next-track buttons (Tesla's
-   * browser transport bar, car Bluetooth head units, hardware media keys). When
-   * omitted, previous/next track handlers are not registered. */
-  chapters?: AbsChapter[]
-  /** Seconds for the seekbackward/seekforward media-key actions. Defaults to 15/30. */
+  /** Seconds for the seekbackward/seekforward/previoustrack/nexttrack OS and
+   * car media-widget actions (Tesla's browser transport bar, hardware media
+   * keys, Bluetooth head units). Defaults to 15/30. */
   seekBackwardSec?: number
   seekForwardSec?: number
 }
@@ -51,7 +49,6 @@ export function useAudioPlayer({
   autoplayOnLoad = false,
   onSaveProgress,
   onBookEnded,
-  chapters,
   seekBackwardSec = 15,
   seekForwardSec = 30,
 }: UsePlayerArgs) {
@@ -303,23 +300,13 @@ export function useAudioPlayer({
       if (details.seekTime == null) return
       seekTo(details.seekTime)
     })
-    // Previous/next-track maps to chapter navigation - a book has no other
-    // notion of "track" the widget could step through.
-    if (chapters && chapters.length > 0) {
-      setHandler('previoustrack', () => {
-        const idx = chapters.findIndex((c) => positionRef.current < c.endSec)
-        const cur = idx === -1 ? chapters.length - 1 : idx
-        // More than 3s into the chapter: restart it. Otherwise jump back one.
-        const atStart = positionRef.current - chapters[cur].startSec < 3
-        const target = atStart ? Math.max(0, cur - 1) : cur
-        seekTo(chapters[target].startSec)
-      })
-      setHandler('nexttrack', () => {
-        const idx = chapters.findIndex((c) => positionRef.current < c.endSec)
-        const cur = idx === -1 ? chapters.length - 1 : idx
-        seekTo(chapters[Math.min(chapters.length - 1, cur + 1)].startSec)
-      })
-    }
+    // Some widgets (Tesla's browser media bar among them) have no dedicated
+    // seekbackward/seekforward buttons at all - previous/next-track are the
+    // ONLY skip affordance they render. Map them to the same second-based
+    // skip rather than chapter navigation, so those widgets get a working
+    // skip control instead of two permanently-disabled buttons.
+    setHandler('previoustrack', () => skip(-seekBackwardSec))
+    setHandler('nexttrack', () => skip(seekForwardSec))
     ms.playbackState = playing ? 'playing' : 'paused'
     return () => {
       setHandler('play', null)
@@ -330,7 +317,7 @@ export function useAudioPlayer({
       setHandler('previoustrack', null)
       setHandler('nexttrack', null)
     }
-  }, [playing, skip, seekTo, chapters, seekBackwardSec, seekForwardSec])
+  }, [playing, skip, seekTo, seekBackwardSec, seekForwardSec])
 
   // Keep the OS/car transport widget's own progress bar in sync with real
   // position + duration + rate, so it can render a live scrubber and drag-seek

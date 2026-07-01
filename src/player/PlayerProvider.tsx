@@ -131,7 +131,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     totalDurationSec: now?.totalDurationSec ?? 0,
     startAtSec: now?.startAtSec ?? 0,
     autoplayOnLoad: now?.autoplay ?? false,
-    chapters: now?.chapters,
     seekBackwardSec: skipBack,
     seekForwardSec: skipForward,
     onSaveProgress: useCallback(
