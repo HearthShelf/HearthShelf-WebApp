@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAudioPlayer } from '@/hooks/useAudioPlayer'
 import {
@@ -27,6 +35,7 @@ export interface NowPlaying {
   itemId: string
   title: string
   author?: string
+  narrator?: string
   coverUrl: string | null
   tracks: AbsTrack[]
   chapters: AbsChapter[]
@@ -145,6 +154,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     ),
     onBookEnded,
   })
+
+  // OS/car media-widget metadata (title, author, cover art). Lives here - not on
+  // the book detail page - because playback (and the mini-player) outlives that
+  // page: navigating away used to null out mediaSession.metadata while audio
+  // kept playing, which is why Tesla's widget degraded to a bare stop button
+  // with no track info once you left the "now playing" screen.
+  useEffect(() => {
+    if (!now || !('mediaSession' in navigator)) return
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: now.title,
+      artist: now.author,
+      album: now.narrator ? `Narrated by ${now.narrator}` : undefined,
+      artwork: now.coverUrl ? [{ src: now.coverUrl, sizes: '480x480' }] : undefined,
+    })
+    return () => {
+      navigator.mediaSession.metadata = null
+    }
+  }, [now])
 
   // Dismiss the current book: pause first (so the <audio> stops and a final
   // progress save fires on pause), then clear now-playing so the mini-player

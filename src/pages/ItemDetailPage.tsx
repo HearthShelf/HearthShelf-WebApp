@@ -109,6 +109,7 @@ export function ItemDetailPage() {
       itemId: playable.id,
       title: playable.title,
       author: playable.author,
+      narrator: playable.narrator,
       coverUrl: playable.coverUrl,
       tracks: playable.tracks,
       chapters: playable.chapters,
@@ -119,20 +120,6 @@ export function ItemDetailPage() {
     // Only re-run when the loaded book changes, not on every player tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playable, target?.serverId, target?.serverUrl])
-
-  // Lock-screen / media-key metadata.
-  useEffect(() => {
-    if (!playable || !('mediaSession' in navigator)) return
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: playable.title,
-      artist: playable.author,
-      album: playable.narrator ? `Narrated by ${playable.narrator}` : undefined,
-      artwork: playable.coverUrl ? [{ src: playable.coverUrl, sizes: '480x480' }] : undefined,
-    })
-    return () => {
-      navigator.mediaSession.metadata = null
-    }
-  }, [playable])
 
   if (!target) {
     return (

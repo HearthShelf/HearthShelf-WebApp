@@ -217,6 +217,31 @@ function AdvancedPanel() {
       {showAdvanced && (
         <div className="cfg-card" style={{ marginTop: 10 }}>
           <div className="cfg-line">
+            <Icon name="tag" style={{ color: 'var(--text-muted)' }} />
+            <div className="cl-meta" style={{ flex: 1 }}>
+              <div className="cl-t">Build</div>
+              <div className="cl-d">
+                Confirms the browser has this exact deploy, not a cached older one.
+              </div>
+            </div>
+            <span
+              style={{
+                color: 'var(--text-muted)',
+                fontFamily: 'ui-monospace, monospace',
+                fontSize: 12.5,
+              }}
+            >
+              {__BUILD_COMMIT__} &middot;{' '}
+              {new Date(__BUILD_TIME__).toLocaleString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+            </span>
+          </div>
+
+          <div className="cfg-line">
             <Icon name="directions_car" style={{ color: 'var(--text-muted)' }} />
             <div className="cl-meta" style={{ flex: 1 }}>
               <div className="cl-t">Car browser detected</div>
