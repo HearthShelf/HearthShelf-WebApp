@@ -11,6 +11,7 @@ import {
   type AbsTarget,
 } from '@/api/absLibrary'
 import { useQueueStore } from '@/store/queueStore'
+import { useSettingsStore } from '@/store/settingsStore'
 
 /**
  * App-level playback. One <audio> element lives here (via useAudioPlayer), so a
@@ -61,6 +62,8 @@ const PlayerContext = createContext<PlayerApi | null>(null)
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [now, setNow] = useState<NowPlaying | null>(null)
   const qc = useQueryClient()
+  const skipForward = useSettingsStore((s) => s.skipForward)
+  const skipBack = useSettingsStore((s) => s.skipBack)
 
   const target: AbsTarget | null = now
     ? { serverId: now.serverId, serverUrl: now.serverUrl }
@@ -119,6 +122,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     totalDurationSec: now?.totalDurationSec ?? 0,
     startAtSec: now?.startAtSec ?? 0,
     autoplayOnLoad: now?.autoplay ?? false,
+    chapters: now?.chapters,
+    seekBackwardSec: skipBack,
+    seekForwardSec: skipForward,
     onSaveProgress: useCallback(
       (sec: number, listened: number) => {
         if (!target || !now) return

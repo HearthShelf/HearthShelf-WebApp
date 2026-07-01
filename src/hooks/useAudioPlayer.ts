@@ -10,7 +10,7 @@
  * (no play session). Streaming is direct to the server with a ?token= URL.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AbsTrack } from '@/api/absLibrary'
+import type { AbsChapter, AbsTrack } from '@/api/absLibrary'
 
 interface UsePlayerArgs {
   tracks: AbsTrack[]
@@ -27,6 +27,13 @@ interface UsePlayerArgs {
   onSaveProgress: (currentTimeSec: number, listenedSec: number) => void
   /** Called when the LAST track of the book finishes (for queue auto-advance). */
   onBookEnded?: () => void
+  /** Chapter list, for the OS/media-widget previous/next-track buttons (Tesla's
+   * browser transport bar, car Bluetooth head units, hardware media keys). When
+   * omitted, previous/next track handlers are not registered. */
+  chapters?: AbsChapter[]
+  /** Seconds for the seekbackward/seekforward media-key actions. Defaults to 15/30. */
+  seekBackwardSec?: number
+  seekForwardSec?: number
 }
 
 /** Find the track index covering a global position (clamps to last track). */
@@ -44,6 +51,9 @@ export function useAudioPlayer({
   autoplayOnLoad = false,
   onSaveProgress,
   onBookEnded,
+  chapters,
+  seekBackwardSec = 15,
+  seekForwardSec = 30,
 }: UsePlayerArgs) {
   // Latest onBookEnded, read by the [tracks] effect without re-subscribing.
   const onBookEndedRef = useRef(onBookEnded)
@@ -261,22 +271,68 @@ export function useAudioPlayer({
     return () => window.clearInterval(id)
   }, [sleepAt])
 
-  // Media Session: lock-screen / media-key controls and metadata.
+  // Media Session: lock-screen / media-key / in-car browser transport controls
+  // (this is what puts working skip buttons on Tesla's browser media widget,
+  // Android Auto/CarPlay browser tabs, and hardware media keys generally).
   useEffect(() => {
     if (!('mediaSession' in navigator)) return
     const ms = navigator.mediaSession
     ms.setActionHandler('play', () => audioRef.current?.play())
     ms.setActionHandler('pause', () => audioRef.current?.pause())
-    ms.setActionHandler('seekbackward', () => skip(-15))
-    ms.setActionHandler('seekforward', () => skip(15))
+    ms.setActionHandler('seekbackward', () => skip(-seekBackwardSec))
+    ms.setActionHandler('seekforward', () => skip(seekForwardSec))
+    // `seekto` lets the OS/car transport widget's own scrubber drag directly,
+    // instead of only exposing +/- skip buttons.
+    ms.setActionHandler('seekto', (details) => {
+      if (details.seekTime == null) return
+      seekTo(details.seekTime)
+    })
+    // Previous/next-track maps to chapter navigation - a book has no other
+    // notion of "track" the widget could step through.
+    if (chapters && chapters.length > 0) {
+      ms.setActionHandler('previoustrack', () => {
+        const idx = chapters.findIndex((c) => positionRef.current < c.endSec)
+        const cur = idx === -1 ? chapters.length - 1 : idx
+        // More than 3s into the chapter: restart it. Otherwise jump back one.
+        const atStart = positionRef.current - chapters[cur].startSec < 3
+        const target = atStart ? Math.max(0, cur - 1) : cur
+        seekTo(chapters[target].startSec)
+      })
+      ms.setActionHandler('nexttrack', () => {
+        const idx = chapters.findIndex((c) => positionRef.current < c.endSec)
+        const cur = idx === -1 ? chapters.length - 1 : idx
+        seekTo(chapters[Math.min(chapters.length - 1, cur + 1)].startSec)
+      })
+    }
     ms.playbackState = playing ? 'playing' : 'paused'
     return () => {
       ms.setActionHandler('play', null)
       ms.setActionHandler('pause', null)
       ms.setActionHandler('seekbackward', null)
       ms.setActionHandler('seekforward', null)
+      ms.setActionHandler('seekto', null)
+      ms.setActionHandler('previoustrack', null)
+      ms.setActionHandler('nexttrack', null)
     }
-  }, [playing, skip])
+  }, [playing, skip, seekTo, chapters, seekBackwardSec, seekForwardSec])
+
+  // Keep the OS/car transport widget's own progress bar in sync with real
+  // position + duration + rate, so it can render a live scrubber and drag-seek
+  // (not just skip buttons) - Tesla's browser media widget shows this.
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !('setPositionState' in navigator.mediaSession)) return
+    if (!totalDurationSec || !Number.isFinite(totalDurationSec)) return
+    try {
+      navigator.mediaSession.setPositionState({
+        duration: totalDurationSec,
+        position: Math.min(positionSec, totalDurationSec),
+        playbackRate: rate,
+      })
+    } catch {
+      // Some browsers throw if position/duration briefly disagree mid-track-swap;
+      // the next tick's update corrects it, so a failed call here is harmless.
+    }
+  }, [positionSec, totalDurationSec, rate])
 
   const sleepRemainingMs = sleepAt == null ? null : Math.max(0, sleepAt - Date.now())
 
