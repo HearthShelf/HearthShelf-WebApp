@@ -181,6 +181,7 @@ export function ItemDetailPage() {
         itemId: playable.id,
         title: playable.title,
         author: playable.author,
+        narrator: playable.narrator,
         coverUrl: playable.coverUrl,
         tracks: playable.tracks,
         chapters: playable.chapters,

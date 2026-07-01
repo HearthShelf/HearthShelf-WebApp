@@ -44,6 +44,7 @@ export function WebAppMediaUIProvider({
             itemId: d.id,
             title: d.title,
             author: d.author,
+            narrator: d.narrator,
             coverUrl: d.coverUrl,
             tracks: d.tracks,
             chapters: d.chapters,
