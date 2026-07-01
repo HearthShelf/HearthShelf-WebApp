@@ -14,11 +14,11 @@ export function PlaybackSettings() {
   const carDesc =
     s.carMode === 'auto'
       ? carDetected
-        ? 'A car browser was detected, so the big-touch player is on.'
-        : "Turns on the big-touch player automatically when a car browser (like Tesla) is detected. None detected here."
+        ? 'A car browser was detected, so car mode is on.'
+        : 'Turns on car mode automatically when a car browser (like Tesla) is detected. None detected here.'
       : s.carMode === 'on'
-        ? 'The big-touch player is always on.'
-        : 'The big-touch player is off.'
+        ? 'Car mode is always on.'
+        : 'Car mode is off.'
 
   return (
     <section>
@@ -118,7 +118,7 @@ export function PlaybackSettings() {
 
       <div className="set-group">
         <SetRow
-          title="Big-touch player"
+          title="Car mode"
           desc={carDesc}
           control={
             <Seg<CarMode>

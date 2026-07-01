@@ -19,11 +19,11 @@ interface Chap {
 type Sheet = 'more' | 'speed' | 'sleep' | null
 
 /**
- * Big-touch, glance-friendly player for in-car browsers. A draggable + resizable
- * card (sizing the card sizes the controls), with the core transport always
- * visible and everything else behind "More". After 30s idle, non-essential
- * chrome fades; the core transport stays. Skip controls keep the timer alive but
- * do NOT reveal the faded chrome.
+ * Car mode's player: a big-touch, glance-friendly card for in-car browsers. A
+ * draggable + resizable card (sizing the card sizes the controls), with the
+ * core transport always visible and everything else behind "More". After 30s
+ * idle, non-essential chrome fades; the core transport stays. Skip controls
+ * keep the timer alive but do NOT reveal the faded chrome.
  */
 export function CarPlayer({
   libraryItemId,

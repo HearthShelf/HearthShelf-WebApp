@@ -51,8 +51,8 @@ export function isCarBrowser(): boolean {
   return isTouchOnlyTeslaSizedScreen()
 }
 
-// Whether the big-touch car player should be active right now. 'auto' defers to
-// UA detection; 'on'/'off' force it regardless.
+// Whether car mode should be active right now. 'auto' defers to UA detection;
+// 'on'/'off' force it regardless.
 export function useCarMode(): boolean {
   const mode = useSettingsStore((s) => s.carMode)
   if (mode === 'on') return true

@@ -667,7 +667,7 @@ export function PlayerPage() {
               <button
                 className="pill"
                 onClick={() => setSetting('carMode', 'on')}
-                title="Switch to the big-touch car player"
+                title="Switch to car mode"
               >
                 <Icon name="directions_car" /> Car mode
               </button>
