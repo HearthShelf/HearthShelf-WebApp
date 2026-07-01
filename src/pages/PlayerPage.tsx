@@ -745,7 +745,7 @@ export function PlayerPage() {
               onDrag={setDragRatio}
               onSeek={(r) => seekClamp(r * duration)}
               elapsed={formatTimestamp(previewPos)}
-              chapter={`Ch ${ci + 1} / ${chapters.length || 1}`}
+              chapter={cur.title}
               remain={'-' + formatTimestamp(duration - previewPos)}
             />
           ) : (
@@ -755,7 +755,7 @@ export function PlayerPage() {
               onDrag={setDragRatio}
               onSeek={(r) => seekClamp(cur.start + r * chSpan)}
               elapsed={formatTimestamp(chPos)}
-              chapter={`Ch ${ci + 1} / ${chapters.length || 1}`}
+              chapter={cur.title}
               remain={'-' + formatTimestamp(chSpan - chPos)}
             />
           )}

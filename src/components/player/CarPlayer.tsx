@@ -190,7 +190,7 @@ export function CarPlayer({
             seekClamp(scrubber === 'chapter' ? cur.start + r * chSpan : r * duration)
           }}
           elapsed={formatTimestamp(scrubber === 'chapter' ? chPos : previewPos)}
-          chapter={`Ch ${ci + 1} / ${chapters.length || 1}`}
+          chapter={cur.title}
           remain={
             '-' + formatTimestamp(scrubber === 'chapter' ? chSpan - chPos : duration - previewPos)
           }

@@ -662,7 +662,7 @@ export function MobilePlayer({
             onDrag={setScrubDrag}
             onSeek={(r) => seekClamp(seekRatio(r))}
             elapsed={formatTimestamp(onChapter ? chPos : previewPos)}
-            chapter={onChapter ? cur.title : `Ch ${ci + 1} / ${chapters.length || 1}`}
+            chapter={cur.title}
             remain={
               '-' +
               formatTimestamp(onChapter ? Math.max(0, chSpan - chPos) : duration - previewPos)
@@ -1453,7 +1453,7 @@ export function MobilePlayer({
                 onDrag={setScrubDrag}
                 onSeek={(r) => seekClamp(seekRatio(r))}
                 elapsed={formatTimestamp(onChapter ? chPos : previewPos)}
-                chapter={onChapter ? cur.title : `Ch ${ci + 1} / ${chapters.length || 1}`}
+                chapter={cur.title}
                 remain={
                   '-' +
                   formatTimestamp(onChapter ? Math.max(0, chSpan - chPos) : duration - previewPos)
