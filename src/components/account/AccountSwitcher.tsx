@@ -8,7 +8,7 @@
  * the sidebar, a drawer section on mobile), and we fill it with rows.
  */
 import { useState, useCallback } from 'react'
-import { useUser, useClerk } from '@clerk/clerk-react'
+import { useUser } from '@clerk/clerk-react'
 import { Icon } from '@/components/common/Icon'
 import { Avatar } from '@/components/common/Avatar'
 import { PinEntryOverlay } from '@/components/account/PinEntryOverlay'
@@ -27,10 +27,9 @@ interface Props {
 
 export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
   const { user } = useUser()
-  const { openSignIn } = useClerk()
   const accounts = useRememberedAccounts((s) => s.accounts)
   const remember = useRememberedAccounts((s) => s.remember)
-  const { switchTo, loginWithPassword, ready } = useAccountSwitch()
+  const { switchTo, loginWithPassword, signInAnotherUser, ready } = useAccountSwitch()
 
   // The account whose PIN we're currently collecting (null = pad closed).
   const [pinFor, setPinFor] = useState<RememberedAccount | null>(null)
@@ -177,7 +176,7 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
       <button
         onClick={() => {
           onDone?.()
-          openSignIn()
+          void signInAnotherUser()
         }}
       >
         <Icon name="person_add" /> Sign in another user
@@ -188,7 +187,7 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
           void loginWithPassword()
         }}
       >
-        <Icon name="password" /> Log in with password
+        <Icon name="password" /> Log in without remembering this account
       </button>
 
       <div className="sep" />

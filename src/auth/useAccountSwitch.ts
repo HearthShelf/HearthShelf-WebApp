@@ -9,10 +9,11 @@
  * session and forces a fresh Clerk sign-in.
  */
 import { useCallback } from 'react'
-import { useSignIn, useClerk } from '@clerk/clerk-react'
+import { useSignIn, useClerk, useUser } from '@clerk/clerk-react'
 import {
   requestSwitchTicket,
   forgetRemembered,
+  rememberCurrentUser,
   ApiError,
 } from '@/api/controlPlane'
 import { useRememberedAccounts, type RememberedAccount } from '@/store/rememberedAccounts'
@@ -24,6 +25,9 @@ export type SwitchOutcome =
 export function useAccountSwitch() {
   const { signIn, setActive, isLoaded } = useSignIn()
   const { signOut, redirectToSignIn } = useClerk()
+  const { user } = useUser()
+  const accounts = useRememberedAccounts((s) => s.accounts)
+  const remember = useRememberedAccounts((s) => s.remember)
   const forget = useRememberedAccounts((s) => s.forget)
 
   /**
@@ -73,12 +77,47 @@ export function useAccountSwitch() {
    * The "Log in with password" escape hatch. Drops the current session and sends
    * the user to a fresh Clerk sign-in (whatever method they use). This is the
    * always-available fallback when a swap fails, a PIN is forgotten, or the user
-   * explicitly wants to re-authenticate.
+   * explicitly wants to re-authenticate. Does NOT remember the current user
+   * first - that's the point of the distinct "sign in another user" action below.
    */
   const loginWithPassword = useCallback(async () => {
     await signOut()
     redirectToSignIn()
   }, [signOut, redirectToSignIn])
+
+  /**
+   * "Sign in another user": remembers the CURRENT account on this device (if it
+   * isn't already), then signs out and sends the browser to a fresh sign-in.
+   *
+   * Clerk's client-side `openSignIn()` only makes sense for a signed-OUT user on
+   * the free tier - with no multi-session, opening it while already signed in
+   * has nothing to attach a second identity to, so it silently no-ops. The only
+   * way to actually add a second user is to sign out and sign back in as them -
+   * remembering the current user FIRST is what makes that safe: they land back
+   * in the roster and can tap straight back in afterward instead of having to
+   * retype their password. This is what distinguishes the action from the plain
+   * "Log in with password" escape hatch.
+   */
+  const signInAnotherUser = useCallback(async () => {
+    if (user && !accounts.some((a) => a.userId === user.id)) {
+      const name = user.username || user.firstName || user.primaryEmailAddress?.emailAddress || '?'
+      try {
+        const res = await rememberCurrentUser({ label: name, imageUrl: user.imageUrl ?? undefined })
+        remember({
+          handle: res.handle,
+          userId: user.id,
+          label: res.label,
+          imageUrl: user.imageUrl ?? undefined,
+          hasPin: res.has_pin,
+        })
+      } catch {
+        // Best-effort: if remembering fails (offline, CP down), still let them
+        // sign in as someone else - they'll just need their password to come
+        // back, same as before this feature existed.
+      }
+    }
+    await loginWithPassword()
+  }, [user, accounts, remember, loginWithPassword])
 
   /** Forget a remembered account (server revoke + local prune). */
   const forgetAccount = useCallback(
@@ -92,5 +131,5 @@ export function useAccountSwitch() {
     [forget]
   )
 
-  return { switchTo, loginWithPassword, forgetAccount, ready: isLoaded }
+  return { switchTo, loginWithPassword, signInAnotherUser, forgetAccount, ready: isLoaded }
 }

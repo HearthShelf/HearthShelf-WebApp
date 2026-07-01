@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useUser, useClerk } from '@clerk/clerk-react'
+import { useUser } from '@clerk/clerk-react'
 import { useQuery } from '@tanstack/react-query'
 import { useActiveLibrary, libraryIcon } from '@/hooks/useActiveLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
@@ -89,14 +89,13 @@ function MobileDrawer({
 }) {
   const navigate = useNavigate()
   const { user } = useUser()
-  const { openSignIn } = useClerk()
   const { server, target } = useActiveServer()
   const { libraries, active, select } = useActiveLibrary()
   const isPodcast = active?.mediaType === 'podcast'
 
   const remembered = useRememberedAccounts((s) => s.accounts)
   const forgetLocal = useRememberedAccounts((s) => s.forget)
-  const { switchTo, loginWithPassword } = useAccountSwitch()
+  const { switchTo, loginWithPassword, signInAnotherUser } = useAccountSwitch()
   const [pinFor, setPinFor] = useState<RememberedAccount | null>(null)
   const [forgetFor, setForgetFor] = useState<RememberedAccount | null>(null)
 
@@ -258,7 +257,7 @@ function MobileDrawer({
           <button
             type="button"
             className="msheet-row"
-            onClick={() => { onClose(); openSignIn() }}
+            onClick={() => { onClose(); void signInAnotherUser() }}
           >
             <span className="msheet-ic"><Icon name="person_add" /></span>
             <span className="msheet-label">Sign in another user</span>
@@ -269,7 +268,7 @@ function MobileDrawer({
             onClick={() => { onClose(); void loginWithPassword() }}
           >
             <span className="msheet-ic"><Icon name="password" /></span>
-            <span className="msheet-label">Log in with password</span>
+            <span className="msheet-label">Log in without remembering this account</span>
           </button>
 
           {libraries.length > 1 && (
