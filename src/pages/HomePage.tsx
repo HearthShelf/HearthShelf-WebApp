@@ -124,7 +124,10 @@ function ResumeHero({ book, progress }: HeroProps) {
           <i style={{ width: Math.min(100, pct * 100) + '%' }} />
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
-          <button className="btn btn-primary" onClick={() => ui.playItem(book.id)}>
+          <button
+            className="btn btn-primary"
+            onClick={() => ui.playItem(book.id, { openPlayer: true })}
+          >
             <Icon name="play_arrow" fill /> {pct > 0 ? 'Resume' : 'Start listening'}
           </button>
           <button className="pill" onClick={open}>
@@ -146,7 +149,7 @@ function CalmHero({ book, progress }: HeroProps) {
     <div
       className="hero-calm"
       data-cv={tintFor(title)}
-      onClick={() => ui.playItem(book.id)}
+      onClick={() => ui.playItem(book.id, { openPlayer: true })}
     >
       <Cover
         itemId={book.id}
@@ -169,7 +172,7 @@ function CalmHero({ book, progress }: HeroProps) {
         className="hc-play"
         onClick={(e) => {
           e.stopPropagation()
-          ui.playItem(book.id)
+          ui.playItem(book.id, { openPlayer: true })
         }}
       >
         <Icon name="play_arrow" fill />

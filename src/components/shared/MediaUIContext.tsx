@@ -22,8 +22,12 @@ export interface MediaUI {
   coverUrl: (itemId: string, width?: number) => string | null
   /** Navigate to an item's detail/player page. */
   openItem: (itemId: string) => void
-  /** Start playback of an item (or navigate to its player). */
-  playItem: (itemId: string) => void
+  /**
+   * Start playback of an item. Pass `{ openPlayer: true }` to also surface the
+   * full player (e.g. the Resume / Jump-back-in entry points) instead of leaving
+   * the listener on the docked mini-player.
+   */
+  playItem: (itemId: string, opts?: { openPlayer?: boolean }) => void
   /** Optional: href for an author page, or null if the app doesn't have one. */
   authorHref?: (authorId: string) => string | null
   /** Optional: href for a series page, or null. */

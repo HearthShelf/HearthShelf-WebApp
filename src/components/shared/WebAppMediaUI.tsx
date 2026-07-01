@@ -35,7 +35,7 @@ export function WebAppMediaUIProvider({
       // Fetch the book and start it in the global player (no navigation needed -
       // the docked mini-player surfaces it). Falls back to opening the page if
       // the fetch fails.
-      playItem: async (itemId) => {
+      playItem: async (itemId, opts) => {
         try {
           const d = await getItemDetail(target, itemId)
           player.play({
@@ -52,6 +52,7 @@ export function WebAppMediaUIProvider({
             playSessionId: d.playSessionId,
             autoplay: true,
           })
+          if (opts?.openPlayer) navigate('/player')
         } catch {
           navigate(`/book/${itemId}`)
         }

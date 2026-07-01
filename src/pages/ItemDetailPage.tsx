@@ -331,7 +331,10 @@ export function ItemDetailPage() {
                 <Icon name="menu_book" fill /> Read
               </button>
             ) : (
-              <button className="btn btn-primary" onClick={() => void ui.playItem(data.id)}>
+              <button
+                className="btn btn-primary"
+                onClick={() => void ui.playItem(data.id, { openPlayer: true })}
+              >
                 <Icon name="play_arrow" fill /> {playLabel}
               </button>
             )}
