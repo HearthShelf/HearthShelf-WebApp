@@ -274,23 +274,39 @@ export function useAudioPlayer({
   // Media Session: lock-screen / media-key / in-car browser transport controls
   // (this is what puts working skip buttons on Tesla's browser media widget,
   // Android Auto/CarPlay browser tabs, and hardware media keys generally).
+  //
+  // Some Chromium builds (Tesla's embedded browser among them) throw a
+  // TypeError from setActionHandler for actions they don't recognize -
+  // 'seekto' and 'stop' are the usual suspects. setActionHandler calls are
+  // synchronous and NOT independent: one throwing mid-list aborts every call
+  // after it, so an unsupported 'seekto' was silently wiping out the
+  // seekbackward/seekforward/previoustrack/nexttrack handlers registered
+  // after it. Each handler is now wrapped so one unsupported action can't
+  // take the rest down with it.
   useEffect(() => {
     if (!('mediaSession' in navigator)) return
     const ms = navigator.mediaSession
-    ms.setActionHandler('play', () => audioRef.current?.play())
-    ms.setActionHandler('pause', () => audioRef.current?.pause())
-    ms.setActionHandler('seekbackward', () => skip(-seekBackwardSec))
-    ms.setActionHandler('seekforward', () => skip(seekForwardSec))
+    const setHandler = (action: MediaSessionAction, handler: MediaSessionActionHandler | null) => {
+      try {
+        ms.setActionHandler(action, handler)
+      } catch {
+        // Unsupported action on this browser - skip it, don't abort the rest.
+      }
+    }
+    setHandler('play', () => audioRef.current?.play())
+    setHandler('pause', () => audioRef.current?.pause())
+    setHandler('seekbackward', () => skip(-seekBackwardSec))
+    setHandler('seekforward', () => skip(seekForwardSec))
     // `seekto` lets the OS/car transport widget's own scrubber drag directly,
     // instead of only exposing +/- skip buttons.
-    ms.setActionHandler('seekto', (details) => {
+    setHandler('seekto', (details) => {
       if (details.seekTime == null) return
       seekTo(details.seekTime)
     })
     // Previous/next-track maps to chapter navigation - a book has no other
     // notion of "track" the widget could step through.
     if (chapters && chapters.length > 0) {
-      ms.setActionHandler('previoustrack', () => {
+      setHandler('previoustrack', () => {
         const idx = chapters.findIndex((c) => positionRef.current < c.endSec)
         const cur = idx === -1 ? chapters.length - 1 : idx
         // More than 3s into the chapter: restart it. Otherwise jump back one.
@@ -298,7 +314,7 @@ export function useAudioPlayer({
         const target = atStart ? Math.max(0, cur - 1) : cur
         seekTo(chapters[target].startSec)
       })
-      ms.setActionHandler('nexttrack', () => {
+      setHandler('nexttrack', () => {
         const idx = chapters.findIndex((c) => positionRef.current < c.endSec)
         const cur = idx === -1 ? chapters.length - 1 : idx
         seekTo(chapters[Math.min(chapters.length - 1, cur + 1)].startSec)
@@ -306,13 +322,13 @@ export function useAudioPlayer({
     }
     ms.playbackState = playing ? 'playing' : 'paused'
     return () => {
-      ms.setActionHandler('play', null)
-      ms.setActionHandler('pause', null)
-      ms.setActionHandler('seekbackward', null)
-      ms.setActionHandler('seekforward', null)
-      ms.setActionHandler('seekto', null)
-      ms.setActionHandler('previoustrack', null)
-      ms.setActionHandler('nexttrack', null)
+      setHandler('play', null)
+      setHandler('pause', null)
+      setHandler('seekbackward', null)
+      setHandler('seekforward', null)
+      setHandler('seekto', null)
+      setHandler('previoustrack', null)
+      setHandler('nexttrack', null)
     }
   }, [playing, skip, seekTo, chapters, seekBackwardSec, seekForwardSec])
 
