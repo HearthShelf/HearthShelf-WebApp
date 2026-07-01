@@ -37,6 +37,8 @@ import { SignInPage } from '@/pages/SignInPage'
 import { SignUpPage } from '@/pages/SignUpPage'
 import { ErrorPage } from '@/pages/ErrorPage'
 import { CarPlayerHarness } from '@/pages/dev/CarPlayerHarness'
+import { PinEntryHarness } from '@/pages/dev/PinEntryHarness'
+import { SwitcherHarness } from '@/pages/dev/SwitcherHarness'
 import { RequireAuth } from '@/auth/RequireAuth'
 import { PlayerProvider } from '@/player/PlayerProvider'
 
@@ -55,7 +57,11 @@ export const router = createBrowserRouter([
 
   // DEV-ONLY: car-player visual harness (no auth). Stripped from prod builds.
   ...(import.meta.env.DEV
-    ? [{ path: '/dev/car', element: <CarPlayerHarness /> }]
+    ? [
+        { path: '/dev/car', element: <CarPlayerHarness /> },
+        { path: '/dev/pin', element: <PinEntryHarness /> },
+        { path: '/dev/switcher', element: <SwitcherHarness /> },
+      ]
     : []),
 
   // Everything else requires sign-in.
