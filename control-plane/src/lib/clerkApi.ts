@@ -54,6 +54,40 @@ export async function createClerkInvitation(
   return { id: data.id }
 }
 
+/**
+ * Mint a single-use Clerk sign-in token for a given user (the account switcher).
+ * The token is redeemed on the frontend with the 'ticket' strategy
+ * (signIn.create({ strategy: 'ticket', ticket })), which signs the browser in as
+ * that user without a password. It needs CLERK_SECRET_KEY, so it can only run
+ * here, never in the SPA. Single-use and short-lived - we keep the TTL small
+ * because the ticket is redeemed immediately after minting.
+ */
+export async function createSignInToken(
+  env: Env,
+  params: { userId: string; expiresInSeconds?: number }
+): Promise<{ token: string }> {
+  if (!env.CLERK_SECRET_KEY) throw new ClerkApiError(0, 'CLERK_SECRET_KEY not configured')
+
+  const res = await fetch(`${CLERK_API}/sign_in_tokens`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.CLERK_SECRET_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      user_id: params.userId,
+      expires_in_seconds: params.expiresInSeconds ?? 60,
+    }),
+  })
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new ClerkApiError(res.status, detail.slice(0, 300))
+  }
+  const data = (await res.json()) as { token: string }
+  return { token: data.token }
+}
+
 export class ClerkApiError extends Error {
   status: number
   constructor(status: number, message: string) {

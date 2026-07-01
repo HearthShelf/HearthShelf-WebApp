@@ -612,3 +612,103 @@ export async function listLinksByUser(env: Env, clerkUserId: string): Promise<Li
     .all<LinkRow>()
   return r.results ?? []
 }
+
+// --- device handles (account switcher) -------------------------------------
+
+export interface DeviceHandleRow {
+  handle: string
+  clerk_user_id: string
+  label: string | null
+  image_url: string | null
+  pin_hash: string | null
+  pin_salt: string | null
+  pin_attempts: number
+  created_at: number
+  last_used_at: number | null
+  expires_at: number
+}
+
+export async function createDeviceHandle(
+  env: Env,
+  h: {
+    handle: string
+    clerkUserId: string
+    label?: string | null
+    imageUrl?: string | null
+    pinHash?: string | null
+    pinSalt?: string | null
+    expiresAt: number
+  }
+): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO device_handles
+       (handle, clerk_user_id, label, image_url, pin_hash, pin_salt, created_at, last_used_at, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)`
+  )
+    .bind(
+      h.handle,
+      h.clerkUserId,
+      h.label ?? null,
+      h.imageUrl ?? null,
+      h.pinHash ?? null,
+      h.pinSalt ?? null,
+      now(),
+      h.expiresAt
+    )
+    .run()
+}
+
+/** Look up a handle. Returns null if absent OR expired (an expired handle is
+ *  swept as a side effect so the table doesn't accumulate dead rows). */
+export async function getDeviceHandle(env: Env, handle: string): Promise<DeviceHandleRow | null> {
+  const row = await env.DB.prepare(`SELECT * FROM device_handles WHERE handle = ?`)
+    .bind(handle)
+    .first<DeviceHandleRow>()
+  if (!row) return null
+  if (row.expires_at <= now()) {
+    await deleteDeviceHandle(env, handle)
+    return null
+  }
+  return row
+}
+
+export async function touchDeviceHandle(env: Env, handle: string): Promise<void> {
+  await env.DB.prepare(`UPDATE device_handles SET last_used_at = ? WHERE handle = ?`)
+    .bind(now(), handle)
+    .run()
+}
+
+/** Bump the wrong-PIN counter and return the new value. */
+export async function bumpPinAttempts(env: Env, handle: string): Promise<number> {
+  const row = await env.DB.prepare(
+    `UPDATE device_handles SET pin_attempts = pin_attempts + 1 WHERE handle = ?
+     RETURNING pin_attempts`
+  )
+    .bind(handle)
+    .first<{ pin_attempts: number }>()
+  return row?.pin_attempts ?? 0
+}
+
+/** Reset the wrong-PIN counter after a correct PIN. */
+export async function resetPinAttempts(env: Env, handle: string): Promise<void> {
+  await env.DB.prepare(`UPDATE device_handles SET pin_attempts = 0 WHERE handle = ?`)
+    .bind(handle)
+    .run()
+}
+
+export async function deleteDeviceHandle(env: Env, handle: string): Promise<void> {
+  await env.DB.prepare(`DELETE FROM device_handles WHERE handle = ?`).bind(handle).run()
+}
+
+/** Every remembered account for a user (used to forget-everywhere on full logout). */
+export async function listDeviceHandlesForUser(
+  env: Env,
+  clerkUserId: string
+): Promise<DeviceHandleRow[]> {
+  const r = await env.DB.prepare(
+    `SELECT * FROM device_handles WHERE clerk_user_id = ? ORDER BY created_at ASC`
+  )
+    .bind(clerkUserId)
+    .all<DeviceHandleRow>()
+  return r.results ?? []
+}

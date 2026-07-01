@@ -50,6 +50,21 @@ export function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0
 }
 
+/** Salted hash of a shared-screen PIN. A 4-digit PIN has only ~13 bits of
+ *  entropy, so this is NOT a strong secret - the salt just stops a stolen DB
+ *  from revealing PINs by inspection, and the switch endpoint rate-limits
+ *  attempts. Returns { hash, salt } to store; verify with verifyPin. */
+export async function hashPin(pin: string): Promise<{ hash: string; salt: string }> {
+  const salt = b64url(crypto.getRandomValues(new Uint8Array(16)))
+  const hash = await sha256Hex(`${salt}:${pin}`)
+  return { hash, salt }
+}
+
+export async function verifyPin(pin: string, hash: string, salt: string): Promise<boolean> {
+  const candidate = await sha256Hex(`${salt}:${pin}`)
+  return timingSafeEqual(candidate, hash)
+}
+
 export function now(): number {
   return Date.now()
 }
