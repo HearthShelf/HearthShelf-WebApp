@@ -369,6 +369,10 @@ export function PlayerPage() {
   const hearthBgPlayer = useSettingsStore((s) => s.hearthBgPlayer)
   const isMobile = useIsMobile()
   const carMode = useCarMode()
+  // The raw setting ('auto'/'on'/'off'), not the derived carMode boolean above -
+  // needed so the normal player's "Car mode" toggle can force it back on
+  // (setting 'on') regardless of whether it's currently 'off' or 'auto'-off.
+  const carModeSetting = useSettingsStore((s) => s.carMode)
   const carFadeEnabled = useSettingsStore((s) => s.carFadeEnabled)
   const carFadeSec = useSettingsStore((s) => s.carFadeSec)
   const setSetting = useSettingsStore((s) => s.set)
@@ -659,6 +663,15 @@ export function PlayerPage() {
             >
               <Icon name="cloud_done" /> Synced
             </span>
+            {carModeSetting !== 'on' && (
+              <button
+                className="pill"
+                onClick={() => setSetting('carMode', 'on')}
+                title="Switch to the big-touch car player"
+              >
+                <Icon name="directions_car" /> Car mode
+              </button>
+            )}
             <button
               className={'pill' + (panel === 'queue' ? ' on' : '')}
               onClick={() => togglePanel('queue')}
