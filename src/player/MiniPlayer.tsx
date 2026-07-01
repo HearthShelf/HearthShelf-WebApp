@@ -205,9 +205,14 @@ export function MiniPlayer() {
           </button>
         </div>
         <div className="pb-time">
-          <span>{formatTimestamp(localPos)}</span>
-          <Scrubber className="scrub" ratio={pct / 100} onDrag={setScrubDrag} onSeek={onScrub} />
-          <span>-{formatTimestamp(Math.max(0, span - localPos))}</span>
+          <Scrubber
+            className="scrub"
+            ratio={pct / 100}
+            onDrag={setScrubDrag}
+            onSeek={onScrub}
+            elapsed={formatTimestamp(localPos)}
+            remain={'-' + formatTimestamp(Math.max(0, span - localPos))}
+          />
         </div>
       </div>
 

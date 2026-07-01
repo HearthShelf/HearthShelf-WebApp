@@ -16,6 +16,9 @@ export function Scrubber({
   onDrag,
   className = '',
   knob = true,
+  elapsed,
+  remain,
+  chapter,
 }: {
   /** Current position, 0-1. Ignored while actively dragging. */
   ratio: number
@@ -29,6 +32,11 @@ export function Scrubber({
   /** Some scrub bars (the compact mini-player one) hide the knob via CSS at
    * small sizes anyway; default on. */
   knob?: boolean
+  /** Hearth Pill label chips, rendered inside the bar when provided (used by
+   * the tall `.scrub` variant; the thin `.prog-line` variant ignores them). */
+  elapsed?: string
+  remain?: string
+  chapter?: string
 }) {
   const trackRef = useRef<HTMLDivElement>(null)
   const [dragRatio, setDragRatio] = useState<number | null>(null)
@@ -84,6 +92,7 @@ export function Scrubber({
 
   const shown = dragRatio ?? ratio
   const pct = Math.max(0, Math.min(1, shown)) * 100
+  const hasLabels = elapsed !== undefined || remain !== undefined || chapter !== undefined
 
   return (
     <div
@@ -96,6 +105,13 @@ export function Scrubber({
     >
       <i style={{ width: pct + '%' }} />
       {knob && <b style={{ left: pct + '%' }} />}
+      {hasLabels && (
+        <div className="scrub-labels">
+          <span>{elapsed}</span>
+          {chapter && <span className="scrub-label-chapter">{chapter}</span>}
+          <span>{remain}</span>
+        </div>
+      )}
     </div>
   )
 }

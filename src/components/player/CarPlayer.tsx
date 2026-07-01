@@ -189,20 +189,12 @@ export function CarPlayer({
             wake()
             seekClamp(scrubber === 'chapter' ? cur.start + r * chSpan : r * duration)
           }}
+          elapsed={formatTimestamp(scrubber === 'chapter' ? chPos : previewPos)}
+          chapter={`Ch ${ci + 1} / ${chapters.length || 1}`}
+          remain={
+            '-' + formatTimestamp(scrubber === 'chapter' ? chSpan - chPos : duration - previewPos)
+          }
         />
-        <div className="p-times car-times">
-          {scrubber === 'chapter' ? (
-            <>
-              <span>{formatTimestamp(chPos)}</span>
-              <span>-{formatTimestamp(chSpan - chPos)}</span>
-            </>
-          ) : (
-            <>
-              <span>{formatTimestamp(previewPos)}</span>
-              <span>-{formatTimestamp(duration - previewPos)}</span>
-            </>
-          )}
-        </div>
 
         {/* Core transport - always visible, even when faded. The skip controls
             stop pointer propagation so they DON'T trigger the card's wake: you

@@ -699,6 +699,9 @@ export function PlayerPage() {
               ratio={bookRatio}
               onDrag={setDragRatio}
               onSeek={(r) => seekClamp(r * duration)}
+              elapsed={formatTimestamp(previewPos)}
+              chapter={`Ch ${ci + 1} / ${chapters.length || 1}`}
+              remain={'-' + formatTimestamp(duration - previewPos)}
             />
           ) : (
             <Scrubber
@@ -706,21 +709,11 @@ export function PlayerPage() {
               ratio={chRatio}
               onDrag={setDragRatio}
               onSeek={(r) => seekClamp(cur.start + r * chSpan)}
+              elapsed={formatTimestamp(chPos)}
+              chapter={`Ch ${ci + 1} / ${chapters.length || 1}`}
+              remain={'-' + formatTimestamp(chSpan - chPos)}
             />
           )}
-          <div className="p-times">
-            {scrubber === 'book' ? (
-              <>
-                <span>{formatTimestamp(previewPos)} elapsed</span>
-                <span>{formatTimestamp(duration - previewPos)} left</span>
-              </>
-            ) : (
-              <>
-                <span>{formatTimestamp(chPos)}</span>
-                <span>-{formatTimestamp(chSpan - chPos)}</span>
-              </>
-            )}
-          </div>
         </div>
 
         <div className="p-transport">

@@ -925,17 +925,21 @@
   border-radius: 99px;
   transition: width 0.3s;
 }
+/* "Hearth Pill" scrubber - a tall self-contained pill housing the fill,
+   leading edge and (when the caller passes elapsed/remain/chapter) its own
+   interior time labels, so callers no longer lay out separate label rows
+   around it. */
 .scrub {
-  height: 6px;
-  background: var(--c-highest);
+  height: 30px;
+  background: color-mix(in oklab, var(--text) 9%, var(--c-lowest));
+  border: 1px solid var(--hairline);
   border-radius: 99px;
   position: relative;
+  overflow: hidden;
   cursor: pointer;
   touch-action: none;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
 }
-/* Widen the drag/tap hit area beyond the visible 6px bar (to ~24px tall)
-   without changing the bar's own box size or layout footprint - an overlay,
-   not padding, so nothing downstream that sizes around .scrub shifts. */
 .scrub::before {
   content: '';
   position: absolute;
@@ -950,23 +954,52 @@
   left: 0;
   top: 0;
   bottom: 0;
-  background: var(--accent);
-  border-radius: 99px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--accent) 65%, #d27a3e) 0%,
+    var(--accent) 100%
+  );
 }
 .scrub > b {
   position: absolute;
-  top: 50%;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #fff;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-  transition: width 0.15s ease, height 0.15s ease;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #ffe6cf;
+  box-shadow: 0 0 8px 1px var(--accent), 0 0 2px 0 #ffe6cf;
+  transform: translateX(-50%);
+  transition: width 0.15s ease;
 }
 .scrub.dragging > b {
-  width: 18px;
-  height: 18px;
+  width: 3px;
+}
+.scrub-labels {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.scrub-labels span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scrub-label-chapter {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  opacity: 0.85;
 }
 .stars {
   display: inline-flex;
@@ -1886,34 +1919,15 @@
   text-overflow: ellipsis;
 }
 
-/* Bigger scrubber + hit area than the desktop player. The visible 10px track
-   sits in the content box; the 14px vertical padding extends the drag/tap
-   target above and below it without moving the bar. */
+/* Bigger Hearth Pill than the desktop player - taller housing, larger
+   interior labels, for at-a-glance / at-arm's-length car use. */
 .car-scrub {
   width: 100%;
-  height: 10px;
-  padding: 14px 0;
-  background-clip: content-box;
-  position: relative;
+  height: clamp(30px, 8cqw, 44px);
 }
-/* The fill (i) and knob (b) are absolutely positioned against the padded
-   box, so pin them to the content strip (inset by the 14px padding) instead
-   of the box edges - otherwise they ride 14px too high. */
-.car-scrub > i {
-  top: 14px;
-  bottom: 14px;
-}
-.car-scrub > b {
-  top: 50%;
-  width: 26px;
-  height: 26px;
-}
-.car-scrub.dragging > b {
-  width: 30px;
-  height: 30px;
-}
-.car-times {
-  font-size: clamp(12px, 3cqw, 16px);
+.car-scrub .scrub-labels {
+  font-size: clamp(11px, 2.6cqw, 15px);
+  padding: 0 clamp(12px, 3cqw, 20px);
 }
 
 .car-transport {
@@ -3972,8 +3986,9 @@ select.fld { appearance: none; cursor: pointer; background-image: url("data:imag
   /* live progress = a hairline pinned to the bar top edge */
   .pb-time { position: absolute; top: 0; left: 14px; right: 14px; max-width: none; gap: 0; }
   .pb-time span { display: none; }
-  .pb-time .scrub { height: 2px; }
+  .pb-time .scrub { height: 2px; border: none; box-shadow: none; }
   .pb-time .scrub b { display: none; }
+  .pb-time .scrub .scrub-labels { display: none; }
 
   /* ---- bottom tab bar ---- */
   .mtab {
@@ -4093,7 +4108,26 @@ select.fld { appearance: none; cursor: pointer; background-image: url("data:imag
   .app.cards .lib-grid .book .b-meta { padding: 7px 7px 9px; }
   .lib-grid .b-title { font-size: 11px; -webkit-line-clamp: 2; }
   .lib-grid .b-author { font-size: 10px; }
-  .series-grid { grid-template-columns: repeat(2, 1fr); }
+  /* ---- series cards: compact single-column rows, not scaled-down tiles ---- */
+  .series-grid { grid-template-columns: 1fr; gap: 7px; }
+  .series-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 12px;
+    border-radius: 14px;
+  }
+  .series-card:hover { transform: none; background: var(--c-high); }
+  .series-card:active { background: var(--c-highest); }
+  .series-card .series-stack { flex: none; }
+  .series-stack .cover { width: 46px; height: 46px; border-radius: 7px; box-shadow: 0 3px 9px rgba(0, 0, 0, 0.42); }
+  .series-stack .cover:not(:first-child) { margin-left: -31px; }
+  .series-stack .stack-more.sm { width: 46px; height: 46px; border-radius: 7px; margin-left: -31px; font-size: 11px; }
+  .series-card .series-meta { margin-top: 0; flex: 1; min-width: 0; }
+  .series-card .series-meta h3 { font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .series-card .series-meta p { font-size: 11.5px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .series-card .sc-prog { margin-top: 7px; gap: 8px; }
+  .series-card .sc-prog span { font-size: 10.5px; }
 
   /* ---- series detail: compact hero so the booklist is reachable ---- */
   .series-hero { gap: 14px; padding: 14px; border-radius: 16px; align-items: flex-start; }

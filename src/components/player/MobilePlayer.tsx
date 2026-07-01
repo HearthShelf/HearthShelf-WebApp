@@ -661,23 +661,13 @@ export function MobilePlayer({
             ratio={scrubRatio}
             onDrag={setScrubDrag}
             onSeek={(r) => seekClamp(seekRatio(r))}
+            elapsed={formatTimestamp(onChapter ? chPos : previewPos)}
+            chapter={onChapter ? cur.title : `Ch ${ci + 1} / ${chapters.length || 1}`}
+            remain={
+              '-' +
+              formatTimestamp(onChapter ? Math.max(0, chSpan - chPos) : duration - previewPos)
+            }
           />
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 11,
-              color: 'var(--text-muted)',
-              marginTop: 8,
-            }}
-          >
-            <span>{formatTimestamp(onChapter ? chPos : previewPos)}</span>
-            <span>
-              -{formatTimestamp(onChapter ? Math.max(0, chSpan - chPos) : duration - previewPos)}
-            </span>
-          </div>
         </div>
 
         <div
@@ -1462,22 +1452,13 @@ export function MobilePlayer({
                 ratio={scrubRatio}
                 onDrag={setScrubDrag}
                 onSeek={(r) => seekClamp(seekRatio(r))}
+                elapsed={formatTimestamp(onChapter ? chPos : previewPos)}
+                chapter={onChapter ? cur.title : `Ch ${ci + 1} / ${chapters.length || 1}`}
+                remain={
+                  '-' +
+                  formatTimestamp(onChapter ? Math.max(0, chSpan - chPos) : duration - previewPos)
+                }
               />
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 13,
-                  color: 'var(--text-muted)',
-                  marginTop: 9,
-                }}
-              >
-                <span>{formatTimestamp(onChapter ? chPos : previewPos)}</span>
-                <span>
-                  -{formatTimestamp(onChapter ? Math.max(0, chSpan - chPos) : duration - previewPos)}
-                </span>
-              </div>
             </div>
           </div>
           <div
