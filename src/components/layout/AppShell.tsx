@@ -9,6 +9,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useNavCollapsed } from '@/hooks/useNavCollapsed'
 import { useCarMode } from '@/hooks/useCarMode'
 import { useCarFaded } from '@/hooks/useCarFaded'
+import { SharedDevicePrompt } from '@/components/account/SharedDevicePrompt'
 
 /**
  * Persistent app frame (design: .app grid + cover-glow bloom), ported from the
@@ -68,6 +69,7 @@ export function AppShell() {
           ABOVE the mini-player. Nested in .main it was trapped in .main's lower
           stacking context and rendered under the playbar. */}
       {isMobile && !immersive && <MobileNav />}
+      <SharedDevicePrompt />
     </div>
   )
 }

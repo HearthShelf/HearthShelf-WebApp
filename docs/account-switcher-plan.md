@@ -1,8 +1,9 @@
 # Account Switcher — Implementation Plan
 
-> Status: proposal for review. No code beyond the PIN pad (already built) has landed.
-> Target: make the WebApp usable on a shared car screen — click the user photo to
-> "Sign in another user" and, when several are remembered, swap between them fast.
+> Status: BUILT (backend + frontend), typechecks clean, not yet deployed/e2e-tested
+> against real Clerk keys. Target: make the WebApp usable on a shared car screen —
+> click the user photo to "Sign in another user" and, when several are remembered,
+> swap between them fast.
 
 ## 1. Goal & UX
 
@@ -193,41 +194,66 @@ harness `/dev/pin`). Already verified. Plugs in at 6.3 as the pre-switch gate.
 ## 7. Shared-device prompt (on login)
 
 After a fresh sign-in, if the device looks shared, ask "Is this a shared screen?"
+**BUILT**: `src/components/account/SharedDevicePrompt.tsx` (container) +
+`SharedDevicePromptCard` (pure presentational, previewable at `/dev/shared-prompt`).
 - Detection: reuse `isCarBrowser()` from `src/hooks/useCarMode.ts` (Tesla UA /
   touch-only Tesla-sized panel). Treat car mode as a strong shared-device signal.
-- If yes (or user confirms): surface "Remember accounts on this screen" + offer
-  to set a PIN. Drives whether `rememberCurrentUser()` is called and whether a
-  `pin_hash` is stored.
-- Persist the answer (settings flag) so we don't re-ask every login on the same
-  device.
+  Also skips the prompt if the current Clerk user is already remembered here.
+- Two-step card: "Is this a shared screen?" (No/Yes) → "Set a PIN? (optional)"
+  (Skip PIN / Save PIN, 4-digit numeric input). Yes+either button calls
+  `rememberCurrentUser()`.
+- Persisted via `src/store/deviceSettings.ts` (`askedSharedDevice`, separate from
+  the account roster) so it only asks once per browser.
+- Mounted once in `AppShell.tsx`.
 
-## 8. Open questions / risks to resolve before coding
+## 8. Open questions — RESOLVED (2026-06-30/07-01)
 
-1. **Handle theft.** A device handle in `localStorage` is XSS-exfiltratable, like
-   any local data. Mitigations: short `expires_at`, `/switch-token` only works
-   over an *authenticated* CP request (attacker also needs a live session), and
-   one-click revocation. Is that acceptable, or do we want handles bound to a
-   device fingerprint? (Recommend: ship with expiry+revocation, revisit binding.)
-2. **Who can forget/switch whom.** On a shared screen, anyone with the browser
-   can swap into any remembered non-PIN account. That's the intended family UX,
-   but confirm: should "forget this profile" require that profile's PIN?
-3. **PIN brute-force.** 4 digits = 10k combos. Rate-limit `/switch-token` PIN
-   checks per handle (e.g. lockout after N fails, backoff). PIN is a courtesy
-   gate, not a security boundary — document it as such.
-4. **BAPI response shape + errors.** Verify `createSignInToken` response field
-   and behavior when the target user has MFA required (ticket may not complete in
-   one step). Fallback path (6.3) covers it, but confirm.
-5. **Cost of the pivot.** This is now backend + frontend, not client-only. If the
-   backend lift isn't worth it short-term, the "Just wait for Pro" option
-   (build UI behind a flag, enable on upgrade) remains on the table.
+1. **Handle theft.** Shipped as originally recommended: short `expires_at` +
+   authenticated-request requirement + one-click revocation. Device-fingerprint
+   binding not built; revisit if needed.
+2. **PIN scope, resolved: fully independent per device.** A PIN lives on the
+   `device_handles` ROW (i.e. per remembered device), not per Clerk account.
+   Setting/changing/forgetting a PIN on one device never affects another
+   device's remembered copy of the same account. No schema change needed - this
+   was already how it worked; confirmed as the intended design.
+3. **Forget flow, resolved.** Forgetting a PIN-protected handle normally
+   requires that PIN (re-verified server-side, shares the switch-token attempt
+   counter). A "Forgot PIN?" escape hatch inside the pad shows a `window.confirm`
+   ("this removes {name} from this device, sign in again to use it here") and
+   then force-removes via `DELETE .../remembered/:handle` with
+   `confirm_forgot: true` (bypasses the PIN check). This ONLY removes the local
+   handle - it does not sign the account out anywhere else (per user decision).
+   **Built**: backend `checkPin()` shared helper in `accounts.ts`; frontend in
+   `AccountSwitcher.tsx` (desktop/tablet) and `MobileNav.tsx` (drawer), both with
+   a per-row "forget" (×) affordance next to each remembered account.
+4. **PIN brute-force, resolved: 10 tries then logout.** `MAX_PIN_ATTEMPTS = 10`
+   in `accounts.ts`. The counter is SHARED between switch-token and forget
+   attempts (same `pin_attempts` column) - a guesser can't reset their budget by
+   switching endpoints. At 10, the handle is deleted server-side (`410
+   locked_out`), which both the swap and forget flows treat as "gone, prune
+   locally". Verified against local D1 (counter increments, shared across
+   simulated switch+forget attempts).
+5. **"Log in with password" escape hatch, resolved.** `loginWithPassword()` in
+   `useAccountSwitch.ts`: `signOut()` then `redirectToSignIn()`. Available as a
+   menu row everywhere, AND as the automatic fallback whenever a swap or forget
+   hits `locked_out`/`gone`/an unexpected error. Both "Log out" buttons
+   (sidebar + mobile) now call this too, so logout always lands on a clean
+   re-login rather than a stale redirect.
+6. **BAPI response shape + errors.** Still unverified against real Clerk keys
+   (no way to test without deploying/a working localhost Clerk domain). Fallback
+   path in `useAccountSwitch.switchTo()` covers a non-`complete` status by
+   surfacing an error rather than crashing, but this is unexercised in practice.
+7. **Cost of the pivot.** Absorbed - backend + frontend both built (see below).
 
-## 9. Suggested build order
+## 9. Build order — DONE
 
-1. Migration + `accounts.ts` routes + BAPI helper (backend, testable via curl).
-2. `rememberedAccounts` store + client API + `useAccountSwitch` (stub the ticket
-   with a fake to test UI, then wire real).
-3. Sidebar + mobile switcher UI.
-4. Shared-device prompt.
-5. E2e on the AIO test box, then behind a feature flag until proven.
-
-PIN pad (step 0) is already done.
+1. ✅ Migration + `accounts.ts` routes + BAPI helper.
+2. ✅ `rememberedAccounts` store + client API + `useAccountSwitch`.
+3. ✅ Sidebar + mobile switcher UI (including per-row forget).
+4. ✅ Shared-device prompt.
+5. ⬜ E2e on the AIO test box / real Clerk keys - NOT DONE. Everything up to the
+   Clerk API boundary is typechecked and, where testable without live Clerk
+   auth, verified via dev harnesses (`/dev/pin`, `/dev/switcher`,
+   `/dev/shared-prompt`) and direct D1 queries. The `createSignInToken` mint +
+   `signIn.create({strategy:'ticket'})` redeem round-trip is unproven.
+   Recommend testing behind a flag or on a preview deploy before wide rollout.
