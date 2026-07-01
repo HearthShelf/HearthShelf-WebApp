@@ -18,6 +18,7 @@ import { setCarFaded } from '@/hooks/useCarFaded'
 import { useBookmarks } from '@/hooks/useBookmarks'
 import { useToast } from '@/hooks/useToast'
 import { useQueueStore, type QueueMode, type AutoRuleId } from '@/store/queueStore'
+import { useItemsInProgress } from '@/hooks/useLibrary'
 import { getItemDetail, type AbsChapter, type AbsTarget } from '@/api/absLibrary'
 import { formatTimestamp, stripHtml } from '@hearthshelf/core'
 import { Cover } from '@/components/shared/Cover'
@@ -337,6 +338,11 @@ export function PlayerPage() {
   const navigate = useNavigate()
   const ui = useMediaUI()
   const { target } = useActiveServer()
+  // For the "Nothing playing" empty state's Resume button - the most recent
+  // in-progress book, if any, so there's a one-tap way back in besides
+  // browsing the whole library.
+  const { data: inProgress } = useItemsInProgress(target as AbsTarget, undefined, Boolean(target))
+  const resumeBook = inProgress?.[0]
   const {
     now,
     playing,
@@ -369,8 +375,15 @@ export function PlayerPage() {
   // Owned here (not inside CarPlayer) so the hearth background behind the
   // card can also wake the chrome on tap - both need the same fade state.
   // Settings > Playback > Car mode controls whether this fades at all and
-  // after how long; disabling it just keeps faded permanently false.
-  const carIdleFade = useIdleFade(carMode && carFadeEnabled, carFadeSec * 1000)
+  // after how long; disabling it just keeps faded permanently false. Also
+  // gated on something actually playing: the "Nothing playing" empty state
+  // has no card/background to tap and wake it back up, so if the timer ran
+  // there the chrome would fade and get permanently stuck hidden with no way
+  // back in.
+  const carIdleFade = useIdleFade(
+    carMode && carFadeEnabled && Boolean(libraryItemId),
+    carFadeSec * 1000
+  )
   // Mirror into the shared store so AppShell's sidebar fades in step with the
   // rest of the car player's chrome instead of hard-hiding/showing. Reset on
   // unmount so leaving /player always restores the sidebar immediately.
@@ -467,9 +480,28 @@ export function PlayerPage() {
             The fire's lit and the chair's yours. Pull something off the shelf and
             settle in.
           </p>
-          <button className="btn btn-primary" onClick={() => navigate('/library')}>
-            <Icon name="auto_stories" fill /> Browse the library
-          </button>
+          <div className="cozy-actions">
+            <button className="btn btn-primary" onClick={() => navigate('/library')}>
+              <Icon name="auto_stories" fill /> Browse the library
+            </button>
+            {resumeBook && (
+              <button
+                className="btn btn-primary btn-resume"
+                onClick={() => ui.playItem(resumeBook.id, { openPlayer: true })}
+              >
+                <Cover
+                  itemId={resumeBook.id}
+                  title={resumeBook.media.metadata.title ?? 'Untitled'}
+                  fs={7}
+                  className="btn-resume-cover"
+                />
+                <span className="btn-resume-text">
+                  Resume
+                  <small>{resumeBook.media.metadata.title ?? 'Untitled'}</small>
+                </span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     )

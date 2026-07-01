@@ -2083,9 +2083,19 @@
   box-shadow: none;
 }
 .car-card.faded .car-head,
-.car-card.faded .car-secondary,
-.car-card.faded .car-sheet,
 .car-card.faded .car-resize {
+  opacity: 0;
+  pointer-events: none;
+}
+/* Speed/Sleep/More stay invisible but tappable while faded (unlike the drag
+   handle/resize grip) - so one tap in the same spot both wakes the chrome and
+   fires the button, instead of a "reveal" tap followed by a second real tap
+   to actually reach it. Without this, a fully pointer-events:none row could
+   only be reopened by tapping empty card/background space first. */
+.car-card.faded .car-secondary {
+  opacity: 0;
+}
+.car-card.faded .car-sheet {
   opacity: 0;
   pointer-events: none;
 }
@@ -3733,6 +3743,14 @@ select.fld { appearance: none; cursor: pointer; background-image: url("data:imag
 .cozy-empty .eyebrow { color: #bd863f; }
 .cozy-h { font-family: var(--font-brand); font-style: italic; font-weight: 700; font-size: 34px; letter-spacing: -.01em; margin: 8px 0 10px; color: #f3ead9; text-shadow: 0 2px 18px rgba(0,0,0,.6); }
 .cozy-sub { font-size: 14.5px; line-height: 1.6; color: #d8cdba; max-width: 350px; margin: 0 auto 22px; text-wrap: pretty; text-shadow: 0 1px 10px rgba(0,0,0,.55); }
+.cozy-actions { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+/* Resume button - same pill as .btn-primary, but the leading icon slot is the
+   book's own cover art instead of a Material icon, and it carries two lines
+   (action + book title) instead of one. */
+.btn-resume { padding: 8px 20px 8px 8px; text-align: left; }
+.btn-resume-cover { width: 40px; height: 40px; border-radius: 7px; flex: none; box-shadow: 0 3px 10px rgba(0,0,0,0.35); }
+.btn-resume-text { display: flex; flex-direction: column; gap: 2px; line-height: 1.25; }
+.btn-resume-text small { font-size: 11.5px; font-weight: 500; opacity: 0.82; max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---- form label + destructive list (modals) ---- */
 .fld-label { display: block; font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--text-muted); margin-bottom: 6px; }
