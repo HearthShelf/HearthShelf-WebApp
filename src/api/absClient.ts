@@ -119,9 +119,15 @@ async function absRequest<T>(
     }
     throw new AbsError(res.status, detail)
   }
-  // Some endpoints (progress PATCH) return 200 with no body; tolerate that.
+  // Some endpoints (progress PATCH) return 200 with a non-JSON body like the
+  // literal string "OK", others return nothing. Tolerate both.
   const text = await res.text()
-  return (text ? JSON.parse(text) : null) as T
+  if (!text) return null as T
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    return null as T
+  }
 }
 
 /**
