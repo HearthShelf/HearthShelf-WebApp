@@ -84,6 +84,12 @@ export function AppearanceSettings() {
           desc="Show a subtle surface behind book cards and shelf items."
           control={<Toggle on={s.cardBg} onChange={(v) => set('cardBg', v)} />}
         />
+
+        <SetRow
+          title="Use shared settings"
+          desc="Keep this device's settings in step with your other devices. Turn off to keep this device's look and feel on its own."
+          control={<Toggle on={s.useSharedSettings} onChange={(v) => set('useSharedSettings', v)} />}
+        />
       </div>
     </section>
   )

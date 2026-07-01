@@ -1,13 +1,19 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { QueueMode, AutoRuleId } from '@/store/queueStore'
+import type { SettingScope, SettingValue } from '@hearthshelf/core'
+import { SETTINGS_CATALOG, settingDefault } from '@hearthshelf/core'
+
+// Client-only player + appearance preferences. Rendered from localStorage for an
+// instant first paint, then reconciled per-key with the active server's
+// HearthShelf backend (useSettingsSync) so a user's settings follow them across
+// devices. The store keeps flat fields as the read surface every component uses,
+// and tracks a per-key updatedAt in `meta` so sync merges at the setting level
+// (per-key last-writer-wins). The catalog in @hearthshelf/core is the shared
+// definition of each key's scope + default.
 
 // The default order/priority of the Auto-queue rules. All on by default.
-export const DEFAULT_AUTO_RULES: AutoRuleId[] = [
-  'finish-series',
-  'in-progress',
-  'new-in-series',
-]
+export const DEFAULT_AUTO_RULES: AutoRuleId[] = ['finish-series', 'in-progress', 'new-in-series']
 
 export type ScrubberScope = 'chapter' | 'book'
 export type Theme = 'dark' | 'flat' | 'light' | 'oled'
@@ -19,7 +25,8 @@ export type CoverStyle = 'floating' | 'cards'
 export type CarMode = 'auto' | 'on' | 'off'
 
 // The draggable/resizable car-mode player card, in viewport px. null until the
-// user first moves or resizes it (then it's pinned and restored next time).
+// user first moves or resizes it. Device-window geometry - stays local (not in
+// the catalog, so it never syncs across devices).
 export interface CarPlayerRect {
   x: number
   y: number
@@ -35,7 +42,6 @@ export interface AccentPreset {
   hex: string
 }
 
-// Ported from the self-hosted settings store (prototype/data.js PRESETS).
 export const ACCENT_PRESETS: AccentPreset[] = [
   { name: 'Ember', hex: '#ea9648' },
   { name: 'Hearth', hex: '#e0654a' },
@@ -49,15 +55,13 @@ export const ACCENT_PRESETS: AccentPreset[] = [
   { name: 'Slate', hex: '#6b7280' },
 ]
 
-// Readable ink/cream over an accent hex, chosen by relative luminance. Ported
-// from the self-hosted store (prototype/components.jsx onColor).
+// Readable ink/cream over an accent hex, chosen by relative luminance.
 export function onColor(hex: string): string {
   const h = hex.replace('#', '')
   const r = parseInt(h.slice(0, 2), 16) / 255
   const g = parseInt(h.slice(2, 4), 16) / 255
   const b = parseInt(h.slice(4, 6), 16) / 255
-  const lin = (c: number) =>
-    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4))
   const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
   return L > 0.42 ? '#1a1509' : '#fff'
 }
@@ -68,13 +72,8 @@ export interface AutoRulePref {
   on: boolean
 }
 
-export const DEFAULT_AUTO_RULE_PREFS: AutoRulePref[] = DEFAULT_AUTO_RULES.map(
-  (id) => ({ id, on: true })
-)
+export const DEFAULT_AUTO_RULE_PREFS: AutoRulePref[] = DEFAULT_AUTO_RULES.map((id) => ({ id, on: true }))
 
-// Minimal client-only player preferences the full-screen player reads. Persisted
-// to localStorage; no ABS dependency. This is a focused subset of the self-hosted
-// app's settings store - only the fields the player UI actually touches.
 export interface SettingsState {
   // Appearance
   theme: Theme
@@ -83,21 +82,18 @@ export interface SettingsState {
   coverStyle: CoverStyle
   cardBg: boolean
   useGravatar: boolean
+  hearthBgPlayer: boolean
 
   // Playback
   scrubber: ScrubberScope
-  // Preset values; 0 means "custom" (use skipForwardCustom / skipBackCustom)
   skipForward: number
   skipForwardCustom: number
   skipBack: number
   skipBackCustom: number
-  hearthBgPlayer: boolean
 
   // Car mode (in-car browser player)
   carMode: CarMode
   carPlayerRect: CarPlayerRect | null
-  // Whether the secondary chrome (background, head, secondary row, sidebar)
-  // auto-fades after carFadeSec idle. Off keeps everything always visible.
   carFadeEnabled: boolean
   carFadeSec: number
 
@@ -109,37 +105,59 @@ export interface SettingsState {
   queueAutoRules: AutoRulePref[]
 
   // Library
-  // Pull Home's shelves + in-progress from every library at once (only takes
-  // effect when the server has more than one library).
   unifiedHome: boolean
 
-  // Sleep (stop-sequence behaviour, mirrored by useSleepTimer)
+  // Sleep
   sleepRewindSec: number
   chapterBarrier: boolean
   sleepFade: boolean
   sleepFadeLen: number
 
+  // Device-scoped: when false, this device ignores account settings pulled from
+  // the server and runs on its local values only (see useSettingsSync).
+  useSharedSettings: boolean
+
+  // Per-key updatedAt (ms) for sync conflict resolution. Not a user setting.
+  meta: Record<string, number>
+  // Stable per-install id for device-scoped settings. Generated once, persisted.
+  deviceId: string
+
   set: <K extends keyof SettingsValues>(key: K, value: SettingsValues[K]) => void
+  // Apply per-key values pulled from the server with their server updatedAt,
+  // resolving each against the local value via last-writer-wins.
+  applyServerKeys: (rows: Record<string, { value: SettingValue; updatedAt: number }>) => void
 }
 
-type SettingsValues = Omit<SettingsState, 'set'>
+type SettingsValues = Omit<SettingsState, 'set' | 'applyServerKeys' | 'meta' | 'deviceId'>
+
+// Keys that sync to the server (present in the catalog). carPlayerRect is
+// local-only window geometry, so it's absent from the catalog and never syncs.
+export const SYNCED_KEYS = Object.keys(SETTINGS_CATALOG) as (keyof SettingsValues)[]
+
+function newDeviceId(): string {
+  try {
+    return crypto.randomUUID()
+  } catch {
+    return `dev-${Date.now()}-${Math.floor(Math.random() * 1e9)}`
+  }
+}
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       theme: 'dark',
       accentMode: 'manual',
       accentHex: EMBER,
       coverStyle: 'floating',
       cardBg: true,
       useGravatar: false,
+      hearthBgPlayer: true,
 
       scrubber: 'chapter',
       skipForward: 30,
       skipForwardCustom: 45,
       skipBack: 15,
       skipBackCustom: 20,
-      hearthBgPlayer: true,
 
       carMode: 'auto',
       carPlayerRect: null,
@@ -157,8 +175,45 @@ export const useSettingsStore = create<SettingsState>()(
       sleepFade: true,
       sleepFadeLen: 20,
 
-      set: (key, value) => set({ [key]: value } as Partial<SettingsState>),
+      useSharedSettings: true,
+
+      meta: {},
+      deviceId: newDeviceId(),
+
+      set: (key, value) =>
+        set((state) => {
+          const meta = { ...state.meta }
+          if (key in SETTINGS_CATALOG) meta[key as string] = Date.now()
+          return { [key]: value, meta } as Partial<SettingsState>
+        }),
+
+      applyServerKeys: (rows) => {
+        const state = get()
+        const patch: Record<string, unknown> = {}
+        const meta = { ...state.meta }
+        for (const key of Object.keys(rows)) {
+          if (!(key in SETTINGS_CATALOG)) continue
+          const remote = rows[key]
+          const localAt = state.meta[key] ?? -1
+          if (remote.updatedAt >= localAt) {
+            patch[key] = remote.value
+            meta[key] = remote.updatedAt
+          }
+        }
+        if (Object.keys(patch).length) set({ ...patch, meta } as Partial<SettingsState>)
+      },
     }),
     { name: 'hearthshelf:settings' }
   )
 )
+
+// The scope of a synced key from the catalog ('account' | 'device').
+export function scopeOf(key: string): SettingScope | null {
+  const d = SETTINGS_CATALOG[key]
+  return d ? d.scope : null
+}
+
+// The catalog default for a key (used when resetting).
+export function defaultOf(key: string): SettingValue | undefined {
+  return settingDefault(key)
+}

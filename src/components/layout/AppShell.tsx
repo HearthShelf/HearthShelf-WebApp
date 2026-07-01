@@ -5,6 +5,7 @@ import { MobileNav } from '@/components/layout/MobileNav'
 import { MiniPlayer } from '@/player/MiniPlayer'
 import { useConnectActiveServer } from '@/hooks/useConnectActiveServer'
 import { useApplySettings } from '@/hooks/useApplySettings'
+import { useSettingsSync } from '@/hooks/useSettingsSync'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useNavCollapsed } from '@/hooks/useNavCollapsed'
 import { useCarMode } from '@/hooks/useCarMode'
@@ -41,6 +42,9 @@ export function AppShell() {
   useConnectActiveServer()
   // Apply appearance settings (theme via data-theme, accent CSS vars) globally.
   useApplySettings()
+  // Sync settings per-key with the active server so they follow the user across
+  // devices.
+  useSettingsSync()
 
   return (
     <div
