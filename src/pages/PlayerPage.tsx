@@ -22,6 +22,7 @@ import { useQueueStore, type QueueMode, type AutoRuleId } from '@/store/queueSto
 import { useItemsInProgress } from '@/hooks/useLibrary'
 import { getItemDetail, type AbsChapter, type AbsTarget } from '@/api/absLibrary'
 import { getNotes, notesKeys } from '@/api/absNotes'
+import { getClubs, getClubDetail, clubsKeys } from '@/api/absClubs'
 import { formatTimestamp, stripHtml, clusterTimelineMarkers } from '@hearthshelf/core'
 import { Cover } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
@@ -419,23 +420,71 @@ export function PlayerPage() {
     staleTime: 30 * 1000,
     refetchInterval: 30 * 1000,
   })
+  // If the playing book is a club's CURRENT book, fold that club's gated notes
+  // into the scrubber too - same 30s poll cadence, degrades to nothing (no
+  // club, older server, disabled) so the public-notes markers above are
+  // unaffected.
+  const { data: myClubs } = useQuery({
+    queryKey: clubsKeys.list(target?.serverId ?? '', libraryItemId ?? ''),
+    queryFn: () => getClubs(target as AbsTarget, libraryItemId as string),
+    enabled: Boolean(target) && Boolean(libraryItemId),
+    staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
+  })
+  const activeClubId =
+    myClubs?.enabled && libraryItemId
+      ? (myClubs.mine.find((c) => c.currentBook?.libraryItemId === libraryItemId)?.id ?? null)
+      : null
+
+  const { data: clubDetail } = useQuery({
+    queryKey: clubsKeys.detail(target?.serverId ?? '', activeClubId ?? '', libraryItemId ?? ''),
+    queryFn: () => getClubDetail(target as AbsTarget, activeClubId as string, { position: pos }),
+    enabled: Boolean(target) && Boolean(activeClubId),
+    staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
+  })
+
   const timelineMarkers = useMemo(() => {
-    if (!playerNotes?.enabled || duration <= 0) return []
-    const items = [
-      ...playerNotes.notes
-        .filter((n) => n.timeSec != null)
-        .map((n) => ({
-          id: n.id,
-          timeSec: n.timeSec as number,
-          kind: 'note' as const,
-          userId: n.userId,
-          username: n.username,
-        })),
-      ...playerNotes.locked.map((s) => ({ id: s.id, timeSec: s.timeSec, kind: 'stub' as const })),
-    ]
+    if (duration <= 0) return []
+    const items: {
+      id: string
+      timeSec: number
+      kind: 'note' | 'stub'
+      userId?: string
+      username?: string
+    }[] = []
+    if (playerNotes?.enabled) {
+      items.push(
+        ...playerNotes.notes
+          .filter((n) => n.timeSec != null)
+          .map((n) => ({
+            id: n.id,
+            timeSec: n.timeSec as number,
+            kind: 'note' as const,
+            userId: n.userId,
+            username: n.username,
+          })),
+        ...playerNotes.locked.map((s) => ({ id: s.id, timeSec: s.timeSec, kind: 'stub' as const })),
+      )
+    }
+    if (activeClubId && clubDetail?.enabled) {
+      items.push(
+        ...clubDetail.notes.notes
+          .filter((n) => n.timeSec != null)
+          .map((n) => ({
+            id: n.id,
+            timeSec: n.timeSec as number,
+            kind: 'note' as const,
+            userId: n.userId,
+            username: n.username,
+          })),
+        ...clubDetail.notes.locked.map((s) => ({ id: s.id, timeSec: s.timeSec, kind: 'stub' as const })),
+      )
+    }
+    if (items.length === 0) return []
     return clusterTimelineMarkers(items, duration)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playerNotes, duration])
+  }, [playerNotes, clubDetail, activeClubId, duration])
 
   // Normalize chapters to start/end seconds for the local math.
   const chapters = useMemo<Chap[]>(

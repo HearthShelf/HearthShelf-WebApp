@@ -6,6 +6,7 @@ import { MiniPlayer } from '@/player/MiniPlayer'
 import { useConnectActiveServer } from '@/hooks/useConnectActiveServer'
 import { useApplySettings } from '@/hooks/useApplySettings'
 import { useSettingsSync } from '@/hooks/useSettingsSync'
+import { useNotePops } from '@/hooks/useNotePops'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useNavCollapsed } from '@/hooks/useNavCollapsed'
 import { useCarMode } from '@/hooks/useCarMode'
@@ -45,6 +46,8 @@ export function AppShell() {
   // Sync settings per-key with the active server so they follow the user across
   // devices.
   useSettingsSync()
+  // Toast when playback crosses a club note (deep-links into the club room).
+  useNotePops()
 
   return (
     <div
