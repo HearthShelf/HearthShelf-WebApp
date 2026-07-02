@@ -10,7 +10,7 @@
  */
 import { getAbsToken } from '@/lib/absTokens'
 import type { AbsTarget } from './absLibrary'
-import type { HSNote, HSNoteStub, HSNotesResponse } from '@hearthshelf/core'
+import type { HSNote, HSNoteStub, HSNotesResponse, NoteVisibility } from '@hearthshelf/core'
 
 function origin(t: AbsTarget): string {
   return t.serverUrl.replace(/\/$/, '')
@@ -29,8 +29,10 @@ interface RawNote {
   username?: string
   libraryItemId?: string
   clubId?: string
+  visibility?: string
   parentId?: string
   timeSec?: number | null
+  safe?: boolean
   body?: string
   createdAt?: number
 }
@@ -48,15 +50,24 @@ interface RawNotesResponse {
   now?: number
 }
 
+function asVisibility(v: string | undefined, clubId: string): NoteVisibility {
+  if (v === 'club' || v === 'public' || v === 'personal') return v
+  // Older servers omit `visibility` - fall back to the pre-visibility overload.
+  return clubId ? 'club' : 'public'
+}
+
 function mapNote(n: RawNote): HSNote {
+  const clubId = n.clubId ?? ''
   return {
     id: n.id ?? '',
     userId: n.userId ?? '',
     username: n.username ?? '',
     libraryItemId: n.libraryItemId ?? '',
-    clubId: n.clubId ?? '',
+    clubId,
+    visibility: asVisibility(n.visibility, clubId),
     parentId: n.parentId ?? '',
     timeSec: n.timeSec ?? null,
+    safe: Boolean(n.safe),
     body: n.body ?? '',
     createdAt: n.createdAt ?? 0,
   }
@@ -113,8 +124,10 @@ export async function getNotes(
 export interface CreateNoteInput {
   libraryItemId: string
   clubId?: string
+  visibility?: NoteVisibility
   parentId?: string
   timeSec?: number
+  safe?: boolean
   body: string
 }
 

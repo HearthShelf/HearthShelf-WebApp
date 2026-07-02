@@ -214,8 +214,10 @@ export async function getClubDetail(
           username?: string
           libraryItemId?: string
           clubId?: string
+          visibility?: string
           parentId?: string
           timeSec?: number | null
+          safe?: boolean
           body?: string
           createdAt?: number
         }>
@@ -237,8 +239,10 @@ export async function getClubDetail(
           username: n.username ?? '',
           libraryItemId: n.libraryItemId ?? '',
           clubId: n.clubId ?? '',
+          visibility: n.visibility === 'public' || n.visibility === 'personal' ? n.visibility : 'club',
           parentId: n.parentId ?? '',
           timeSec: n.timeSec ?? null,
+          safe: Boolean(n.safe),
           body: n.body ?? '',
           createdAt: n.createdAt ?? 0,
         })),

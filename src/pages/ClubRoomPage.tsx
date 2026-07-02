@@ -27,6 +27,7 @@ export function ClubRoomPage() {
 
   const [bookId, setBookId] = useState<string | undefined>(undefined)
   const [draft, setDraft] = useState('')
+  const [safe, setSafe] = useState(false)
 
   const { data: me } = useQuery({
     queryKey: ['abs-me', target?.serverId],
@@ -57,10 +58,12 @@ export function ClubRoomPage() {
       createNote(target!, {
         libraryItemId: (bookId ?? data?.club.currentBook?.libraryItemId) as string,
         clubId: clubId as string,
+        safe,
         body,
       }),
     onSuccess: () => {
       setDraft('')
+      setSafe(false)
       void qc.invalidateQueries({ queryKey: key })
     },
     onError: () => show('Could not post - try again'),
@@ -247,7 +250,15 @@ export function ClubRoomPage() {
             onChange={(e) => setDraft(e.target.value)}
             maxLength={2000}
           />
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: 8, gap: 8 }}>
+            <button
+              type="button"
+              className={'pill' + (safe ? ' on' : '')}
+              onClick={() => setSafe(!safe)}
+              title="Safe - show to everyone now (no spoilers)"
+            >
+              <Icon name="shield" /> Safe
+            </button>
             <button className="pill on" disabled={!draft.trim() || post.isPending} onClick={() => post.mutate(draft.trim())}>
               <Icon name="send" /> Post
             </button>
@@ -272,6 +283,11 @@ export function ClubRoomPage() {
                       <span className="bm-n" style={{ fontWeight: 600 }}>
                         {n.username}
                       </span>
+                      {n.safe && (
+                        <span className="badge-pill abridged" title="Marked spoiler-free - shown to everyone early">
+                          Safe
+                        </span>
+                      )}
                       <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                         {day} · {time}
                         {n.timeSec != null && <> · {formatTimestamp(n.timeSec)}</>}

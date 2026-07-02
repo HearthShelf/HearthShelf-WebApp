@@ -4,6 +4,7 @@ import { getNotes, createNote, deleteNote, notesKeys } from '@/api/absNotes'
 import { formatTimestamp, fmtSessDate } from '@hearthshelf/core'
 import type { AbsTarget } from '@/api/absLibrary'
 import type { HSNote } from '@hearthshelf/core'
+import { useSettingsStore } from '@/store/settingsStore'
 import { Avatar } from '@/components/common/Avatar'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
@@ -32,6 +33,11 @@ export function NotesSection({
   const [replyTo, setReplyTo] = useState<string | null>(null)
   const [replyDraft, setReplyDraft] = useState('')
 
+  const noteDefaultVisibility = useSettingsStore((s) => s.noteDefaultVisibility)
+  const setSetting = useSettingsStore((s) => s.set)
+  const [visibility, setVisibility] = useState(noteDefaultVisibility)
+  const [safe, setSafe] = useState(false)
+
   const key = notesKeys.list(target.serverId, libraryItemId, '')
   const { data, isLoading } = useQuery({
     queryKey: key,
@@ -40,9 +46,11 @@ export function NotesSection({
   })
 
   const post = useMutation({
-    mutationFn: (body: string) => createNote(target, { libraryItemId, body }),
+    mutationFn: (body: string) => createNote(target, { libraryItemId, visibility, safe, body }),
     onSuccess: () => {
       setDraft('')
+      setSafe(false)
+      setSetting('noteDefaultVisibility', visibility)
       void qc.invalidateQueries({ queryKey: key })
     },
   })
@@ -95,14 +103,42 @@ export function NotesSection({
           onChange={(e) => setDraft(e.target.value)}
           maxLength={2000}
         />
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-          <button
-            className="pill on"
-            disabled={!draft.trim() || post.isPending}
-            onClick={() => post.mutate(draft.trim())}
-          >
-            <Icon name="send" /> Post
-          </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              type="button"
+              className={'pill' + (visibility === 'public' ? ' on' : '')}
+              onClick={() => setVisibility('public')}
+              title="Visible to everyone on the server"
+            >
+              <Icon name="public" /> Public
+            </button>
+            <button
+              type="button"
+              className={'pill' + (visibility === 'personal' ? ' on' : '')}
+              onClick={() => setVisibility('personal')}
+              title="Only you can ever see this note"
+            >
+              <Icon name="lock" /> Personal
+            </button>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              type="button"
+              className={'pill' + (safe ? ' on' : '')}
+              onClick={() => setSafe(!safe)}
+              title="Safe - show to everyone now (no spoilers)"
+            >
+              <Icon name="shield" /> Safe
+            </button>
+            <button
+              className="pill on"
+              disabled={!draft.trim() || post.isPending}
+              onClick={() => post.mutate(draft.trim())}
+            >
+              <Icon name="send" /> Post
+            </button>
+          </div>
         </div>
       </div>
 
@@ -167,6 +203,16 @@ function NoteLine({
           <span className="bm-n" style={{ fontWeight: 600 }}>
             {note.username}
           </span>
+          {note.visibility === 'personal' && mine && (
+            <span className="badge-pill abridged" title="Only you can see this note">
+              Only you
+            </span>
+          )}
+          {note.safe && (
+            <span className="badge-pill abridged" title="Marked spoiler-free - shown to everyone early">
+              Safe
+            </span>
+          )}
           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
             {day} · {time}
             {note.timeSec != null && <> · {formatTimestamp(note.timeSec)}</>}

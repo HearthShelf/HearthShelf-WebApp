@@ -112,6 +112,10 @@ export interface SettingsState {
   // silence pops on one device without leaving the club.
   notePops: boolean
 
+  // Remembered Public/Personal choice for the general (non-club) note composer,
+  // written on each post. Device-scoped (see docs/social.md).
+  noteDefaultVisibility: 'public' | 'personal'
+
   // Queue
   queueMode: QueueMode
   queueAutoRules: AutoRulePref[]
@@ -180,6 +184,7 @@ export const useSettingsStore = create<SettingsState>()(
       carFadeSec: 30,
       showAdvanced: false,
       notePops: true,
+      noteDefaultVisibility: 'public',
 
       queueMode: 'manual',
       queueAutoRules: DEFAULT_AUTO_RULE_PREFS,
