@@ -1246,6 +1246,7 @@ export function MobilePlayer({
           >
             <RecentListens
               libraryItemId={libraryItemId}
+              chapters={chapters}
               onSeek={(sec) => {
                 seekClamp(sec)
                 setSheet(null)

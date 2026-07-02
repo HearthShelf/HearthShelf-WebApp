@@ -37,6 +37,7 @@ import { SignInPage } from '@/pages/SignInPage'
 import { SignUpPage } from '@/pages/SignUpPage'
 import { ErrorPage } from '@/pages/ErrorPage'
 import { CarPlayerHarness } from '@/pages/dev/CarPlayerHarness'
+import { RecentListensHarness } from '@/pages/dev/RecentListensHarness'
 import { PinEntryHarness } from '@/pages/dev/PinEntryHarness'
 import { SwitcherHarness } from '@/pages/dev/SwitcherHarness'
 import { SharedDevicePromptHarness } from '@/pages/dev/SharedDevicePromptHarness'
@@ -60,6 +61,7 @@ export const router = createBrowserRouter([
   ...(import.meta.env.DEV
     ? [
         { path: '/dev/car', element: <CarPlayerHarness /> },
+        { path: '/dev/recent', element: <RecentListensHarness /> },
         { path: '/dev/pin', element: <PinEntryHarness /> },
         { path: '/dev/switcher', element: <SwitcherHarness /> },
         { path: '/dev/shared-prompt', element: <SharedDevicePromptHarness /> },

@@ -842,6 +842,7 @@ export function PlayerPage() {
               <div className="pop-scroll">
                 <RecentListens
                   libraryItemId={libraryItemId}
+                  chapters={chapters}
                   onSeek={(sec) => {
                     seekClamp(sec)
                     setToast(`Jumped to ${formatTimestamp(sec)}`)

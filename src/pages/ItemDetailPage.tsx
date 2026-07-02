@@ -547,6 +547,7 @@ export function ItemDetailPage() {
         <Modal title="Previous sessions" onClose={() => setShowSessions(false)}>
           <RecentListens
             libraryItemId={data.id}
+            chapters={chapters}
             onSeek={(sec) => {
               playChapter(sec)
               show(`Jumped to ${formatTimestamp(sec)}`)
