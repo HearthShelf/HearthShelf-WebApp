@@ -1,13 +1,20 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getListeningStatsFull, type ListeningStatsFull } from '@/api/absStats'
-import { getLeaderboard, type LeaderboardResponse } from '@/api/absSocial'
+import { getLeaderboard, socialKeys, type LeaderboardResponse } from '@/api/absSocial'
+import type { LeaderboardWindow } from '@hearthshelf/core'
 import { Cover, tintFor } from '@/components/shared/Cover'
 import { Avatar } from '@/components/common/Avatar'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
+
+const WINDOWS: { id: LeaderboardWindow; label: string }[] = [
+  { id: 'week', label: 'Week' },
+  { id: 'month', label: 'Month' },
+  { id: 'all', label: 'All time' },
+]
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -35,6 +42,7 @@ function dayKey(d: Date): string {
 
 export function StatsPage() {
   const { target } = useActiveServer()
+  const [window, setWindow] = useState<LeaderboardWindow>('all')
 
   const { data, isLoading, isError, refetch } = useQuery<ListeningStatsFull>({
     queryKey: ['abs-stats-full', target?.serverId],
@@ -45,14 +53,16 @@ export function StatsPage() {
 
   // Cross-user leaderboard (the connected server's HearthShelf backend). Degrades
   // to an unavailable response when the server doesn't expose social, in which
-  // case we hide the whole section rather than show an error.
+  // case we hide the whole section rather than show an error. Window pills only
+  // render once the server confirms windowing support (windowsAvailable).
   const { data: leaderboard } = useQuery<LeaderboardResponse>({
-    queryKey: ['abs-leaderboard', target?.serverId],
-    queryFn: () => getLeaderboard(target!),
+    queryKey: socialKeys.leaderboard(target?.serverId ?? '', window),
+    queryFn: () => getLeaderboard(target!, window),
     enabled: Boolean(target),
     staleTime: 5 * 60 * 1000,
   })
   const lbEntries = leaderboard?.available ? leaderboard.entries : []
+  const showWindowPills = Boolean(leaderboard?.available && leaderboard.windowsAvailable)
 
   // Top items by listening time, resolved with cover + metadata.
   const mostListened = useMemo(() => {
@@ -247,6 +257,19 @@ export function StatsPage() {
       {lbEntries.length > 0 && (
         <div className="section">
           <SectionHead icon="groups" title="Leaderboard" />
+          {showWindowPills && (
+            <div className="toolbar2" style={{ marginBottom: 12 }}>
+              {WINDOWS.map((w) => (
+                <button
+                  key={w.id}
+                  className={'pill' + (window === w.id ? ' on' : '')}
+                  onClick={() => setWindow(w.id)}
+                >
+                  {w.label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="chart-card" style={{ marginTop: 0 }}>
             <div className="ml-list">
               {lbEntries.map((e) => (
