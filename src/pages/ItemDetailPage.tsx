@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getItemDetail, getMe } from '@/api/absLibrary'
 import { getBookDetailFull, itemFileDownloadUrl, itemCoverFullUrl } from '@/api/absBookDetail'
+import { getFinishedBy, socialKeys } from '@/api/absSocial'
+import type { HSFinishedByResponse } from '@hearthshelf/core'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
 import { useMarkFinished } from '@/hooks/useMarkFinished'
 import { useBookmarks } from '@/hooks/useBookmarks'
@@ -13,6 +15,7 @@ import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { formatTimestamp, stripHtml } from '@hearthshelf/core'
 import { externalLinks } from '@/lib/externalLinks'
 import { Cover, tintFor } from '@/components/shared/Cover'
+import { Avatar } from '@/components/common/Avatar'
 import { ImageZoomViewer } from '@/components/common/ImageZoomViewer'
 import { Icon } from '@/components/common/Icon'
 import { Stars } from '@/components/common/Stars'
@@ -91,6 +94,16 @@ export function ItemDetailPage() {
   })
   const canEdit = me?.type === 'admin' || me?.type === 'root' || me?.permissions?.update === true
   const canDownload = me?.permissions?.download !== false
+
+  // Who else finished this book (privacy-filtered server-side). Degrades to
+  // an empty, unavailable response on older servers - the chips row hides.
+  const { data: finishedBy } = useQuery<HSFinishedByResponse>({
+    queryKey: socialKeys.finishedBy(target?.serverId ?? '', itemId ?? ''),
+    queryFn: () => getFinishedBy(target!, itemId as string),
+    enabled: Boolean(target && itemId),
+    staleTime: 5 * 60 * 1000,
+  })
+  const finishedByUsers = finishedBy?.available ? finishedBy.users : []
 
   // Load this book into the GLOBAL player when it opens (paused at the saved
   // position), unless it's already the now-playing book - so navigating back to
@@ -364,6 +377,25 @@ export function ItemDetailPage() {
               />
             </Dropdown>
           </div>
+
+          {finishedByUsers.length > 0 && (
+            <div className="read-by">
+              <div className="avatar-stack">
+                {finishedByUsers.slice(0, 6).map((u) => (
+                  <Avatar key={u.userId} name={u.username} size={28} className="hs-avatar" />
+                ))}
+                {finishedByUsers.length > 6 && (
+                  <span className="avatar-more" style={{ width: 28, height: 28, fontSize: 11 }}>
+                    +{finishedByUsers.length - 6}
+                  </span>
+                )}
+                <span className="as-label">
+                  Finished by {finishedByUsers.length}{' '}
+                  {finishedByUsers.length === 1 ? 'person' : 'people'}
+                </span>
+              </div>
+            </div>
+          )}
 
           <div className="detail-ext">
             {links.map((l) => (
