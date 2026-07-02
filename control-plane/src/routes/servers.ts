@@ -40,6 +40,8 @@ import {
   getDefaultServer,
   setDefaultServer,
   clearDefaultServerIf,
+  setServerSecretHash,
+  writeAudit,
 } from '../lib/db'
 import { mintGrant } from '../lib/signing'
 import { getPlan } from '../lib/admin'
@@ -47,7 +49,7 @@ import { mintCertGrant, hsDirectZone } from '../lib/certBroker'
 import { createClerkInvitation, ClerkApiError } from '../lib/clerkApi'
 import { sendEmail, EmailError } from '../lib/email'
 import { renderInviteEmail } from '../lib/emailTemplates'
-import { uuid, sha256Hex, timingSafeEqual } from '../lib/ids'
+import { uuid, sha256Hex, timingSafeEqual, serverSecret } from '../lib/ids'
 import { probeServer, validatePublicUrl, type ProbeStatus } from '../lib/reachability'
 
 export const servers = new Hono<{ Bindings: Env }>()
@@ -155,6 +157,46 @@ servers.post('/servers/:id/grant', async (c) => {
     server: { id: serverId, url: server.public_url },
     expires_in: Number(c.env.GRANT_TTL_SECONDS || '300'),
   })
+})
+
+/**
+ * Reset (rotate) a server's server_secret in place - owner-admin only.
+ *
+ * Recovery hatch for a box that lost or desynced its stored secret (data-volume
+ * loss, restore from an older backup, an interrupted re-pair). The normal path is
+ * for the box to present its current secret at /pairing/start; when that secret is
+ * gone, /pairing/start correctly refuses (server_id is public). This lets the
+ * server's OWNER re-key from the hosted app without deregistering, so links,
+ * invites, certs, and the default all survive.
+ *
+ * Mints a fresh secret, rotates ONLY the hash (not public_url/name), and returns
+ * the plaintext ONCE - the operator pastes it into the box's "recover connection"
+ * field. It is never stored or returned again. Audited.
+ */
+servers.post('/servers/:id/reset-secret', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return c.json({ error: 'unauthorized' }, 401)
+  if (!user.emailVerified) return c.json({ error: 'email_unverified' }, 403)
+
+  const serverId = c.req.param('id')
+  const link = await getLink(c.env, user.userId, serverId)
+  if (!link) return c.json({ error: 'not_linked' }, 404)
+  if (link.role !== 'admin') return c.json({ error: 'forbidden', detail: 'admin only' }, 403)
+  const server = await getServer(c.env, serverId)
+  if (!server) return c.json({ error: 'server_unknown' }, 404)
+
+  const secret = serverSecret()
+  const secretHash = await sha256Hex(secret)
+  await setServerSecretHash(c.env, serverId, secretHash)
+  await writeAudit(c.env, {
+    id: uuid(),
+    actor: user.userId,
+    action: 'reset_server_secret',
+    target: serverId,
+    detail: { email: link.email },
+  })
+
+  return c.json({ ok: true, server_id: serverId, server_secret: secret })
 })
 
 /**
@@ -355,6 +397,32 @@ servers.get('/servers/:id/invites', async (c) => {
  * box pushes this when the admin renames it in Server Settings, so the name shown
  * in the hosted app stays in sync rather than being frozen at pairing time.
  */
+/**
+ * Verify a server_secret without side effects (server-to-server). Lets a box
+ * confirm a pasted "recover connection" secret is the live one BEFORE it
+ * overwrites its stored copy, so a typo can't clobber a still-valid secret.
+ * Returns { ok: true } on match, 401 bad_server_secret otherwise.
+ */
+servers.post('/servers/verify-secret', async (c) => {
+  let body: { server_id?: string; server_secret?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const serverId = (body.server_id || '').trim()
+  const secret = body.server_secret || ''
+  if (!serverId || !secret) return c.json({ error: 'server_id and server_secret required' }, 400)
+
+  const server = await getServer(c.env, serverId)
+  if (!server) return c.json({ error: 'server_unknown' }, 404)
+  const presented = await sha256Hex(secret)
+  if (!timingSafeEqual(presented, server.server_secret_hash)) {
+    return c.json({ error: 'bad_server_secret' }, 401)
+  }
+  return c.json({ ok: true })
+})
+
 servers.post('/servers/name', async (c) => {
   let body: { server_id?: string; server_secret?: string; name?: string }
   try {

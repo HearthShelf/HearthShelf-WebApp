@@ -26,6 +26,7 @@ import {
   updatePairingPublicUrl,
   updateServerPublicUrl,
   getOwnerLinkForServer,
+  getServer,
   upsertServer,
   sweepOrphanServers,
   createLink,
@@ -61,7 +62,7 @@ function rateLimited(ip: string): boolean {
 // --- HS server initiates ---------------------------------------------------
 
 pairing.post('/pairing/start', async (c) => {
-  let body: { server_id?: string; public_url?: string; name?: string }
+  let body: { server_id?: string; public_url?: string; name?: string; server_secret?: string }
   try {
     body = await c.req.json()
   } catch {
@@ -70,6 +71,7 @@ pairing.post('/pairing/start', async (c) => {
   const serverId = (body.server_id || '').trim()
   const publicUrl = (body.public_url || '').trim()
   const name = (body.name || '').trim() || null
+  const presentedSecret = body.server_secret || ''
   if (!serverId || !publicUrl) {
     return c.json({ error: 'server_id and public_url required' }, 400)
   }
@@ -81,6 +83,27 @@ pairing.post('/pairing/start', async (c) => {
     return c.json({ error: 'public_url must be an absolute http(s) URL' }, 400)
   }
 
+  // Re-key protection. server_id is NOT secret (it is disclosed to every linked
+  // user in GET /servers, in the redeem response, and in invite URLs), so an
+  // unauthenticated re-pair that overwrites the stored secret would let anyone who
+  // knows the id mint themselves a valid server_secret for a box they don't own.
+  // First-time pairing (no owner link yet) is open, as it must be - the box has no
+  // secret to present. But once a server has a redeemed owner link, rotating its
+  // secret requires proving possession of the CURRENT secret: a genuine box
+  // self-healing a drift still holds it; a stranger who only knows the id does not.
+  const owner = await getOwnerLinkForServer(c.env, serverId)
+  if (owner) {
+    const existing = await getServer(c.env, serverId)
+    const presentedHash = presentedSecret ? await sha256Hex(presentedSecret) : ''
+    if (
+      !existing ||
+      !presentedSecret ||
+      !timingSafeEqual(presentedHash, existing.server_secret_hash)
+    ) {
+      return c.json({ error: 'already_paired', detail: 'server_secret required to re-pair' }, 403)
+    }
+  }
+
   // Secret lifecycle: always issue a FRESH secret (the box stores it) and
   // MATERIALIZE the servers row NOW. cert-grant is server-secret-authed and needs
   // the row to exist - both during this setup AND on every cert renewal after a
@@ -89,8 +112,8 @@ pairing.post('/pairing/start', async (c) => {
   // address before redeem - and redeem needs that address. Registering here
   // breaks that cycle. Ownership remains the LINKS table: a started-but-unredeemed
   // servers row is inert (lists nothing, mints nothing user-facing). upsertServer
-  // is idempotent, so a re-pair just rotates the secret hash in place (self-heals
-  // a drifted box) - it replaces the old existing-only setServerSecretHash path.
+  // is idempotent, so a re-pair rotates the secret hash in place (self-heals a
+  // drifted box) once the caller has proven ownership above.
   const secret = serverSecret()
   const secretHash = await sha256Hex(secret)
   await upsertServer(c.env, { serverId, publicUrl, name, secretHash })

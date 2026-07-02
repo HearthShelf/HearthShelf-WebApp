@@ -75,6 +75,20 @@ export async function setServerName(env: Env, serverId: string, name: string): P
     .run()
 }
 
+// Rotate ONLY a server's secret hash, leaving public_url/name/links/certs intact.
+// Backs the owner-authenticated in-place secret reset (recover a box that lost or
+// desynced its stored server_secret without deregistering + re-pairing). Distinct
+// from upsertServer, which also rewrites public_url/name. No-op if absent.
+export async function setServerSecretHash(
+  env: Env,
+  serverId: string,
+  secretHash: string,
+): Promise<void> {
+  await env.DB.prepare(`UPDATE servers SET server_secret_hash = ? WHERE server_id = ?`)
+    .bind(secretHash, serverId)
+    .run()
+}
+
 // Remove a server entirely (box-initiated disconnect). All dependents - links,
 // invites, server_certs - cascade via their ON DELETE CASCADE FKs, so the server
 // fully vanishes from the hosted app. No-op if absent.
