@@ -72,7 +72,8 @@ export function useUnlinkServer() {
 export function useSetDefaultServer() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (serverId: string | null) => (serverId ? setDefaultServer(serverId) : Promise.resolve()),
+    mutationFn: (serverId: string | null) =>
+      serverId ? setDefaultServer(serverId) : Promise.resolve(),
     onSuccess: () => qc.invalidateQueries({ queryKey: SERVERS_KEY }),
   })
 }

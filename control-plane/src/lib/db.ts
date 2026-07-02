@@ -192,7 +192,11 @@ export async function getDefaultServer(env: Env, clerkUserId: string): Promise<s
 /** Set (or with null, clear) the user's default server. One scalar per user, so
  *  there's no cross-row invariant to maintain - the previous default is simply
  *  overwritten. */
-export async function setDefaultServer(env: Env, clerkUserId: string, serverId: string | null): Promise<void> {
+export async function setDefaultServer(
+  env: Env,
+  clerkUserId: string,
+  serverId: string | null,
+): Promise<void> {
   await env.DB.prepare(
     `INSERT INTO user_prefs (clerk_user_id, default_server_id, updated_at)
      VALUES (?, ?, ?)
@@ -206,7 +210,11 @@ export async function setDefaultServer(env: Env, clerkUserId: string, serverId: 
 /** Clear the default only if it currently points at serverId. Called when a link
  *  is forgotten so a dangling default doesn't linger, without disturbing a
  *  default that points elsewhere. */
-export async function clearDefaultServerIf(env: Env, clerkUserId: string, serverId: string): Promise<void> {
+export async function clearDefaultServerIf(
+  env: Env,
+  clerkUserId: string,
+  serverId: string,
+): Promise<void> {
   await env.DB.prepare(
     `UPDATE user_prefs SET default_server_id = NULL, updated_at = ?
        WHERE clerk_user_id = ? AND default_server_id = ?`,

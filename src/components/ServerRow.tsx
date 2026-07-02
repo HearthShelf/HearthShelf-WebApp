@@ -90,11 +90,19 @@ export function ServerRow({ server, active }: { server: LinkedServer; active?: b
             <span className="flex items-center gap-1.5 font-medium text-card-foreground">
               <span className="truncate">{server.name}</span>
               {server.isDefault && (
-                <Star size={13} className="shrink-0 fill-primary text-primary" aria-label="Default server" />
+                <Star
+                  size={13}
+                  className="shrink-0 fill-primary text-primary"
+                  aria-label="Default server"
+                />
               )}
             </span>
             <span className="t-muted block truncate text-[12px]">
-              {active ? 'Currently browsing' : server.isDefault ? 'Your default library' : 'Tap to open this library'}
+              {active
+                ? 'Currently browsing'
+                : server.isDefault
+                  ? 'Your default library'
+                  : 'Tap to open this library'}
             </span>
           </span>
           <ServerStatusDot serverId={server.id} />

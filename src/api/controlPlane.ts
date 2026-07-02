@@ -61,7 +61,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 interface ServersResponse {
-  servers: Array<{ id: string; name: string; url: string; role: 'admin' | 'user'; is_default?: boolean }>
+  servers: Array<{
+    id: string
+    name: string
+    url: string
+    role: 'admin' | 'user'
+    is_default?: boolean
+  }>
 }
 
 /** List the servers the signed-in user has linked. */

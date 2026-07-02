@@ -108,7 +108,10 @@ servers.get('/servers', async (c) => {
   await acceptPendingInvites(c, user)
 
   const zone = hsDirectZone(c.env)
-  const [links, defaultId] = await Promise.all([listLinksForUser(c.env, user.userId), getDefaultServer(c.env, user.userId)])
+  const [links, defaultId] = await Promise.all([
+    listLinksForUser(c.env, user.userId),
+    getDefaultServer(c.env, user.userId),
+  ])
   const out: LinkedServerDTO[] = links.map((l) => {
     // The hs.direct fallback host, when this server has an active cert. `url` is
     // the PREFERRED address (the user's own domain if they set one, else the
