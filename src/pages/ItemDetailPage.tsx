@@ -4,8 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getItemDetail, getMe } from '@/api/absLibrary'
 import { getBookDetailFull, itemFileDownloadUrl, itemCoverFullUrl } from '@/api/absBookDetail'
-import { getFinishedBy, socialKeys } from '@/api/absSocial'
-import type { HSFinishedByResponse } from '@hearthshelf/core'
+import { getFinishedBy, getListeningNow, socialKeys } from '@/api/absSocial'
+import type { HSFinishedByResponse, HSListeningNowResponse } from '@hearthshelf/core'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
 import { useMarkFinished } from '@/hooks/useMarkFinished'
 import { useBookmarks } from '@/hooks/useBookmarks'
@@ -26,6 +26,8 @@ import { Modal } from '@/components/common/Modal'
 import { RecentListens } from '@/components/player/RecentListens'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
+import { NotesSection } from '@/components/library/NotesSection'
+import { ClubSection } from '@/components/library/ClubSection'
 
 type DetailTab = 'chapters' | 'tracks' | 'ebook' | 'files'
 
@@ -104,6 +106,18 @@ export function ItemDetailPage() {
     staleTime: 5 * 60 * 1000,
   })
   const finishedByUsers = finishedBy?.available ? finishedBy.users : []
+
+  // Who's actively (recently) listening to this book right now-ish, privacy-
+  // filtered server-side. Degrades to an empty, unavailable response on older
+  // servers or when the presence surface is disabled - the chips row hides.
+  const { data: listeningNow } = useQuery<HSListeningNowResponse>({
+    queryKey: socialKeys.listeningNow(target?.serverId ?? '', itemId ?? ''),
+    queryFn: () => getListeningNow(target!, itemId as string),
+    enabled: Boolean(target && itemId),
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  })
+  const listeningNowUsers = listeningNow?.available ? listeningNow.users : []
 
   // Load this book into the GLOBAL player when it opens (paused at the saved
   // position), unless it's already the now-playing book - so navigating back to
@@ -397,6 +411,28 @@ export function ItemDetailPage() {
             </div>
           )}
 
+          {listeningNowUsers.length > 0 && (
+            <div className="read-by">
+              <div className="avatar-stack">
+                {listeningNowUsers.slice(0, 6).map((u) => (
+                  <Avatar key={u.userId} name={u.username} size={28} className="hs-avatar" />
+                ))}
+                {listeningNowUsers.length > 6 && (
+                  <span className="avatar-more" style={{ width: 28, height: 28, fontSize: 11 }}>
+                    +{listeningNowUsers.length - 6}
+                  </span>
+                )}
+                <span className="as-label">
+                  <Icon
+                    name="podcasts"
+                    style={{ fontSize: 14, verticalAlign: '-2px', color: '#a7c896' }}
+                  />{' '}
+                  Listening recently: {listeningNowUsers.map((u) => u.username).join(', ')}
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="detail-ext">
             {links.map((l) => (
               <a
@@ -563,6 +599,18 @@ export function ItemDetailPage() {
           )}
         </div>
       </div>
+
+      <ClubSection target={target} libraryItemId={data.id} title={title} author={author} />
+
+      {me && (
+        <NotesSection
+          target={target}
+          libraryItemId={data.id}
+          meId={me.id}
+          position={progress?.currentTime ?? 0}
+          finished={finished}
+        />
+      )}
 
       {zoomCover && coverFull && (
         <ImageZoomViewer src={coverFull} alt={title} onClose={() => setZoomCover(false)} />
