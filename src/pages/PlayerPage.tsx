@@ -12,6 +12,7 @@ import { RecentListens } from '@/components/player/RecentListens'
 import { MobilePlayer } from '@/components/player/MobilePlayer'
 import { CarPlayer } from '@/components/player/CarPlayer'
 import { Scrubber } from '@/components/player/Scrubber'
+import { TimelineMarkers } from '@/components/player/TimelineMarkers'
 import { useCarMode } from '@/hooks/useCarMode'
 import { useIdleFade } from '@/hooks/useIdleFade'
 import { setCarFaded } from '@/hooks/useCarFaded'
@@ -20,7 +21,8 @@ import { useToast } from '@/hooks/useToast'
 import { useQueueStore, type QueueMode, type AutoRuleId } from '@/store/queueStore'
 import { useItemsInProgress } from '@/hooks/useLibrary'
 import { getItemDetail, type AbsChapter, type AbsTarget } from '@/api/absLibrary'
-import { formatTimestamp, stripHtml } from '@hearthshelf/core'
+import { getNotes, notesKeys } from '@/api/absNotes'
+import { formatTimestamp, stripHtml, clusterTimelineMarkers } from '@hearthshelf/core'
 import { Cover } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
 import cozyHearth from '@/assets/img/SittingInTheHearth.webp'
@@ -406,6 +408,35 @@ export function PlayerPage() {
     staleTime: 5 * 60 * 1000,
   })
 
+  // Public note markers for the full-book scrubber (unlocked notes + locked
+  // ahead-stubs, gated server-side by position). Refreshed on the same 30s
+  // cadence progress already syncs on - no new timer. Desktop-only surface
+  // (mobile/car skip markers; see docs/social.md).
+  const { data: playerNotes } = useQuery({
+    queryKey: notesKeys.list(target?.serverId ?? '', libraryItemId ?? '', ''),
+    queryFn: () => getNotes(target as AbsTarget, libraryItemId as string, { position: pos }),
+    enabled: Boolean(target) && Boolean(libraryItemId),
+    staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
+  })
+  const timelineMarkers = useMemo(() => {
+    if (!playerNotes?.enabled || duration <= 0) return []
+    const items = [
+      ...playerNotes.notes
+        .filter((n) => n.timeSec != null)
+        .map((n) => ({
+          id: n.id,
+          timeSec: n.timeSec as number,
+          kind: 'note' as const,
+          userId: n.userId,
+          username: n.username,
+        })),
+      ...playerNotes.locked.map((s) => ({ id: s.id, timeSec: s.timeSec, kind: 'stub' as const })),
+    ]
+    return clusterTimelineMarkers(items, duration)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerNotes, duration])
+
   // Normalize chapters to start/end seconds for the local math.
   const chapters = useMemo<Chap[]>(
     () =>
@@ -723,15 +754,24 @@ export function PlayerPage() {
             {scrubber === 'book' ? 'Full book' : cur.title}
           </div>
           {scrubber === 'book' ? (
-            <Scrubber
-              className="scrub"
-              ratio={bookRatio}
-              onDrag={setDragRatio}
-              onSeek={(r) => seekClamp(r * duration)}
-              elapsed={formatTimestamp(previewPos)}
-              chapter={cur.title}
-              remain={'-' + formatTimestamp(duration - previewPos)}
-            />
+            <>
+              <Scrubber
+                className="scrub"
+                ratio={bookRatio}
+                onDrag={setDragRatio}
+                onSeek={(r) => seekClamp(r * duration)}
+                elapsed={formatTimestamp(previewPos)}
+                chapter={cur.title}
+                remain={'-' + formatTimestamp(duration - previewPos)}
+              />
+              <TimelineMarkers
+                markers={timelineMarkers}
+                onOpenNote={() => navigate(`/book/${libraryItemId}`)}
+                onOpenTeaser={(timeSec) =>
+                  setToast(`A note awaits at ${formatTimestamp(timeSec)}`)
+                }
+              />
+            </>
           ) : (
             <Scrubber
               className="scrub"

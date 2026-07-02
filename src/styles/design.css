@@ -1062,6 +1062,48 @@
 .scrub.dragging > b {
   width: 3px;
 }
+
+/* Notes/Book Club timeline markers, overlaid on the full-book scrubber. */
+.timeline-markers {
+  position: relative;
+  width: 100%;
+  height: 10px;
+  margin-top: -6px;
+  pointer-events: none;
+}
+.timeline-marker {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1px solid color-mix(in oklab, var(--accent) 60%, #000);
+  padding: 0;
+  cursor: pointer;
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+}
+.timeline-marker.locked {
+  width: 2px;
+  height: 8px;
+  border-radius: 1px;
+  background: var(--text-muted);
+  border: none;
+  opacity: 0.6;
+}
+.timeline-marker.mixed {
+  background: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--text-muted) 50%, transparent);
+}
+.timeline-marker-count {
+  font-size: 8px;
+  font-weight: 700;
+  color: #fff;
+  transform: scale(0.9);
+}
 .scrub-labels {
   position: absolute;
   inset: 0;
