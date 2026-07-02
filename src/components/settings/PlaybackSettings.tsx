@@ -204,6 +204,18 @@ export function PlaybackSettings() {
           </SetRow>
         )}
       </div>
+
+      <div className="nav-label" style={{ padding: '20px 4px 10px' }}>
+        Book Club
+      </div>
+
+      <div className="set-group">
+        <SetRow
+          title="Note pops"
+          desc="Show a toast when playback crosses a note in a club you're in. Turn this off to stop pops on this device without leaving the club."
+          control={<Toggle on={s.notePops} onChange={(v) => set('notePops', v)} />}
+        />
+      </div>
     </section>
   )
 }

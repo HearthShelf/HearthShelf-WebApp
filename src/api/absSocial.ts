@@ -21,6 +21,9 @@ import type {
   LeaderboardWindow,
   HSFinishedByUser,
   HSFinishedByResponse,
+  HSListeningNowUser,
+  HSListeningNowResponse,
+  HSListeningNowBulkResponse,
 } from '@hearthshelf/core'
 
 // Re-exported under the names this module has always used, so existing
@@ -41,6 +44,8 @@ export const socialKeys = {
     ['social', 'leaderboard', serverId, window] as const,
   finishedBy: (serverId: string, libraryItemId: string) =>
     ['social', 'finished-by', serverId, libraryItemId] as const,
+  listeningNow: (serverId: string, libraryItemId: string) =>
+    ['social', 'listening-now', serverId, libraryItemId] as const,
 }
 
 /**
@@ -51,26 +56,59 @@ export const socialKeys = {
  */
 export interface CommunityConfig {
   defaultShare: boolean
+  defaultShareListening: boolean
+  notesEnabled: boolean
+  clubsEnabled: boolean
   canEdit: boolean
+}
+
+const COMMUNITY_CONFIG_FALLBACK: CommunityConfig = {
+  defaultShare: true,
+  defaultShareListening: false,
+  notesEnabled: true,
+  clubsEnabled: true,
+  canEdit: false,
+}
+
+interface RawCommunityConfig {
+  defaultShare?: boolean
+  defaultShareListening?: boolean
+  notesEnabled?: boolean
+  clubsEnabled?: boolean
+  canEdit?: boolean
+}
+
+function mapCommunityConfig(data: RawCommunityConfig): CommunityConfig {
+  return {
+    defaultShare: data.defaultShare ?? true,
+    defaultShareListening: data.defaultShareListening ?? false,
+    notesEnabled: data.notesEnabled ?? true,
+    clubsEnabled: data.clubsEnabled ?? true,
+    canEdit: Boolean(data.canEdit),
+  }
 }
 
 export async function getCommunityConfig(t: AbsTarget): Promise<CommunityConfig> {
   const token = getAbsToken(t.serverId)
-  if (!token) return { defaultShare: true, canEdit: false }
+  if (!token) return COMMUNITY_CONFIG_FALLBACK
   try {
     const res = await fetch(`${origin(t)}/hs/social/community-config`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     })
-    if (!res.ok) return { defaultShare: true, canEdit: false }
-    return (await res.json()) as CommunityConfig
+    if (!res.ok) return COMMUNITY_CONFIG_FALLBACK
+    return mapCommunityConfig((await res.json()) as RawCommunityConfig)
   } catch {
-    return { defaultShare: true, canEdit: false }
+    return COMMUNITY_CONFIG_FALLBACK
   }
 }
 
+// Partial update - only sent fields change. Older servers that don't know a
+// field simply ignore it server-side.
 export async function setCommunityConfig(
   t: AbsTarget,
-  defaultShare: boolean,
+  patch: Partial<
+    Pick<CommunityConfig, 'defaultShare' | 'defaultShareListening' | 'notesEnabled' | 'clubsEnabled'>
+  >,
 ): Promise<CommunityConfig> {
   const token = getAbsToken(t.serverId)
   if (!token) throw new Error('no token')
@@ -81,10 +119,10 @@ export async function setCommunityConfig(
       Authorization: `Bearer ${token}`,
       Accept: 'application/json',
     },
-    body: JSON.stringify({ defaultShare }),
+    body: JSON.stringify(patch),
   })
   if (!res.ok) throw new Error(`community-config ${res.status}`)
-  return (await res.json()) as CommunityConfig
+  return mapCommunityConfig((await res.json()) as RawCommunityConfig)
 }
 
 interface RawEntry {
@@ -188,5 +226,75 @@ export async function getFinishedBy(
     return { available: true, users }
   } catch {
     return FINISHED_BY_UNAVAILABLE
+  }
+}
+
+interface RawListeningNowUser {
+  userId?: string
+  username?: string
+}
+
+const LISTENING_NOW_UNAVAILABLE: HSListeningNowResponse = { available: false, users: [] }
+const LISTENING_NOW_BULK_UNAVAILABLE: HSListeningNowBulkResponse = { available: false, byItem: {} }
+
+function mapListeningNowUser(u: RawListeningNowUser): HSListeningNowUser {
+  return { userId: u.userId ?? '', username: u.username ?? '' }
+}
+
+/**
+ * Who's actively (recently) listening to a book right now-ish, privacy-filtered
+ * server-side by the shareCurrentlyListening resolution. Returns
+ * { available: false, users: [] } on any failure/older server/disabled surface.
+ */
+export async function getListeningNow(
+  t: AbsTarget,
+  libraryItemId: string,
+): Promise<HSListeningNowResponse> {
+  const token = getAbsToken(t.serverId)
+  if (!token) return LISTENING_NOW_UNAVAILABLE
+  try {
+    const res = await fetch(
+      `${origin(t)}/hs/social/listening-now?libraryItemId=${encodeURIComponent(libraryItemId)}`,
+      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
+    )
+    if (!res.ok) return LISTENING_NOW_UNAVAILABLE
+    const data = (await res.json()) as { available?: boolean; users?: RawListeningNowUser[] }
+    if (!data || data.available !== true) return LISTENING_NOW_UNAVAILABLE
+    return { available: true, users: (data.users ?? []).map(mapListeningNowUser) }
+  } catch {
+    return LISTENING_NOW_UNAVAILABLE
+  }
+}
+
+/** Bulk listening-now for shelf badges. Caps at 100 ids server-side. */
+export async function getListeningNowBulk(
+  t: AbsTarget,
+  libraryItemIds: string[],
+): Promise<HSListeningNowBulkResponse> {
+  const token = getAbsToken(t.serverId)
+  if (!token || libraryItemIds.length === 0) return LISTENING_NOW_BULK_UNAVAILABLE
+  try {
+    const res = await fetch(`${origin(t)}/hs/social/listening-now`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ libraryItemIds: libraryItemIds.slice(0, 100) }),
+    })
+    if (!res.ok) return LISTENING_NOW_BULK_UNAVAILABLE
+    const data = (await res.json()) as {
+      available?: boolean
+      byItem?: Record<string, RawListeningNowUser[]>
+    }
+    if (!data || data.available !== true) return LISTENING_NOW_BULK_UNAVAILABLE
+    const byItem: Record<string, HSListeningNowUser[]> = {}
+    for (const [id, users] of Object.entries(data.byItem ?? {})) {
+      byItem[id] = users.map(mapListeningNowUser)
+    }
+    return { available: true, byItem }
+  } catch {
+    return LISTENING_NOW_BULK_UNAVAILABLE
   }
 }

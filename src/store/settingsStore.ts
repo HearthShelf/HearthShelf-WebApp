@@ -87,6 +87,11 @@ export interface SettingsState {
   useGravatar: boolean
   hearthBgPlayer: boolean
 
+  // Social privacy (tri-state: null = never chose, follow the server's
+  // community default). See docs/social-stats.md / docs/social.md.
+  shareReadBooks: boolean | null
+  shareCurrentlyListening: boolean | null
+
   // Playback
   scrubber: ScrubberScope
   skipForward: number
@@ -102,6 +107,10 @@ export interface SettingsState {
 
   // Reveal the Advanced panel (browser/UA diagnostics) on the Account page.
   showAdvanced: boolean
+
+  // Show a toast when playback crosses a club note. Device-scoped so you can
+  // silence pops on one device without leaving the club.
+  notePops: boolean
 
   // Queue
   queueMode: QueueMode
@@ -156,6 +165,9 @@ export const useSettingsStore = create<SettingsState>()(
       useGravatar: false,
       hearthBgPlayer: true,
 
+      shareReadBooks: null,
+      shareCurrentlyListening: null,
+
       scrubber: 'chapter',
       skipForward: 30,
       skipForwardCustom: 45,
@@ -167,6 +179,7 @@ export const useSettingsStore = create<SettingsState>()(
       carFadeEnabled: true,
       carFadeSec: 30,
       showAdvanced: false,
+      notePops: true,
 
       queueMode: 'manual',
       queueAutoRules: DEFAULT_AUTO_RULE_PREFS,
