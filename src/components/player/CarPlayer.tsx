@@ -174,10 +174,10 @@ export function CarPlayer({
 
         <div className="car-titles">
           <div className="car-title">{title}</div>
-          <div className="car-sub">{cur.title}</div>
         </div>
 
-        {/* Big scrubber - chapter or whole book, per the scrubber setting. */}
+        {/* Big scrubber - chapter or whole book, per the scrubber setting. The
+            chapter label lives on the bar (UI standard), not above it. */}
         <Scrubber
           className="scrub car-scrub"
           ratio={scrubRatio}
