@@ -6,7 +6,13 @@ import {
   adminContentKeys,
   type ABSServerSettings,
 } from '@/api/absAdmin'
-import { setServerName, getServerVersions, hostedKeys } from '@/api/absHosted'
+import {
+  setServerName,
+  getServerVersions,
+  hostedKeys,
+  recoverConnectionSecret,
+} from '@/api/absHosted'
+import { resetServerSecret } from '@/api/controlPlane'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
 import { Icon } from '@/components/common/Icon'
@@ -90,9 +96,69 @@ function AdvancedServerInfo() {
               {data?.hsVersion ? `v${data.hsVersion}` : 'Not detected'}
             </span>
           </div>
+          <ResetConnectionSecret />
         </div>
       )}
     </>
+  )
+}
+
+// Recovery hatch: rotate the connection secret shared between this box and
+// HearthShelf, in place. For a box that lost or desynced its stored secret (data
+// restored from an old backup, an interrupted re-pair). Mints a new secret on the
+// control plane and hands it to the box in one step; links, invites, and certs
+// survive (unlike disconnect + re-pair). Owner-admin only, enforced server-side.
+function ResetConnectionSecret() {
+  const { target } = useActiveServer()
+  const { toast, show } = useToast()
+  const [busy, setBusy] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+
+  const run = async () => {
+    if (!target) return
+    setBusy(true)
+    try {
+      const { server_secret } = await resetServerSecret(target.serverId)
+      await recoverConnectionSecret(target, server_secret)
+      show('Connection secret reset and re-synced')
+      setConfirming(false)
+    } catch {
+      show('Could not reset the connection secret')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="cfg-line" style={{ marginTop: 10 }}>
+      <Icon name="key" style={{ color: 'var(--text-muted)' }} />
+      <div className="cl-meta" style={{ flex: 1 }}>
+        <div className="cl-t">Reset connection secret</div>
+        <div className="cl-d">
+          Re-sync this server with HearthShelf if the connection has drifted. Keeps your users,
+          invites, and certificate.
+        </div>
+      </div>
+      {confirming ? (
+        <div style={{ display: 'flex', gap: 8, flex: 'none' }}>
+          <button className="btn-sm btn-ghost" disabled={busy} onClick={() => setConfirming(false)}>
+            Cancel
+          </button>
+          <button className="btn-sm btn-danger" disabled={busy} onClick={() => void run()}>
+            {busy ? 'Resetting...' : 'Confirm reset'}
+          </button>
+        </div>
+      ) : (
+        <button className="btn-sm btn-ghost" style={{ flex: 'none' }} onClick={() => setConfirming(true)}>
+          <Icon name="key" /> Reset
+        </button>
+      )}
+      {toast && (
+        <div className="p-toast">
+          <Icon name="check_circle" fill /> {toast}
+        </div>
+      )}
+    </div>
   )
 }
 

@@ -225,6 +225,23 @@ export async function recoverAdmins(t: AbsTarget): Promise<RecoverAdminsResult> 
   return data as RecoverAdminsResult
 }
 
+/**
+ * Store a freshly-minted connection secret on the box (owner recovery). Paired
+ * with the control plane's /servers/:id/reset-secret: the SPA mints a new secret
+ * there, then hands it here so the box re-syncs without deregistering. The box
+ * verifies the secret against the control plane before persisting it. ABS-admin
+ * authenticated (hsFetch bearer).
+ */
+export function recoverConnectionSecret(
+  t: AbsTarget,
+  serverSecret: string,
+): Promise<{ ok: boolean }> {
+  return hsFetch<{ ok: boolean }>(t, '/hs/hosted/recover-secret', {
+    method: 'POST',
+    body: JSON.stringify({ server_secret: serverSecret }),
+  })
+}
+
 // --- Invites -----------------------------------------------------------------
 
 export interface InviteResult {

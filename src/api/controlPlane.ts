@@ -152,6 +152,24 @@ export async function unlinkServer(serverId: string): Promise<void> {
   await request(`/servers/${encodeURIComponent(serverId)}`, { method: 'DELETE' })
 }
 
+interface ResetSecretResponse {
+  ok: boolean
+  server_id: string
+  server_secret: string
+}
+
+/**
+ * Rotate this server's connection secret in place (owner-admin only). Returns the
+ * new secret ONCE - the operator pastes it into the box's "recover connection"
+ * field. Recovery hatch for a box that lost/desynced its stored secret; links,
+ * invites, and certs survive (unlike deregister + re-pair).
+ */
+export async function resetServerSecret(serverId: string): Promise<ResetSecretResponse> {
+  return request<ResetSecretResponse>(`/servers/${encodeURIComponent(serverId)}/reset-secret`, {
+    method: 'POST',
+  })
+}
+
 interface InviteResponse {
   ok: boolean
   email: string
