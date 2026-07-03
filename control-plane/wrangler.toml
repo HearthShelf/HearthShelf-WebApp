@@ -11,6 +11,12 @@ workers_dev = false
 # pairing-code exchange. It never holds ABS credentials and is never in the
 # data path - see ../ARCHITECTURE.md.
 
+# Refresh the cached "latest HearthShelf release" from the GitHub Releases API
+# every 6 hours (src/index.ts scheduled handler -> refreshLatestRelease). The SPA
+# reads the cache at GET /releases/latest to drive update prompts.
+[triggers]
+crons = ["0 */6 * * *"]
+
 [[d1_databases]]
 binding = "DB"
 database_name = "hearthshelf-control-plane"

@@ -45,6 +45,10 @@ export interface Env {
    *  sent as the x-cp-forward header. Same value as the collector's
    *  LOG_INGEST_TOKEN. Optional - log forwarding/reads no-op when unset. */
   LOG_INGEST_TOKEN?: string
+  /** Optional GitHub token (classic or fine-grained, public-repo read is enough)
+   *  to lift the 60/hr unauthenticated rate limit on the Releases API poll. The
+   *  release cache works without it; a token just avoids throttling. */
+  GITHUB_TOKEN?: string
 }
 
 /** A server linked to the authenticated user, as returned to the SPA. */

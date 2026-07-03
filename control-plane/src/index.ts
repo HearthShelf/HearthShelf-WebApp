@@ -19,6 +19,9 @@ import type { Env } from './types'
 import { wellKnown } from './routes/well-known'
 import { pairing } from './routes/pairing'
 import { servers } from './routes/servers'
+import { releases } from './routes/releases'
+import { telemetry } from './routes/telemetry'
+import { refreshLatestRelease } from './lib/releases'
 import { email } from './routes/email'
 import { logs } from './routes/logs'
 import { admin } from './routes/admin'
@@ -26,6 +29,13 @@ import { accounts } from './routes/accounts'
 import { forwardLog } from './lib/logs'
 
 const app = new Hono<{ Bindings: Env }>()
+
+// Public, non-sensitive read-only endpoints (latest-release info, aggregate
+// stats) are readable from ANY origin - the marketing site (hearthshelf.com) and
+// docs render them, and they expose nothing that isn't already public. Applied
+// before the pinned-origin gate below so these two paths get open CORS.
+app.use('/releases/*', cors({ origin: '*', allowMethods: ['GET', 'OPTIONS'] }))
+app.use('/stats/*', cors({ origin: '*', allowMethods: ['GET', 'OPTIONS'] }))
 
 // The SPA (app.hearthshelf.com) calls this API with the Clerk bearer token.
 // Allow only the configured app origin(s); never reflect arbitrary origins.
@@ -54,6 +64,8 @@ app.route('/', email)
 app.route('/', logs)
 app.route('/', admin)
 app.route('/', accounts)
+app.route('/', releases)
+app.route('/', telemetry)
 
 app.notFound((c) => c.json({ error: 'not_found' }, 404))
 app.onError((err, c) => {
@@ -71,4 +83,11 @@ app.onError((err, c) => {
   return c.json({ error: 'server_error', detail: String(err).slice(0, 160) }, 500)
 })
 
-export default app
+// Cron: refresh the cached "latest release" from GitHub on a schedule so the
+// SPA's update prompts stay current without any request having to pay for the
+// GitHub round-trip. Trigger configured in wrangler.toml ([triggers] crons).
+async function scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+  ctx.waitUntil(refreshLatestRelease(env).then(() => undefined))
+}
+
+export default { fetch: app.fetch, scheduled }
