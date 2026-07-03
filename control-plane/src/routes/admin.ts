@@ -33,6 +33,7 @@ import {
   listAudit,
 } from '../lib/db'
 import { uuid } from '../lib/ids'
+import { setReleaseOverride, toDTO } from '../lib/releases'
 
 // The router carries the resolved admin context in `c.var.admin`.
 export const admin = new Hono<{ Bindings: Env; Variables: { admin: AdminContext } }>()
@@ -161,6 +162,41 @@ admin.post('/admin/entitlements', async (c) => {
     detail: { plan },
   })
   return c.json({ ok: true, clerk_user_id: clerkUserId, plan })
+})
+
+// --- release override -------------------------------------------------------
+
+/**
+ * Override the cached latest-release row (severity / min_supported / version /
+ * notes), marking it pinned so the 6h GitHub cron won't revert it. This is the
+ * lever to escalate a release to 'security'/'critical' or set a hard update floor
+ * without re-cutting the GitHub release. Audited. To hand control back to the
+ * automatic poll, POST { severity: 'recommended', min_supported: null } and it
+ * re-pins to those values (a future 'unpin' can clear the flag if needed).
+ */
+admin.post('/admin/releases', async (c) => {
+  const { user } = c.var.admin
+  let body: { version?: string; severity?: string; min_supported?: string | null; notes_url?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const row = await setReleaseOverride(c.env, {
+    version: body.version,
+    severity: body.severity,
+    minSupported: body.min_supported === undefined ? undefined : body.min_supported,
+    notesUrl: body.notes_url,
+  })
+  if (!row) return c.json({ error: 'no_version', detail: 'no cached release and none provided' }, 400)
+  await writeAudit(c.env, {
+    id: uuid(),
+    actor: user.userId,
+    action: 'set_release',
+    target: row.version,
+    detail: { severity: row.severity, min_supported: row.min_supported },
+  })
+  return c.json({ ok: true, release: toDTO(row) })
 })
 
 // --- admin roster ----------------------------------------------------------

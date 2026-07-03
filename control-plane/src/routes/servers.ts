@@ -41,8 +41,10 @@ import {
   setDefaultServer,
   clearDefaultServerIf,
   setServerSecretHash,
+  setServerVersion,
   writeAudit,
 } from '../lib/db'
+import { getLatestReleaseFresh, toDTO } from '../lib/releases'
 import { mintGrant } from '../lib/signing'
 import { getPlan } from '../lib/admin'
 import { mintCertGrant, hsDirectZone } from '../lib/certBroker'
@@ -421,6 +423,39 @@ servers.post('/servers/verify-secret', async (c) => {
     return c.json({ error: 'bad_server_secret' }, 401)
   }
   return c.json({ ok: true })
+})
+
+/**
+ * The box reports the versions it is running (server_secret authed). Stored next
+ * to last_seen_at as operational bookkeeping; the SPA drives update prompts off
+ * the box's live version vs. the releases cache, not off this. We return the
+ * latest release so the box can log a one-line "update available" nudge to its
+ * own console without a second call. Idempotent.
+ */
+servers.post('/servers/version', async (c) => {
+  let body: { server_id?: string; server_secret?: string; hs_version?: string; abs_version?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const serverId = (body.server_id || '').trim()
+  const secret = body.server_secret || ''
+  if (!serverId || !secret) return c.json({ error: 'server_id and server_secret required' }, 400)
+
+  const server = await getServer(c.env, serverId)
+  if (!server) return c.json({ error: 'server_unknown' }, 404)
+  const presented = await sha256Hex(secret)
+  if (!timingSafeEqual(presented, server.server_secret_hash)) {
+    return c.json({ error: 'bad_server_secret' }, 401)
+  }
+
+  const hsVersion = typeof body.hs_version === 'string' ? body.hs_version.slice(0, 40) : null
+  const absVersion = typeof body.abs_version === 'string' ? body.abs_version.slice(0, 40) : null
+  await setServerVersion(c.env, { serverId, hsVersion, absVersion })
+
+  const latest = toDTO(await getLatestReleaseFresh(c.env))
+  return c.json({ ok: true, latest })
 })
 
 servers.post('/servers/name', async (c) => {

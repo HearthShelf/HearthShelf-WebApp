@@ -12,6 +12,9 @@ export interface ServerRow {
   server_secret_hash: string
   created_at: number
   last_seen_at: number | null
+  hs_version: string | null
+  abs_version: string | null
+  version_reported_at: number | null
 }
 
 export interface LinkRow {
@@ -72,6 +75,23 @@ export async function touchServer(env: Env, serverId: string): Promise<void> {
 export async function setServerName(env: Env, serverId: string, name: string): Promise<void> {
   await env.DB.prepare(`UPDATE servers SET name = ?, last_seen_at = ? WHERE server_id = ?`)
     .bind(name, now(), serverId)
+    .run()
+}
+
+// Record the version a paired box reports (server-to-server). Bumps last_seen_at
+// too - a paired box that isn't on hs.direct otherwise never refreshes it. Purely
+// operational bookkeeping; not exposed as a per-box surveillance surface. No-op if
+// the server row is absent.
+export async function setServerVersion(
+  env: Env,
+  v: { serverId: string; hsVersion: string | null; absVersion: string | null },
+): Promise<void> {
+  await env.DB.prepare(
+    `UPDATE servers
+       SET hs_version = ?, abs_version = ?, version_reported_at = ?, last_seen_at = ?
+     WHERE server_id = ?`,
+  )
+    .bind(v.hsVersion, v.absVersion, now(), now(), v.serverId)
     .run()
 }
 
