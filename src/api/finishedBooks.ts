@@ -1,5 +1,12 @@
 import { getAbsToken } from '@/lib/absTokens'
 import type { AbsTarget } from '@/api/absLibrary'
+import type {
+  HSMatchCandidate,
+  HSFinishedBookMatch,
+  HSFinishedBookImportRow,
+  HSHardcoverAccount,
+  HSHardcoverSyncResult,
+} from '@hearthshelf/core'
 
 function origin(t: AbsTarget): string {
   return t.serverUrl.replace(/\/$/, '')
@@ -30,39 +37,13 @@ export const finishedBooksKeys = {
   hardcover: (serverId: string) => ['finished-books', 'hardcover', serverId] as const,
 }
 
-export interface MatchCandidate {
-  libraryItemId: string
-  title: string
-  author: string
-  score: number
-}
-export interface MatchRow {
-  title: string
-  author: string
-  isbn: string | null
-  status: 'auto' | 'ambiguous' | 'none'
-  candidates: MatchCandidate[]
-}
-export interface ImportRow {
-  title: string
-  author: string | null
-  isbn: string | null
-  dateFinished: string | null
-  rating: number | null
-  libraryItemId: string | null
-}
-export interface HardcoverAccountStatus {
-  connected: boolean
-  username: string | null
-  lastSyncAt: number | null
-  lastSyncStatus: 'ok' | 'error' | null
-  lastSyncError: string | null
-}
-export interface HardcoverSyncResult {
-  synced: number
-  notFound: string[]
-  errors: { title: string; error: string }[]
-}
+// Canonical `/hs/finished-books/*` shapes now come from @hearthshelf/core;
+// aliased to the module's historical local names so callers stay unchanged.
+export type MatchCandidate = HSMatchCandidate
+export type MatchRow = HSFinishedBookMatch
+export type ImportRow = HSFinishedBookImportRow
+export type HardcoverAccountStatus = HSHardcoverAccount
+export type HardcoverSyncResult = HSHardcoverSyncResult
 
 export function matchRows(
   t: AbsTarget,

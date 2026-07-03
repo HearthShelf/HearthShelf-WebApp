@@ -11,29 +11,18 @@
  */
 import { getAbsToken } from '@/lib/absTokens'
 import type { AbsTarget } from './absLibrary'
+import type { HSIntegrationsConfig, HSIntegrationsEnvLocks } from '@hearthshelf/core'
 
-// Per-field env locks: true = the value is pinned by an environment variable, so
-// it overrides the database and is read-only in the UI.
-export interface IntegrationsEnvLocks {
-  rmabUrl: boolean
-  rmabLoginToken: boolean
-  audplexusUrl: boolean
-  audplexusKey: boolean
-  audibleRegion: boolean
-}
+// Canonical `/hs/integrations/config` shapes now come from @hearthshelf/core;
+// aliased to the module's historical local names so callers stay unchanged.
+export type IntegrationsEnvLocks = HSIntegrationsEnvLocks
+export type IntegrationsConfig = HSIntegrationsConfig
 
-export interface IntegrationsConfig {
-  rmabUrl: string | null
-  rmabConfigured: boolean
-  rmabHasToken: boolean
-  audplexusUrl: string | null
-  audplexusConfigured: boolean
-  audplexusHasKey: boolean
-  audibleRegion: string
-  validRegions: string[]
-  env: IntegrationsEnvLocks
-}
-
+// NOTE: kept local (not core's HSIntegrationsPatch). The admin UI clears the
+// non-secret URL fields by sending null, and picks an arbitrary region string
+// from the select; core's HSIntegrationsPatch types rmabUrl/audplexusUrl as
+// non-null string and audibleRegion as the narrow HSAudibleRegion union, so it
+// does not model those two behaviors. See migration report.
 export interface IntegrationsConfigPatch {
   rmabUrl?: string | null
   rmabLoginToken?: string | null // omit/'' to keep; null to clear

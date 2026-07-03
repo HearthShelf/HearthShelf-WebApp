@@ -8,6 +8,7 @@ import {
   type IntegrationsConfig,
   type IntegrationsConfigPatch,
 } from '@/api/absIntegrations'
+import type { HSAudibleRegion } from '@hearthshelf/core'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
 import { Icon } from '@/components/common/Icon'
@@ -137,7 +138,7 @@ function IntegrationsForm({ config }: { config: IntegrationsConfig }) {
     if (!env.audplexusKey && audplexusKey.trim()) patch.audplexusKey = audplexusKey.trim()
     save.mutate(patch)
   }
-  const saveRegion = (next: string) => {
+  const saveRegion = (next: HSAudibleRegion) => {
     setRegion(next)
     if (!env.audibleRegion) save.mutate({ audibleRegion: next })
   }
@@ -244,7 +245,7 @@ function IntegrationsForm({ config }: { config: IntegrationsConfig }) {
             className="fld"
             value={env.audibleRegion ? config.audibleRegion : region}
             disabled={env.audibleRegion || save.isPending}
-            onChange={(e) => saveRegion(e.target.value)}
+            onChange={(e) => saveRegion(e.target.value as HSAudibleRegion)}
           >
             {config.validRegions.map((r) => (
               <option key={r} value={r}>

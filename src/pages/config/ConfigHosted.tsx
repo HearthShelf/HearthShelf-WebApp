@@ -18,8 +18,11 @@ import {
 } from '@/api/absHosted'
 
 // "12:34" style mm:ss left until the pairing code expires, or null once gone.
-function timeLeft(expiresAt: number, nowMs: number): string | null {
-  const ms = expiresAt - nowMs
+function timeLeft(expiresAt: string | number, nowMs: number): string | null {
+  // The control plane may report expiry as epoch ms or an ISO-8601 string.
+  const epoch = typeof expiresAt === 'number' ? expiresAt : Date.parse(expiresAt)
+  if (Number.isNaN(epoch)) return null
+  const ms = epoch - nowMs
   if (ms <= 0) return null
   const total = Math.floor(ms / 1000)
   const m = Math.floor(total / 60)

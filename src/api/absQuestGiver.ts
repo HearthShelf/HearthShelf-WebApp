@@ -26,57 +26,29 @@ import {
   type QgCandidate,
   type QgResult,
   type QgRenderedPick,
+  type HSQuestGiverConfig,
+  type HSQuestGiverConfigEnvLocks,
+  type HSQuestGiverAdminConfig,
+  type HSQuestGiverAdminConfigUpdate,
 } from '@hearthshelf/core'
 
 // The shared QuestGiver + Discover config. featureEnabled gates QuestGiver,
 // discoverEnabled gates the Discover surface; both default-enabled (see below).
-export interface QgConfig {
-  featureEnabled: boolean // admin gate; when false the SPA hides QuestGiver
-  discoverEnabled: boolean // admin gate for the history-driven Discover surface
-  enabled: boolean // AI provider configured server-side (heuristic works either way)
-  provider: string | null
-  model: string | null
-  limit: number | null // per-period cap, null = unlimited
-  remaining: number | null
-  period: 'day' | 'week' | 'month' | null
-}
+// Canonical shape now lives in @hearthshelf/core.
+export type QgConfig = HSQuestGiverConfig
 
 // Per-field env locks: true = the value is pinned by an environment variable, so
 // it overrides the database and is read-only in the UI.
-export interface QgEnvLocks {
-  provider: boolean
-  model: boolean
-  apiKey: boolean
-  baseUrl: boolean
-  limit: boolean
-  enabled: boolean
-  discoverEnabled: boolean
-}
+export type QgEnvLocks = HSQuestGiverConfigEnvLocks
 
-export interface QgAdminConfig {
-  provider: string | null
-  model: string | null
-  baseUrl: string | null
-  limit: string // "off" | "N/day" | "N/week" | "N/month"
-  enabled: boolean
-  discoverEnabled: boolean
-  hasKey: boolean
-  validProviders: string[]
-  env: QgEnvLocks
-}
+export type QgAdminConfig = HSQuestGiverAdminConfig
 
-export interface QgAdminConfigPatch {
-  provider?: string | null
-  model?: string | null
-  baseUrl?: string | null
-  limit?: string
-  enabled?: boolean
-  discoverEnabled?: boolean
-  apiKey?: string // omit or '' to keep the stored key
-}
+export type QgAdminConfigPatch = HSQuestGiverAdminConfigUpdate
 
 // Client-only persistence shapes (run history + feedback live in localStorage,
-// mirrored best-effort to the backend so history follows the user across devices).
+// mirrored best-effort to the backend so history follows the user across
+// devices). This is the concrete client display shape (see QuestGiverPage) - it
+// is intentionally richer than the loose core HSQuestGiverRun round-trip type.
 export interface QgRun {
   id: string
   label: string

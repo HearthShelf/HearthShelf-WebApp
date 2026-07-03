@@ -8,31 +8,18 @@
  */
 import { getAbsToken } from '@/lib/absTokens'
 import type { AbsTarget } from '@/api/absLibrary'
-import type { SettingScope, SettingValue } from '@hearthshelf/core'
+import type {
+  StoredSetting,
+  SettingChange,
+  SettingsPullResult,
+  SettingsPushResult,
+} from '@hearthshelf/core'
 
-export interface StoredSetting {
-  value: SettingValue
-  updatedAt: number
-}
-
-export interface ServerSettings {
-  account: Record<string, StoredSetting>
-  device: Record<string, StoredSetting>
-  connection: { absUrl: string; label: string | null; connected: boolean } | null
-}
-
-export interface SettingChange {
-  scope: SettingScope
-  key: string
-  value: SettingValue
-  updatedAt: number
-}
-
-export interface PushResult {
-  applied: string[]
-  rejected: Array<{ key: string; value: SettingValue; updatedAt: number }>
-  invalid: Array<{ key: string; value: SettingValue; reason: string }>
-}
+// Canonical `/hs/settings` shapes now come from @hearthshelf/core; re-exported
+// and aliased so existing importers keep working unchanged.
+export type { StoredSetting, SettingChange }
+export type ServerSettings = SettingsPullResult
+export type PushResult = SettingsPushResult
 
 function origin(t: AbsTarget): string {
   return t.serverUrl.replace(/\/$/, '')

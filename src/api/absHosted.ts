@@ -15,8 +15,19 @@
 import { getAbsToken } from '@/lib/absTokens'
 import { mintGrant } from '@/api/controlPlane'
 import type { AbsTarget } from './absLibrary'
+import type {
+  HSMode,
+  HSTelemetryStatus,
+  HSTelemetryPayloadPreview,
+  HSHostedConfigStatus,
+  HSHostedHsDirectState,
+  HSHostedPairResponse,
+  HSHostedPortCheckResult,
+  HSHostedRecoverAdminsResponse,
+  HSHostedEmailRelayStatus,
+} from '@hearthshelf/core'
 
-export type HSMode = 'slim' | 'aio' | 'hosted'
+export type { HSMode }
 
 // Carries the backend's machine-readable error code + HTTP status so callers can
 // map them to friendly copy. `detail` is an optional technical note (logs only).
@@ -76,26 +87,9 @@ export const hostedKeys = {
 /** Exactly what one anonymous report would contain right now, shown in the
  *  opt-in disclosure. All fields are coarse buckets or lifetime counts; the id is
  *  redacted server-side. */
-export interface TelemetryPreview {
-  telemetry_id: string
-  hs_version: string | null
-  abs_version: string | null
-  mode: string
-  user_bucket: string
-  book_bucket: string
-  quests_given: number
-  quests_accepted: number
-  books_finished: number
-  club_books_finished: number
-  clubs_active: number
-}
+export type TelemetryPreview = HSTelemetryPayloadPreview
 
-export interface TelemetryConfig {
-  enabled: boolean
-  /** True when the signed-in user may change the setting (server admin). */
-  canEdit: boolean
-  payloadPreview: TelemetryPreview
-}
+export type TelemetryConfig = HSTelemetryStatus
 
 export async function getTelemetryConfig(t: AbsTarget): Promise<TelemetryConfig> {
   return hsFetch<TelemetryConfig>(t, '/hs/telemetry')
@@ -152,12 +146,7 @@ export function setServerName(t: AbsTarget, name: string): Promise<{ serverName:
 
 // --- Connection status -------------------------------------------------------
 
-export interface HostedStatus {
-  mode: HSMode
-  paired: boolean
-  hasAbsAdminToken: boolean
-  issuer: string | null
-}
+export type HostedStatus = HSHostedConfigStatus
 
 export function getHostedStatus(t: AbsTarget): Promise<HostedStatus> {
   return hsFetch<HostedStatus>(t, '/hs/hosted/config', { method: 'GET' })
@@ -165,11 +154,7 @@ export function getHostedStatus(t: AbsTarget): Promise<HostedStatus> {
 
 // hs.direct provisioning state. 'pending' = paired but the cert isn't installed
 // yet; 'active' = the publicUrl is usable and reachability can be tested.
-export interface HsDirectState {
-  status: 'opted_out' | 'not_paired' | 'pending' | 'active'
-  publicUrl: string | null
-  host: string | null
-}
+export type HsDirectState = HSHostedHsDirectState
 
 export function getHsDirectState(t: AbsTarget): Promise<HsDirectState> {
   return hsFetch<HsDirectState>(t, '/hs/hosted/hsdirect', { method: 'GET' })
@@ -177,13 +162,11 @@ export function getHsDirectState(t: AbsTarget): Promise<HsDirectState> {
 
 // --- Pairing -----------------------------------------------------------------
 
-export interface PairResult {
-  code: string
-  expires_at: number
-  control_plane: string
-  issuer: string
-}
+export type PairResult = HSHostedPairResponse
 
+// Kept local: core's HSHostedPairStatusResult is an opaque Record<string,
+// unknown> (control-plane-owned passthrough), but the SPA reads these concrete
+// fields off the poll response. See migration report.
 export interface PairStatus {
   claimed: boolean
   expired: boolean
@@ -221,22 +204,14 @@ export function disconnectHosted(t: AbsTarget): Promise<{ ok: boolean }> {
 // --- Reachability ------------------------------------------------------------
 
 /** Port reachability via the hs.direct VPS connecting back to this box's IP. */
-export interface PortCheckResult {
-  open: boolean
-  port: number
-  publicIp: string | null
-}
+export type PortCheckResult = HSHostedPortCheckResult
 export function checkPort(t: AbsTarget): Promise<PortCheckResult> {
   return hsFetch<PortCheckResult>(t, '/hs/hosted/port-check', { method: 'GET' })
 }
 
 // --- Admin recovery (break-glass) --------------------------------------------
 
-export interface RecoverAdminsResult {
-  ok: boolean
-  recovered: { id: string; username: string }[]
-  count: number
-}
+export type RecoverAdminsResult = HSHostedRecoverAdminsResponse
 
 /**
  * Re-enable disabled admin accounts when every admin is locked out. Authenticated
@@ -285,6 +260,9 @@ export function recoverConnectionSecret(
 
 // --- Invites -----------------------------------------------------------------
 
+// Kept local: core's HSHostedInviteResult is an opaque Record<string, unknown>
+// (control-plane-owned passthrough), but callers read these concrete fields off
+// the invite response. See migration report.
 export interface InviteResult {
   ok: boolean
   email: string
@@ -306,16 +284,7 @@ export function inviteFromServer(
 
 // --- Email relay ("Use HearthShelf email") -----------------------------------
 
-export interface EmailRelayStatus {
-  /** Paired + not opted out: the box can offer "use HearthShelf email". */
-  available: boolean
-  paired: boolean
-  optedOut: boolean
-  /** ABS is currently pointed at the loopback relay. */
-  active: boolean
-  host: string
-  port: number
-}
+export type EmailRelayStatus = HSHostedEmailRelayStatus
 
 /** Whether this box can send email through HearthShelf, and if it's enabled. */
 export function getEmailRelayStatus(t: AbsTarget): Promise<EmailRelayStatus> {

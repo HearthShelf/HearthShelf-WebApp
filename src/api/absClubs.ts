@@ -27,6 +27,7 @@ interface RawClubBook {
   addedBy?: string
   startedAt?: number
   finishedAt?: number | null
+  queuedAt?: number | null
 }
 
 interface RawClub {
@@ -48,6 +49,7 @@ function mapClubBook(b: RawClubBook): HSClubBook {
     addedBy: b.addedBy ?? '',
     startedAt: b.startedAt ?? 0,
     finishedAt: b.finishedAt ?? null,
+    queuedAt: b.queuedAt ?? null,
   }
 }
 
@@ -177,6 +179,7 @@ const CLUB_DETAIL_DISABLED: HSClubDetail = {
   enabled: false,
   club: { id: '', name: '', createdBy: '', isOpen: true, archived: false, createdAt: 0, memberCount: 0, currentBook: null },
   books: [],
+  queue: [],
   members: [],
   notes: { notes: [], locked: [], hiddenAhead: 0 },
   unreadCount: 0,
@@ -206,6 +209,7 @@ export async function getClubDetail(
       enabled?: boolean
       club?: RawClub
       books?: RawClubBook[]
+      queue?: RawClubBook[]
       members?: RawClubMember[]
       notes?: {
         notes?: Array<{
@@ -231,6 +235,7 @@ export async function getClubDetail(
       enabled: true,
       club: mapClub(data.club),
       books: (data.books ?? []).map(mapClubBook),
+      queue: (data.queue ?? []).map(mapClubBook),
       members: (data.members ?? []).map(mapClubMember),
       notes: {
         notes: (data.notes?.notes ?? []).map((n) => ({

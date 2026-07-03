@@ -13,32 +13,25 @@
  */
 import { getAbsToken } from '@/lib/absTokens'
 import type { AbsTarget } from './absLibrary'
-import type { DiscoverSummary, DiscoverCandidate } from '@hearthshelf/core'
+import type {
+  DiscoverSummary,
+  DiscoverCandidate,
+  HSDiscoverVote,
+  HSDiscoverFeedback,
+  HSDiscoverFeedbackMap,
+  HSDiscoverPick,
+  HSDiscoverShelf,
+  HSDiscoverPopularItem,
+} from '@hearthshelf/core'
 
-export type DiscoverVote = 'like' | 'dislike' | 'not_interested'
-
-export interface DiscoverFeedbackEntry {
-  vote?: DiscoverVote
-  rating?: number
-}
-export type DiscoverFeedbackMap = Record<string, DiscoverFeedbackEntry>
-
-export interface MonthlyPick {
-  id: string
-  reason: string
-}
-export interface MonthlyShelf {
-  month: string
-  engine: 'ai' | 'heuristic' | 'none'
-  intro: string
-  picks: MonthlyPick[]
-}
-
-export interface PopularItem {
-  itemId: string
-  finishedBy: number
-  inProgressBy: number
-}
+// Canonical `/hs/discover/*` shapes now come from @hearthshelf/core; these
+// aliases keep the module's historical local names so callers stay unchanged.
+export type DiscoverVote = HSDiscoverVote
+export type DiscoverFeedbackEntry = HSDiscoverFeedback
+export type DiscoverFeedbackMap = HSDiscoverFeedbackMap
+export type MonthlyPick = HSDiscoverPick
+export type MonthlyShelf = HSDiscoverShelf
+export type PopularItem = HSDiscoverPopularItem
 
 const EMPTY_SHELF: MonthlyShelf = { month: '', engine: 'none', intro: '', picks: [] }
 
