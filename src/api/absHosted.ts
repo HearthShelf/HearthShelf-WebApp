@@ -68,6 +68,47 @@ export const hostedKeys = {
   hsdirect: (serverId: string) => ['hosted', 'hsdirect', serverId] as const,
   emailRelay: (serverId: string) => ['hosted', 'email-relay', serverId] as const,
   versions: (serverId: string) => ['hosted', 'versions', serverId] as const,
+  telemetry: (serverId: string) => ['hosted', 'telemetry', serverId] as const,
+}
+
+// --- Anonymous usage telemetry (opt-in) --------------------------------------
+
+/** Exactly what one anonymous report would contain right now, shown in the
+ *  opt-in disclosure. All fields are coarse buckets or lifetime counts; the id is
+ *  redacted server-side. */
+export interface TelemetryPreview {
+  telemetry_id: string
+  hs_version: string | null
+  abs_version: string | null
+  mode: string
+  user_bucket: string
+  book_bucket: string
+  quests_given: number
+  quests_accepted: number
+  books_finished: number
+  club_books_finished: number
+  clubs_active: number
+}
+
+export interface TelemetryConfig {
+  enabled: boolean
+  /** True when the signed-in user may change the setting (server admin). */
+  canEdit: boolean
+  payloadPreview: TelemetryPreview
+}
+
+export async function getTelemetryConfig(t: AbsTarget): Promise<TelemetryConfig> {
+  return hsFetch<TelemetryConfig>(t, '/hs/telemetry')
+}
+
+export async function setTelemetryEnabled(
+  t: AbsTarget,
+  enabled: boolean,
+): Promise<{ enabled: boolean; canEdit: boolean }> {
+  return hsFetch(t, '/hs/telemetry', {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  })
 }
 
 // --- Versions (ABS + HearthShelf backend) ------------------------------------
