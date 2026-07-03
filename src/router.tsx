@@ -26,6 +26,7 @@ import { SessionsPage } from '@/pages/SessionsPage'
 import { PlayerPage } from '@/pages/PlayerPage'
 import { ReaderPage } from '@/pages/ReaderPage'
 import { AccountPage, AccountIndexRedirect } from '@/pages/AccountPage'
+import { ImportGoodreadsPage } from '@/pages/ImportGoodreadsPage'
 import { InvitePage } from '@/pages/InvitePage'
 import { ConnectBoxPage } from '@/pages/ConnectBoxPage'
 import { InfraLogsPage } from '@/pages/InfraLogsPage'
@@ -125,6 +126,7 @@ export const router = createBrowserRouter([
       // drills down on mobile and redirects to the default section on desktop.
       { path: '/account', element: <AccountIndexRedirect /> },
       { path: '/account/:section', element: <AccountPage /> },
+      { path: '/settings/import/goodreads', element: withShell(<ImportGoodreadsPage />) },
 
       // Deep-link entry points. These resolve a server id from the query, set it
       // active, and bounce to the clean library - the UUID never sticks in the URL.
