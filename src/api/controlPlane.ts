@@ -95,6 +95,29 @@ export async function clearDefaultServer(serverId: string): Promise<void> {
   await request(`/servers/${encodeURIComponent(serverId)}/default`, { method: 'DELETE' })
 }
 
+export type UpdateSeverity = 'info' | 'recommended' | 'security' | 'critical'
+
+export interface LatestRelease {
+  version: string
+  severity: UpdateSeverity
+  notes_url: string | null
+  published_at: number | null
+  /** A box below this version is treated as force-update (sticky prompt). */
+  min_supported: string | null
+}
+
+/**
+ * The newest HearthShelf release the control plane knows about (cached from
+ * GitHub Releases). Public - no auth - so it works even before sign-in and from
+ * the marketing site. Returns null when the cache is empty (no releases yet).
+ */
+export async function getLatestRelease(): Promise<LatestRelease | null> {
+  const res = await fetch(`${CONTROL_PLANE_URL}/releases/latest`)
+  if (!res.ok) return null
+  const data = (await res.json()) as { release: LatestRelease | null }
+  return data.release
+}
+
 export type Plan = 'free' | 'pro'
 
 /** The signed-in user's plan/entitlement (D1 is the sole source of truth). */

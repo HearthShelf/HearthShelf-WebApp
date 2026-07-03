@@ -5415,6 +5415,34 @@
   color: #a7c896;
 }
 
+.banner.warn {
+  background: color-mix(in oklab, #cf9a3f 18%, transparent);
+  color: #e0b968;
+}
+
+.banner.danger {
+  background: color-mix(in oklab, #c25c52 20%, transparent);
+  color: #e69086;
+}
+
+/* Right-aligned action affordances (update link / dismiss), pushed to the end so
+   the message text takes the remaining width. */
+.banner .b-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: none;
+}
+
+.banner .b-link {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
 .banner .ms {
   font-size: 19px;
 }

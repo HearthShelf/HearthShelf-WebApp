@@ -14,6 +14,7 @@ import {
 } from '@/api/absHosted'
 import { resetServerSecret } from '@/api/controlPlane'
 import { useActiveServer } from '@/hooks/useActiveServer'
+import { useUpdateStatus } from '@/hooks/useUpdateStatus'
 import { useToast } from '@/hooks/useToast'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
@@ -50,6 +51,7 @@ export function ConfigServerInfo() {
 // HearthShelf backend version this box is running. Both reads are public.
 function AdvancedServerInfo() {
   const { target } = useActiveServer()
+  const { latest, updateAvailable } = useUpdateStatus()
   const [open, setOpen] = useState(false)
 
   const { data } = useQuery({
@@ -92,8 +94,21 @@ function AdvancedServerInfo() {
               <div className="cl-t">HearthShelf</div>
               <div className="cl-d">The HearthShelf backend running on this box.</div>
             </div>
-            <span style={{ color: 'var(--text-muted)' }}>
-              {data?.hsVersion ? `v${data.hsVersion}` : 'Not detected'}
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {updateAvailable && latest && (
+                <a
+                  className="badge-pill"
+                  href={latest.notes_url ?? undefined}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  style={{ color: '#e0b968', textDecoration: 'none' }}
+                >
+                  v{latest.version} available
+                </a>
+              )}
+              <span style={{ color: 'var(--text-muted)' }}>
+                {data?.hsVersion ? `v${data.hsVersion}` : 'Not detected'}
+              </span>
             </span>
           </div>
           <ResetConnectionSecret />

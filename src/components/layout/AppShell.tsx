@@ -12,6 +12,7 @@ import { useNavCollapsed } from '@/hooks/useNavCollapsed'
 import { useCarMode } from '@/hooks/useCarMode'
 import { useCarFaded } from '@/hooks/useCarFaded'
 import { SharedDevicePrompt } from '@/components/account/SharedDevicePrompt'
+import { UpdateBanner } from '@/components/common/UpdateBanner'
 
 /**
  * Persistent app frame (design: .app grid + cover-glow bloom), ported from the
@@ -67,6 +68,7 @@ export function AppShell() {
       <div className="main">
         {!immersive && !isMobile && <AppBar />}
         <div className="content">
+          {!immersive && <UpdateBanner />}
           <Outlet />
         </div>
       </div>
