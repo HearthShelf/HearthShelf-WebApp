@@ -19,6 +19,7 @@ export type ScrubberScope = 'chapter' | 'book'
 export type Theme = 'dark' | 'flat' | 'light' | 'oled'
 export type AccentMode = 'dynamic' | 'manual'
 export type CoverStyle = 'floating' | 'cards'
+export type GlowMode = 'gradient' | 'image'
 
 // Car mode: a big-touch, glance-friendly player for in-car browsers (Tesla).
 // 'auto' enables it when a Tesla user-agent is detected; 'on'/'off' force it.
@@ -82,6 +83,8 @@ export interface SettingsState {
   theme: Theme
   accentMode: AccentMode
   accentHex: string
+  glow: number
+  glowMode: GlowMode
   coverStyle: CoverStyle
   cardBg: boolean
   useGravatar: boolean
@@ -94,6 +97,7 @@ export interface SettingsState {
 
   // Playback
   scrubber: ScrubberScope
+  defaultSpeed: number
   skipForward: number
   skipForwardCustom: number
   skipBack: number
@@ -128,6 +132,10 @@ export interface SettingsState {
   chapterBarrier: boolean
   sleepFade: boolean
   sleepFadeLen: number
+  autoSleep: boolean
+  autoSleepStart: string
+  autoSleepEnd: string
+  autoSleepDur: number
 
   // Device-scoped: when false, this device ignores account settings pulled from
   // the server and runs on its local values only (see useSettingsSync).
@@ -164,6 +172,8 @@ export const useSettingsStore = create<SettingsState>()(
       theme: 'dark',
       accentMode: 'manual',
       accentHex: EMBER,
+      glow: 60,
+      glowMode: 'gradient',
       coverStyle: 'floating',
       cardBg: true,
       useGravatar: false,
@@ -173,6 +183,7 @@ export const useSettingsStore = create<SettingsState>()(
       shareCurrentlyListening: null,
 
       scrubber: 'chapter',
+      defaultSpeed: 1,
       skipForward: 30,
       skipForwardCustom: 45,
       skipBack: 15,
@@ -195,6 +206,10 @@ export const useSettingsStore = create<SettingsState>()(
       chapterBarrier: true,
       sleepFade: true,
       sleepFadeLen: 20,
+      autoSleep: false,
+      autoSleepStart: '22:00',
+      autoSleepEnd: '06:00',
+      autoSleepDur: 30,
 
       useSharedSettings: true,
 

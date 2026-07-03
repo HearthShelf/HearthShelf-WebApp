@@ -3,13 +3,11 @@ import {
   ACCENT_PRESETS,
   type Theme,
   type CoverStyle,
+  type GlowMode,
 } from '@/store/settingsStore'
 import { Icon } from '@/components/common/Icon'
-import { SetRow, Seg, Toggle } from '@/components/settings/controls'
+import { SetRow, Seg, Toggle, Slider } from '@/components/settings/controls'
 
-// Appearance: theme, accent colour, and cover style. Theme is applied to the
-// document root via data-theme (see useApplySettings); accent sets the --accent
-// / --primary CSS vars live.
 export function AppearanceSettings() {
   const s = useSettingsStore()
   const set = s.set
@@ -65,6 +63,30 @@ export function AppearanceSettings() {
         />
 
         <SetRow
+          title="Cover-glow intensity"
+          desc="How strongly cover colours bloom behind artwork."
+          control={null}
+          stacked
+        >
+          <Slider value={s.glow} min={0} max={60} onChange={(v) => set('glow', v)} />
+        </SetRow>
+
+        <SetRow
+          title="Cover glow style"
+          desc="Gradient blooms live; Image is the lighter-weight option."
+          control={
+            <Seg<GlowMode>
+              value={s.glowMode}
+              onChange={(v) => set('glowMode', v)}
+              options={[
+                { value: 'gradient', label: 'Gradient' },
+                { value: 'image', label: 'Image' },
+              ]}
+            />
+          }
+        />
+
+        <SetRow
           title="Cover style"
           desc="Float artwork on the page, or sit it on cards."
           control={
@@ -87,7 +109,7 @@ export function AppearanceSettings() {
 
         <SetRow
           title="Use shared settings"
-          desc="Keep this device's settings in step with your other devices. Turn off to keep this device's look and feel on its own."
+          desc="Use the synced setting store on this device. Turn off to keep this device on local cached settings."
           control={
             <Toggle on={s.useSharedSettings} onChange={(v) => set('useSharedSettings', v)} />
           }

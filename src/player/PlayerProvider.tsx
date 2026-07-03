@@ -73,6 +73,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient()
   const skipForward = useSettingsStore((s) => s.skipForward)
   const skipBack = useSettingsStore((s) => s.skipBack)
+  const defaultSpeed = useSettingsStore((s) => s.defaultSpeed)
 
   const target: AbsTarget | null = now ? { serverId: now.serverId, serverUrl: now.serverUrl } : null
 
@@ -173,6 +174,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // Dismiss the current book: pause first (so the <audio> stops and a final
   // progress save fires on pause), then clear now-playing so the mini-player
   // hides. Used by the swipe-to-dismiss gesture on the mini-player.
+  useEffect(() => {
+    if (now) player.setRate(defaultSpeed)
+  }, [now?.itemId, defaultSpeed, player.setRate])
+
   const close = useCallback(() => {
     if (player.playing) player.togglePlay()
     // Pausing above flushes a final progress + listened-time sync. Here we just
