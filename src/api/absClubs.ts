@@ -6,7 +6,14 @@
  */
 import { getAbsToken } from '@/lib/absTokens'
 import type { AbsTarget } from './absLibrary'
-import type { HSClub, HSClubBook, HSClubMember, HSClubDetail, HSClubsResponse } from '@hearthshelf/core'
+import type {
+  HSClub,
+  HSClubBook,
+  HSClubMember,
+  HSClubDetail,
+  HSClubsResponse,
+  ClubRecBasis,
+} from '@hearthshelf/core'
 
 function origin(t: AbsTarget): string {
   return t.serverUrl.replace(/\/$/, '')
@@ -39,6 +46,7 @@ interface RawClub {
   createdAt?: number
   memberCount?: number
   currentBook?: RawClubBook | null
+  recBasis?: ClubRecBasis
 }
 
 function mapClubBook(b: RawClubBook): HSClubBook {
@@ -63,6 +71,7 @@ function mapClub(c: RawClub): HSClub {
     createdAt: c.createdAt ?? 0,
     memberCount: c.memberCount ?? 0,
     currentBook: c.currentBook ? mapClubBook(c.currentBook) : null,
+    recBasis: c.recBasis ?? 'club-history',
   }
 }
 
@@ -191,7 +200,7 @@ function mapClubMember(m: RawClubMember): HSClubMember {
 
 const CLUB_DETAIL_DISABLED: HSClubDetail = {
   enabled: false,
-  club: { id: '', name: '', createdBy: '', isOpen: true, archived: false, createdAt: 0, memberCount: 0, currentBook: null },
+  club: { id: '', name: '', createdBy: '', isOpen: true, archived: false, createdAt: 0, memberCount: 0, currentBook: null, recBasis: 'club-history' },
   books: [],
   queue: [],
   members: [],
