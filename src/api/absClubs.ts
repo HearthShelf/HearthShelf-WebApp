@@ -88,8 +88,8 @@ export async function getClubs(t: AbsTarget, libraryItemId?: string): Promise<HS
     if (!data || data.enabled !== true) return CLUBS_DISABLED
     return {
       enabled: true,
-      mine: (data.mine ?? []).map(mapClub),
-      joinable: (data.joinable ?? []).map(mapClub),
+      mine: (data.mine ?? []).map(mapClub).filter((club) => !club.archived),
+      joinable: (data.joinable ?? []).map(mapClub).filter((club) => !club.archived),
     }
   } catch {
     return CLUBS_DISABLED
@@ -141,7 +141,7 @@ export const advanceClubBook = (t: AbsTarget, clubId: string, libraryItemId: str
   clubAction(t, clubId, 'books', { libraryItemId })
 
 /** Owner or admin archives the club. */
-export async function deleteClub(t: AbsTarget, clubId: string): Promise<void> {
+export async function archiveClub(t: AbsTarget, clubId: string): Promise<void> {
   const token = getAbsToken(t.serverId)
   if (!token) throw new Error('no token')
   const res = await fetch(`${origin(t)}/hs/clubs/${encodeURIComponent(clubId)}`, {
@@ -149,6 +149,20 @@ export async function deleteClub(t: AbsTarget, clubId: string): Promise<void> {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
   })
   if (!res.ok) throw new Error(`clubs delete ${res.status}`)
+}
+
+/** Backward-compatible alias: this archives, it does not permanently delete. */
+export const deleteClubLegacy = archiveClub
+
+/** Owner or admin permanently deletes the club. */
+export async function deleteClub(t: AbsTarget, clubId: string): Promise<void> {
+  const token = getAbsToken(t.serverId)
+  if (!token) throw new Error('no token')
+  const res = await fetch(`${origin(t)}/hs/clubs/${encodeURIComponent(clubId)}/hard`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+  })
+  if (!res.ok) throw new Error(`clubs hard delete ${res.status}`)
 }
 
 interface RawClubMember {

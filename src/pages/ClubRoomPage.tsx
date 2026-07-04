@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getMe } from '@/api/absLibrary'
-import { getClubDetail, clubsKeys, markClubRead, leaveClub, kickMember, deleteClub } from '@/api/absClubs'
+import { getClubDetail, clubsKeys, markClubRead, leaveClub, kickMember, archiveClub, deleteClub } from '@/api/absClubs'
 import { createNote, deleteNote } from '@/api/absNotes'
 import { sortMembersByProgress, formatTimestamp, fmtSessDate } from '@hearthshelf/core'
 import { Icon } from '@/components/common/Icon'
@@ -88,9 +88,15 @@ export function ClubRoomPage() {
   })
 
   const archive = useMutation({
-    mutationFn: () => deleteClub(target!, clubId as string),
+    mutationFn: () => archiveClub(target!, clubId as string),
     onSuccess: () => navigate('/library'),
     onError: () => show('Could not archive the club'),
+  })
+
+  const removeClub = useMutation({
+    mutationFn: () => deleteClub(target!, clubId as string),
+    onSuccess: () => navigate('/library'),
+    onError: () => show('Could not delete the club'),
   })
 
   const sortedMembers = useMemo(
@@ -145,15 +151,26 @@ export function ClubRoomPage() {
           </button>
         )}
         {isOwner && (
-          <button
-            className="pill"
-            disabled={archive.isPending}
-            onClick={() => {
-              if (window.confirm('Archive this club? This cannot be undone.')) archive.mutate()
-            }}
-          >
-            <Icon name="archive" /> Archive club
-          </button>
+          <>
+            <button
+              className="pill"
+              disabled={archive.isPending}
+              onClick={() => {
+                if (window.confirm('Archive this club? It will be hidden from active club lists.')) archive.mutate()
+              }}
+            >
+              <Icon name="archive" /> Archive club
+            </button>
+            <button
+              className="pill"
+              disabled={removeClub.isPending}
+              onClick={() => {
+                if (window.confirm('Permanently delete this club, including its members, book history, and club notes? This cannot be undone.')) removeClub.mutate()
+              }}
+            >
+              <Icon name="delete" /> Delete club
+            </button>
+          </>
         )}
       </div>
 
