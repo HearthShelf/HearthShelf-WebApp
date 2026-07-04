@@ -1,13 +1,20 @@
 # HearthShelf WebApp
 
-The hosted HearthShelf web application - a unified front door (think
-`app.hearthshelf.com`) that lets a HearthShelf user reach their own
-self-hosted AudiobookShelf server through a single URL, in the same spirit as
-`app.plex.tv`.
+[![CI](https://github.com/HearthShelf/HearthShelf-WebApp/actions/workflows/control-plane-ci.yml/badge.svg)](https://github.com/HearthShelf/HearthShelf-WebApp/actions/workflows/control-plane-ci.yml)
+[![App](https://img.shields.io/badge/app-app.hearthshelf.com-2c6e6b)](https://app.hearthshelf.com)
+[![Website](https://img.shields.io/badge/site-hearthshelf.com-2c6e6b)](https://hearthshelf.com)
+[![Docs](https://img.shields.io/badge/docs-docs.hearthshelf.com-2c6e6b)](https://docs.hearthshelf.com)
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE.md)
+
+The hosted HearthShelf web application - a unified front door
+([`app.hearthshelf.com`](https://app.hearthshelf.com)) that lets a HearthShelf
+user reach their own self-hosted AudiobookShelf server through a single URL, in
+the same spirit as `app.plex.tv`.
 
 This is **not** the self-hostable HearthShelf container. This repository is the
 hosted front door (SPA + control-plane Worker). The self-hostable HearthShelf
-(SPA + QuestGiver backend) lives in its own repository. Both are AGPL-3.0.
+(SPA + QuestGiver backend) lives in
+[HearthShelf/HearthShelf](https://github.com/HearthShelf/HearthShelf). Both are AGPL-3.0.
 
 ## Relationship to the HearthShelf server
 
@@ -18,6 +25,15 @@ maintaining a duplicate UI. Keep license/copyright notices intact on anything
 brought across.
 
 See [AGENTS.md](AGENTS.md) for the full guardrails.
+
+## Related repositories
+
+All under the [HearthShelf](https://github.com/HearthShelf) org:
+
+- [HearthShelf](https://github.com/HearthShelf/HearthShelf) - the self-hostable container (SPA + QuestGiver backend)
+- [HearthShelf-Mobile](https://github.com/HearthShelf/HearthShelf-Mobile) - the mobile app that signs in through this front door
+- [HearthShelf-Core](https://github.com/HearthShelf/HearthShelf-Core) - shared ABS types + pure logic (`@hearthshelf/core`)
+- [HearthShelf-Docs](https://github.com/HearthShelf/HearthShelf-Docs) &middot; [HearthShelf-Website](https://github.com/HearthShelf/HearthShelf-Website)
 
 ## License
 
