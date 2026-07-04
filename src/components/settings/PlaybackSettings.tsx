@@ -250,6 +250,21 @@ export function PlaybackSettings() {
           }
         />
         <SetRow
+          title="Tap artwork to play"
+          desc="Tap the cover on the full-screen player to play or pause."
+          control={
+            <Toggle
+              on={s.tapArtworkTogglesPlay}
+              onChange={(v) => set('tapArtworkTogglesPlay', v)}
+            />
+          }
+        />
+        <SetRow
+          title="Skip hotspots"
+          desc="Double-tap the sides of the artwork to jump back or forward."
+          control={<Toggle on={s.skipHotspots} onChange={(v) => set('skipHotspots', v)} />}
+        />
+        <SetRow
           title="Hearth background"
           desc="Show the cozy hearth artwork behind the full-screen player."
           control={<Toggle on={s.hearthBgPlayer} onChange={(v) => set('hearthBgPlayer', v)} />}

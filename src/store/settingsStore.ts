@@ -105,6 +105,10 @@ export interface SettingsState {
   skipForwardCustom: number
   skipBack: number
   skipBackCustom: number
+  // Tap the full-screen player artwork to play/pause (off by default).
+  tapArtworkTogglesPlay: boolean
+  // Double-tap the margins beside the artwork to skip (on by default).
+  skipHotspots: boolean
 
   // Car mode (in-car browser player)
   carMode: CarMode
@@ -191,6 +195,8 @@ export const useSettingsStore = create<SettingsState>()(
       skipForwardCustom: 45,
       skipBack: 15,
       skipBackCustom: 20,
+      tapArtworkTogglesPlay: false,
+      skipHotspots: true,
 
       carMode: 'auto',
       carPlayerRect: null,

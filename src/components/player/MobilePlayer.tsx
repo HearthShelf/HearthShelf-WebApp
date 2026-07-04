@@ -225,6 +225,8 @@ export function MobilePlayer({
   const skipFwd = useSettingsStore((s) => s.skipForward)
   const skipBack = useSettingsStore((s) => s.skipBack)
   const scrubber = useSettingsStore((s) => s.scrubber)
+  const tapArtworkTogglesPlay = useSettingsStore((s) => s.tapArtworkTogglesPlay)
+  const skipHotspots = useSettingsStore((s) => s.skipHotspots)
   const queueMode = useSettingsStore((s) => s.queueMode)
   const autoRules = useSettingsStore((s) => s.queueAutoRules)
   const setSetting = useSettingsStore((s) => s.set)
@@ -293,6 +295,18 @@ export function MobilePlayer({
     seekClamp(chapters[Math.min(chapters.length - 1, ci + 1)]?.start ?? cur.start)
   const rewind = () => seekClamp(pos - skipBack)
   const forward = () => seekClamp(pos + skipFwd)
+  // Double-tap the margin beside the artwork to skip (Audible-style edge taps).
+  const hotspotTap = useRef(0)
+  const onHotspot = (dir: -1 | 1) => {
+    const now = Date.now()
+    if (now - hotspotTap.current < 320) {
+      hotspotTap.current = 0
+      if (dir < 0) rewind()
+      else forward()
+    } else {
+      hotspotTap.current = now
+    }
+  }
 
   // Queue + end-of-book handoff visual
   const hasNext = queueMode !== 'off' && queueItems.length > 0
@@ -489,6 +503,36 @@ export function MobilePlayer({
             flex: 'none',
           }}
         >
+          {skipHotspots && (
+            <>
+              <div
+                onPointerDown={() => onHotspot(-1)}
+                title={`Double-tap: back ${skipBack}s`}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  bottom: 0,
+                  right: '100%',
+                  width: '50vw',
+                  zIndex: 3,
+                  cursor: 'pointer',
+                }}
+              />
+              <div
+                onPointerDown={() => onHotspot(1)}
+                title={`Double-tap: forward ${skipFwd}s`}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  bottom: 0,
+                  left: '100%',
+                  width: '50vw',
+                  zIndex: 3,
+                  cursor: 'pointer',
+                }}
+              />
+            </>
+          )}
           {next && (
             <div
               style={{
@@ -516,8 +560,15 @@ export function MobilePlayer({
               py.current = e.clientY
             }}
             onPointerUp={(e) => {
-              if (py.current != null && e.clientY - py.current < -40) setCar(true)
+              const dy = py.current != null ? e.clientY - py.current : 0
               py.current = null
+              if (dy < -40) {
+                setCar(true)
+                return
+              }
+              // A tap (no swipe) toggles play when the user opted in. The
+              // bookmark button and status pill stop propagation, so they win.
+              if (tapArtworkTogglesPlay && Math.abs(dy) < 12) toggle()
             }}
             style={{
               position: 'absolute',
@@ -567,6 +618,8 @@ export function MobilePlayer({
             <button
               title="Bookmark this moment"
               onClick={addBookmark}
+              onPointerUp={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
               style={{
                 position: 'absolute',
                 top: 9,
