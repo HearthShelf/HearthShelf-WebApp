@@ -19,6 +19,7 @@ import {
   type AbsTarget,
 } from '@/api/absLibrary'
 import { useQueueStore } from '@/store/queueStore'
+import { getServerQueue } from '@/api/absQueue'
 import { useSettingsStore } from '@/store/settingsStore'
 
 /**
@@ -93,17 +94,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   // When a book finishes, auto-advance to the next queued item (unless the queue
   // is off). We pop the queue, load the item on the SAME server, and autoplay it.
-  // Auto/playlist smart-fill modes still rely on the queue being pre-populated by
-  // the UI; this just consumes whatever is up next.
+  // The server owns the queue: pull it fresh first (Auto recomputes on GET, so
+  // it reflects the book that just finished), then consume the head.
   const onBookEnded = useCallback(() => {
     if (!target) return
-    const q = useQueueStore.getState()
-    if (q.mode === 'off') return
-    const nextEntry = q.next()
-    if (!nextEntry) return
     const t = target
-    void getItemDetail(t, nextEntry.libraryItemId)
-      .then((d) => {
+    void (async () => {
+      if (useQueueStore.getState().mode === 'off') return
+      try {
+        const server = await getServerQueue(t)
+        useQueueStore.getState().adoptServer(server.items, server.playlistId, server.updatedAt)
+      } catch {
+        // offline / unreachable: fall back to the local queue below
+      }
+      const nextEntry = useQueueStore.getState().next()
+      if (!nextEntry) return
+      try {
+        const d = await getItemDetail(t, nextEntry.libraryItemId)
         play({
           serverId: t.serverId,
           serverUrl: t.serverUrl,
@@ -118,10 +125,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           playSessionId: d.playSessionId,
           autoplay: true,
         })
-      })
-      .catch(() => {
+      } catch {
         /* next item failed to load; stop rather than loop */
-      })
+      }
+    })()
   }, [target, play])
 
   const player = useAudioPlayer({

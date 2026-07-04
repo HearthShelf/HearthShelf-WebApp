@@ -35,6 +35,10 @@ const RULE_LABELS: Record<AutoRuleId, { title: string; desc: string }> = {
     title: 'New book in a started series',
     desc: 'Queue unread books from any series you have begun but not completed.',
   },
+  'book-club': {
+    title: 'Books your clubs are reading',
+    desc: 'Queue the current pick from each of your book clubs.',
+  },
 }
 
 function RuleList({
