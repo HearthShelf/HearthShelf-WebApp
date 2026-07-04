@@ -6,7 +6,8 @@ import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { getMe, type AbsLibraryItem, type AbsSeries } from '@/api/absLibrary'
 import { getSeriesFull } from '@/api/absBrowse'
 import { fetchAudibleSeries, audibleKeys } from '@/api/absAudible'
-import { missingSeriesBooks, ownedKeyOf, seriesCompletion } from '@hearthshelf/core'
+import { missingSeriesBooks, seriesSeqFromName, seriesCompletion } from '@hearthshelf/core'
+import type { OwnedSeriesBook } from '@hearthshelf/core'
 import { SeriesMissingBooks } from '@/components/requests/SeriesMissingBooks'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
 import { useMarkFinished } from '@/hooks/useMarkFinished'
@@ -68,9 +69,13 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
   const books = orderBooks(series.books ?? [])
   const author = books[0]?.media.metadata.authorName || ''
   const cv = tintFor(books[0]?.media.metadata.title ?? series.name)
-  const ownedKeys = new Set(
-    books.map((b) => ownedKeyOf(b.media.metadata.title, b.media.metadata.authorName)),
-  )
+  // Owned books reduced to what series-matching needs: title + this-series
+  // sequence (from the denormalized seriesName). Matched to the Audible roster by
+  // sequence first, then normalized title, so owned books never read as missing.
+  const ownedBooks: OwnedSeriesBook[] = books.map((b) => ({
+    title: b.media.metadata.title,
+    sequence: seriesSeqFromName(b.media.metadata.seriesName),
+  }))
 
   // Full Audible roster for the series (cached; SeriesMissingBooks reuses it).
   // The unowned gap enlarges the completion denominator so the % and the segment
@@ -82,7 +87,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
     staleTime: 30 * 60 * 1000,
     retry: false,
   })
-  const missing = audible?.seriesAsin ? missingSeriesBooks(audible.books, ownedKeys) : []
+  const missing = audible?.seriesAsin ? missingSeriesBooks(audible.books, ownedBooks) : []
 
   // Admin gating for the bulk-edit action.
   const { data: me } = useQuery({
@@ -402,7 +407,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
             <SeriesMissingBooks
               target={target}
               seriesName={series.name}
-              ownedKeys={ownedKeys}
+              ownedBooks={ownedBooks}
               startSeq={books.length}
             />
           )}

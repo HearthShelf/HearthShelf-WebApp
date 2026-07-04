@@ -5,15 +5,15 @@ import { fetchAudibleSeries, audibleKeys } from '@/api/absAudible'
 import { useRmabEnabled } from '@/hooks/useRmab'
 import { missingSeriesBooks } from '@hearthshelf/core'
 import type { AbsTarget } from '@/api/absLibrary'
-import type { HSAudibleSeriesBook } from '@hearthshelf/core'
+import type { HSAudibleSeriesBook, OwnedSeriesBook } from '@hearthshelf/core'
 import { RequestConfirmModal } from '@/components/requests/RequestConfirmModal'
 
 interface SeriesMissingBooksProps {
   target: AbsTarget
   seriesName: string
-  // Owned-book dedup keys (ownedKeyOf) for the series, to filter the Audible
-  // listing down to the unowned entries.
-  ownedKeys: Set<string>
+  // Owned books (title + this-series sequence) to match against the Audible
+  // roster - see missingSeriesBooks for how the match is made.
+  ownedBooks: OwnedSeriesBook[]
   // Sequence number the owned list ended on; missing rows continue from here.
   startSeq: number
 }
@@ -25,7 +25,7 @@ interface SeriesMissingBooksProps {
 export function SeriesMissingBooks({
   target,
   seriesName,
-  ownedKeys,
+  ownedBooks,
   startSeq,
 }: SeriesMissingBooksProps) {
   const canRequest = useRmabEnabled()
@@ -40,7 +40,7 @@ export function SeriesMissingBooks({
   })
 
   if (!data?.seriesAsin) return null
-  const missing = missingSeriesBooks(data.books, ownedKeys)
+  const missing = missingSeriesBooks(data.books, ownedBooks)
   if (missing.length === 0) return null
 
   return (
