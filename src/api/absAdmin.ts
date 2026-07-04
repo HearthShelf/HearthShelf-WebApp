@@ -414,6 +414,18 @@ export function backupDownloadUrl(t: AbsTarget, backupId: string): string | null
   return absMediaUrl(t, `/api/backups/${backupId}/download`)
 }
 
+// Fetch a backup's bytes with the bearer header (for a saveBlob download), so the
+// downloaded file uses the backup's real filename rather than a query-string URL.
+export async function downloadBackupBlob(t: AbsTarget, backupId: string): Promise<Blob> {
+  const token = getAbsToken(t.serverId)
+  if (!token) throw new AbsError(401, 'not_connected')
+  const res = await fetch(`${t.serverUrl.replace(/\/$/, '')}/api/backups/${backupId}/download`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new AbsError(res.status, res.statusText)
+  return res.blob()
+}
+
 export async function applyBackup(t: AbsTarget, backupId: string): Promise<void> {
   await absGet(t, `/api/backups/${backupId}/apply`)
 }
