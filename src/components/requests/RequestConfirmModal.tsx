@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Modal } from '@/components/common/Modal'
 import { Icon } from '@/components/common/Icon'
 import { useSubmitRequest } from '@/hooks/useRmab'
+import { audibleStoreUrl } from '@/api/absAudible'
 import type { AbsTarget } from '@/api/absLibrary'
 import type { RmabRequest } from '@/api/absRequests'
 import type { HSAudibleSeriesBook } from '@hearthshelf/core'
@@ -11,6 +12,8 @@ interface RequestConfirmModalProps {
   // Kept for call-site symmetry; the submit hook is bound to the active server.
   target: AbsTarget
   book: HSAudibleSeriesBook
+  // Whether the request backend can fulfill this book. Gates the Request action.
+  canRequest: boolean
   onClose: () => void
 }
 
@@ -28,9 +31,40 @@ const ERROR_COPY: Record<string, string> = {
   UserNotFound: "Couldn't find the requesting account on ReadMeABook.",
 }
 
-export function RequestConfirmModal({ book, onClose }: RequestConfirmModalProps) {
+// The book cover + title/author header, shared across every phase.
+function BookHead({ book, note }: { book: HSAudibleSeriesBook; note?: string }) {
+  return (
+    <div className="rc-top">
+      {book.coverArtUrl ? (
+        <img className="cover" src={book.coverArtUrl} alt="" />
+      ) : (
+        <div className="cover" style={{ background: 'var(--c-highest)' }} />
+      )}
+      <div style={{ minWidth: 0 }}>
+        <h2 className="rc-h">{book.title}</h2>
+        <div className="rc-sub">{book.author}</div>
+        {book.narrator && (
+          <div className="rc-sub" style={{ marginTop: 2 }}>
+            Narrated by {book.narrator}
+          </div>
+        )}
+        {note && (
+          <div className="rmab-via" style={{ marginTop: 10 }}>
+            <Icon name="bolt" fill /> {note}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Opens on a "you don't own this book" step with Close / Open Audible / Request
+// (Request only when the backend is connected). Requesting advances to the
+// confirm step, then to a success/awaiting result - all in one modal.
+export function RequestConfirmModal({ book, canRequest, onClose }: RequestConfirmModalProps) {
   const navigate = useNavigate()
   const submit = useSubmitRequest()
+  const [phase, setPhase] = useState<'intro' | 'confirm'>('intro')
   const [result, setResult] = useState<RmabRequest | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -56,13 +90,24 @@ export function RequestConfirmModal({ book, onClose }: RequestConfirmModalProps)
   }
 
   const approved = !isAwaitingApproval(result ?? undefined)
+  const audibleBtn = (
+    <a
+      className="req-btn ghost"
+      href={audibleStoreUrl(book)}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <Icon name="open_in_new" /> Open Audible
+    </a>
+  )
 
-  return (
-    <Modal
-      title={result ? (approved ? 'Requested' : 'Waiting for approval') : 'Request audiobook'}
-      onClose={onClose}
-      foot={
-        result ? (
+  // Result phase: request submitted.
+  if (result) {
+    return (
+      <Modal
+        title={approved ? 'Requested' : 'Waiting for approval'}
+        onClose={onClose}
+        foot={
           <>
             <button className="req-btn ghost" onClick={onClose}>
               Done
@@ -77,19 +122,8 @@ export function RequestConfirmModal({ book, onClose }: RequestConfirmModalProps)
               <Icon name="receipt_long" /> View requests
             </button>
           </>
-        ) : (
-          <>
-            <button className="req-btn ghost" onClick={onClose} disabled={submit.isPending}>
-              Cancel
-            </button>
-            <button className="req-btn" onClick={confirm} disabled={submit.isPending}>
-              <Icon name="add" /> {submit.isPending ? 'Requesting...' : 'Request'}
-            </button>
-          </>
-        )
-      }
-    >
-      {result ? (
+        }
+      >
         <div className="rc-success">
           <div
             className="ok"
@@ -107,38 +141,71 @@ export function RequestConfirmModal({ book, onClose }: RequestConfirmModalProps)
               : `Your request for ${book.title} was sent - an admin needs to approve it before it downloads.`}
           </p>
         </div>
-      ) : (
-        <div>
-          <div className="rc-top">
-            {book.coverArtUrl ? (
-              <img className="cover" src={book.coverArtUrl} alt="" />
-            ) : (
-              <div className="cover" style={{ background: 'var(--c-highest)' }} />
-            )}
-            <div style={{ minWidth: 0 }}>
-              <h2 className="rc-h">{book.title}</h2>
-              <div className="rc-sub">{book.author}</div>
-              {book.narrator && (
-                <div className="rc-sub" style={{ marginTop: 2 }}>
-                  Narrated by {book.narrator}
-                </div>
-              )}
-              <div className="rmab-via" style={{ marginTop: 10 }}>
-                <Icon name="bolt" fill /> via ReadMeABook
-              </div>
-            </div>
+      </Modal>
+    )
+  }
+
+  // Confirm phase: reached only via Request.
+  if (phase === 'confirm') {
+    return (
+      <Modal
+        title="Request audiobook"
+        onClose={onClose}
+        foot={
+          <>
+            <button
+              className="req-btn ghost"
+              onClick={() => setPhase('intro')}
+              disabled={submit.isPending}
+            >
+              Back
+            </button>
+            <button className="req-btn" onClick={confirm} disabled={submit.isPending}>
+              <Icon name="add" /> {submit.isPending ? 'Requesting...' : 'Request'}
+            </button>
+          </>
+        }
+      >
+        <BookHead book={book} note="via ReadMeABook" />
+        <p className="rc-note">
+          ReadMeABook will search for it, download it, and add it to your HearthShelf library
+          automatically. You'll see live status under Requests.
+        </p>
+        {error && (
+          <div className="rr-err" style={{ marginTop: 12 }}>
+            <Icon name="error" fill /> {error}
           </div>
-          <p className="rc-note">
-            ReadMeABook will search for it, download it, and add it to your HearthShelf library
-            automatically. You'll see live status under Requests.
-          </p>
-          {error && (
-            <div className="rr-err" style={{ marginTop: 12 }}>
-              <Icon name="error" fill /> {error}
-            </div>
+        )}
+      </Modal>
+    )
+  }
+
+  // Intro phase: "you don't own this book".
+  return (
+    <Modal
+      title="You don't own this book"
+      onClose={onClose}
+      foot={
+        <>
+          <button className="req-btn ghost" onClick={onClose}>
+            Close
+          </button>
+          {audibleBtn}
+          {canRequest && (
+            <button className="req-btn" onClick={() => setPhase('confirm')}>
+              <Icon name="bolt" fill /> Request
+            </button>
           )}
-        </div>
-      )}
+        </>
+      }
+    >
+      <BookHead book={book} />
+      <p className="rc-note">
+        {book.title} isn't in your library yet.
+        {canRequest
+          ? ' Request it through ReadMeABook, or open it on Audible.'
+          : ' You can open it on Audible.'}
+      </p>
     </Modal>
   )
 }

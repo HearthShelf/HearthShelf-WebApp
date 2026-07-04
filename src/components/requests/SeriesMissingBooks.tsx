@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Icon } from '@/components/common/Icon'
-import { fetchAudibleSeries, audibleKeys, audibleStoreUrl } from '@/api/absAudible'
+import { fetchAudibleSeries, audibleKeys } from '@/api/absAudible'
 import { useRmabEnabled } from '@/hooks/useRmab'
 import { missingSeriesBooks } from '@hearthshelf/core'
 import type { AbsTarget } from '@/api/absLibrary'
@@ -45,43 +45,31 @@ export function SeriesMissingBooks({
 
   return (
     <>
-      {missing.map((b, i) => {
-        const inner = (
-          <>
-            <div className="sl-num">{startSeq + i + 1}</div>
-            {b.coverArtUrl ? (
-              <img className="sl-cover" src={b.coverArtUrl} alt="" />
-            ) : (
-              <div className="sl-cover" style={{ background: 'var(--c-highest)' }} />
-            )}
-            <div className="sl-meta">
-              <div className="sl-title">{b.title}</div>
-              <div className="sl-sub">{[b.author, b.narrator].filter(Boolean).join(' · ')}</div>
-            </div>
-            <span className="sl-missing-tag">
-              <Icon name={canRequest ? 'bolt' : 'shopping_cart'} fill={canRequest} />
-              {canRequest ? 'Request' : 'Not in library'}
-            </span>
-          </>
-        )
-        return canRequest ? (
-          <div key={b.asin} className="sl-row sl-row-missing" onClick={() => setConfirm(b)}>
-            {inner}
+      {missing.map((b, i) => (
+        <div key={b.asin} className="sl-row sl-row-missing" onClick={() => setConfirm(b)}>
+          <div className="sl-num">{startSeq + i + 1}</div>
+          {b.coverArtUrl ? (
+            <img className="sl-cover" src={b.coverArtUrl} alt="" />
+          ) : (
+            <div className="sl-cover" style={{ background: 'var(--c-highest)' }} />
+          )}
+          <div className="sl-meta">
+            <div className="sl-title">{b.title}</div>
+            <div className="sl-sub">{[b.author, b.narrator].filter(Boolean).join(' · ')}</div>
           </div>
-        ) : (
-          <a
-            key={b.asin}
-            className="sl-row sl-row-missing"
-            href={audibleStoreUrl(b)}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {inner}
-          </a>
-        )
-      })}
+          <span className="sl-missing-tag">
+            <Icon name={canRequest ? 'bolt' : 'shopping_cart'} fill={canRequest} />
+            {canRequest ? 'Request' : 'Not in library'}
+          </span>
+        </div>
+      ))}
       {confirm && (
-        <RequestConfirmModal target={target} book={confirm} onClose={() => setConfirm(null)} />
+        <RequestConfirmModal
+          target={target}
+          book={confirm}
+          canRequest={canRequest}
+          onClose={() => setConfirm(null)}
+        />
       )}
     </>
   )
