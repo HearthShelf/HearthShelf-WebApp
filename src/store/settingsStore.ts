@@ -87,7 +87,10 @@ export interface SettingsState {
   glowMode: GlowMode
   coverStyle: CoverStyle
   cardBg: boolean
-  useGravatar: boolean
+  // Tri-state: null = never chose (default on - Gravatar shows), true/false = the
+  // user's own choice. Only written when the toggle is flipped, so no client bakes
+  // in a default and the setting stays one account-wide value that syncs.
+  useGravatar: boolean | null
   hearthBgPlayer: boolean
 
   // Social privacy (tri-state: null = never chose, follow the server's
@@ -176,7 +179,7 @@ export const useSettingsStore = create<SettingsState>()(
       glowMode: 'gradient',
       coverStyle: 'floating',
       cardBg: true,
-      useGravatar: false,
+      useGravatar: null,
       hearthBgPlayer: true,
 
       shareReadBooks: null,

@@ -279,7 +279,7 @@ export function StatsPage() {
                   data-cv={tintFor(e.username)}
                 >
                   <span className="ml-rank">{e.rank}</span>
-                  <Avatar name={e.username} size={40} />
+                  <Avatar name={e.username} target={target} userId={e.userId} size={40} />
                   <div className="ml-meta">
                     <div className="ml-t">
                       {e.username}

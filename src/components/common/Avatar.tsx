@@ -1,12 +1,18 @@
 /**
  * A user avatar with a graceful initials fallback.
  *
- * In the hosted front door the user identity is Clerk, not the HS server - so
- * the photo comes from `imageUrl` (Clerk's hosted avatar) rather than an HS
- * backend endpoint. We render initials first and reveal the image only once it
- * actually loads, so a missing/slow avatar never flashes a broken image.
+ * Two modes:
+ *  - Pass `imageUrl` (Clerk's hosted avatar) for the signed-in user's OWN chrome
+ *    - the freshest source, no round-trip.
+ *  - Pass `target` + `userId` for ANY user (leaderboard, finished-by): the photo
+ *    is served by that server's HearthShelf backend at GET /hs/avatars/:userId,
+ *    which ranks uploaded -> Gravatar -> synced Clerk photo -> initials.
+ * Either way we render initials first and reveal the image only once it actually
+ * loads, so a missing/slow avatar never flashes a broken image.
  */
 import { useState } from 'react'
+import { serverAvatarUrl } from '@/api/avatars'
+import type { AbsTarget } from '@/api/absLibrary'
 
 function initials(name: string): string {
   return name.slice(0, 2).toUpperCase()
@@ -25,14 +31,25 @@ function colorFor(name: string): string {
 
 interface AvatarProps {
   name: string
-  /** Clerk's hosted avatar URL (user.imageUrl); omit for initials-only. */
+  /** Clerk's hosted avatar URL (user.imageUrl); the fast path for "me". */
   imageUrl?: string | null
+  /** A connected server; with `userId`, sources the photo from its HS backend. */
+  target?: AbsTarget | null
+  /** The user's ABS id on `target`, for the server photo route. */
+  userId?: string
   size?: number
   className?: string
 }
 
-export function Avatar({ name, imageUrl, size = 36, className }: AvatarProps) {
-  const [loaded, setLoaded] = useState(false)
+export function Avatar({ name, imageUrl, target, userId, size = 36, className }: AvatarProps) {
+  // Resolve the source: an explicit Clerk imageUrl wins; otherwise the server
+  // route if we have a target + userId; otherwise initials only.
+  const src = imageUrl || (target && userId ? serverAvatarUrl(target, userId) : null)
+
+  // Track load state per source identity. When `src` changes the <img> remounts
+  // (keyed), so a stale success never bleeds onto a new src.
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null)
+  const loaded = !!src && loadedSrc === src
 
   return (
     <span
@@ -54,11 +71,12 @@ export function Avatar({ name, imageUrl, size = 36, className }: AvatarProps) {
       }}
     >
       {!loaded && initials(name)}
-      {imageUrl && (
+      {src && (
         <img
-          src={imageUrl}
+          key={src}
+          src={src}
           alt=""
-          onLoad={() => setLoaded(true)}
+          onLoad={() => setLoadedSrc(src)}
           style={{
             position: 'absolute',
             inset: 0,

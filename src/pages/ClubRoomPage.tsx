@@ -193,7 +193,13 @@ export function ClubRoomPage() {
                     : 0
                 return (
                   <div className="cfg-line" key={m.userId}>
-                    <Avatar name={m.username} size={28} className="hs-avatar" />
+                    <Avatar
+                      name={m.username}
+                      target={target}
+                      userId={m.userId}
+                      size={28}
+                      className="hs-avatar"
+                    />
                     <div className="cl-meta" style={{ flex: 1 }}>
                       <div className="cl-t">
                         {m.username}
@@ -277,7 +283,13 @@ export function ClubRoomPage() {
               const mine = n.userId === me?.id
               return (
                 <div className="bm-row" key={n.id} style={{ alignItems: 'flex-start', gap: 10 }}>
-                  <Avatar name={n.username} size={28} className="hs-avatar" />
+                  <Avatar
+                    name={n.username}
+                    target={target}
+                    userId={n.userId}
+                    size={28}
+                    className="hs-avatar"
+                  />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
                       <span className="bm-n" style={{ fontWeight: 600 }}>

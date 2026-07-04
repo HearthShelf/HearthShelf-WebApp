@@ -396,7 +396,14 @@ export function ItemDetailPage() {
             <div className="read-by">
               <div className="avatar-stack">
                 {finishedByUsers.slice(0, 6).map((u) => (
-                  <Avatar key={u.userId} name={u.username} size={28} className="hs-avatar" />
+                  <Avatar
+                    key={u.userId}
+                    name={u.username}
+                    target={target}
+                    userId={u.userId}
+                    size={28}
+                    className="hs-avatar"
+                  />
                 ))}
                 {finishedByUsers.length > 6 && (
                   <span className="avatar-more" style={{ width: 28, height: 28, fontSize: 11 }}>
@@ -415,7 +422,14 @@ export function ItemDetailPage() {
             <div className="read-by">
               <div className="avatar-stack">
                 {listeningNowUsers.slice(0, 6).map((u) => (
-                  <Avatar key={u.userId} name={u.username} size={28} className="hs-avatar" />
+                  <Avatar
+                    key={u.userId}
+                    name={u.username}
+                    target={target}
+                    userId={u.userId}
+                    size={28}
+                    className="hs-avatar"
+                  />
                 ))}
                 {listeningNowUsers.length > 6 && (
                   <span className="avatar-more" style={{ width: 28, height: 28, fontSize: 11 }}>

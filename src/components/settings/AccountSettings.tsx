@@ -10,6 +10,7 @@ import { Loader2 } from 'lucide-react'
 import { Toggle } from '@/components/settings/controls'
 import { isCarBrowser } from '@/hooks/useCarMode'
 import { useSettingsStore } from '@/store/settingsStore'
+import { useClerkAvatarSync } from '@/hooks/useClerkAvatarSync'
 
 function fmtDay(d: Date | null | undefined): string {
   if (!d) return '-'
@@ -25,10 +26,14 @@ export function AccountSettings() {
   const { server, servers, target } = useActiveServer()
   const useGravatar = useSettingsStore((s) => s.useGravatar)
   const setSetting = useSettingsStore((s) => s.set)
+  // null = never chose, so the default (on) applies; only an explicit false is off.
+  const gravatarOn = useGravatar !== false
+  const { sync: syncClerkPhoto, syncing } = useClerkAvatarSync()
 
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadErr, setUploadErr] = useState<string | null>(null)
+  const [syncMsg, setSyncMsg] = useState<string | null>(null)
 
   const { data: me } = useQuery({
     queryKey: ['me', target?.serverUrl],
@@ -58,6 +63,9 @@ export function AccountSettings() {
     setUploadErr(null)
     try {
       await user.setProfileImage({ file })
+      // Push the new Clerk photo to the connected server so other users see it.
+      await user.reload().catch(() => {})
+      void syncClerkPhoto()
     } catch {
       setUploadErr('Photo upload failed. Try a smaller image.')
     } finally {
@@ -65,6 +73,12 @@ export function AccountSettings() {
       // Reset so the same file can be re-selected
       e.target.value = ''
     }
+  }
+
+  const handleSyncPhoto = async () => {
+    setSyncMsg(null)
+    const ok = await syncClerkPhoto()
+    setSyncMsg(ok ? 'Photo synced to this server.' : 'Nothing to sync, or a custom photo is set here.')
   }
 
   // Permissions from the active server (update/delete/download/upload booleans)
@@ -124,6 +138,30 @@ export function AccountSettings() {
           </div>
         )}
         <div className="cfg-line">
+          <Icon name="sync" style={{ color: 'var(--text-muted)' }} />
+          <div className="cl-meta" style={{ flex: 1 }}>
+            <div className="cl-t">Sync photo to your servers</div>
+            <div className="cl-d">
+              Copy your sign-in photo to this server so other listeners see it on the
+              leaderboard and book pages.
+            </div>
+          </div>
+          <button className="btn-sm btn-ghost" onClick={handleSyncPhoto} disabled={syncing || !target}>
+            {syncing ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Icon name="sync" />
+            )}
+            {syncing ? 'Syncing' : 'Sync'}
+          </button>
+        </div>
+        {syncMsg && (
+          <div className="cfg-line" style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+            <Icon name="info" style={{ color: 'var(--text-muted)' }} />
+            {syncMsg}
+          </div>
+        )}
+        <div className="cfg-line">
           <Icon name="public" style={{ color: 'var(--text-muted)' }} />
           <div className="cl-meta" style={{ flex: 1 }}>
             <div className="cl-t">Use Gravatar</div>
@@ -131,7 +169,7 @@ export function AccountSettings() {
               Show your Gravatar (linked to your email) when no photo is uploaded.
             </div>
           </div>
-          <Toggle on={useGravatar} onChange={(v) => setSetting('useGravatar', v)} />
+          <Toggle on={gravatarOn} onChange={(v) => setSetting('useGravatar', v)} />
         </div>
       </div>
 

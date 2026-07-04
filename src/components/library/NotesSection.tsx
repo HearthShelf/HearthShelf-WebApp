@@ -154,6 +154,7 @@ export function NotesSection({
               note={note}
               replies={replies}
               meId={meId}
+              target={target}
               replyOpen={replyTo === note.id}
               replyDraft={replyDraft}
               onSetReplyDraft={setReplyDraft}
@@ -185,11 +186,13 @@ export function NotesSection({
 function NoteLine({
   note,
   meId,
+  target,
   onDelete,
   onReply,
 }: {
   note: HSNote
   meId: string
+  target: AbsTarget
   onDelete?: (id: string) => void
   onReply?: () => void
 }) {
@@ -197,7 +200,7 @@ function NoteLine({
   const mine = note.userId === meId
   return (
     <div className="bm-row" style={{ alignItems: 'flex-start', gap: 10 }}>
-      <Avatar name={note.username} size={28} className="hs-avatar" />
+      <Avatar name={note.username} target={target} userId={note.userId} size={28} className="hs-avatar" />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
           <span className="bm-n" style={{ fontWeight: 600 }}>
@@ -244,6 +247,7 @@ function NoteThread({
   note,
   replies,
   meId,
+  target,
   replyOpen,
   replyDraft,
   onSetReplyDraft,
@@ -254,6 +258,7 @@ function NoteThread({
   note: HSNote
   replies: HSNote[]
   meId: string
+  target: AbsTarget
   replyOpen: boolean
   replyDraft: string
   onSetReplyDraft: (v: string) => void
@@ -263,11 +268,11 @@ function NoteThread({
 }) {
   return (
     <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: 10, marginBottom: 10 }}>
-      <NoteLine note={note} meId={meId} onDelete={onDelete} onReply={onToggleReply} />
+      <NoteLine note={note} meId={meId} target={target} onDelete={onDelete} onReply={onToggleReply} />
       {replies.length > 0 && (
         <div style={{ marginLeft: 38, marginTop: 6, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {replies.map((r) => (
-            <NoteLine key={r.id} note={r} meId={meId} onDelete={onDelete} />
+            <NoteLine key={r.id} note={r} meId={meId} target={target} onDelete={onDelete} />
           ))}
         </div>
       )}
