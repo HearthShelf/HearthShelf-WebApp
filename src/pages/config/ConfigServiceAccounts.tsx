@@ -19,6 +19,7 @@ import {
 } from '@/api/absAdmin'
 import type { AbsTarget } from '@/api/absLibrary'
 import { getMe } from '@/api/absLibrary'
+import { getServerRuntime, hostedKeys } from '@/api/absHosted'
 import { AbsError } from '@/api/absClient'
 import type { UserFormSubmit } from '@/components/config/UserForm'
 import { useActiveServer } from '@/hooks/useActiveServer'
@@ -335,12 +336,28 @@ export function ConfigServiceAccounts() {
   })
   const trackedIds = useMemo(() => new Set(trackedData?.ids ?? []), [trackedData])
 
-  // A service account is any account an admin tagged here. They are regular ABS
-  // admin users; the tag is a grouping persisted on the server per instance.
+  // The auto-created HearthShelf service root (AIO) is identified by username
+  // from the box's runtime config - its id isn't in the tagged set, so this is
+  // the only way to surface it here (and keep it out of the human Users list).
+  const { data: runtime } = useQuery({
+    queryKey: hostedKeys.runtime(target?.serverId ?? ''),
+    queryFn: () => getServerRuntime(target!),
+    enabled: Boolean(target),
+    staleTime: 5 * 60 * 1000,
+  })
+  const serviceUsername = runtime?.serviceUsername ?? null
+
+  // A service account is the auto-created HS service root (matched by username,
+  // since its id isn't recorded) plus any account an admin tagged here.
   const accounts = useMemo(() => {
     const users = usersData?.users ?? []
-    return users.filter((u) => trackedIds.has(u.id))
-  }, [usersData, trackedIds])
+    return users.filter(
+      (u) => (serviceUsername != null && u.username === serviceUsername) || trackedIds.has(u.id),
+    )
+  }, [usersData, serviceUsername, trackedIds])
+
+  const isOwnedRoot = (u: ABSAdminUser) =>
+    serviceUsername != null && u.username === serviceUsername
 
   if (!target) return <LoadingSpinner className="py-12" label="Connecting..." />
 
@@ -453,6 +470,7 @@ export function ConfigServiceAccounts() {
             </thead>
             <tbody>
               {accounts.map((u) => {
+                const owned = isOwnedRoot(u)
                 const isRoot = u.type === 'root'
                 const open = expanded === u.id
                 return (
@@ -468,7 +486,7 @@ export function ConfigServiceAccounts() {
                         >
                           <span className="av">{initials(u.username)}</span>
                           <span style={{ fontWeight: 600 }}>{u.username}</span>
-                          <span className="tag-pill admin">Service</span>
+                          <span className="tag-pill admin">{owned ? 'HearthShelf' : 'Service'}</span>
                         </div>
                       </td>
                       <td className="num">{u.lastSeen ? fmtSessDate(u.lastSeen).day : 'never'}</td>
@@ -500,13 +518,15 @@ export function ConfigServiceAccounts() {
                           >
                             <Icon name="edit" />
                           </button>
-                          <button
-                            className="tbl-icon"
-                            title="Remove from service accounts"
-                            onClick={() => setPendingUntag(u)}
-                          >
-                            <Icon name="playlist_remove" />
-                          </button>
+                          {!owned && (
+                            <button
+                              className="tbl-icon"
+                              title="Remove from service accounts"
+                              onClick={() => setPendingUntag(u)}
+                            >
+                              <Icon name="playlist_remove" />
+                            </button>
+                          )}
                           {!isRoot && (
                             <button
                               className="tbl-icon"

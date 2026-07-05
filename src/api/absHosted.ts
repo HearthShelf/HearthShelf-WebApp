@@ -17,6 +17,7 @@ import { mintGrant } from '@/api/controlPlane'
 import type { AbsTarget } from './absLibrary'
 import type {
   HSMode,
+  HSRuntimeInfo,
   HSTelemetryStatus,
   HSTelemetryPayloadPreview,
   HSHostedConfigStatus,
@@ -80,6 +81,26 @@ export const hostedKeys = {
   emailRelay: (serverId: string) => ['hosted', 'email-relay', serverId] as const,
   versions: (serverId: string) => ['hosted', 'versions', serverId] as const,
   telemetry: (serverId: string) => ['hosted', 'telemetry', serverId] as const,
+  runtime: (serverId: string) => ['hosted', 'runtime', serverId] as const,
+}
+
+// --- Runtime info (GET /hs/runtime, unauthenticated) -------------------------
+//
+// The box's boot-time runtime config. The WebApp needs `serviceUsername` from
+// here: on AIO the box auto-creates a HearthShelf service root (default
+// `hearthshelf-service`) that is a regular ABS admin user but must be framed as
+// a machine account, not a person. It is NOT in the /hs/service-accounts tagged
+// set (that only holds ids an admin tagged by hand), so the only way to identify
+// it is by username against this field. Returns null on a box that predates the
+// field or a server without a HearthShelf backend.
+export async function getServerRuntime(t: AbsTarget): Promise<HSRuntimeInfo | null> {
+  try {
+    const res = await fetch(`${origin(t)}/hs/runtime`)
+    if (!res.ok) return null
+    return (await res.json()) as HSRuntimeInfo
+  } catch {
+    return null
+  }
 }
 
 // --- Anonymous usage telemetry (opt-in) --------------------------------------

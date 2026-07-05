@@ -14,7 +14,7 @@ import {
 } from '@/api/absAdmin'
 import type { ABSAdminUser } from '@/api/absAdmin'
 import { getMe } from '@/api/absLibrary'
-import { recoverAdmins, HostedError } from '@/api/absHosted'
+import { recoverAdmins, getServerRuntime, hostedKeys, HostedError } from '@/api/absHosted'
 import type { UserFormSubmit } from '@/components/config/UserForm'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
@@ -87,9 +87,24 @@ export function ConfigUsers() {
     enabled: Boolean(target),
     staleTime: 60 * 1000,
   })
+
+  // The box's runtime config carries `serviceUsername` - the auto-created
+  // HearthShelf service root (AIO). It's a regular ABS admin user, so ABS lists
+  // it here, but it isn't in the tagged-id set (that only holds hand-tagged ids).
+  // We filter it by username so the machine account never shows up as a person.
+  const { data: runtime } = useQuery({
+    queryKey: hostedKeys.runtime(target?.serverId ?? ''),
+    queryFn: () => getServerRuntime(target!),
+    enabled: Boolean(target),
+    staleTime: 5 * 60 * 1000,
+  })
+  const serviceUsername = runtime?.serviceUsername ?? null
+
   const serviceUserIds = useMemo(() => new Set(trackedData?.ids ?? []), [trackedData])
   const allUsers = data?.users ?? []
-  const users = allUsers.filter((u) => !serviceUserIds.has(u.id))
+  const users = allUsers.filter(
+    (u) => !serviceUserIds.has(u.id) && !(serviceUsername != null && u.username === serviceUsername),
+  )
   const serviceCount = allUsers.length - users.length
   // Disabled admin/root accounts - the trigger for the break-glass recovery card.
   const disabledAdmins = users.filter(
