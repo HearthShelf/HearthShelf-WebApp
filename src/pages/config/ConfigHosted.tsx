@@ -119,21 +119,32 @@ export function ConfigHosted() {
   })
 
   // Port reachability via the hs.direct VPS connecting back to this box's IP.
+  // The check is proxied through the hs.direct broker, which can hiccup with a
+  // transient "broker_unreachable" even though the box itself is fine (the
+  // "Connected" status above is the real signal). Toast only for a check the
+  // user explicitly asked for - the background auto-run just retries quietly.
   const [portResult, setPortResult] = useState<PortCheckResult | null>(null)
   const testPort = useMutation({
-    mutationFn: () => checkPort(target!),
+    mutationFn: (_source: 'auto' | 'manual') => checkPort(target!),
     onSuccess: (r) => setPortResult(r),
-    onError: () => show('Could not run the connection check'),
+    onError: (_err, source) => {
+      if (source === 'manual') show('Could not run the connection check - try again in a moment')
+    },
   })
 
-  // Auto-run the connection check once the server is paired.
+  // Auto-run the connection check once the server is paired, retrying quietly
+  // on failure (e.g. a transient broker error) instead of surfacing a toast.
   const portChecked = portResult !== null
   useEffect(() => {
     if (!status?.paired) return
     if (portChecked || testPort.isPending) return
-    testPort.mutate()
+    if (testPort.isError) {
+      const retry = setTimeout(() => testPort.mutate('auto'), 10000)
+      return () => clearTimeout(retry)
+    }
+    testPort.mutate('auto')
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status?.paired, portChecked])
+  }, [status?.paired, portChecked, testPort.isPending, testPort.isError])
 
   // Poll the control plane for the claim while a code is showing.
   useEffect(() => {
@@ -324,7 +335,7 @@ export function ConfigHosted() {
                 <button
                   className="btn-sm btn-ghost"
                   disabled={testPort.isPending}
-                  onClick={() => testPort.mutate()}
+                  onClick={() => testPort.mutate('manual')}
                 >
                   <Icon name="travel_explore" />
                   {testPort.isPending ? 'Checking…' : 'Check connection'}
