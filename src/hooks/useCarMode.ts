@@ -1,4 +1,4 @@
-import { useSettingsStore } from '@/store/settingsStore'
+import { useSettingsStore, type CarMode } from '@/store/settingsStore'
 
 // Best-effort detection of an in-car browser. This is an ENHANCEMENT signal,
 // never a gate - UA strings drift across software updates, so the player must
@@ -51,11 +51,24 @@ export function isCarBrowser(): boolean {
   return isTouchOnlyTeslaSizedScreen()
 }
 
+// Resolve the effective car-mode state from a carMode setting. 'auto' defers to
+// UA detection; 'on'/'off' force it regardless. Non-reactive, so it can be
+// called outside React (e.g. when opening a play session).
+export function resolveCarMode(mode: CarMode): boolean {
+  if (mode === 'on') return true
+  if (mode === 'off') return false
+  return isCarBrowser()
+}
+
+// Read the effective car-mode state once, without subscribing. For play-session
+// tagging where we just need the current value at call time.
+export function isCarModeActive(): boolean {
+  return resolveCarMode(useSettingsStore.getState().carMode)
+}
+
 // Whether car mode should be active right now. 'auto' defers to UA detection;
 // 'on'/'off' force it regardless.
 export function useCarMode(): boolean {
   const mode = useSettingsStore((s) => s.carMode)
-  if (mode === 'on') return true
-  if (mode === 'off') return false
-  return isCarBrowser()
+  return resolveCarMode(mode)
 }

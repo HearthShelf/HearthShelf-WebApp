@@ -16,7 +16,7 @@
  *   - GET /api/podcasts/:id/clear-queue              -> clear queued downloads (admin)
  *   - POST /api/items/:id/play/:episodeId            -> playable episode session
  */
-import { absGet, absPost, absMediaUrl } from './absClient'
+import { absGet, absPost, absMediaUrl, playDeviceInfo } from './absClient'
 import type { AbsTarget, AbsTrack } from './absLibrary'
 
 // --- Episode + show shapes --------------------------------------------------
@@ -305,11 +305,6 @@ interface RawPlaySession {
   }>
 }
 
-const PLAY_DEVICE = {
-  deviceId: 'hearthshelf-web',
-  clientName: 'HearthShelf',
-  clientVersion: '0.1.0',
-}
 const PLAY_MIME = ['audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/flac', 'audio/ogg']
 
 export interface PlayableEpisode {
@@ -336,7 +331,7 @@ export async function getPlayableEpisode(
   const session = await absPost<RawPlaySession>(
     t,
     `/api/items/${encodeURIComponent(itemId)}/play/${encodeURIComponent(episodeId)}`,
-    { deviceInfo: PLAY_DEVICE, supportedMimeTypes: PLAY_MIME },
+    { deviceInfo: playDeviceInfo(), supportedMimeTypes: PLAY_MIME },
   )
   const raw = session?.audioTracks ?? []
   const tracks: AbsTrack[] = raw.map((tr) => ({

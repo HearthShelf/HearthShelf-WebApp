@@ -5,7 +5,7 @@
  * minified item form for lists (denormalized title/authorName, cover via the
  * item's /cover endpoint). Only the fields we render are typed.
  */
-import { absGet, absPatch, absPost, absDelete, absMediaUrl } from './absClient'
+import { absGet, absPatch, absPost, absDelete, absMediaUrl, playDeviceInfo } from './absClient'
 import { getAbsToken } from '@/lib/absTokens'
 import type {
   ABSBookMetadata,
@@ -424,11 +424,6 @@ export async function closePlaySession(
   }).catch(() => {})
 }
 
-const PLAY_DEVICE = {
-  deviceId: 'hearthshelf-web',
-  clientName: 'HearthShelf',
-  clientVersion: '0.1.0',
-}
 const PLAY_MIME = ['audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/flac', 'audio/ogg']
 
 export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsItemDetail> {
@@ -440,7 +435,7 @@ export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsIt
       `/api/items/${encodeURIComponent(itemId)}?expanded=1&include=progress`,
     ),
     absPost<RawPlaySession>(t, `/api/items/${encodeURIComponent(itemId)}/play`, {
-      deviceInfo: PLAY_DEVICE,
+      deviceInfo: playDeviceInfo(),
       supportedMimeTypes: PLAY_MIME,
     }).catch(() => null),
   ])

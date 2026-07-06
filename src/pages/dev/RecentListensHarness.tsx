@@ -70,6 +70,19 @@ const SESSIONS = [
     startedAt: Date.now() - 6 * 24 * 3600_000,
     deviceInfo: { deviceId: 'hearthshelf-mobile', clientName: 'HearthShelf Mobile' },
   },
+  {
+    id: 's7',
+    libraryItemId: ITEM_ID,
+    startTime: 5200,
+    currentTime: 6400,
+    timeListening: 1150,
+    startedAt: Date.now() - 7 * 24 * 3600_000,
+    deviceInfo: {
+      deviceId: 'hearthshelf-web-car',
+      clientName: 'HearthShelf Web (Car)',
+      browserName: 'Chrome',
+    },
+  },
 ]
 
 export function RecentListensHarness() {

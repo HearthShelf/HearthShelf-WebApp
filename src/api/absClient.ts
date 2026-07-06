@@ -13,6 +13,8 @@
  */
 import { getAbsToken, clearAbsToken } from '@/lib/absTokens'
 import { connectServer } from '@/lib/connectServer'
+import { isCarModeActive } from '@/hooks/useCarMode'
+import type { ABSDeviceInfo } from '@hearthshelf/core'
 
 export class AbsError extends Error {
   status: number
@@ -140,4 +142,16 @@ export function absMediaUrl(t: AbsTarget, path: string): string | null {
   if (!token) return null
   const sep = path.includes('?') ? '&' : '?'
   return `${origin(t)}${path}${sep}token=${encodeURIComponent(token)}`
+}
+
+/**
+ * The deviceInfo to send when opening a play session. When the in-car web
+ * player is active it tags itself so listening history can tell a couch session
+ * apart from one driven from the car's touchscreen; otherwise it's the plain
+ * web client. Resolved per-call because car mode can toggle within a session.
+ */
+export function playDeviceInfo(): ABSDeviceInfo & { clientVersion: string } {
+  return isCarModeActive()
+    ? { deviceId: 'hearthshelf-web-car', clientName: 'HearthShelf Web (Car)', clientVersion: '0.1.0' }
+    : { deviceId: 'hearthshelf-web', clientName: 'HearthShelf', clientVersion: '0.1.0' }
 }
