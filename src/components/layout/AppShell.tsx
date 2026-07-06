@@ -58,6 +58,10 @@ export function AppShell() {
         'app' +
         (isMobile ? ' has-mobile-nav' : '') +
         (navCollapsed && !isMobile ? ' nav-collapsed' : '') +
+        // car-mode: active on ANY route (drives the large-touch nav tiles + the
+        // settings reskin). car-shell: the player-only whole-screen takeover
+        // (grid column removed, sidebar overlays + fades).
+        (carMode ? ' car-mode' : '') +
         (carShell ? ' car-shell' : '') +
         (carShell && carFaded ? ' car-shell-faded' : '')
       }

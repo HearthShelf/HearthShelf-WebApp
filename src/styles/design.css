@@ -45,12 +45,19 @@
 }
 
 /* Car nav = big square tiles: a large icon over a label, sized for in-car
-   touchscreens. Overrides the horizontal line-row layout of .nav-item. */
-.app.car-shell .nav {
+   touchscreens. Overrides the horizontal line-row layout of .nav-item. Gated on
+   .app.car-mode (any route) so the tiles show on the settings page too, not
+   just the player takeover (.app.car-shell). The fixed --sidebar-w keeps the
+   grid column sized to the tiles on normal (non-overlay) car-mode routes and
+   overrides any desktop collapse setting. */
+.app.car-mode {
+  --sidebar-w: 124px;
+}
+.app.car-mode .nav {
   gap: 8px;
   padding-top: var(--s2);
 }
-.app.car-shell .nav-item {
+.app.car-mode .nav-item {
   flex-direction: column;
   gap: 6px;
   padding: 16px 6px;
@@ -58,29 +65,29 @@
   background: rgba(255, 255, 255, 0.05);
   text-align: center;
 }
-.app.car-shell .nav-item .ms {
+.app.car-mode .nav-item .ms {
   font-size: 30px;
 }
-.app.car-shell .nav-item .ni-label {
+.app.car-mode .nav-item .ni-label {
   font-size: 12.5px;
   font-weight: 600;
   line-height: 1.15;
 }
-.app.car-shell .nav-item.active {
+.app.car-mode .nav-item.active {
   background: color-mix(in oklab, var(--accent) 18%, transparent);
 }
 /* Group labels and the collapse affordance are noise on the car tiles. */
-.app.car-shell .nav-label,
-.app.car-shell .nav-collapse-btn,
-.app.car-shell .nav-collapse-rail {
+.app.car-mode .nav-label,
+.app.car-mode .nav-collapse-btn,
+.app.car-mode .nav-collapse-rail {
   display: none;
 }
-.app.car-shell .brand {
+.app.car-mode .brand {
   justify-content: center;
   padding-left: 0;
   padding-right: 0;
 }
-.app.car-shell .brand .wordmark {
+.app.car-mode .brand .wordmark {
   display: none;
 }
 
@@ -5886,6 +5893,106 @@
   font-size: 11.5px;
   color: var(--text-faint);
   line-height: 1.7;
+}
+
+/* ---- Settings in car mode: large-touch reskin ---------------------- */
+/* Everything here is gated on .app.car-mode so the normal desktop/phone
+   settings layout is untouched. The goal is finger-sized controls and roomy
+   rows on a big in-car touchscreen - bigger toggles, taller segmented
+   buttons, a fatter slider, and a spacious section sub-nav. */
+.app.car-mode .settings-shell .page-head {
+  margin-bottom: var(--s4);
+}
+.app.car-mode .settings-shell .config-wrap {
+  gap: var(--s6);
+  max-width: none;
+  padding: var(--s6) var(--s8) 80px;
+}
+/* Section sub-nav: wider, with tall tappable rows. */
+.app.car-mode .settings-shell .config-nav {
+  width: 300px;
+}
+.app.car-mode .settings-shell .cn-item {
+  padding: 16px 16px;
+  font-size: 16px;
+  border-radius: 16px;
+  gap: 14px;
+}
+.app.car-mode .settings-shell .cn-item .ms {
+  font-size: 26px;
+}
+.app.car-mode .settings-shell .cn-label {
+  font-size: 12px;
+  padding: 0 16px var(--s2);
+}
+
+/* Setting rows: taller, larger label + description. */
+.app.car-mode .settings-shell .set-row {
+  padding: 20px var(--s6);
+  gap: var(--s5);
+}
+.app.car-mode .settings-shell .sr-t {
+  font-size: 17px;
+}
+.app.car-mode .settings-shell .sr-d {
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* Segmented control: taller, roomier hit targets. */
+.app.car-mode .settings-shell .seg {
+  padding: 4px;
+}
+.app.car-mode .settings-shell .seg button {
+  font-size: 15px;
+  padding: 12px 20px;
+}
+
+/* Toggle: scaled up (the base is 46x27 / 21px dot). */
+.app.car-mode .settings-shell .toggle {
+  width: 62px;
+  height: 36px;
+}
+.app.car-mode .settings-shell .toggle > i {
+  top: 4px;
+  left: 4px;
+  width: 28px;
+  height: 28px;
+}
+.app.car-mode .settings-shell .toggle.on > i {
+  transform: translateX(26px);
+}
+
+/* Slider: taller track + bigger thumb for a fingertip drag. */
+.app.car-mode .settings-shell .set-slider {
+  height: 10px;
+}
+.app.car-mode .settings-shell .set-slider::-webkit-slider-thumb {
+  width: 30px;
+  height: 30px;
+}
+.app.car-mode .settings-shell .set-slider::-moz-range-thumb {
+  width: 30px;
+  height: 30px;
+}
+.app.car-mode .settings-shell .set-slider-val {
+  font-size: 15px;
+  min-width: 44px;
+}
+
+/* Number input (skip/rewind seconds): larger box + digits. */
+.app.car-mode .settings-shell .set-num {
+  font-size: 17px;
+  padding: 10px 12px;
+  width: 68px;
+}
+.app.car-mode .settings-shell .set-num-suffix {
+  font-size: 14px;
+}
+
+/* Section headers read bigger too. */
+.app.car-mode .settings-shell .section-head h2 {
+  font-size: 22px;
 }
 
 .config-foot a,

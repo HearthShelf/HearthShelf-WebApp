@@ -43,6 +43,7 @@ import { RecentListensHarness } from '@/pages/dev/RecentListensHarness'
 import { PinEntryHarness } from '@/pages/dev/PinEntryHarness'
 import { SwitcherHarness } from '@/pages/dev/SwitcherHarness'
 import { SharedDevicePromptHarness } from '@/pages/dev/SharedDevicePromptHarness'
+import { SettingsCarHarness } from '@/pages/dev/SettingsCarHarness'
 import { RequireAuth } from '@/auth/RequireAuth'
 import { PlayerProvider } from '@/player/PlayerProvider'
 
@@ -67,6 +68,7 @@ export const router = createBrowserRouter([
         { path: '/dev/pin', element: <PinEntryHarness /> },
         { path: '/dev/switcher', element: <SwitcherHarness /> },
         { path: '/dev/shared-prompt', element: <SharedDevicePromptHarness /> },
+        { path: '/dev/settings-car', element: <SettingsCarHarness /> },
       ]
     : []),
 
