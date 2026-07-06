@@ -107,10 +107,11 @@ export function CarPlayer({
   // via their own onClick instead.
   const stopWake = (e: React.PointerEvent) => e.stopPropagation()
 
-  // Core transport reporters: skip controls tick (keep awake, no reveal);
-  // play/pause is a full wake so chrome comes back when you start fiddling.
+  // Core transport reporters: skip controls and play/pause all tick (keep the
+  // timer alive, no reveal). Starting playback while idle should leave the
+  // chrome hidden - you tapped play to listen, not to fiddle with controls.
   const onPlay = () => {
-    wake()
+    tick()
     togglePlay()
   }
   const onBack = () => {
@@ -196,9 +197,10 @@ export function CarPlayer({
           }
         />
 
-        {/* Core transport - always visible, even when faded. The skip controls
-            stop pointer propagation so they DON'T trigger the card's wake: you
-            can nudge playback while idle without the chrome flashing back. */}
+        {/* Core transport - always visible, even when faded. Every button here
+            stops pointer propagation so it DOESN'T trigger the card's wake: you
+            can nudge playback or start/stop while idle without the chrome
+            flashing back. */}
         <div className="car-transport">
           <button
             className="car-skip lite"
@@ -217,7 +219,12 @@ export function CarPlayer({
             <Icon name="replay" />
             <small>{skipBack}</small>
           </button>
-          <button className="car-play" onClick={onPlay} aria-label={isPlaying ? 'Pause' : 'Play'}>
+          <button
+            className="car-play"
+            onPointerDown={stopWake}
+            onClick={onPlay}
+            aria-label={isPlaying ? 'Pause' : 'Play'}
+          >
             <Icon name={isPlaying ? 'pause' : 'play_arrow'} fill />
           </button>
           <button
