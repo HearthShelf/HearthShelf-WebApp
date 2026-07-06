@@ -90,6 +90,28 @@
 .app.car-mode .brand .wordmark {
   display: none;
 }
+/* The user chip: the narrow tile rail can't hold the name + server text, so
+   show just the avatar (centered) like the collapsed rail does. */
+.app.car-mode .u-meta,
+.app.car-mode .u-chev {
+  display: none;
+}
+.app.car-mode .user-chip {
+  justify-content: center;
+  padding: 9px 0;
+}
+/* The account/switcher popover must NOT be squeezed to the 124px rail width
+   (left:0;right:0 pins it to the parent). Break it out to a comfortable fixed
+   width, anchored to the rail's left edge, so its rows read on one line. */
+.app.car-mode .user-menu {
+  right: auto;
+  width: 264px;
+  /* The switcher can list several saved accounts + actions; opening upward from
+     the bottom chip it could run off the top of the screen. Cap it to the space
+     above the chip and let it scroll. */
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+}
 
 /* signature cover-glow - fixed bloom behind the content column */
 .app-glow {
