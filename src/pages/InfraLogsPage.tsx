@@ -11,6 +11,7 @@ import {
   Download,
   Copy,
   Check,
+  ClipboardCopy,
 } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -268,6 +269,7 @@ function LogRow({
             {new Date(log.ts).toLocaleString()}
           </span>
         </button>
+        <CopyReportButton log={log} meta={meta} />
         <button
           type="button"
           onClick={onDelete}
@@ -357,6 +359,49 @@ function formatDetail(detail: string): string {
   } catch {
     return detail
   }
+}
+
+function formatLogAsMarkdown(log: InfraLog, sourceLabel: string): string {
+  const lines = [
+    `## ${log.event}`,
+    '',
+    `- **Severity:** ${log.severity}`,
+    `- **Source:** ${sourceLabel}`,
+    `- **Time:** ${new Date(log.ts).toLocaleString()}`,
+  ]
+  if (log.server_id) lines.push(`- **Server:** ${log.server_id}`)
+  if (log.ip) lines.push(`- **Source IP:** ${log.ip}`)
+  if (log.message) lines.push('', '**Message:**', '```', log.message, '```')
+  if (log.detail) lines.push('', '**Detail:**', '```json', formatDetail(log.detail), '```')
+  return lines.join('\n')
+}
+
+/** Copies the whole log entry as Claude-Code-friendly markdown (event, message, detail). */
+function CopyReportButton({
+  log,
+  meta,
+}: {
+  log: InfraLog
+  meta: { label: string; icon: typeof Cloud }
+}) {
+  const [copied, setCopied] = useState(false)
+  function copy(e: React.MouseEvent) {
+    e.stopPropagation()
+    void navigator.clipboard.writeText(formatLogAsMarkdown(log, meta.label)).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title="Copy report as markdown"
+      className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+    >
+      {copied ? <Check size={14} /> : <ClipboardCopy size={14} />}
+    </button>
+  )
 }
 
 function Panel({ children }: { children: React.ReactNode }) {
