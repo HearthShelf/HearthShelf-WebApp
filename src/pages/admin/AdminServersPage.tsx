@@ -1,22 +1,16 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2, AlertTriangle, Trash2, Server, ChevronRight } from 'lucide-react'
-import {
-  fetchAdminServers,
-  fetchAdminServer,
-  deregisterServer,
-  setUserPlan,
-  type AdminServer,
-} from '@/api/controlPlane'
+import { fetchAdminServers, fetchAdminServer, deregisterServer, type AdminServer } from '@/api/controlPlane'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { notify } from '@/lib/notify'
 
 /**
  * Fleet server roster + per-server inspect. Selecting a server opens a detail
- * panel with its linked users, hs.direct cert status, and email-relay usage.
- * Moderation here is a hard-deregister (destructive, not reversible - the operator
- * must re-pair); the control plane audits it.
+ * panel with hs.direct cert status and email-relay usage - health signals only,
+ * no per-user data. Moderation here is a hard-deregister (destructive, not
+ * reversible - the operator must re-pair); the control plane audits it.
  */
 export function AdminServersPage() {
   const [selected, setSelected] = useState<string | null>(null)
@@ -91,9 +85,6 @@ function ServerCard({
             {server.id}
           </span>
         </span>
-        <span className="t-muted shrink-0 text-[13px]">
-          {server.link_count} {server.link_count === 1 ? 'user' : 'users'}
-        </span>
         <ChevronRight
           size={16}
           className={`shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`}
@@ -121,16 +112,6 @@ function ServerDetail({ serverId }: { serverId: string }) {
       void qc.invalidateQueries({ queryKey: ['admin-servers'] })
     },
     onError: (e) => notify.error(e instanceof Error ? e.message : 'Deregister failed'),
-  })
-
-  const plan = useMutation({
-    mutationFn: (v: { clerkUserId: string; plan: 'free' | 'pro' }) =>
-      setUserPlan(v.clerkUserId, v.plan),
-    onSuccess: () => {
-      notify.success('Plan updated')
-      void qc.invalidateQueries({ queryKey: ['admin-server', serverId] })
-    },
-    onError: (e) => notify.error(e instanceof Error ? e.message : 'Plan update failed'),
   })
 
   if (isLoading) {
@@ -165,32 +146,6 @@ function ServerDetail({ serverId }: { serverId: string }) {
         </dd>
       </dl>
 
-      <p className="t-eyebrow mt-4">Linked users</p>
-      <ul className="mt-2 grid gap-1">
-        {data.links.map((l) => (
-          <li
-            key={l.clerk_user_id}
-            className="flex items-center gap-3 rounded-md bg-secondary px-3 py-2"
-          >
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-card-foreground">{l.email}</span>
-              <span className="t-mono block truncate text-[12px] text-muted-foreground">
-                {l.clerk_user_id}
-                {l.role === 'admin' ? ' - owner' : ''}
-              </span>
-            </span>
-            <PlanToggle
-              clerkUserId={l.clerk_user_id}
-              busy={plan.isPending && plan.variables?.clerkUserId === l.clerk_user_id}
-              onSet={(p) => plan.mutate({ clerkUserId: l.clerk_user_id, plan: p })}
-            />
-          </li>
-        ))}
-        {data.links.length === 0 && (
-          <li className="t-muted px-3 py-2 text-[13px]">No linked users.</li>
-        )}
-      </ul>
-
       <div className="mt-4 flex justify-end">
         <Button variant="destructive" size="sm" onClick={() => setConfirmDeregister(true)}>
           <Trash2 size={14} />
@@ -214,38 +169,6 @@ function ServerDetail({ serverId }: { serverId: string }) {
         />
       )}
     </div>
-  )
-}
-
-/** Per-user plan control. Plan is per-person (entitlements table), shown here in
- *  the server's user list for convenience. */
-function PlanToggle({
-  clerkUserId: _clerkUserId,
-  busy,
-  onSet,
-}: {
-  clerkUserId: string
-  busy: boolean
-  onSet: (plan: 'free' | 'pro') => void
-}) {
-  return (
-    <select
-      disabled={busy}
-      defaultValue=""
-      onChange={(e) => {
-        const v = e.target.value
-        if (v === 'free' || v === 'pro') onSet(v)
-        e.target.value = ''
-      }}
-      className="t-body shrink-0 rounded-md border border-border bg-card px-2 py-1 text-[12px] disabled:opacity-50"
-      title="Set plan"
-    >
-      <option value="" disabled>
-        {busy ? 'Saving...' : 'Set plan'}
-      </option>
-      <option value="free">Free</option>
-      <option value="pro">Pro</option>
-    </select>
   )
 }
 

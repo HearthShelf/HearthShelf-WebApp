@@ -286,7 +286,6 @@ export interface AdminServer {
   id: string
   name: string | null
   url: string
-  link_count: number
   created_at: number
   last_seen_at: number | null
 }
@@ -304,7 +303,6 @@ export interface AdminServerDetail {
   last_seen_at: number | null
   cert: { status: string; not_after: number | null; hash: string } | null
   email_relay: { sent_this_window: number; monthly_cap: number }
-  links: Array<{ clerk_user_id: string; email: string; role: 'admin' | 'user'; created_at: number }>
 }
 
 export async function fetchAdminServer(serverId: string): Promise<AdminServerDetail> {
@@ -314,25 +312,6 @@ export async function fetchAdminServer(serverId: string): Promise<AdminServerDet
 /** Hard-deregister a server (destructive, not reversible). Audited server-side. */
 export async function deregisterServer(serverId: string): Promise<void> {
   await request(`/admin/servers/${encodeURIComponent(serverId)}`, { method: 'DELETE' })
-}
-
-export interface AdminUser {
-  clerk_user_id: string
-  plan: 'free' | 'pro'
-  plan_source: string | null
-  links: Array<{ server_id: string; email: string; role: 'admin' | 'user'; created_at: number }>
-}
-
-export async function fetchAdminUser(clerkUserId: string): Promise<AdminUser> {
-  return request<AdminUser>(`/admin/users/${encodeURIComponent(clerkUserId)}`)
-}
-
-/** Manually set a user's plan (the only entitlement lever until billing lands). */
-export async function setUserPlan(clerkUserId: string, plan: 'free' | 'pro'): Promise<void> {
-  await request('/admin/entitlements', {
-    method: 'POST',
-    body: JSON.stringify({ clerk_user_id: clerkUserId, plan }),
-  })
 }
 
 export interface PlatformAdminEntry {

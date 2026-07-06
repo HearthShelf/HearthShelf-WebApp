@@ -1,15 +1,19 @@
 /**
  * Platform-admin API. Powers the app.hearthshelf.com admin panel: fleet-wide
- * server/user moderation, plan (entitlement) management, the admin roster, and
- * the audit trail.
+ * server moderation, the admin roster, and the audit trail.
+ *
+ * Deliberately has no per-tenant-user visibility - a platform admin can see
+ * which servers are registered and their health, but not who uses them. Manual
+ * plan/entitlement management is out of scope here; that will live in a
+ * dedicated per-user lookup tool later, not a fleet-wide list.
  *
  * The WHOLE router is gated by requireAdmin middleware (applied once below), so a
  * handler physically cannot ship without the gate. Admin status is re-read from
  * D1 per request inside that middleware - never trusted from a JWT or the client.
  * Every mutating action writes an admin_audit row.
  *
- * Scope here is moderation + entitlements only. The infra LOG VIEWER lives in
- * routes/logs.ts (owned separately) and now shares this same requireAdmin gate.
+ * Scope here is moderation only. The infra LOG VIEWER lives in routes/logs.ts
+ * (owned separately) and now shares this same requireAdmin gate.
  */
 import { Hono } from 'hono'
 import type { Env } from '../types'
@@ -18,12 +22,8 @@ import {
   listAllServers,
   getServer,
   deleteServer,
-  listLinksForServer,
-  listLinksByUser,
   getServerCert,
   emailSentThisWindow,
-  getEntitlement,
-  setEntitlement,
   listPlatformAdmins,
   addPlatformAdmin,
   removePlatformAdmin,
@@ -51,7 +51,7 @@ admin.get('/admin/me', (c) => {
   return c.json({ clerk_user_id: user.userId, email: user.email, role: admin.role })
 })
 
-/** Fleet roster: every server with its linked-user count + plan/quota at a glance. */
+/** Fleet roster: every registered server, for health/moderation - no per-user data. */
 admin.get('/admin/servers', async (c) => {
   const servers = await listAllServers(c.env)
   return c.json({
@@ -59,21 +59,20 @@ admin.get('/admin/servers', async (c) => {
       id: s.server_id,
       name: s.name,
       url: s.public_url,
-      link_count: s.link_count,
       created_at: s.created_at,
       last_seen_at: s.last_seen_at,
     })),
   })
 })
 
-/** Inspect one server: links, cert status, email-relay usage. */
+/** Inspect one server: cert status, email-relay usage. No per-user data - this is
+ *  a fleet health view, not a way to look up who uses a box. */
 admin.get('/admin/servers/:id', async (c) => {
   const serverId = c.req.param('id')
   const server = await getServer(c.env, serverId)
   if (!server) return c.json({ error: 'not_found' }, 404)
 
-  const [links, cert, sent] = await Promise.all([
-    listLinksForServer(c.env, serverId),
+  const [cert, sent] = await Promise.all([
     getServerCert(c.env, serverId),
     emailSentThisWindow(c.env, serverId),
   ])
@@ -85,12 +84,6 @@ admin.get('/admin/servers/:id', async (c) => {
     last_seen_at: server.last_seen_at,
     cert: cert ? { status: cert.status, not_after: cert.not_after, hash: cert.hash } : null,
     email_relay: { sent_this_window: sent, monthly_cap: RELAY_CAP(c.env) },
-    links: links.map((l) => ({
-      clerk_user_id: l.clerk_user_id,
-      email: l.email,
-      role: l.role,
-      created_at: l.created_at,
-    })),
   })
 })
 
@@ -114,54 +107,6 @@ admin.delete('/admin/servers/:id', async (c) => {
     detail: { name: server.name, url: server.public_url },
   })
   return c.json({ ok: true })
-})
-
-/** Inspect a user: their server links + current plan. */
-admin.get('/admin/users/:clerkUserId', async (c) => {
-  const clerkUserId = c.req.param('clerkUserId')
-  const [links, ent] = await Promise.all([
-    listLinksByUser(c.env, clerkUserId),
-    getEntitlement(c.env, clerkUserId),
-  ])
-  return c.json({
-    clerk_user_id: clerkUserId,
-    plan: ent?.plan ?? 'free',
-    plan_source: ent?.source ?? null,
-    links: links.map((l) => ({
-      server_id: l.server_id,
-      email: l.email,
-      role: l.role,
-      created_at: l.created_at,
-    })),
-  })
-})
-
-/**
- * Manually set a user's plan (the only entitlement lever until billing lands).
- * source is recorded as 'manual'. Audited. Billing webhooks will later write the
- * same table with source 'stripe'.
- */
-admin.post('/admin/entitlements', async (c) => {
-  const { user } = c.var.admin
-  let body: { clerk_user_id?: string; plan?: string }
-  try {
-    body = await c.req.json()
-  } catch {
-    return c.json({ error: 'invalid_body' }, 400)
-  }
-  const clerkUserId = (body.clerk_user_id || '').trim()
-  const plan = body.plan === 'pro' ? 'pro' : 'free'
-  if (!clerkUserId) return c.json({ error: 'clerk_user_id required' }, 400)
-
-  await setEntitlement(c.env, { clerkUserId, plan, source: 'manual', grantedBy: user.userId })
-  await writeAudit(c.env, {
-    id: uuid(),
-    actor: user.userId,
-    action: 'set_plan',
-    target: clerkUserId,
-    detail: { plan },
-  })
-  return c.json({ ok: true, clerk_user_id: clerkUserId, plan })
 })
 
 // --- release override -------------------------------------------------------

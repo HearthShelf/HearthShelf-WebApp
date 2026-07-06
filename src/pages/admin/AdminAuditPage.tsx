@@ -8,7 +8,6 @@ import { fetchAuditLog, type AuditEntry } from '@/api/controlPlane'
  */
 const ACTION_LABEL: Record<string, string> = {
   deregister_server: 'Deregistered server',
-  set_plan: 'Set plan',
   add_admin: 'Added admin',
   remove_admin: 'Removed admin',
 }
@@ -81,12 +80,24 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
   )
 }
 
+/** Masks an email so the audit trail stays readable without printing a full
+ *  address, e.g. "j***@example.com" -> shows the domain (useful context) but
+ *  not who exactly it was. */
+function maskEmail(email: string): string {
+  const at = email.indexOf('@')
+  if (at <= 0) return '***'
+  return `${email[0]}***${email.slice(at)}`
+}
+
 function formatDetail(detail: string): string {
   try {
     const obj = JSON.parse(detail) as Record<string, unknown>
     return Object.entries(obj)
       .filter(([, v]) => v !== null && v !== undefined && v !== '')
-      .map(([k, v]) => `${k}: ${String(v)}`)
+      .map(([k, v]) => {
+        const value = k === 'email' && typeof v === 'string' ? maskEmail(v) : String(v)
+        return `${k}: ${value}`
+      })
       .join(', ')
   } catch {
     return detail

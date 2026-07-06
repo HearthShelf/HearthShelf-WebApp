@@ -641,46 +641,9 @@ export async function getEntitlement(
     .first<EntitlementRow>()
 }
 
-export async function setEntitlement(
-  env: Env,
-  e: { clerkUserId: string; plan: string; source?: string; grantedBy: string },
-): Promise<void> {
-  await env.DB.prepare(
-    `INSERT INTO entitlements (clerk_user_id, plan, source, granted_by, updated_at)
-     VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT (clerk_user_id) DO UPDATE SET
-       plan = excluded.plan, source = excluded.source,
-       granted_by = excluded.granted_by, updated_at = excluded.updated_at`,
-  )
-    .bind(e.clerkUserId, e.plan, e.source ?? 'manual', e.grantedBy, now())
-    .run()
-}
-
-/** Listing of all servers for the admin moderation view, with linked-user counts. */
-export async function listAllServers(env: Env): Promise<Array<ServerRow & { link_count: number }>> {
-  const r = await env.DB.prepare(
-    `SELECT s.*, (SELECT COUNT(*) FROM links l WHERE l.server_id = s.server_id) AS link_count
-       FROM servers s
-      ORDER BY s.created_at DESC`,
-  ).all<ServerRow & { link_count: number }>()
-  return r.results ?? []
-}
-
-/** All links for a server (admin inspect view). */
-export async function listLinksForServer(env: Env, serverId: string): Promise<LinkRow[]> {
-  const r = await env.DB.prepare(`SELECT * FROM links WHERE server_id = ? ORDER BY created_at ASC`)
-    .bind(serverId)
-    .all<LinkRow>()
-  return r.results ?? []
-}
-
-/** All links for a user across servers (admin user-inspect view). */
-export async function listLinksByUser(env: Env, clerkUserId: string): Promise<LinkRow[]> {
-  const r = await env.DB.prepare(
-    `SELECT * FROM links WHERE clerk_user_id = ? ORDER BY created_at ASC`,
-  )
-    .bind(clerkUserId)
-    .all<LinkRow>()
+/** Listing of all servers for the admin moderation view. */
+export async function listAllServers(env: Env): Promise<ServerRow[]> {
+  const r = await env.DB.prepare(`SELECT * FROM servers ORDER BY created_at DESC`).all<ServerRow>()
   return r.results ?? []
 }
 
