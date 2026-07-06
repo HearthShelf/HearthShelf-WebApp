@@ -215,7 +215,7 @@ export function InfraLogsPage() {
                 </span>
               </Panel>
             ) : (
-              <ul className="grid gap-2">
+              <ul className="grid grid-cols-1 gap-2">
                 {data.map((log) => (
                   <LogRow
                     key={log.id}
@@ -247,7 +247,7 @@ function LogRow({
   const Icon = meta.icon
   const isError = log.severity === 'error'
   return (
-    <li className="rounded-lg border border-border bg-card">
+    <li className="min-w-0 rounded-lg border border-border bg-card">
       <div className="flex items-center gap-3 px-4 py-3">
         <button
           type="button"
