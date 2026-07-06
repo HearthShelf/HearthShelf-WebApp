@@ -4046,6 +4046,14 @@
   color: var(--text);
 }
 
+/* Account type selector (Edit Permissions modal): --c-highest reads too close
+   to the surrounding surface here, so use --accent for stronger contrast
+   between the selected type and the rest. */
+.seg.seg-account-type button.on {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
 .swatch-row {
   display: flex;
   gap: 10px;

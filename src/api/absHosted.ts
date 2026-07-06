@@ -82,6 +82,8 @@ export const hostedKeys = {
   versions: (serverId: string) => ['hosted', 'versions', serverId] as const,
   telemetry: (serverId: string) => ['hosted', 'telemetry', serverId] as const,
   runtime: (serverId: string) => ['hosted', 'runtime', serverId] as const,
+  invites: (serverId: string) => ['hosted', 'invites', serverId] as const,
+  linkedUsers: (serverId: string) => ['hosted', 'linked-users', serverId] as const,
 }
 
 // --- Runtime info (GET /hs/runtime, unauthenticated) -------------------------
@@ -301,6 +303,31 @@ export function inviteFromServer(
     method: 'POST',
     body: JSON.stringify({ email, role }),
   })
+}
+
+export interface PendingInvite {
+  email: string
+  role: 'admin' | 'user'
+  created_at: number
+}
+
+/** Pending invites for this server (forwarded to the control plane). */
+export async function getPendingInvites(t: AbsTarget): Promise<PendingInvite[]> {
+  const res = await hsFetch<{ invites?: PendingInvite[] }>(t, '/hs/hosted/invites', {
+    method: 'GET',
+  })
+  return res.invites ?? []
+}
+
+// The ABS user ids that have signed in via app.hearthshelf.com on this server.
+// Box-local (hosted_user_keys) - no control-plane round trip.
+export async function getLinkedAbsUserIds(t: AbsTarget): Promise<Set<string>> {
+  const res = await hsFetch<{ linked?: { absUserId: string; email: string }[] }>(
+    t,
+    '/hs/hosted/linked-users',
+    { method: 'GET' },
+  )
+  return new Set((res.linked ?? []).map((l) => l.absUserId))
 }
 
 // --- Email relay ("Use HearthShelf email") -----------------------------------

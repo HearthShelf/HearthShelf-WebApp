@@ -606,6 +606,35 @@ servers.post('/servers/invite-from-server', async (c) => {
 })
 
 /**
+ * List pending invites for a server, server-to-server (server_secret authed).
+ * Lets the self-hosted HS UI show its own pending invites without a Clerk
+ * session - same trust model as invite-from-server.
+ */
+servers.post('/servers/invites-for-server', async (c) => {
+  let body: { server_id?: string; server_secret?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const serverId = (body.server_id || '').trim()
+  const secret = body.server_secret || ''
+  if (!serverId || !secret) return c.json({ error: 'server_id and server_secret required' }, 400)
+
+  const server = await getServer(c.env, serverId)
+  if (!server) return c.json({ error: 'server_unknown' }, 404)
+  const presented = await sha256Hex(secret)
+  if (!timingSafeEqual(presented, server.server_secret_hash)) {
+    return c.json({ error: 'bad_server_secret' }, 401)
+  }
+
+  const invites = await pendingInvitesForServer(c.env, serverId)
+  return c.json({
+    invites: invites.map((i) => ({ email: i.email, role: i.role, created_at: i.created_at })),
+  })
+})
+
+/**
  * hs.direct cert-broker grant (server-to-server). A paired HS box, about to
  * obtain or renew its hs.direct wildcard cert, asks the control plane to
  * authorize the request. We authenticate with the server_secret (same pattern as
