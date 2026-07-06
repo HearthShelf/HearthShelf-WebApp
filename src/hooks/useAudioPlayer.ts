@@ -27,6 +27,14 @@ interface UsePlayerArgs {
   onSaveProgress: (currentTimeSec: number, listenedSec: number) => void
   /** Called when the LAST track of the book finishes (for queue auto-advance). */
   onBookEnded?: () => void
+  /**
+   * Awaited right before playback resumes from a paused state, on EVERY resume
+   * path - the app play button, hardware/lock-screen media keys, and the in-car
+   * browser transport widget. Lets the owner re-check the server's resume point
+   * after a long pause (the user may have listened on another device) and seek
+   * there before audio starts. Resolve/return to proceed; may call seekTo first.
+   */
+  onBeforeResume?: () => void | Promise<void>
   /** Seconds for the seekbackward/seekforward/previoustrack/nexttrack OS and
    * car media-widget actions (Tesla's browser transport bar, hardware media
    * keys, Bluetooth head units). Defaults to 15/30. */
@@ -49,12 +57,20 @@ export function useAudioPlayer({
   autoplayOnLoad = false,
   onSaveProgress,
   onBookEnded,
+  onBeforeResume,
   seekBackwardSec = 15,
   seekForwardSec = 30,
 }: UsePlayerArgs) {
   // Latest onBookEnded, read by the [tracks] effect without re-subscribing.
   const onBookEndedRef = useRef(onBookEnded)
   onBookEndedRef.current = onBookEnded
+  // Latest onBeforeResume, read by resume() without re-subscribing handlers.
+  const onBeforeResumeRef = useRef(onBeforeResume)
+  onBeforeResumeRef.current = onBeforeResume
+  // Guards against re-entrant resumes while an onBeforeResume is in flight (a
+  // second play tap, or a media-key + button race), which would fire two server
+  // checks and two play() calls.
+  const resumingRef = useRef(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [playing, setPlaying] = useState(false)
   const [positionSec, setPositionSec] = useState(startAtSec)
@@ -154,12 +170,48 @@ export function useAudioPlayer({
     [tracks, totalDurationSec, playing, loadTrack],
   )
 
+  // Resume from paused, giving onBeforeResume a chance to re-sync the position
+  // first. Shared by the app play button and every OS/car media-key play action
+  // so the stale-resume check can't be bypassed by pressing play on the widget.
+  const resume = useCallback(() => {
+    const audio = audioRef.current
+    if (!audio || !audio.paused || resumingRef.current) return
+    const before = onBeforeResumeRef.current
+    // Start playback. If onBeforeResume seeked ACROSS a track boundary, a new
+    // src is still loading and seekedRef is false until loadedmetadata applies
+    // the resume offset - playing now would briefly play the new track from 0.
+    // Wait for the seek to land (bounded), then play.
+    const playWhenSeeked = () => {
+      if (seekedRef.current) {
+        void audio.play().catch(() => setPlaying(false))
+        return
+      }
+      audio.addEventListener(
+        'loadedmetadata',
+        () => void audio.play().catch(() => setPlaying(false)),
+        { once: true },
+      )
+    }
+    if (!before) {
+      playWhenSeeked()
+      return
+    }
+    resumingRef.current = true
+    void Promise.resolve()
+      .then(() => before())
+      .catch(() => {}) // never block playback on a failed re-sync
+      .finally(() => {
+        resumingRef.current = false
+        playWhenSeeked()
+      })
+  }, [])
+
   const togglePlay = useCallback(() => {
     const audio = audioRef.current
     if (!audio) return
-    if (audio.paused) void audio.play().catch(() => setPlaying(false))
+    if (audio.paused) resume()
     else audio.pause()
-  }, [])
+  }, [resume])
 
   const skip = useCallback(
     (deltaSec: number) => seekTo(positionSec + deltaSec),
@@ -290,7 +342,7 @@ export function useAudioPlayer({
         // Unsupported action on this browser - skip it, don't abort the rest.
       }
     }
-    setHandler('play', () => audioRef.current?.play())
+    setHandler('play', () => resume())
     setHandler('pause', () => audioRef.current?.pause())
     setHandler('seekbackward', () => skip(-seekBackwardSec))
     setHandler('seekforward', () => skip(seekForwardSec))
@@ -317,7 +369,7 @@ export function useAudioPlayer({
       setHandler('previoustrack', null)
       setHandler('nexttrack', null)
     }
-  }, [playing, skip, seekTo, seekBackwardSec, seekForwardSec])
+  }, [playing, skip, seekTo, resume, seekBackwardSec, seekForwardSec])
 
   // Keep the OS/car transport widget's own progress bar in sync with real
   // position + duration + rate, so it can render a live scrubber and drag-seek

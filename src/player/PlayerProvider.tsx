@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -14,6 +15,7 @@ import {
   syncPlaySession,
   closePlaySession,
   getItemDetail,
+  getItemProgress,
   type AbsChapter,
   type AbsTrack,
   type AbsTarget,
@@ -81,6 +83,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const play = useCallback((n: NowPlaying) => {
     setNow(n)
   }, [])
+
+  // Wall-clock ms when playback last paused (or the book was opened paused), so
+  // the pre-resume check can tell "just tapped pause/play" from "sat paused for
+  // hours while I listened on another device". Reset when a new book loads.
+  const pausedSinceRef = useRef<number>(Date.now())
+  // Live copies of position + seekTo so the stable onBeforeResume callback (it
+  // must not re-subscribe the hook's media-key handlers on every tick) can read
+  // the current position and seek without depending on `player`, which is
+  // defined below and changes identity each render.
+  const positionRef = useRef(0)
+  const seekToRef = useRef<(s: number) => void>(() => {})
 
   // After progress lands on ABS, refresh the views that read it (home hero,
   // shelves, in-progress) so they don't serve a stale snapshot.
@@ -158,7 +171,42 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       [target, now, refreshProgress],
     ),
     onBookEnded,
+    // Before resuming from a pause, re-check the server's resume point. The user
+    // may have listened elsewhere (phone, another PC, the car) since this tab
+    // last played, leaving our in-memory position stale. If the server is
+    // meaningfully ahead of (or behind) where we're about to resume, jump there
+    // so we pick up where they actually left off - and don't clobber that newer
+    // progress by saving our stale position on the next pause. Fires on every
+    // resume path (app button, media keys, in-car transport widget).
+    //
+    // Only after a 5 min pause, and only when the gap is > 30s, so ordinary
+    // pause/resume and tiny clock skew never yank the position.
+    onBeforeResume: async () => {
+      if (!target || !now) return
+      if (Date.now() - pausedSinceRef.current < 5 * 60_000) return
+      try {
+        const server = await getItemProgress(target, now.itemId)
+        if (server && !server.isFinished) {
+          if (Math.abs(server.currentTimeSec - positionRef.current) > 30) {
+            seekToRef.current(server.currentTimeSec)
+          }
+        }
+      } catch {
+        // Offline / unreachable: resume from the local position.
+      }
+    },
   })
+
+  // Keep the refs the onBeforeResume closure reads in sync with the live player.
+  positionRef.current = player.positionSec
+  seekToRef.current = player.seekTo
+  // Track when we entered a paused state, for the long-pause resync threshold.
+  useEffect(() => {
+    if (!player.playing) pausedSinceRef.current = Date.now()
+  }, [player.playing])
+  useEffect(() => {
+    pausedSinceRef.current = Date.now()
+  }, [now?.itemId])
 
   // OS/car media-widget metadata (title, author, cover art). Lives here - not on
   // the book detail page - because playback (and the mini-player) outlives that

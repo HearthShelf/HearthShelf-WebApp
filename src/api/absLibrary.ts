@@ -487,6 +487,28 @@ export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsIt
   }
 }
 
+/**
+ * The server's current resume point for a single item. Cheap enough to call
+ * before resuming from a long pause, so the web player can pick up where the
+ * user left off on another device (phone, car, PC) instead of replaying from a
+ * position that went stale while the tab sat paused. Returns null if the item
+ * has no progress record yet.
+ */
+export async function getItemProgress(
+  t: AbsTarget,
+  itemId: string,
+): Promise<{ currentTimeSec: number; isFinished: boolean } | null> {
+  const data = await absGet<{ currentTime?: number; isFinished?: boolean } | null>(
+    t,
+    `/api/me/progress/${encodeURIComponent(itemId)}`,
+  )
+  if (!data) return null
+  return {
+    currentTimeSec: data.currentTime ?? 0,
+    isFinished: Boolean(data.isFinished),
+  }
+}
+
 /** Save listening progress (stateless; no play session needed). */
 export async function saveProgress(
   t: AbsTarget,
