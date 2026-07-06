@@ -13,6 +13,8 @@ import { fetchAdminMe, ApiError } from '@/api/controlPlane'
 import { useRmabEnabled } from '@/hooks/useRmab'
 import { useDiscoverEnabled, useQuestGiverEnabled } from '@/hooks/useQuestGiver'
 import { useNavCollapsed, toggleNavCollapsed } from '@/hooks/useNavCollapsed'
+import { useCarMode } from '@/hooks/useCarMode'
+import { useSettingsStore } from '@/store/settingsStore'
 
 // Which nav group a path belongs to. Browse surfaces (series, authors, search,
 // item detail) keep Library lit, matching the self-hosted shell.
@@ -124,7 +126,15 @@ export function Sidebar() {
   const questGiverEnabled = useQuestGiverEnabled()
   const discoverEnabled = useDiscoverEnabled()
   const rmabEnabled = useRmabEnabled()
-  const showFindGroup = questGiverEnabled || discoverEnabled || rmabEnabled
+
+  // Car mode trims the nav to driving-friendly destinations: discovery, stats,
+  // listening history, and server admin all drop out (not tasks you do at the
+  // wheel), leaving Home / Library / Shelves / Now playing / Settings plus an
+  // Exit. The remaining items also render as big square tiles (CSS, gated on
+  // .app.car-shell) - larger icon over a label - for large in-car touchscreens.
+  const carMode = useCarMode()
+  const setSetting = useSettingsStore((s) => s.set)
+  const showFindGroup = !carMode && (questGiverEnabled || discoverEnabled || rmabEnabled)
 
   const collapsed = useNavCollapsed()
 
@@ -208,14 +218,31 @@ export function Sidebar() {
           </>
         )}
 
-        <div className="nav-label">Insights</div>
-        <Item id="stats" icon="insights" label="Stats" to="/stats" />
-        <Item id="sessions" icon="history" label="History" to="/sessions" />
-        <Item id="player" icon="graphic_eq" label="Now playing" to="/player" />
+        {carMode ? (
+          <Item id="player" icon="graphic_eq" label="Now playing" to="/player" />
+        ) : (
+          <>
+            <div className="nav-label">Insights</div>
+            <Item id="stats" icon="insights" label="Stats" to="/stats" />
+            <Item id="sessions" icon="history" label="History" to="/sessions" />
+            <Item id="player" icon="graphic_eq" label="Now playing" to="/player" />
+          </>
+        )}
 
         <div className="nav-sep" />
-        {isServerAdmin && <Item id="config" icon="dns" label="Server" to="/config" />}
+        {!carMode && isServerAdmin && <Item id="config" icon="dns" label="Server" to="/config" />}
         <Item id="settings" icon="settings" label="Settings" to="/account" />
+        {carMode && (
+          <button
+            className="nav-item"
+            onClick={() => setSetting('carMode', 'off')}
+            aria-label="Exit car mode"
+            title="Exit car mode"
+          >
+            <Icon name="close_fullscreen" />
+            <span className="ni-label">Exit car mode</span>
+          </button>
+        )}
       </nav>
 
       <UserMenu />

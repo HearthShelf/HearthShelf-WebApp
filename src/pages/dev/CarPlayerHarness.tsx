@@ -3,6 +3,7 @@ import { PlayerProvider } from '@/player/PlayerProvider'
 import { MediaUIProvider, type MediaUI } from '@/components/shared/MediaUIContext'
 import { CarPlayer } from '@/components/player/CarPlayer'
 import { useIdleFade } from '@/hooks/useIdleFade'
+import { useVisualViewportSize } from '@/hooks/useVisualViewportSize'
 import cozyHearth from '@/assets/img/SittingInTheHearth.webp'
 
 // Minimal stub so shared components (Cover) can read the media seam. No covers,
@@ -35,15 +36,22 @@ export function CarPlayerHarness() {
   const seekClamp = (sec: number) => setPos(Math.max(0, Math.min(duration, sec)))
   // Short idle timeout in the harness so the fade can be eyeballed quickly.
   const idleFade = useIdleFade(true, 1500)
+  const vv = useVisualViewportSize()
 
   return (
     <PlayerProvider>
       <MediaUIProvider value={STUB_UI}>
-        <div className="player car-mode hearth-bg">
+        <div
+          className="player car-mode hearth-bg"
+          style={vv.width ? { width: vv.width, height: vv.height } : undefined}
+        >
           <div
             className="player-hearth-bg car-bg"
             aria-hidden="true"
-            style={{ backgroundImage: `url("${cozyHearth}")` }}
+            style={{
+              backgroundImage: `url("${cozyHearth}")`,
+              ...(vv.width ? { width: vv.width, height: vv.height } : {}),
+            }}
             onPointerDown={idleFade.wake}
           />
           <CarPlayer

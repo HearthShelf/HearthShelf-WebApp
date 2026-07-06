@@ -34,12 +34,54 @@
   position: fixed;
   inset: 0 auto 0 0;
   z-index: 10;
-  width: var(--sidebar-w);
+  /* Fixed comfortable width regardless of the desktop collapse setting - the
+     square tiles need room for an icon over a label. */
+  width: 124px;
   transition: opacity 0.5s ease;
 }
 .app.car-shell-faded .sidebar {
   opacity: 0;
   pointer-events: none;
+}
+
+/* Car nav = big square tiles: a large icon over a label, sized for in-car
+   touchscreens. Overrides the horizontal line-row layout of .nav-item. */
+.app.car-shell .nav {
+  gap: 8px;
+  padding-top: var(--s2);
+}
+.app.car-shell .nav-item {
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 6px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  text-align: center;
+}
+.app.car-shell .nav-item .ms {
+  font-size: 30px;
+}
+.app.car-shell .nav-item .ni-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.app.car-shell .nav-item.active {
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+}
+/* Group labels and the collapse affordance are noise on the car tiles. */
+.app.car-shell .nav-label,
+.app.car-shell .nav-collapse-btn,
+.app.car-shell .nav-collapse-rail {
+  display: none;
+}
+.app.car-shell .brand {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+.app.car-shell .brand .wordmark {
+  display: none;
 }
 
 /* signature cover-glow - fixed bloom behind the content column */

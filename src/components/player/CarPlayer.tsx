@@ -5,6 +5,7 @@ import { useSleepTimer } from '@/hooks/useSleepTimer'
 import { useDraggableCard } from '@/hooks/useDraggableCard'
 import { Scrubber } from '@/components/player/Scrubber'
 import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
+import { RecentListens } from '@/components/player/RecentListens'
 import { formatTimestamp } from '@hearthshelf/core'
 import { Cover } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
@@ -16,7 +17,7 @@ interface Chap {
   title: string
 }
 
-type Sheet = 'more' | 'speed' | 'sleep' | null
+type Sheet = 'more' | 'speed' | 'sleep' | 'chapters' | 'recent' | null
 
 /**
  * Car mode's player: a big-touch, glance-friendly card for in-car browsers. A
@@ -246,7 +247,8 @@ export function CarPlayer({
           </button>
         </div>
 
-        {/* Secondary row - the first thing to fade out. */}
+        {/* Secondary row - the first thing to fade out. Sleep moved into More
+            (rarely a driving task); Chapters + Recent get primary buttons. */}
         <div className="car-secondary">
           <button
             className={'car-pill' + (sheet === 'speed' ? ' on' : '')}
@@ -255,29 +257,86 @@ export function CarPlayer({
             <Icon name="speed" /> {rate}×
           </button>
           <button
-            className={'car-pill' + (sheet === 'sleep' || sleepCtl.active ? ' on' : '')}
-            onClick={() => toggleSheet('sleep')}
+            className={'car-pill' + (sheet === 'chapters' ? ' on' : '')}
+            onClick={() => toggleSheet('chapters')}
           >
-            <Icon name="bedtime" /> {sleepCtl.sleeping ? formatTimestamp(sleepCtl.left) : 'Sleep'}
+            <Icon name="list" /> Chapters
           </button>
           <button
-            className={'car-pill' + (sheet === 'more' ? ' on' : '')}
+            className={'car-pill' + (sheet === 'recent' ? ' on' : '')}
+            onClick={() => toggleSheet('recent')}
+          >
+            <Icon name="history" /> Recent
+          </button>
+          <button
+            className={'car-pill' + (sheet === 'more' || sleepCtl.active ? ' on' : '')}
             onClick={() => toggleSheet('more')}
           >
-            <Icon name="more_horiz" /> More
+            {/* An armed sleep timer stays glanceable here since Sleep now lives
+                inside More: show the countdown instead of the More glyph. */}
+            {sleepCtl.sleeping ? (
+              <>
+                <Icon name="bedtime" /> {formatTimestamp(sleepCtl.left)}
+              </>
+            ) : (
+              <>
+                <Icon name="more_horiz" /> More
+              </>
+            )}
           </button>
         </div>
       </div>
 
-      {/* Sheets - speed / sleep / more. Also fade with the chrome. */}
+      {/* Sheets - speed / sleep / chapters / recent / more. Also fade with the
+          chrome. */}
       {sheet && (
         <div className="car-sheet">
           {sheet === 'speed' && (
             <SpeedPopover speed={rate} setSpeed={setRate} onClose={() => setSheet(null)} />
           )}
           {sheet === 'sleep' && <SleepPopover ctl={sleepCtl} onClose={() => setSheet(null)} />}
+          {sheet === 'chapters' && (
+            <div className="car-chapters">
+              {chapters.length === 0 ? (
+                <div className="car-sheet-empty">This book has no chapters.</div>
+              ) : (
+                chapters.map((c, i) => (
+                  <button
+                    key={c.id}
+                    className={'car-chapter-item' + (i === ci ? ' on' : '')}
+                    onClick={() => {
+                      wake()
+                      setSheet(null)
+                      seekClamp(c.start)
+                    }}
+                  >
+                    <span className="cc-num">{i + 1}</span>
+                    <span className="cc-title">{c.title}</span>
+                    <span className="cc-time">{formatTimestamp(c.start)}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+          {sheet === 'recent' && (
+            <div className="car-recent">
+              <RecentListens
+                libraryItemId={libraryItemId}
+                chapters={chapters}
+                onSeek={(sec) => {
+                  wake()
+                  setSheet(null)
+                  seekClamp(sec)
+                }}
+              />
+            </div>
+          )}
           {sheet === 'more' && (
             <div className="car-more">
+              <button className="car-more-item" onClick={() => setSheet('sleep')}>
+                <Icon name="bedtime" />{' '}
+                {sleepCtl.sleeping ? `Sleep · ${formatTimestamp(sleepCtl.left)}` : 'Sleep timer'}
+              </button>
               <button
                 className="car-more-item"
                 onClick={() => {

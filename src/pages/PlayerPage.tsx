@@ -14,6 +14,7 @@ import { CarPlayer } from '@/components/player/CarPlayer'
 import { Scrubber } from '@/components/player/Scrubber'
 import { TimelineMarkers } from '@/components/player/TimelineMarkers'
 import { useCarMode } from '@/hooks/useCarMode'
+import { useVisualViewportSize } from '@/hooks/useVisualViewportSize'
 import { useIdleFade } from '@/hooks/useIdleFade'
 import { setCarFaded } from '@/hooks/useCarFaded'
 import { useBookmarks } from '@/hooks/useBookmarks'
@@ -365,6 +366,10 @@ export function PlayerPage() {
   const hearthBgPlayer = useSettingsStore((s) => s.hearthBgPlayer)
   const isMobile = useIsMobile()
   const carMode = useCarMode()
+  // Lock the car-mode surface to the VISUAL viewport so Tesla's play/pause
+  // "video not available" banner (which nudges the layout viewport) can't
+  // reflow the hearth background under the player. See useVisualViewportSize.
+  const vv = useVisualViewportSize()
   // The raw setting ('auto'/'on'/'off'), not the derived carMode boolean above -
   // needed so the normal player's "Car mode" toggle can force it back on
   // (setting 'on') regardless of whether it's currently 'off' or 'auto'-off.
@@ -482,7 +487,11 @@ export function PlayerPage() {
             userId: n.userId,
             username: n.username,
           })),
-        ...clubDetail.notes.locked.map((s) => ({ id: s.id, timeSec: s.timeSec, kind: 'stub' as const })),
+        ...clubDetail.notes.locked.map((s) => ({
+          id: s.id,
+          timeSec: s.timeSec,
+          kind: 'stub' as const,
+        })),
       )
     }
     if (items.length === 0) return []
@@ -639,11 +648,17 @@ export function PlayerPage() {
   // detected or the user forces it on.
   if (carMode) {
     return (
-      <div className="player car-mode hearth-bg">
+      <div
+        className="player car-mode hearth-bg"
+        style={vv.width ? { width: vv.width, height: vv.height } : undefined}
+      >
         <div
           className="player-hearth-bg car-bg"
           aria-hidden="true"
-          style={{ backgroundImage: `url("${cozyHearth}")` }}
+          style={{
+            backgroundImage: `url("${cozyHearth}")`,
+            ...(vv.width ? { width: vv.width, height: vv.height } : {}),
+          }}
           // Tapping the background (not the card) should also reveal faded
           // chrome, same as tapping the card itself.
           onPointerDown={carIdleFade.wake}
@@ -820,9 +835,7 @@ export function PlayerPage() {
               <TimelineMarkers
                 markers={timelineMarkers}
                 onOpenNote={() => navigate(`/book/${libraryItemId}`)}
-                onOpenTeaser={(timeSec) =>
-                  setToast(`A note awaits at ${formatTimestamp(timeSec)}`)
-                }
+                onOpenTeaser={(timeSec) => setToast(`A note awaits at ${formatTimestamp(timeSec)}`)}
               />
             </>
           ) : (

@@ -5,6 +5,8 @@ import { Icon } from '@/components/common/Icon'
 import { useActiveLibrary, libraryIcon } from '@/hooks/useActiveLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getMe } from '@/api/absLibrary'
+import { isCarBrowser } from '@/hooks/useCarMode'
+import { useSettingsStore } from '@/store/settingsStore'
 
 /**
  * Combined Server + Library switcher.
@@ -178,6 +180,34 @@ function UploadButton() {
   )
 }
 
+// App-wide "enter car mode" affordance in the top-right corner. Shown to
+// detected in-car browsers, and to anyone who has switched it off before (so
+// there's always a way back in). Forcing the setting to 'on' takes over the
+// whole shell on the next /player visit and flips the nav to its car layout.
+function CarModeButton() {
+  const navigate = useNavigate()
+  const carModeSetting = useSettingsStore((s) => s.carMode)
+  const setSetting = useSettingsStore((s) => s.set)
+  // Already forced on -> nothing to offer. Otherwise show when a car browser is
+  // detected, or when the user previously turned it off (an explicit past use).
+  if (carModeSetting === 'on') return null
+  if (!isCarBrowser() && carModeSetting !== 'off') return null
+  return (
+    <button
+      type="button"
+      className="ab-ico"
+      title="Car mode"
+      aria-label="Enter car mode"
+      onClick={() => {
+        setSetting('carMode', 'on')
+        navigate('/player')
+      }}
+    >
+      <Icon name="directions_car" />
+    </button>
+  )
+}
+
 export function AppBar() {
   return (
     <header className="appbar">
@@ -186,6 +216,7 @@ export function AppBar() {
       <div className="ab-spacer" />
       <div className="ab-actions">
         <UploadButton />
+        <CarModeButton />
       </div>
     </header>
   )
