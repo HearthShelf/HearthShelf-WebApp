@@ -77,6 +77,14 @@ export async function runJobNow(t: AbsTarget, id: string): Promise<{ runId: stri
   }
 }
 
+export async function cancelJob(t: AbsTarget, id: string): Promise<{ runId: string | null }> {
+  try {
+    return await jobsFetch(t, `/${encodeURIComponent(id)}/cancel`, { method: 'POST' })
+  } catch {
+    return { runId: null }
+  }
+}
+
 export async function getRunLogs(t: AbsTarget, runId: string): Promise<{ logs: JobLogLine[] }> {
   try {
     return await jobsFetch(t, `/runs/${encodeURIComponent(runId)}/logs`)

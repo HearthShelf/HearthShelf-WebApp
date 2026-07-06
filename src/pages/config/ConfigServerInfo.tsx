@@ -16,6 +16,7 @@ import { resetServerSecret } from '@/api/controlPlane'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useUpdateStatus } from '@/hooks/useUpdateStatus'
 import { useToast } from '@/hooks/useToast'
+import { useAdvancedMode } from '@/pages/config/AdvancedMode'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 
@@ -31,7 +32,7 @@ export function ConfigServerInfo() {
     <>
       <div className="page-head">
         <div className="eyebrow">Admin</div>
-        <h1 className="title-xl">Settings</h1>
+        <h1 className="title-xl">General</h1>
       </div>
 
       <div className="section-head">
@@ -47,73 +48,66 @@ export function ConfigServerInfo() {
   )
 }
 
-// Version details behind a toggle: the audiobookshelf server version and the
-// HearthShelf backend version this box is running. Both reads are public.
+// Version details, shown only when Advanced Options is on: the audiobookshelf
+// server version and the HearthShelf backend version this box is running. Both
+// reads are public.
 function AdvancedServerInfo() {
   const { target } = useActiveServer()
   const { latest, updateAvailable } = useUpdateStatus()
-  const [open, setOpen] = useState(false)
+  const { advanced } = useAdvancedMode()
 
   const { data } = useQuery({
     queryKey: hostedKeys.versions(target?.serverId ?? ''),
     queryFn: () => getServerVersions(target!),
-    enabled: Boolean(target) && open,
+    enabled: Boolean(target) && advanced,
     staleTime: 5 * 60 * 1000,
   })
 
+  if (!advanced) return null
+
   return (
     <>
-      <div
-        className="cfg-line"
-        style={{ marginTop: 'var(--s6)', cursor: 'pointer' }}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <Icon name="code" style={{ color: 'var(--text-muted)' }} />
-        <div className="cl-meta" style={{ flex: 1 }}>
-          <div className="cl-t">Advanced</div>
-          <div className="cl-d">Version details for support and troubleshooting.</div>
-        </div>
-        <Icon name={open ? 'expand_less' : 'expand_more'} style={{ color: 'var(--text-muted)' }} />
+      <div className="section-head" style={{ marginTop: 'var(--s6)' }}>
+        <Icon name="code" />
+        <h2>Advanced</h2>
       </div>
 
-      {open && (
-        <div className="cfg-card" style={{ marginTop: 10 }}>
-          <div className="cfg-line">
-            <Icon name="dns" style={{ color: 'var(--text-muted)' }} />
-            <div className="cl-meta" style={{ flex: 1 }}>
-              <div className="cl-t">audiobookshelf</div>
-              <div className="cl-d">The underlying media server version.</div>
-            </div>
-            <span style={{ color: 'var(--text-muted)' }}>
-              {data?.absVersion ? `v${data.absVersion}` : '-'}
-            </span>
+      <div className="cfg-card">
+        <div className="cfg-line">
+          <Icon name="dns" style={{ color: 'var(--text-muted)' }} />
+          <div className="cl-meta" style={{ flex: 1 }}>
+            <div className="cl-t">audiobookshelf</div>
+            <div className="cl-d">The underlying media server version.</div>
           </div>
-          <div className="cfg-line">
-            <Icon name="local_fire_department" style={{ color: 'var(--text-muted)' }} />
-            <div className="cl-meta" style={{ flex: 1 }}>
-              <div className="cl-t">HearthShelf</div>
-              <div className="cl-d">The HearthShelf backend running on this box.</div>
-            </div>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {updateAvailable && latest && (
-                <a
-                  className="badge-pill"
-                  href={latest.notes_url ?? undefined}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  style={{ color: '#e0b968', textDecoration: 'none' }}
-                >
-                  v{latest.version} available
-                </a>
-              )}
-              <span style={{ color: 'var(--text-muted)' }}>
-                {data?.hsVersion ? `v${data.hsVersion}` : 'Not detected'}
-              </span>
-            </span>
-          </div>
-          <ResetConnectionSecret />
+          <span style={{ color: 'var(--text-muted)' }}>
+            {data?.absVersion ? `v${data.absVersion}` : '-'}
+          </span>
         </div>
-      )}
+        <div className="cfg-line">
+          <Icon name="local_fire_department" style={{ color: 'var(--text-muted)' }} />
+          <div className="cl-meta" style={{ flex: 1 }}>
+            <div className="cl-t">HearthShelf</div>
+            <div className="cl-d">The HearthShelf backend running on this box.</div>
+          </div>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {updateAvailable && latest && (
+              <a
+                className="badge-pill"
+                href={latest.notes_url ?? undefined}
+                target="_blank"
+                rel="noreferrer noopener"
+                style={{ color: '#e0b968', textDecoration: 'none' }}
+              >
+                v{latest.version} available
+              </a>
+            )}
+            <span style={{ color: 'var(--text-muted)' }}>
+              {data?.hsVersion ? `v${data.hsVersion}` : 'Not detected'}
+            </span>
+          </span>
+        </div>
+        <ResetConnectionSecret />
+      </div>
     </>
   )
 }
@@ -164,7 +158,11 @@ function ResetConnectionSecret() {
           </button>
         </div>
       ) : (
-        <button className="btn-sm btn-ghost" style={{ flex: 'none' }} onClick={() => setConfirming(true)}>
+        <button
+          className="btn-sm btn-ghost"
+          style={{ flex: 'none' }}
+          onClick={() => setConfirming(true)}
+        >
           <Icon name="key" /> Reset
         </button>
       )}

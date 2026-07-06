@@ -2478,6 +2478,13 @@
   padding: 0;
   overflow: hidden;
 }
+/* When PlayerPage locks the surface to the visual viewport it sets explicit
+   width/height inline; pin to the top-left origin so those sizes win over the
+   base `inset: 0` (the size becomes the painted-pixel size, not the jittery
+   layout viewport). */
+.player.car-mode[style*='width'] {
+  inset: 0 auto auto 0;
+}
 /* The hearth bg rides brighter in the car so it reads at a glance in daylight.
    Unlike the base .player-hearth-bg, this one needs to catch taps - tapping
    anywhere outside the card should wake faded chrome, same as tapping the
@@ -2485,6 +2492,15 @@
 .car-bg {
   filter: brightness(1.28) saturate(1.05);
   pointer-events: auto;
+}
+/* Same viewport-lock override for the background layer: when sized inline,
+   drop the base inset so width/height win. The image is centered-cover, so a
+   slight overscale means any 1-2px rounding between the locked size and the
+   real paint never reveals a hard edge. */
+.car-bg[style*='width'] {
+  inset: 0 auto auto 0;
+  transform: scale(1.04);
+  transform-origin: center;
 }
 
 .car-card {
@@ -2733,6 +2749,87 @@
 .car-more-item .ms {
   font-size: 22px;
   color: var(--text-muted);
+}
+
+/* Chapters + Recent sheets are scrollable lists - they can outrun the card, so
+   cap them to the space above the secondary row and let the list scroll. The
+   car-sheet shell already pins bottom: 84px; top: 16px keeps it inside the
+   card with a comfortable finger-drag scroll region. */
+.car-sheet:has(.car-chapters),
+.car-sheet:has(.car-recent) {
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.car-chapters,
+.car-recent {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+.car-chapters {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.car-chapter-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 14px;
+  border-radius: 12px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+.car-chapter-item:hover {
+  background: var(--fill);
+}
+.car-chapter-item.on {
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 14%, transparent);
+}
+.car-chapter-item .cc-num {
+  flex: none;
+  width: 30px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.car-chapter-item.on .cc-num {
+  color: var(--accent);
+}
+.car-chapter-item .cc-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.car-chapter-item .cc-time {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-muted);
+}
+.car-sheet-empty {
+  padding: 30px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+/* Recent-session rows read small on a phone; scale them up for the car. */
+.car-recent .recent-row {
+  padding: 14px 12px;
 }
 
 .car-resize {
@@ -5738,6 +5835,7 @@
 .config-body {
   flex: 1;
   min-width: 0;
+  position: relative;
 }
 
 .config-foot {
@@ -6086,6 +6184,52 @@
   font-family: var(--font-mono);
   font-size: 12.5px;
   line-height: 1.7;
+}
+
+/* Inside the oversized log modal, fill the available body height. */
+.log-box-fill {
+  height: 100%;
+}
+
+.log-toolbar {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-bottom: var(--s3);
+}
+
+/* "Advanced Options" switch pinned top-right of a config page. */
+.adv-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--fill);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 6px 12px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.adv-toggle:hover {
+  color: var(--text);
+  background: var(--fill-strong);
+}
+.adv-toggle .ms {
+  font-size: 18px;
+}
+
+/* Oversized modal for the enlarged log view. */
+.modal.modal-xl {
+  width: 90vw;
+  max-width: 90vw;
+  height: 95vh;
+  max-height: 95vh;
 }
 
 /* --- Tasks (scheduled jobs) panel --- */

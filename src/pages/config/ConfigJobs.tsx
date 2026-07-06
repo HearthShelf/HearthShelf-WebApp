@@ -4,11 +4,13 @@ import { useActiveServer } from '@/hooks/useActiveServer'
 import {
   getJobs,
   runJobNow,
+  cancelJob,
   getRunLogs,
   jobKeys,
   type JobSummary,
   type JobRun,
 } from '@/api/absJobs'
+import { useAdvancedMode } from '@/pages/config/AdvancedMode'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import type { AbsTarget } from '@/api/absLibrary'
@@ -75,6 +77,7 @@ function RunLogs({ target, runId }: { target: AbsTarget; runId: string }) {
 
 function JobCard({ target, job }: { target: AbsTarget; job: JobSummary }) {
   const qc = useQueryClient()
+  const { advanced } = useAdvancedMode()
   const [showLogs, setShowLogs] = useState(false)
   const run = job.lastRun
   const running = job.running || run?.status === 'running'
@@ -85,6 +88,11 @@ function JobCard({ target, job }: { target: AbsTarget; job: JobSummary }) {
       setShowLogs(true)
       void qc.invalidateQueries({ queryKey: jobKeys.list(target.serverId) })
     },
+  })
+
+  const kill = useMutation({
+    mutationFn: () => cancelJob(target, job.id),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: jobKeys.list(target.serverId) }),
   })
 
   const meta = run ? STATUS_META[run.status] : null
@@ -100,14 +108,27 @@ function JobCard({ target, job }: { target: AbsTarget; job: JobSummary }) {
           <div className="job-name">{job.name}</div>
           <div className="job-desc">{job.description}</div>
         </div>
-        <button
-          className="btn btn-primary"
-          disabled={running || trigger.isPending}
-          onClick={() => trigger.mutate()}
-        >
-          <Icon name={running ? 'hourglass_top' : 'play_arrow'} fill />
-          {running ? 'Running...' : 'Run now'}
-        </button>
+        <div style={{ display: 'flex', gap: 8, flex: 'none' }}>
+          {advanced && running && (
+            <button
+              className="btn btn-danger"
+              disabled={kill.isPending}
+              onClick={() => kill.mutate()}
+              title="Stop this running job"
+            >
+              <Icon name="stop_circle" fill />
+              {kill.isPending ? 'Stopping...' : 'Kill'}
+            </button>
+          )}
+          <button
+            className="btn btn-primary"
+            disabled={running || trigger.isPending}
+            onClick={() => trigger.mutate()}
+          >
+            <Icon name={running ? 'hourglass_top' : 'play_arrow'} fill />
+            {running ? 'Running...' : 'Run now'}
+          </button>
+        </div>
       </div>
 
       <div className="job-meta">
