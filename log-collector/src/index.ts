@@ -24,7 +24,15 @@
 import { Hono } from 'hono'
 import type { Env, IncomingLog, LogSource } from './types'
 import { SEVERITY_RANK } from './types'
-import { insertLog, queryLogs, sweepOldLogs, type LogQuery } from './db'
+import {
+  insertLog,
+  queryLogs,
+  sweepOldLogs,
+  deleteLog,
+  deleteLogs,
+  type LogQuery,
+  type LogDeleteFilter,
+} from './db'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -102,6 +110,31 @@ app.get('/logs', async (c) => {
   }
   const rows = await queryLogs(c.env, q)
   return c.json({ logs: rows })
+})
+
+// --- Internal delete: single row. Same x-cp-forward gate as read. ------------
+app.delete('/logs/:id', async (c) => {
+  if (!internalOk(c)) return c.json({ error: 'unauthorized' }, 401)
+  const id = Number(c.req.param('id'))
+  if (!Number.isFinite(id) || id <= 0) return c.json({ error: 'bad_id' }, 400)
+  const deleted = await deleteLog(c.env, id)
+  return c.json({ ok: true, deleted })
+})
+
+// --- Internal delete: bulk, honoring the same filters as the read. An empty
+//     filter clears the whole table. Used by the admin "Clear" action. --------
+app.delete('/logs', async (c) => {
+  if (!internalOk(c)) return c.json({ error: 'unauthorized' }, 401)
+  const u = new URL(c.req.url)
+  const f: LogDeleteFilter = {}
+  const source = u.searchParams.get('source')
+  if (source && VALID_SOURCES.includes(source as LogSource)) f.source = source as LogSource
+  const severity = u.searchParams.get('severity')
+  if (severity) f.severity = severity
+  const serverId = u.searchParams.get('server_id')
+  if (serverId) f.server_id = serverId
+  const deleted = await deleteLogs(c.env, f)
+  return c.json({ ok: true, deleted })
 })
 
 app.notFound((c) => c.json({ error: 'not_found' }, 404))

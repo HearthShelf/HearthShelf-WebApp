@@ -200,10 +200,12 @@ interface InviteResponse {
   emailed: boolean
 }
 
+export type LogSource = 'vps' | 'cp' | 'box' | 'mobile'
+
 export interface InfraLog {
   id: number
   ts: number
-  source: 'vps' | 'cp' | 'box'
+  source: LogSource
   severity: 'warn' | 'error'
   event: string
   server_id: string | null
@@ -213,7 +215,7 @@ export interface InfraLog {
 }
 
 export interface LogQueryParams {
-  source?: 'vps' | 'cp' | 'box'
+  source?: LogSource
   severity?: 'warn' | 'error'
   server_id?: string
   /** Only logs at or after this Unix-ms time. */
@@ -239,6 +241,26 @@ export async function fetchInfraLogs(params: LogQueryParams = {}): Promise<Infra
   const qs = q.toString()
   const data = await request<{ logs: InfraLog[] }>(`/logs${qs ? `?${qs}` : ''}`)
   return data.logs
+}
+
+/** Delete a single log row by id (platform operators only). */
+export async function deleteInfraLog(id: number): Promise<{ deleted: number }> {
+  return request<{ deleted: number }>(`/logs/${id}`, { method: 'DELETE' })
+}
+
+/**
+ * Bulk-delete logs, honoring the same filters as the viewer so "Clear" removes
+ * exactly the rows on screen. With no filters, clears the entire log table.
+ */
+export async function clearInfraLogs(
+  filters: Pick<LogQueryParams, 'source' | 'severity' | 'server_id'> = {},
+): Promise<{ deleted: number }> {
+  const q = new URLSearchParams()
+  if (filters.source) q.set('source', filters.source)
+  if (filters.severity) q.set('severity', filters.severity)
+  if (filters.server_id) q.set('server_id', filters.server_id)
+  const qs = q.toString()
+  return request<{ deleted: number }>(`/logs${qs ? `?${qs}` : ''}`, { method: 'DELETE' })
 }
 
 // --- platform admin -------------------------------------------------------

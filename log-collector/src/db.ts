@@ -109,6 +109,47 @@ export async function sweepOldLogs(env: Env, nowMs: number): Promise<void> {
   await env.LOGS_DB.prepare(`DELETE FROM infra_logs WHERE ts < ?`).bind(cutoff).run()
 }
 
+/** Delete a single log row by id. Returns the number of rows removed (0 or 1). */
+export async function deleteLog(env: Env, id: number): Promise<number> {
+  const res = await env.LOGS_DB.prepare(`DELETE FROM infra_logs WHERE id = ?`).bind(id).run()
+  return res.meta?.changes ?? 0
+}
+
+/** Filters for a bulk delete. Mirrors the query filters so "clear" honors the
+ *  admin's active source/severity/server view. An empty filter deletes ALL rows. */
+export interface LogDeleteFilter {
+  source?: LogSource
+  severity?: string
+  server_id?: string
+}
+
+/**
+ * Delete rows matching the given filters. With no filters this truncates the
+ * whole table. Returns the number of rows deleted so the UI can confirm the
+ * scope of what it just cleared.
+ */
+export async function deleteLogs(env: Env, f: LogDeleteFilter): Promise<number> {
+  const where: string[] = []
+  const args: unknown[] = []
+  if (f.source) {
+    where.push('source = ?')
+    args.push(f.source)
+  }
+  if (f.severity) {
+    where.push('severity = ?')
+    args.push(f.severity)
+  }
+  if (f.server_id) {
+    where.push('server_id = ?')
+    args.push(f.server_id)
+  }
+  const clause = where.length ? `WHERE ${where.join(' AND ')}` : ''
+  const res = await env.LOGS_DB.prepare(`DELETE FROM infra_logs ${clause}`)
+    .bind(...args)
+    .run()
+  return res.meta?.changes ?? 0
+}
+
 function safeJson(v: unknown): string {
   try {
     return JSON.stringify(v)

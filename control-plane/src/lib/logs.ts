@@ -52,3 +52,40 @@ export async function readLogs(env: Env, query: string): Promise<unknown | null>
     return null
   }
 }
+
+/** Result of a delete proxy: rows removed, or null if the collector is
+ *  unreachable/unconfigured (so the caller can surface a 503 vs a false 0). */
+export interface DeleteResult {
+  deleted: number
+}
+
+/** Delete one log row by id via the collector. Returns null if unreachable. */
+export async function deleteLog(env: Env, id: number): Promise<DeleteResult | null> {
+  if (!env.LOG_COLLECTOR || !env.LOG_INGEST_TOKEN) return null
+  try {
+    const res = await env.LOG_COLLECTOR.fetch(`https://collector/logs/${id}`, {
+      method: 'DELETE',
+      headers: { 'x-cp-forward': env.LOG_INGEST_TOKEN },
+    })
+    if (!res.ok) return null
+    return (await res.json()) as DeleteResult
+  } catch {
+    return null
+  }
+}
+
+/** Bulk-delete logs (optionally filtered) via the collector. `query` is the
+ *  already-built source/severity/server_id querystring; empty clears all. */
+export async function deleteLogs(env: Env, query: string): Promise<DeleteResult | null> {
+  if (!env.LOG_COLLECTOR || !env.LOG_INGEST_TOKEN) return null
+  try {
+    const res = await env.LOG_COLLECTOR.fetch(`https://collector/logs${query ? `?${query}` : ''}`, {
+      method: 'DELETE',
+      headers: { 'x-cp-forward': env.LOG_INGEST_TOKEN },
+    })
+    if (!res.ok) return null
+    return (await res.json()) as DeleteResult
+  } catch {
+    return null
+  }
+}
