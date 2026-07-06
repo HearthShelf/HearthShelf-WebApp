@@ -14,8 +14,11 @@ export interface Env {
   LOG_INGEST_TOKEN: string
 }
 
-/** Allowed sources. Kept small + explicit; the ingest layer rejects others. */
-export type LogSource = 'vps' | 'cp' | 'box'
+/** Allowed sources. Kept small + explicit; the ingest layer rejects others.
+ *  'mobile' is a crash/breadcrumb report from the phone app, forwarded by the
+ *  control plane after it authenticates the reporting Clerk user. Device/OS/app
+ *  fields and the JS breadcrumb trail ride in the `detail` JSON. */
+export type LogSource = 'vps' | 'cp' | 'box' | 'mobile'
 
 /** Severity ordering for the min-severity gate. */
 export const SEVERITY_RANK: Record<string, number> = {

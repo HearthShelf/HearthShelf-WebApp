@@ -28,7 +28,7 @@ import { insertLog, queryLogs, sweepOldLogs, type LogQuery } from './db'
 
 const app = new Hono<{ Bindings: Env }>()
 
-const VALID_SOURCES: LogSource[] = ['vps', 'cp', 'box']
+const VALID_SOURCES: LogSource[] = ['vps', 'cp', 'box', 'mobile']
 
 app.get('/health', (c) => c.json({ ok: true }))
 

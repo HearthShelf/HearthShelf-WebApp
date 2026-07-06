@@ -1,10 +1,13 @@
 /**
  * Infra log routes on the control plane.
  *
- *   POST /logs/box   - a self-hosted box forwards a warn/error event
- *                      (server_secret authed). The CP relays it to the collector.
- *   GET  /logs       - the admin viewer reads logs (Clerk + platform-admin only).
- *                      Proxies to the collector's /logs over the service binding.
+ *   POST /logs/box    - a self-hosted box forwards a warn/error event
+ *                       (server_secret authed). The CP relays it to the collector.
+ *   POST /logs/mobile - the phone app forwards a crash/breadcrumb report (Clerk
+ *                       bearer authed). The CP tags it source='mobile', stamps the
+ *                       reporting Clerk user id, and relays it to the collector.
+ *   GET  /logs        - the admin viewer reads logs (Clerk + platform-admin only).
+ *                       Proxies to the collector's /logs over the service binding.
  *
  * The CP itself also calls forwardLog() from its own error paths (see onError in
  * index.ts). The CP never binds the logs DB - all access is via LOG_COLLECTOR.
@@ -14,6 +17,7 @@ import type { Env } from '../types'
 import { getServer } from '../lib/db'
 import { sha256Hex, timingSafeEqual } from '../lib/ids'
 import { resolveAdmin } from '../lib/admin'
+import { bearer, verifyClerk, AuthError } from '../lib/clerk'
 import { forwardLog, readLogs } from '../lib/logs'
 
 export const logs = new Hono<{ Bindings: Env }>()
@@ -55,6 +59,55 @@ logs.post('/logs/box', async (c) => {
     server_id: serverId,
     message: body.message ?? null,
     detail: body.detail ?? null,
+  })
+  return c.json({ ok: true })
+})
+
+// The phone app ships crash/breadcrumb reports here. Authenticated by the user's
+// Clerk bearer (same token the app already sends the control plane) so no shared
+// secret ever ships in the app binary, and every report is attributed to a real
+// user. Always tagged source='mobile'; the reporting user id is stamped into the
+// detail so it can't be forged by the client. Best-effort: a report must never
+// error the app, so anything unusable is accepted-and-dropped rather than 4xx'd
+// past auth.
+logs.post('/logs/mobile', async (c) => {
+  const token = bearer(c.req.header('Authorization') ?? null)
+  if (!token) return c.json({ error: 'unauthorized' }, 401)
+  let identity
+  try {
+    identity = await verifyClerk(c.env, token)
+  } catch (err) {
+    if (err instanceof AuthError) return c.json({ error: 'unauthorized' }, 401)
+    throw err
+  }
+
+  let body: {
+    event?: string
+    message?: string
+    detail?: unknown
+  }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'bad_body' }, 400)
+  }
+
+  // A crash report is always 'error'; there is no lower-severity mobile log path.
+  const event = (body.event || 'mobile_crash').trim().slice(0, 200)
+  // Stamp the verified user id into the detail envelope. The client cannot set
+  // this - we overwrite whatever it sent - so reports are always attributable.
+  const detail =
+    body.detail && typeof body.detail === 'object'
+      ? { ...(body.detail as Record<string, unknown>), userId: identity.userId }
+      : { raw: body.detail ?? null, userId: identity.userId }
+
+  await forwardLog(c.env, {
+    source: 'mobile',
+    severity: 'error',
+    event,
+    server_id: null,
+    message: body.message ?? null,
+    detail,
   })
   return c.json({ ok: true })
 })

@@ -10,9 +10,10 @@
 import type { Env } from '../types'
 
 export interface ForwardLog {
-  // The CP only ever forwards its own ('cp') or a box's ('box') logs - never
-  // 'vps' (that's the collector's direct VPS intake).
-  source: 'cp' | 'box'
+  // The CP forwards its own ('cp'), a box's ('box'), or a phone app's ('mobile')
+  // logs - never 'vps' (that's the collector's direct VPS intake). A 'mobile'
+  // report is relayed only after the CP authenticates the reporting Clerk user.
+  source: 'cp' | 'box' | 'mobile'
   severity: 'warn' | 'error'
   event: string
   server_id?: string | null
