@@ -57,6 +57,10 @@ export function useQueueSync() {
     const unsub = useQueueStore.subscribe(() => {
       if (!hydrated.current || hydrating.current) return
       const s = useQueueStore.getState()
+      if (s.updatedAt === s.serverUpdatedAt) {
+        lastAt.current = s.updatedAt
+        return
+      }
       if (s.updatedAt === lastAt.current) return // no items/order change
       if (timer.current) window.clearTimeout(timer.current)
       timer.current = window.setTimeout(() => {

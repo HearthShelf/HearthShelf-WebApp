@@ -1,10 +1,26 @@
 import { useEffect, useRef } from 'react'
 import { validateSetting } from '@hearthshelf/core'
 import { useSettingsStore, SYNCED_KEYS, scopeOf } from '@/store/settingsStore'
+import { useQueueStore } from '@/store/queueStore'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getServerSettings, putServerSettings, type SettingChange } from '@/api/absSettings'
+import { getServerQueue } from '@/api/absQueue'
+import type { AbsTarget } from '@/api/absLibrary'
 
 const PUSH_DEBOUNCE_MS = 1200
+
+function mirrorQueueMode() {
+  useQueueStore.getState().setMode(useSettingsStore.getState().queueMode)
+}
+
+async function pullServerQueue(target: AbsTarget) {
+  try {
+    const res = await getServerQueue(target)
+    useQueueStore.getState().adoptServer(res.items, res.playlistId, res.updatedAt)
+  } catch {
+    // Server unreachable - keep the current queue cache as-is.
+  }
+}
 
 // Keeps the local settings store in sync with the active server's copy per-key,
 // so a user's settings follow them across devices without one device clobbering
@@ -42,6 +58,7 @@ export function useSettingsSync() {
         hydrating.current = true
         if (useShared && res.account) useSettingsStore.getState().applyServerKeys(res.account)
         if (res.device) useSettingsStore.getState().applyServerKeys(res.device)
+        mirrorQueueMode()
         hydrating.current = false
       })
       .catch(() => {
@@ -80,6 +97,9 @@ export function useSettingsSync() {
           changes.push({ scope, key: k, value: v.value, updatedAt: at })
         }
         if (!changes.length) return
+        const queueSettingsChanged = changes.some(
+          (c) => c.key === 'queueMode' || c.key === 'queueAutoRules',
+        )
         putServerSettings(target, s.deviceId, changes)
           .then((res) => {
             if (res.rejected?.length) {
@@ -87,9 +107,11 @@ export function useSettingsSync() {
               for (const r of res.rejected) rows[r.key] = { value: r.value, updatedAt: r.updatedAt }
               hydrating.current = true
               useSettingsStore.getState().applyServerKeys(rows as never)
+              mirrorQueueMode()
               hydrating.current = false
             }
             lastMeta.current = { ...useSettingsStore.getState().meta }
+            if (queueSettingsChanged) void pullServerQueue(target)
           })
           .catch(() => {
             // Best-effort; localStorage already holds the change.

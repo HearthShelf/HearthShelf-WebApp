@@ -13,6 +13,9 @@ interface QueueStoreState {
   // ms epoch of the last local items/playlistId change; the LWW key the server
   // uses (see absQueue.ts). Bumped on hand edits, adopted (not bumped) on pulls.
   updatedAt: number
+  // Last server timestamp adopted via /hs/queue. Queue sync uses this to avoid
+  // echoing a server pull back as a local write when another hook adopts it.
+  serverUpdatedAt: number
   add: (entry: QueueEntry) => void
   remove: (libraryItemId: string) => void
   reorder: (from: number, to: number) => void
@@ -37,6 +40,7 @@ export const useQueueStore = create<QueueStoreState>()(
       mode: 'manual',
       playlistId: null,
       updatedAt: 0,
+      serverUpdatedAt: 0,
       add: (entry) =>
         set((s) =>
           s.items.some((i) => i.libraryItemId === entry.libraryItemId)
@@ -57,7 +61,8 @@ export const useQueueStore = create<QueueStoreState>()(
         }),
       clear: () => set({ items: [], updatedAt: Date.now() }),
       setItems: (items) => set({ items, updatedAt: Date.now() }),
-      adoptServer: (items, playlistId, updatedAt) => set({ items, playlistId, updatedAt }),
+      adoptServer: (items, playlistId, updatedAt) =>
+        set({ items, playlistId, updatedAt, serverUpdatedAt: updatedAt }),
       next: () => {
         const [head, ...rest] = get().items
         if (!head) return null
