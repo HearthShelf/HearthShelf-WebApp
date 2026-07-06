@@ -7,31 +7,13 @@ import {
   type ListeningSessionsPage,
 } from '@/api/absLibrary'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
-import { formatTimestamp, fmtSessDate } from '@hearthshelf/core'
+import { formatTimestamp, fmtSessDate, classifyDevice } from '@hearthshelf/core'
 import { Cover, tintFor } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 
 const ITEMS_PER_PAGE = 25
-
-// Pick an icon from the free-form device string (ABS joins deviceName / OS /
-// browser). Phones win first, then a browser, else a desktop.
-function deviceIcon(device: string | undefined): string {
-  const d = (device ?? '').toLowerCase()
-  if (d.includes('android') || d.includes('ios') || d.includes('phone') || d.includes('iphone'))
-    return 'smartphone'
-  if (d.includes('ipad') || d.includes('tablet')) return 'tablet'
-  if (
-    d.includes('chrome') ||
-    d.includes('firefox') ||
-    d.includes('safari') ||
-    d.includes('edge') ||
-    d.includes('browser')
-  )
-    return 'language'
-  return 'computer'
-}
 
 export function SessionsPage() {
   const { target } = useActiveServer()
@@ -132,6 +114,7 @@ export function SessionsPage() {
                 <div className="sh-list">
                   {g.rows.map((s) => {
                     const when = fmtSessDate(s.startedAt)
+                    const dev = classifyDevice(s.deviceInfo)
                     return (
                       <div
                         className="sh-row"
@@ -147,7 +130,11 @@ export function SessionsPage() {
                         </div>
                         <span className="sh-dur">{formatTimestamp(s.timeListeningSec)}</span>
                         <span className="sh-when">
-                          <Icon name={deviceIcon(s.device)} style={{ fontSize: 15 }} />
+                          <Icon
+                            name={dev.icon}
+                            style={{ fontSize: 15 }}
+                            title={s.device ? `${dev.label} - ${s.device}` : dev.label}
+                          />
                           {when.time}
                         </span>
                         <button

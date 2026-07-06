@@ -43,6 +43,33 @@ const SESSIONS = [
     startedAt: Date.now() - 3 * 24 * 3600_000,
     deviceInfo: {},
   },
+  {
+    id: 's4',
+    libraryItemId: ITEM_ID,
+    startTime: 1750,
+    currentTime: 3200,
+    timeListening: 1400,
+    startedAt: Date.now() - 4 * 24 * 3600_000,
+    deviceInfo: { deviceId: 'hearthshelf-auto', clientName: 'HearthShelf Auto' },
+  },
+  {
+    id: 's5',
+    libraryItemId: ITEM_ID,
+    startTime: 3200,
+    currentTime: 4000,
+    timeListening: 780,
+    startedAt: Date.now() - 5 * 24 * 3600_000,
+    deviceInfo: { deviceId: 'hearthshelf-ios-carplay', clientName: 'HearthShelf iOS' },
+  },
+  {
+    id: 's6',
+    libraryItemId: ITEM_ID,
+    startTime: 4000,
+    currentTime: 5200,
+    timeListening: 1150,
+    startedAt: Date.now() - 6 * 24 * 3600_000,
+    deviceInfo: { deviceId: 'hearthshelf-mobile', clientName: 'HearthShelf Mobile' },
+  },
 ]
 
 export function RecentListensHarness() {

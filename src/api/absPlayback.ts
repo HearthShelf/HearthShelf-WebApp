@@ -9,7 +9,7 @@
  */
 import { absGet, absPost, absDelete, absMediaUrl } from './absClient'
 import type { AbsTarget } from './absLibrary'
-import type { ABSBookmark } from '@hearthshelf/core'
+import type { ABSBookmark, ABSDeviceInfo } from '@hearthshelf/core'
 
 export type AbsBookmark = ABSBookmark
 
@@ -100,7 +100,7 @@ export interface RecentSession {
   timeListening: number
   /** Epoch ms the session started. */
   startedAt: number
-  deviceInfo?: { osName?: string; browserName?: string; deviceName?: string }
+  deviceInfo?: ABSDeviceInfo
 }
 
 interface RawRecentSession {
@@ -110,7 +110,7 @@ interface RawRecentSession {
   currentTime?: number
   timeListening?: number
   startedAt?: number
-  deviceInfo?: { osName?: string; browserName?: string; deviceName?: string }
+  deviceInfo?: ABSDeviceInfo
 }
 
 interface RawRecentSessionsResponse {

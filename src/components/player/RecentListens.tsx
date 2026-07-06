@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { getRecentSessions, type RecentSession } from '@/api/absPlayback'
+import { getRecentSessions } from '@/api/absPlayback'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
-import { formatTimestamp, fmtSessDate } from '@hearthshelf/core'
+import { formatTimestamp, fmtSessDate, classifyDevice } from '@hearthshelf/core'
 import type { AbsTarget } from '@/api/absLibrary'
 
 /** Minimal chapter shape needed to label a session's position range. All player
@@ -12,13 +12,6 @@ interface ChapterSpan {
   title: string
   start: number
   end: number
-}
-
-function deviceIcon(s: RecentSession): string {
-  const os = (s.deviceInfo?.osName ?? '').toLowerCase()
-  if (os.includes('android') || os.includes('ios')) return 'smartphone'
-  if (s.deviceInfo?.browserName) return 'language'
-  return 'computer'
 }
 
 // Recent listening sessions for the book that is playing now. Tapping a row
@@ -77,6 +70,7 @@ export function RecentListens({
         const endCh = chapterAt(s.currentTime)
         const chapterLabel =
           startCh && endCh && startCh !== endCh ? `${startCh} → ${endCh}` : (endCh ?? startCh)
+        const dev = classifyDevice(s.deviceInfo)
         return (
           <button
             key={s.id}
@@ -84,7 +78,11 @@ export function RecentListens({
             onClick={() => onSeek(s.startTime)}
             title="Play from where this session started"
           >
-            <Icon name={deviceIcon(s)} style={{ color: 'var(--text-muted)', fontSize: 19 }} />
+            <Icon
+              name={dev.icon}
+              title={dev.label}
+              style={{ color: 'var(--text-muted)', fontSize: 19 }}
+            />
             <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Icon name="schedule" style={{ color: 'var(--primary)', fontSize: 15 }} />

@@ -16,6 +16,7 @@ import type {
   ABSSeries,
   ABSLibraryAuthor,
   ABSItemMetadataPatch,
+  ABSDeviceInfo,
 } from '@hearthshelf/core'
 
 export interface AbsTarget {
@@ -590,6 +591,8 @@ export interface ListeningSession {
   /** Epoch ms the session started. */
   startedAt: number
   device?: string
+  /** Raw ABS device fields, for classifying the session's origin. */
+  deviceInfo?: ABSDeviceInfo
 }
 
 export interface ListeningSessionsPage {
@@ -606,7 +609,7 @@ interface RawSession {
   displayAuthor: string
   timeListening: number
   startedAt: number
-  deviceInfo?: { deviceName?: string; osName?: string; browserName?: string }
+  deviceInfo?: ABSDeviceInfo
 }
 
 interface RawSessionsResponse {
@@ -638,6 +641,7 @@ export async function getListeningSessions(
         s.deviceInfo?.deviceName ||
         [s.deviceInfo?.osName, s.deviceInfo?.browserName].filter(Boolean).join(' ') ||
         undefined,
+      deviceInfo: s.deviceInfo,
     })),
     total: data.total ?? 0,
     page: data.page ?? page,
