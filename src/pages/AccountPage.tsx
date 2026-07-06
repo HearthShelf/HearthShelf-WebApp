@@ -12,13 +12,28 @@ import { LinkServerDialog } from '@/components/LinkServerDialog'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/common/Icon'
 import { PlaybackSettings } from '@/components/settings/PlaybackSettings'
+import { QueueSettings } from '@/components/settings/QueueSettings'
+import { CarModeSettings } from '@/components/settings/CarModeSettings'
+import { SleepTimerSettings } from '@/components/settings/SleepTimerSettings'
+import { BookClubSettings } from '@/components/settings/BookClubSettings'
 import { ReadingSettings } from '@/components/settings/ReadingSettings'
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings'
 import { ConnectionsSettings } from '@/components/settings/ConnectionsSettings'
 import { AccountSettings } from '@/components/settings/AccountSettings'
 
 type Section =
-  'servers' | 'playback' | 'reading' | 'appearance' | 'connections' | 'account' | 'plan' | 'profile'
+  | 'servers'
+  | 'playback'
+  | 'queue'
+  | 'carMode'
+  | 'sleepTimer'
+  | 'bookClub'
+  | 'reading'
+  | 'appearance'
+  | 'connections'
+  | 'account'
+  | 'plan'
+  | 'profile'
 
 const NAV: { label: string; items: { id: Section; icon: string; label: string }[] }[] = [
   {
@@ -30,7 +45,13 @@ const NAV: { label: string; items: { id: Section; icon: string; label: string }[
   },
   {
     label: 'Listening',
-    items: [{ id: 'playback', icon: 'graphic_eq', label: 'Playback' }],
+    items: [
+      { id: 'playback', icon: 'graphic_eq', label: 'Playback' },
+      { id: 'queue', icon: 'queue_music', label: 'Queue' },
+      { id: 'carMode', icon: 'directions_car', label: 'Car mode' },
+      { id: 'sleepTimer', icon: 'bedtime', label: 'Sleep timer' },
+      { id: 'bookClub', icon: 'groups', label: 'Book Club' },
+    ],
   },
   {
     label: 'Reading',
@@ -90,6 +111,14 @@ export function AccountPage({ menuMode = false }: { menuMode?: boolean }) {
         return <MyServers />
       case 'playback':
         return <PlaybackSettings />
+      case 'queue':
+        return <QueueSettings />
+      case 'carMode':
+        return <CarModeSettings />
+      case 'sleepTimer':
+        return <SleepTimerSettings />
+      case 'bookClub':
+        return <BookClubSettings />
       case 'reading':
         return <ReadingSettings />
       case 'appearance':
