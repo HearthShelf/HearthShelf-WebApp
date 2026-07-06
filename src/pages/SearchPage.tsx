@@ -11,6 +11,7 @@ import { BookTile } from '@/components/library/BookTile'
 import { SeriesCard } from '@/components/library/SeriesCard'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
+import { ExternalSearchLane } from '@/components/requests/ExternalSearchLane'
 import { searchSeriesToCard } from '@/api/absHome'
 
 // Two-letter monogram for an author avatar, from the first + last name parts.
@@ -60,6 +61,14 @@ export function SearchPage() {
   const narrators = data?.narrators ?? []
   const hasResults =
     books.length > 0 || series.length > 0 || authors.length > 0 || narrators.length > 0
+
+  // Owned-title keys so the external lane never lists books we already have.
+  const ownedKeys = new Set(
+    books.map((item) => {
+      const m = item.media.metadata
+      return ((m.title ?? '') + '|' + (m.authorName ?? '')).toLowerCase()
+    }),
+  )
 
   return (
     <div className="page fade-in" style={{ paddingTop: 24 }}>
@@ -174,6 +183,10 @@ export function SearchPage() {
             })}
           </div>
         </div>
+      )}
+
+      {q.length >= 2 && (
+        <ExternalSearchLane target={target} query={debouncedQ} ownedKeys={ownedKeys} />
       )}
 
       {toast && (

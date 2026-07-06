@@ -6,12 +6,13 @@ import { useSubmitRequest } from '@/hooks/useRmab'
 import { audibleStoreUrl } from '@/api/absAudible'
 import type { AbsTarget } from '@/api/absLibrary'
 import type { RmabRequest } from '@/api/absRequests'
-import type { HSAudibleSeriesBook } from '@hearthshelf/core'
+import type { HSAudibleSearchResult } from '@hearthshelf/core'
 
 interface RequestConfirmModalProps {
   // Kept for call-site symmetry; the submit hook is bound to the active server.
   target: AbsTarget
-  book: HSAudibleSeriesBook
+  // A catalog result (plain search hit or a series book, which extends it).
+  book: HSAudibleSearchResult
   // Whether the request backend can fulfill this book. Gates the Request action.
   canRequest: boolean
   onClose: () => void
@@ -32,7 +33,7 @@ const ERROR_COPY: Record<string, string> = {
 }
 
 // The book cover + title/author header, shared across every phase.
-function BookHead({ book, note }: { book: HSAudibleSeriesBook; note?: string }) {
+function BookHead({ book, note }: { book: HSAudibleSearchResult; note?: string }) {
   return (
     <div className="rc-top">
       {book.coverArtUrl ? (

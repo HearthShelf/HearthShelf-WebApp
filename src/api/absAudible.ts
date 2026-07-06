@@ -8,11 +8,13 @@
  */
 import { getAbsToken } from '@/lib/absTokens'
 import type { AbsTarget } from './absLibrary'
-import type { HSAudibleSeriesResponse } from '@hearthshelf/core'
+import type { HSAudibleSearchResponse, HSAudibleSeriesResponse } from '@hearthshelf/core'
 
+export type AudibleSearchResponse = HSAudibleSearchResponse
 export type AudibleSeriesResponse = HSAudibleSeriesResponse
 
 export const audibleKeys = {
+  search: (name: string, page = 1) => ['audible', 'search', name, page] as const,
   series: (name: string) => ['audible', 'series', name] as const,
 }
 
@@ -38,6 +40,33 @@ export async function fetchAudibleSeries(
     })
     if (!res.ok) return empty
     return (await res.json()) as AudibleSeriesResponse
+  } catch {
+    return empty
+  }
+}
+
+/**
+ * Search the Audible catalog by keyword through the connected server's
+ * HearthShelf backend. Works whether or not the request backend is connected -
+ * discovery is HearthShelf's own. Returns an empty result on any failure
+ * (unreachable server, slim deploy without /hs/audible, missing token) so the
+ * "Not in your library" section quietly hides.
+ */
+export async function searchAudible(
+  t: AbsTarget,
+  query: string,
+  page = 1,
+): Promise<AudibleSearchResponse> {
+  const empty: AudibleSearchResponse = { query, results: [], totalResults: 0, page, hasMore: false }
+  const token = getAbsToken(t.serverId)
+  if (!token || query.trim().length < 2) return empty
+  try {
+    const res = await fetch(
+      `${origin(t)}/hs/audible/search?q=${encodeURIComponent(query)}&page=${page}`,
+      { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` } },
+    )
+    if (!res.ok) return empty
+    return (await res.json()) as AudibleSearchResponse
   } catch {
     return empty
   }

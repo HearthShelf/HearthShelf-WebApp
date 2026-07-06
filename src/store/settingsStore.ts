@@ -133,6 +133,9 @@ export interface SettingsState {
 
   // Library
   unifiedHome: boolean
+  // When on, Search also looks up titles you don't own via the Audible catalog
+  // and shows them in a "Not in your library" section.
+  searchExternalSources: boolean
 
   // Sleep
   sleepRewindSec: number
@@ -210,6 +213,7 @@ export const useSettingsStore = create<SettingsState>()(
       queueAutoRules: DEFAULT_AUTO_RULE_PREFS,
 
       unifiedHome: false,
+      searchExternalSources: true,
 
       sleepRewindSec: 30,
       chapterBarrier: true,
