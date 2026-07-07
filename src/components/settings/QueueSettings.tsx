@@ -6,6 +6,7 @@ import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { getPlaylistsList } from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
 import { SetRow, Seg } from '@/components/settings/controls'
+import { ManualQueueEditor } from '@/components/player/ManualQueueEditor'
 
 const QUEUE_MODES: { value: QueueMode; label: string }[] = [
   { value: 'off', label: 'Off' },
@@ -156,6 +157,20 @@ export function QueueSettings() {
             stacked
           >
             <RuleList rules={s.queueAutoRules} onChange={(r) => set('queueAutoRules', r)} />
+          </SetRow>
+        )}
+        {(s.queueMode === 'manual' || s.queueMode === 'auto') && (
+          <SetRow
+            title={s.queueMode === 'auto' ? 'Your queue' : 'Manual queue'}
+            desc={
+              s.queueMode === 'auto'
+                ? 'Auto picks are shown grayed out. Drag or remove the books you queued by hand below.'
+                : 'Drag to set the order, or remove a book.'
+            }
+            control={null}
+            stacked
+          >
+            <ManualQueueEditor mode={s.queueMode} />
           </SetRow>
         )}
         {s.queueMode === 'playlist' && (
