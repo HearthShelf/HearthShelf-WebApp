@@ -30,6 +30,10 @@ const RULE_LABELS: Record<AutoRuleId, { title: string; desc: string }> = {
     title: 'Books your clubs are reading',
     desc: 'Queue the current pick from each of your book clubs.',
   },
+  manual: {
+    title: 'Books you queued by hand',
+    desc: 'Queue the books you added yourself. Drag to set where they land.',
+  },
 }
 
 function RuleList({

@@ -116,7 +116,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (useQueueStore.getState().mode === 'off') return
       try {
         const server = await getServerQueue(t)
-        useQueueStore.getState().adoptServer(server.items, server.playlistId, server.updatedAt)
+        useQueueStore
+          .getState()
+          .adoptServer(server.items, server.manual, server.playlistId, server.updatedAt)
       } catch {
         // offline / unreachable: fall back to the local queue below
       }

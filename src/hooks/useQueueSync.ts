@@ -34,7 +34,7 @@ export function useQueueSync() {
       .then((res) => {
         if (cancelled) return
         hydrating.current = true
-        useQueueStore.getState().adoptServer(res.items, res.playlistId, res.updatedAt)
+        useQueueStore.getState().adoptServer(res.items, res.manual, res.playlistId, res.updatedAt)
         hydrating.current = false
       })
       .catch(() => {
@@ -65,12 +65,12 @@ export function useQueueSync() {
       if (timer.current) window.clearTimeout(timer.current)
       timer.current = window.setTimeout(() => {
         const cur = useQueueStore.getState()
-        putServerQueue(target, cur.items, cur.playlistId, cur.updatedAt)
+        putServerQueue(target, cur.items, cur.manual, cur.playlistId, cur.updatedAt)
           .then((res) => {
             // Adopt the server's state if our write was stale (another device).
             if (!res.applied) {
               hydrating.current = true
-              useQueueStore.getState().adoptServer(res.items, res.playlistId, res.updatedAt)
+              useQueueStore.getState().adoptServer(res.items, res.manual, res.playlistId, res.updatedAt)
               hydrating.current = false
             }
             lastAt.current = useQueueStore.getState().updatedAt

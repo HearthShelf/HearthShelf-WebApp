@@ -46,11 +46,12 @@ export function getServerQueue(t: AbsTarget): Promise<QueueState> {
 export function putServerQueue(
   t: AbsTarget,
   items: QueueState['items'],
+  manual: QueueState['manual'],
   playlistId: string | null,
   updatedAt: number,
 ): Promise<QueuePushResult> {
   return queueFetch<QueuePushResult>(t, '/hs/queue', {
     method: 'PUT',
-    body: JSON.stringify({ items, playlistId, updatedAt }),
+    body: JSON.stringify({ items, manual, playlistId, updatedAt }),
   })
 }

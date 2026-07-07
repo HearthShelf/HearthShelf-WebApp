@@ -16,7 +16,7 @@ function mirrorQueueMode() {
 async function pullServerQueue(target: AbsTarget) {
   try {
     const res = await getServerQueue(target)
-    useQueueStore.getState().adoptServer(res.items, res.playlistId, res.updatedAt)
+    useQueueStore.getState().adoptServer(res.items, res.manual, res.playlistId, res.updatedAt)
   } catch {
     // Server unreachable - keep the current queue cache as-is.
   }

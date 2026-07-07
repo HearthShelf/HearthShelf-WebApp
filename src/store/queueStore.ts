@@ -7,11 +7,17 @@ import type { QueueEntry, QueueMode, AutoRuleId } from '@hearthshelf/core'
 export type { QueueEntry, QueueMode, AutoRuleId }
 
 interface QueueStoreState {
+  // The ACTIVE up-next list the player pops from. Rebuilt in Auto/Playlist mode;
+  // mirrors `manual` in Manual mode.
   items: QueueEntry[]
+  // The DURABLE hand-queued list. add/remove/reorder edit this; it drives Manual
+  // mode and, in Auto mode, feeds the 'manual' rule so a hand-picked queue
+  // survives every Auto rebuild. Synced via /hs/queue alongside items.
+  manual: QueueEntry[]
   mode: QueueMode
   playlistId: string | null
-  // ms epoch of the last local items/playlistId change; the LWW key the server
-  // uses (see absQueue.ts). Bumped on hand edits, adopted (not bumped) on pulls.
+  // ms epoch of the last local items/manual/playlistId change; the LWW key the
+  // server uses (see absQueue.ts). Bumped on hand edits, adopted on pulls.
   updatedAt: number
   // Last server timestamp adopted via /hs/queue. Queue sync uses this to avoid
   // echoing a server pull back as a local write when another hook adopts it.
@@ -23,7 +29,12 @@ interface QueueStoreState {
   setItems: (items: QueueEntry[]) => void
   /** Adopt a server-pulled queue WITHOUT bumping updatedAt (so it isn't echoed
    *  straight back as a local write). */
-  adoptServer: (items: QueueEntry[], playlistId: string | null, updatedAt: number) => void
+  adoptServer: (
+    items: QueueEntry[],
+    manual: QueueEntry[],
+    playlistId: string | null,
+    updatedAt: number,
+  ) => void
   next: () => QueueEntry | null
   setMode: (mode: QueueMode) => void
   setPlaylistId: (id: string | null) => void
@@ -37,39 +48,53 @@ export const useQueueStore = create<QueueStoreState>()(
   persist(
     (set, get) => ({
       items: [],
+      manual: [],
       mode: 'manual',
       playlistId: null,
       updatedAt: 0,
       serverUpdatedAt: 0,
       add: (entry) =>
-        set((s) =>
-          s.items.some((i) => i.libraryItemId === entry.libraryItemId)
-            ? s
-            : { items: [...s.items, entry], updatedAt: Date.now() },
-        ),
+        set((s) => {
+          if (s.manual.some((i) => i.libraryItemId === entry.libraryItemId)) return s
+          const manual = [...s.manual, entry]
+          const items = s.mode === 'manual' ? manual : s.items
+          return { manual, items, updatedAt: Date.now() }
+        }),
       remove: (id) =>
-        set((s) => ({
-          items: s.items.filter((i) => i.libraryItemId !== id),
-          updatedAt: Date.now(),
-        })),
+        set((s) => {
+          const manual = s.manual.filter((i) => i.libraryItemId !== id)
+          const items =
+            s.mode === 'manual' ? manual : s.items.filter((i) => i.libraryItemId !== id)
+          return { manual, items, updatedAt: Date.now() }
+        }),
       reorder: (from, to) =>
         set((s) => {
-          const next = s.items.slice()
-          const [moved] = next.splice(from, 1)
-          next.splice(to, 0, moved)
-          return { items: next, updatedAt: Date.now() }
+          const manual = s.manual.slice()
+          const [moved] = manual.splice(from, 1)
+          manual.splice(to, 0, moved)
+          const items = s.mode === 'manual' ? manual : s.items
+          return { manual, items, updatedAt: Date.now() }
         }),
-      clear: () => set({ items: [], updatedAt: Date.now() }),
+      clear: () =>
+        set((s) => ({
+          manual: [],
+          items: s.mode === 'manual' ? [] : s.items,
+          updatedAt: Date.now(),
+        })),
       setItems: (items) => set({ items, updatedAt: Date.now() }),
-      adoptServer: (items, playlistId, updatedAt) =>
-        set({ items, playlistId, updatedAt, serverUpdatedAt: updatedAt }),
+      adoptServer: (items, manual, playlistId, updatedAt) =>
+        set({ items, manual, playlistId, updatedAt, serverUpdatedAt: updatedAt }),
       next: () => {
         const [head, ...rest] = get().items
         if (!head) return null
-        set({ items: rest, updatedAt: Date.now() })
+        set((s) => ({
+          items: rest,
+          manual: s.mode === 'manual' ? rest : s.manual,
+          updatedAt: Date.now(),
+        }))
         return head
       },
-      setMode: (mode) => set({ mode }),
+      setMode: (mode) => set((s) => ({ mode, items: mode === 'manual' ? s.manual : s.items })),
       setPlaylistId: (playlistId) => set({ playlistId }),
     }),
     {
