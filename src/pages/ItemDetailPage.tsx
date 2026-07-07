@@ -13,6 +13,7 @@ import { useBookmarks } from '@/hooks/useBookmarks'
 import { useToast } from '@/hooks/useToast'
 import { usePlayer } from '@/player/PlayerProvider'
 import { useQueueStore } from '@/store/queueStore'
+import { useSettingsStore } from '@/store/settingsStore'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { formatTimestamp, stripHtml } from '@hearthshelf/core'
 import { externalLinks } from '@/lib/externalLinks'
@@ -65,6 +66,9 @@ export function ItemDetailPage() {
   const { markFinished, isPending: marking } = useMarkFinished()
   const { toast, show } = useToast()
   const addToQueue = useQueueStore((s) => s.add)
+  const extGoodreads = useSettingsStore((s) => s.externalLinkGoodreads)
+  const extAudible = useSettingsStore((s) => s.externalLinkAudible)
+  const extHardcover = useSettingsStore((s) => s.externalLinkHardcover)
 
   const [expanded, setExpanded] = useState(false)
   const [tab, setTab] = useState<DetailTab>('chapters')
@@ -210,7 +214,13 @@ export function ItemDetailPage() {
   const playLabel = finished ? 'Listen again' : pct > 0 ? 'Resume' : 'Start listening'
 
   const description = data.description ? stripHtml(data.description) : ''
-  const links = externalLinks({ title, author, isbn: data.isbn, asin: data.asin })
+  const links = externalLinks({
+    title,
+    author,
+    isbn: data.isbn,
+    asin: data.asin,
+    enabled: { goodreads: extGoodreads, audible: extAudible, hardcover: extHardcover },
+  })
   const coverFull = itemCoverFullUrl(target, data.id)
 
   const playChapter = (start: number) => {
@@ -477,21 +487,23 @@ export function ItemDetailPage() {
             </div>
           )}
 
-          <div className="detail-ext">
-            {links.map((l) => (
-              <a
-                key={l.key}
-                className="ext-link"
-                href={l.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={`Open on ${l.label}`}
-              >
-                <Icon name={l.icon} /> {l.label}
-                <Icon name="open_in_new" style={{ fontSize: 15, opacity: 0.6 }} />
-              </a>
-            ))}
-          </div>
+          {links.length > 0 && (
+            <div className="detail-ext">
+              {links.map((l) => (
+                <a
+                  key={l.key}
+                  className="ext-link"
+                  href={l.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`Open on ${l.label}`}
+                >
+                  <Icon name={l.icon} /> {l.label}
+                  <Icon name="open_in_new" style={{ fontSize: 15, opacity: 0.6 }} />
+                </a>
+              ))}
+            </div>
+          )}
 
           {description && (
             <>

@@ -137,6 +137,10 @@ export interface SettingsState {
   // When on, Search also looks up titles you don't own via the Audible catalog
   // and shows them in a "Not in your library" section.
   searchExternalSources: boolean
+  // Per-provider toggles for the search-link icons on a book's detail page.
+  externalLinkGoodreads: boolean
+  externalLinkAudible: boolean
+  externalLinkHardcover: boolean
 
   // Sleep
   sleepRewindSec: number
@@ -215,6 +219,9 @@ export const useSettingsStore = create<SettingsState>()(
 
       unifiedHome: false,
       searchExternalSources: true,
+      externalLinkGoodreads: true,
+      externalLinkAudible: true,
+      externalLinkHardcover: true,
 
       sleepRewindSec: 30,
       chapterBarrier: true,

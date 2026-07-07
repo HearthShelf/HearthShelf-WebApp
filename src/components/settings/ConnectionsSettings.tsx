@@ -31,15 +31,57 @@ export function ConnectionsSettings() {
           <div className="cl-meta" style={{ flex: 1 }}>
             <div className="cl-t">Server integrations</div>
             <div className="cl-d">
-              ReadMeABook, external book links and similar integrations are set up by your server
-              admin under Server &rarr; Integrations on the server itself.
+              ReadMeABook and similar integrations are set up by your server admin under Server
+              &rarr; Integrations on the server itself.
             </div>
           </div>
         </div>
       </div>
+      <ExternalBookLinks />
       <SearchSources />
       <CommunitySharing />
     </section>
+  )
+}
+
+function ExternalBookLinks() {
+  const extGoodreads = useSettingsStore((s) => s.externalLinkGoodreads)
+  const extAudible = useSettingsStore((s) => s.externalLinkAudible)
+  const extHardcover = useSettingsStore((s) => s.externalLinkHardcover)
+  const setSetting = useSettingsStore((s) => s.set)
+  return (
+    <div style={{ marginTop: 'var(--s6)' }}>
+      <div className="section-head">
+        <Icon name="menu_book" />
+        <h2>External book links</h2>
+      </div>
+      <div className="cfg-card">
+        <div className="cfg-line">
+          <Icon name="menu_book" style={{ color: 'var(--text-muted)' }} />
+          <div className="cl-meta" style={{ flex: 1 }}>
+            <div className="cl-t">Goodreads</div>
+            <div className="cl-d">Show a Goodreads search link on each book's detail page.</div>
+          </div>
+          <Toggle on={extGoodreads} onChange={(v) => setSetting('externalLinkGoodreads', v)} />
+        </div>
+        <div className="cfg-line">
+          <Icon name="headphones" style={{ color: 'var(--text-muted)' }} />
+          <div className="cl-meta" style={{ flex: 1 }}>
+            <div className="cl-t">Audible</div>
+            <div className="cl-d">Show an Audible search link on each book's detail page.</div>
+          </div>
+          <Toggle on={extAudible} onChange={(v) => setSetting('externalLinkAudible', v)} />
+        </div>
+        <div className="cfg-line">
+          <Icon name="auto_stories" style={{ color: 'var(--text-muted)' }} />
+          <div className="cl-meta" style={{ flex: 1 }}>
+            <div className="cl-t">Hardcover</div>
+            <div className="cl-d">Show a Hardcover search link on each book's detail page.</div>
+          </div>
+          <Toggle on={extHardcover} onChange={(v) => setSetting('externalLinkHardcover', v)} />
+        </div>
+      </div>
+    </div>
   )
 }
 
