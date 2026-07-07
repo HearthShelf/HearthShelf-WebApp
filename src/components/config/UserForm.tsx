@@ -119,19 +119,19 @@ export interface UserFormSubmit extends UserFormValues {
   password?: string
 }
 
-interface UserFormProps {
+interface UserFormFieldsProps {
+  // Set this so an external submit button (e.g. a modal footer with a mode
+  // switch) can trigger this form via the HTML form/submit association.
+  formId?: string
   target: AbsTarget
   // Editing an existing user, or undefined when creating.
   user?: ABSAdminUser
-  busy?: boolean
-  error?: string | null
   onSubmit: (values: UserFormSubmit) => void
-  onClose: () => void
 }
 
-// Create or edit an ABS user. HearthShelf owns user management (we are the UI for
-// ABS, not a pointer to it).
-export function UserForm({ target, user, busy, error, onSubmit, onClose }: UserFormProps) {
+// The field body only, no Modal wrapper - so callers that need a custom modal
+// shell (e.g. AddUserModal's invite/manual mode switch) can host it directly.
+export function UserFormFields({ formId, target, user, onSubmit }: UserFormFieldsProps) {
   const editing = !!user
   const isRoot = user?.type === 'root'
 
@@ -198,23 +198,13 @@ export function UserForm({ target, user, busy, error, onSubmit, onClose }: UserF
   }
 
   return (
-    <Modal
-      title={editing ? `Edit ${user?.username}` : 'Add user'}
-      onClose={onClose}
-      foot={
-        <>
-          <div style={{ flex: 1 }} />
-          <button className="btn-sm btn-ghost" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="btn-sm btn-green" disabled={busy} onClick={submit}>
-            <Icon name={editing ? 'save' : 'person_add'} />{' '}
-            {editing ? 'Save changes' : 'Create user'}
-          </button>
-        </>
-      }
+    <form
+      id={formId}
+      onSubmit={(e) => {
+        e.preventDefault()
+        submit()
+      }}
     >
-      {error && <p className="form-err">{error}</p>}
       {isRoot && (
         <p className="hint" style={{ marginTop: 0, color: 'var(--text-muted)' }}>
           This is a root account. Some fields (account type) are locked, and only another root user
@@ -321,6 +311,45 @@ export function UserForm({ target, user, busy, error, onSubmit, onClose }: UserF
           />
         </div>
       )}
+    </form>
+  )
+}
+
+interface UserFormProps {
+  target: AbsTarget
+  // Editing an existing user, or undefined when creating.
+  user?: ABSAdminUser
+  busy?: boolean
+  error?: string | null
+  onSubmit: (values: UserFormSubmit) => void
+  onClose: () => void
+}
+
+// Modal-wrapped edit/create form. Still used for editing an existing user;
+// creating a new one goes through AddUserModal instead, which hosts
+// UserFormFields alongside the invite-by-email mode.
+export function UserForm({ target, user, busy, error, onSubmit, onClose }: UserFormProps) {
+  const editing = !!user
+  const formId = 'user-form'
+  return (
+    <Modal
+      title={editing ? `Edit ${user?.username}` : 'Add user'}
+      onClose={onClose}
+      foot={
+        <>
+          <div style={{ flex: 1 }} />
+          <button className="btn-sm btn-ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn-sm btn-green" disabled={busy} type="submit" form={formId}>
+            <Icon name={editing ? 'save' : 'person_add'} />{' '}
+            {editing ? 'Save changes' : 'Create user'}
+          </button>
+        </>
+      }
+    >
+      {error && <p className="form-err">{error}</p>}
+      <UserFormFields formId={formId} target={target} user={user} onSubmit={onSubmit} />
     </Modal>
   )
 }

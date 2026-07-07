@@ -30,7 +30,7 @@ import { fmtSessDate } from '@hearthshelf/core'
 import { Icon } from '@/components/common/Icon'
 import { Avatar } from '@/components/common/Avatar'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
-import { UserForm } from '@/components/config/UserForm'
+import { AddUserModal } from '@/components/config/AddUserModal'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 
@@ -46,8 +46,6 @@ export function ConfigUsers() {
   const [formError, setFormError] = useState<string | null>(null)
   const [recoverOpen, setRecoverOpen] = useState(false)
   const [recovering, setRecovering] = useState(false)
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteRole, setInviteRole] = useState<'admin' | 'user'>('user')
 
   const { data: hostedStatus } = useQuery({
     queryKey: hostedKeys.status(target?.serverId ?? ''),
@@ -70,7 +68,7 @@ export function ConfigUsers() {
   const invite = useMutation({
     mutationFn: (opts: { email: string; role: 'admin' | 'user' }) =>
       inviteFromServer(target!, opts.email, opts.role),
-    onSuccess: (r, opts) => {
+    onSuccess: (r) => {
       show(
         resendingEmail
           ? r.emailed
@@ -80,7 +78,7 @@ export function ConfigUsers() {
             ? `Invited ${r.email} - email sent`
             : `Invited ${r.email}`,
       )
-      if (opts.email === inviteEmail.trim()) setInviteEmail('')
+      if (!resendingEmail) setAdding(false)
       setResendingEmail(null)
       void refetchInvites()
     },
@@ -249,79 +247,41 @@ export function ConfigUsers() {
         </button>
       </div>
 
-      <div className="section-head">
-        <Icon name="person_add" />
-        <h2>Invite people</h2>
-      </div>
-      <div className="cfg-card" style={{ marginBottom: 'var(--s6)' }}>
-        {!hostedStatus?.paired ? (
-          <div className="banner info">
-            <Icon name="info" />
-            Connect this server to app.hearthshelf.com (see HearthShelf Connect) before inviting
-            people.
-          </div>
-        ) : (
-          <>
-            <div className="field full">
-              <label>Email address</label>
-              <input
-                className="fld"
-                type="email"
-                placeholder="name@email.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-              />
-            </div>
-            <div className="field full">
-              <label>Role</label>
-              <select
-                className="fld"
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value as 'admin' | 'user')}
-              >
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            <button
-              className="btn btn-primary"
-              disabled={invite.isPending || !inviteEmail.trim()}
-              onClick={() => invite.mutate({ email: inviteEmail.trim(), role: inviteRole })}
-              style={{ marginTop: 'var(--s2)' }}
-            >
-              <Icon name="send" /> {invite.isPending ? 'Sending…' : 'Send invite'}
-            </button>
+      {!hostedStatus?.paired && (
+        <div className="banner info" style={{ marginBottom: 'var(--s6)' }}>
+          <Icon name="info" />
+          Connect this server to app.hearthshelf.com (see HearthShelf Connect) to invite people by
+          email instead of creating accounts manually.
+        </div>
+      )}
 
-            {pendingInvites && pendingInvites.length > 0 && (
-              <div style={{ marginTop: 'var(--s5)' }}>
-                <div className="sr-t" style={{ marginBottom: 'var(--s2)' }}>
-                  Pending invites
+      {pendingInvites && pendingInvites.length > 0 && (
+        <div className="cfg-card" style={{ marginBottom: 'var(--s6)' }}>
+          <div className="sr-t" style={{ marginBottom: 'var(--s2)' }}>
+            Pending invites
+          </div>
+          {pendingInvites.map((inv) => (
+            <div className="set-row" key={inv.email}>
+              <div className="sr-meta">
+                <div className="sr-t">{inv.email}</div>
+                <div className="sr-d">
+                  {inv.role} · invited {fmtSessDate(inv.created_at).day}
                 </div>
-                {pendingInvites.map((inv) => (
-                  <div className="set-row" key={inv.email}>
-                    <div className="sr-meta">
-                      <div className="sr-t">{inv.email}</div>
-                      <div className="sr-d">
-                        {inv.role} · invited {fmtSessDate(inv.created_at).day}
-                      </div>
-                    </div>
-                    <button
-                      className="btn-sm btn-ghost"
-                      disabled={invite.isPending}
-                      onClick={() => {
-                        setResendingEmail(inv.email)
-                        invite.mutate({ email: inv.email, role: inv.role })
-                      }}
-                    >
-                      <Icon name="send" /> Resend
-                    </button>
-                  </div>
-                ))}
               </div>
-            )}
-          </>
-        )}
-      </div>
+              <button
+                className="btn-sm btn-ghost"
+                disabled={invite.isPending}
+                onClick={() => {
+                  setResendingEmail(inv.email)
+                  invite.mutate({ email: inv.email, role: inv.role })
+                }}
+              >
+                <Icon name="send" /> Resend
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {serviceCount > 0 && (
         <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px' }}>
@@ -465,11 +425,13 @@ export function ConfigUsers() {
       )}
 
       {adding && (
-        <UserForm
+        <AddUserModal
           target={target}
-          busy={busy}
+          canInvite={Boolean(hostedStatus?.paired)}
+          busy={busy || invite.isPending}
           error={formError}
-          onSubmit={(v) => void create(v)}
+          onInvite={(email, role) => invite.mutate({ email, role })}
+          onCreate={(v) => void create(v)}
           onClose={() => {
             setAdding(false)
             setFormError(null)
