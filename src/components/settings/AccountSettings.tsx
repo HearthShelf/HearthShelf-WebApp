@@ -47,6 +47,7 @@ export function AccountSettings() {
   const { user, isLoaded } = useUser()
   const { server, servers, target } = useActiveServer()
   const useGravatar = useSettingsStore((s) => s.useGravatar)
+  const useSharedSettings = useSettingsStore((s) => s.useSharedSettings)
   const setSetting = useSettingsStore((s) => s.set)
   // null = never chose, so the default (on) applies; only an explicit false is off.
   const gravatarOn = useGravatar !== false
@@ -238,6 +239,25 @@ export function AccountSettings() {
             <span style={{ color: 'var(--text-muted)' }}>{value}</span>
           </div>
         ))}
+      </div>
+
+      {/* Device sync */}
+      <div className="section-head" style={{ marginTop: 'var(--s6)' }}>
+        <Icon name="devices" />
+        <h2>Device</h2>
+      </div>
+      <div className="cfg-card">
+        <div className="cfg-line">
+          <Icon name="sync" style={{ color: 'var(--text-muted)' }} />
+          <div className="cl-meta" style={{ flex: 1 }}>
+            <div className="cl-t">Use shared settings</div>
+            <div className="cl-d">
+              Use the synced setting store on this device. Turn off to keep this device on local
+              cached settings.
+            </div>
+          </div>
+          <Toggle on={useSharedSettings} onChange={(v) => setSetting('useSharedSettings', v)} />
+        </div>
       </div>
 
       {/* Server permissions (only shown when a server is linked and responding) */}

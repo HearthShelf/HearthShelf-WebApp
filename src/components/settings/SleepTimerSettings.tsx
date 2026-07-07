@@ -50,6 +50,13 @@ export function SleepTimerSettings() {
             />
           </SetRow>
         )}
+      </div>
+
+      <div className="section-head" style={{ marginTop: 'var(--s6)' }}>
+        <Icon name="schedule" />
+        <h2>Auto sleep</h2>
+      </div>
+      <div className="set-group">
         <SetRow
           title="Auto sleep timer"
           desc="Start a timer automatically when you press play during quiet hours."

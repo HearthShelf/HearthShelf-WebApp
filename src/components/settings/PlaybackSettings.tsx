@@ -125,6 +125,13 @@ export function PlaybackSettings() {
             </div>
           }
         />
+      </div>
+
+      <div className="section-head" style={{ marginTop: 'var(--s6)' }}>
+        <Icon name="fullscreen" />
+        <h2>Full-screen player</h2>
+      </div>
+      <div className="set-group">
         <SetRow
           title="Tap artwork to play"
           desc="Tap the cover on the full-screen player to play or pause."
