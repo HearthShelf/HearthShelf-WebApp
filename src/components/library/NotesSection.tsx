@@ -21,12 +21,15 @@ export function NotesSection({
   meId,
   position,
   finished,
+  embedded = false,
 }: {
   target: AbsTarget
   libraryItemId: string
   meId: string
   position: number
   finished: boolean
+  // When true, render bare (no section wrapper/heading) for use inside a tab panel.
+  embedded?: boolean
 }) {
   const qc = useQueryClient()
   const [draft, setDraft] = useState('')
@@ -87,13 +90,8 @@ export function NotesSection({
 
   if (!data?.enabled) return null
 
-  return (
-    <div className="detail-section">
-      <div className="section-head">
-        <Icon name="sticky_note_2" />
-        <h2>Notes</h2>
-      </div>
-
+  const body = (
+    <>
       <div className="cfg-card" style={{ marginBottom: 'var(--s4)' }}>
         <textarea
           className="fld"
@@ -179,6 +177,18 @@ export function NotesSection({
           your position, to avoid spoilers.
         </div>
       )}
+    </>
+  )
+
+  if (embedded) return body
+
+  return (
+    <div className="detail-section">
+      <div className="section-head">
+        <Icon name="sticky_note_2" />
+        <h2>Notes</h2>
+      </div>
+      {body}
     </div>
   )
 }

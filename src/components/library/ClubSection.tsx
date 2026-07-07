@@ -72,21 +72,16 @@ export function ClubSection({
     (c) => me && c.createdBy === me.id && c.currentBook?.libraryItemId !== libraryItemId,
   )
 
+  // Nothing to surface: keep it to a single quiet line so an empty club state
+  // doesn't nag readers who aren't in one.
   if (mineForThisBook.length === 0 && joinable.length === 0 && ownedElsewhere.length === 0 && !creating) {
     return (
-      <div className="detail-section">
-        <div className="section-head">
-          <Icon name="groups_3" />
-          <h2>Book Club</h2>
-        </div>
-        <div className="cfg-card">
-          <div className="cl-d" style={{ marginBottom: 10 }}>
-            Start a club on this book and read it together with other listeners on this server.
-          </div>
-          <button className="pill" onClick={() => setCreating(true)}>
-            <Icon name="add" /> Start a club
-          </button>
-        </div>
+      <div className="club-inline">
+        <Icon name="groups_3" />
+        <span>No book club on this book yet.</span>
+        <button className="read-more" onClick={() => setCreating(true)}>
+          Start one
+        </button>
       </div>
     )
   }

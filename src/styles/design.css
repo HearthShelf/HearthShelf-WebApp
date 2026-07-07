@@ -591,6 +591,22 @@
   color: var(--accent);
 }
 
+/* Quiet single-line placeholder when a book has no book club. */
+.club-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: var(--s5) 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.club-inline .ms {
+  font-size: 17px;
+}
+.club-inline .read-more {
+  font-size: 13px;
+}
+
 /* ---- Cover art (real image, or typeset fallback) ------------------- */
 .cover {
   position: relative;

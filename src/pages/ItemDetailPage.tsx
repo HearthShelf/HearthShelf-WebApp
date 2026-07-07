@@ -5,12 +5,14 @@ import { useActiveServer } from '@/hooks/useActiveServer'
 import { getItemDetail, getMe } from '@/api/absLibrary'
 import { getBookDetailFull, itemFileDownloadUrl, itemCoverFullUrl } from '@/api/absBookDetail'
 import { getFinishedBy, getListeningNow, socialKeys } from '@/api/absSocial'
+import { getNotes, notesKeys } from '@/api/absNotes'
 import type { HSFinishedByResponse, HSListeningNowResponse } from '@hearthshelf/core'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
 import { useMarkFinished } from '@/hooks/useMarkFinished'
 import { useBookmarks } from '@/hooks/useBookmarks'
 import { useToast } from '@/hooks/useToast'
 import { usePlayer } from '@/player/PlayerProvider'
+import { useQueueStore } from '@/store/queueStore'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { formatTimestamp, stripHtml } from '@hearthshelf/core'
 import { externalLinks } from '@/lib/externalLinks'
@@ -29,7 +31,7 @@ import { ErrorState } from '@/components/common/ErrorState'
 import { NotesSection } from '@/components/library/NotesSection'
 import { ClubSection } from '@/components/library/ClubSection'
 
-type DetailTab = 'chapters' | 'tracks' | 'ebook' | 'files'
+type DetailTab = 'chapters' | 'tracks' | 'ebook' | 'files' | 'notes'
 
 function formatDuration(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) return '0m'
@@ -62,6 +64,7 @@ export function ItemDetailPage() {
   const progressById = useMediaProgress()
   const { markFinished, isPending: marking } = useMarkFinished()
   const { toast, show } = useToast()
+  const addToQueue = useQueueStore((s) => s.add)
 
   const [expanded, setExpanded] = useState(false)
   const [tab, setTab] = useState<DetailTab>('chapters')
@@ -118,6 +121,23 @@ export function ItemDetailPage() {
     refetchInterval: 60 * 1000,
   })
   const listeningNowUsers = listeningNow?.available ? listeningNow.users : []
+
+  // Notes live in a tab; the page owns this query so the tab can appear/hide on
+  // the server's notes-enabled flag. Same key/args as NotesSection, so its own
+  // fetch reuses this cache instead of double-fetching. Spoiler gating on the
+  // wire depends on position/finished; read them here from the progress cache.
+  const noteProgress = itemId ? progressById.get(itemId) : undefined
+  const { data: notesData } = useQuery({
+    queryKey: notesKeys.list(target?.serverId ?? '', itemId ?? '', ''),
+    queryFn: () =>
+      getNotes(target!, itemId as string, {
+        position: noteProgress?.currentTime ?? 0,
+        finished: noteProgress?.isFinished ?? false,
+      }),
+    enabled: Boolean(target && itemId),
+    staleTime: 30 * 1000,
+  })
+  const notesEnabled = notesData?.enabled === true
 
   // Load this book into the GLOBAL player when it opens (paused at the saved
   // position), unless it's already the now-playing book - so navigating back to
@@ -373,6 +393,16 @@ export function ItemDetailPage() {
               </button>
             )}
             <Dropdown icon="more_horiz" label="">
+              {!ebookOnly && (
+                <MItem
+                  icon="reorder"
+                  label="Add to queue"
+                  onClick={() => {
+                    addToQueue({ libraryItemId: data.id, title, author })
+                    show(`Added "${title}" to queue`)
+                  }}
+                />
+              )}
               {canDownload && (
                 <MItem
                   icon="download"
@@ -474,6 +504,8 @@ export function ItemDetailPage() {
         </div>
       </div>
 
+      <ClubSection target={target} libraryItemId={data.id} title={title} author={author} />
+
       <div className="detail-section">
         <div className="toolbar2" style={{ marginBottom: 0 }}>
           {(
@@ -482,14 +514,17 @@ export function ItemDetailPage() {
               ['tracks', 'Audio tracks', tracks.length],
               ...(hasEbook ? [['ebook', 'eBook', 1] as [DetailTab, string, number]] : []),
               ['files', 'Files', tracks.length + 1],
-            ] as [DetailTab, string, number][]
+              ...(notesEnabled && me
+                ? [['notes', 'Notes', undefined] as [DetailTab, string, number | undefined]]
+                : []),
+            ] as [DetailTab, string, number | undefined][]
           ).map(([id, lbl, n]) => (
             <button
               key={id}
               className={'pill' + (tab === id ? ' on' : '')}
               onClick={() => setTab(id)}
             >
-              {lbl} <span style={{ opacity: 0.6 }}>{n}</span>
+              {lbl} {n != null && <span style={{ opacity: 0.6 }}>{n}</span>}
             </button>
           ))}
           {tab === 'chapters' && chapters.length > 0 && canEdit && (
@@ -611,20 +646,19 @@ export function ItemDetailPage() {
               })}
             </>
           )}
+
+          {tab === 'notes' && me && (
+            <NotesSection
+              embedded
+              target={target}
+              libraryItemId={data.id}
+              meId={me.id}
+              position={progress?.currentTime ?? 0}
+              finished={finished}
+            />
+          )}
         </div>
       </div>
-
-      <ClubSection target={target} libraryItemId={data.id} title={title} author={author} />
-
-      {me && (
-        <NotesSection
-          target={target}
-          libraryItemId={data.id}
-          meId={me.id}
-          position={progress?.currentTime ?? 0}
-          finished={finished}
-        />
-      )}
 
       {zoomCover && coverFull && (
         <ImageZoomViewer src={coverFull} alt={title} onClose={() => setZoomCover(false)} />
