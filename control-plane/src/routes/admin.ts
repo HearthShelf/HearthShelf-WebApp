@@ -23,7 +23,9 @@ import {
   getServer,
   deleteServer,
   getServerCert,
+  listAllServerCerts,
   emailSentThisWindow,
+  listAllEmailSentThisWindow,
   listPlatformAdmins,
   addPlatformAdmin,
   removePlatformAdmin,
@@ -51,17 +53,29 @@ admin.get('/admin/me', (c) => {
   return c.json({ clerk_user_id: user.userId, email: user.email, role: admin.role })
 })
 
-/** Fleet roster: every registered server, for health/moderation - no per-user data. */
+/** Fleet roster: every registered server, for health/moderation - no per-user data.
+ *  Includes cert status and email-relay usage per server so the list can be
+ *  filtered/sorted by health without an N+1 detail fetch per row. */
 admin.get('/admin/servers', async (c) => {
-  const servers = await listAllServers(c.env)
+  const [servers, certs, sent] = await Promise.all([
+    listAllServers(c.env),
+    listAllServerCerts(c.env),
+    listAllEmailSentThisWindow(c.env),
+  ])
+  const cap = RELAY_CAP(c.env)
   return c.json({
-    servers: servers.map((s) => ({
-      id: s.server_id,
-      name: s.name,
-      url: s.public_url,
-      created_at: s.created_at,
-      last_seen_at: s.last_seen_at,
-    })),
+    servers: servers.map((s) => {
+      const cert = certs.get(s.server_id)
+      return {
+        id: s.server_id,
+        name: s.name,
+        url: s.public_url,
+        created_at: s.created_at,
+        last_seen_at: s.last_seen_at,
+        cert: cert ? { status: cert.status, not_after: cert.not_after, hash: cert.hash } : null,
+        email_relay: { sent_this_window: sent.get(s.server_id) ?? 0, monthly_cap: cap },
+      }
+    }),
   })
 })
 

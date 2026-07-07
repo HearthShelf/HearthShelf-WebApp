@@ -350,6 +350,12 @@ export async function getServerCert(env: Env, serverId: string): Promise<ServerC
     .first<ServerCertRow>()
 }
 
+/** All cert rows, keyed by server_id - for the fleet roster list (avoids N+1). */
+export async function listAllServerCerts(env: Env): Promise<Map<string, ServerCertRow>> {
+  const r = await env.DB.prepare(`SELECT * FROM server_certs`).all<ServerCertRow>()
+  return new Map((r.results ?? []).map((row) => [row.server_id, row]))
+}
+
 // --- pairing codes ---------------------------------------------------------
 
 export async function createPairing(
@@ -490,6 +496,15 @@ export async function emailSentThisWindow(env: Env, serverId: string): Promise<n
     .bind(serverId, monthWindowStart())
     .first<{ sent: number }>()
   return r?.sent ?? 0
+}
+
+/** Current-window send counts for every server, keyed by server_id - for the
+ *  fleet roster list (avoids N+1). */
+export async function listAllEmailSentThisWindow(env: Env): Promise<Map<string, number>> {
+  const r = await env.DB.prepare(`SELECT server_id, sent FROM email_quota WHERE window_start = ?`)
+    .bind(monthWindowStart())
+    .all<{ server_id: string; sent: number }>()
+  return new Map((r.results ?? []).map((row) => [row.server_id, row.sent]))
 }
 
 /** Increment a server's send count for the current window (creating the row). */

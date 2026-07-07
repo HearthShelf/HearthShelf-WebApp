@@ -288,6 +288,8 @@ export interface AdminServer {
   url: string
   created_at: number
   last_seen_at: number | null
+  cert: { status: string; not_after: number | null; hash: string } | null
+  email_relay: { sent_this_window: number; monthly_cap: number }
 }
 
 export async function fetchAdminServers(): Promise<AdminServer[]> {
