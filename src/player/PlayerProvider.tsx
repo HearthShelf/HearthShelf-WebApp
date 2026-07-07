@@ -14,6 +14,7 @@ import {
   saveProgress,
   syncPlaySession,
   closePlaySession,
+  openPlaySession,
   getItemDetail,
   getItemProgress,
   type AbsChapter,
@@ -246,6 +247,62 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
     setNow(null)
   }, [player, target, now, refreshProgress])
+
+  // Close the open ABS play session when the tab is going away, so a browser
+  // session that's never explicitly dismissed (the overwhelmingly common case -
+  // closing the tab, navigating off-site, the Tesla browser tearing down on
+  // power-off) still gets persisted into listening history. Without this, only
+  // the position PATCH (a separate mechanism, see onSaveProgress above) kept
+  // resuming-elsewhere working, while the session itself stayed open in ABS's
+  // memory forever and never appeared in "Previous sessions".
+  //
+  // `visibilitychange`->hidden fires reliably (tab switch, app switch, screen
+  // off) and is our primary signal; `pagehide` covers the actual unload. Both
+  // use `fetch(..., {keepalive:true})` (via closePlaySession -> absPost) so the
+  // request survives navigation - a plain fetch can be cancelled mid-flight on
+  // unload. We deliberately do NOT clear `now`/pause playback here: the tab may
+  // just be backgrounded and resume shortly (audio keeps playing), matching how
+  // the mobile app only closes on an actual stop/background-kill, not on every
+  // hide.
+  //
+  // If the tab comes back while the same book is still loaded, the closed
+  // session id is gone from ABS's memory (GET /api/session/:id only finds OPEN
+  // sessions) - syncing against it would silently fail forever via the
+  // onSaveProgress catch. So on becoming visible again after a hide-close, open
+  // a fresh session and swap it into `now` before any further sync fires.
+  useEffect(() => {
+    if (!target || !now?.playSessionId) return
+    const sessionId = now.playSessionId
+    const itemId = now.itemId
+    const t = target
+    const durationSec = now.totalDurationSec
+    let closed = false
+    const closeOnce = () => {
+      if (closed) return
+      closed = true
+      void closePlaySession(t, sessionId, positionRef.current, 0, durationSec)
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        closeOnce()
+      } else if (closed) {
+        void openPlaySession(t, itemId).then((newSessionId) => {
+          if (!newSessionId) return
+          setNow((cur) =>
+            cur && cur.itemId === itemId && cur.playSessionId === sessionId
+              ? { ...cur, playSessionId: newSessionId }
+              : cur,
+          )
+        })
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', closeOnce)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', closeOnce)
+    }
+  }, [target, now?.itemId, now?.playSessionId, now?.totalDurationSec])
 
   const api = useMemo<PlayerApi>(
     () => ({

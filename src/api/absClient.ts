@@ -73,11 +73,13 @@ export async function absPost<T = unknown>(
   t: AbsTarget,
   path: string,
   body?: unknown,
+  opts?: { keepalive?: boolean },
 ): Promise<T | null> {
   return absRequest<T | null>(t, path, {
     method: 'POST',
     headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
+    keepalive: opts?.keepalive,
   })
 }
 

@@ -409,7 +409,31 @@ export async function syncPlaySession(
   }).catch(() => {})
 }
 
-/** Close an open play session (on stop / unmount). Best-effort. */
+const PLAY_MIME = ['audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/flac', 'audio/ogg']
+
+/**
+ * Open a fresh play session for an already-loaded item, without re-fetching its
+ * metadata/tracks/chapters. Used to replace a session that was closed on tab
+ * hide-away (see PlayerProvider) once the tab becomes active again, so
+ * subsequent listened-time syncs have a live session id instead of silently
+ * failing against one ABS has already forgotten. Returns null if ABS refuses
+ * (e.g. offline) - the caller just keeps playing without a session to sync.
+ */
+export async function openPlaySession(t: AbsTarget, itemId: string): Promise<string | null> {
+  const session = await absPost<RawPlaySession>(
+    t,
+    `/api/items/${encodeURIComponent(itemId)}/play`,
+    { deviceInfo: playDeviceInfo(), supportedMimeTypes: PLAY_MIME },
+  ).catch(() => null)
+  return session?.id ?? null
+}
+
+/**
+ * Close an open play session (on stop / unmount / tab hide-away). `keepalive`
+ * lets the request survive a `pagehide`/tab-close, where a plain fetch would
+ * otherwise be cancelled mid-flight - see PlayerProvider's visibilitychange
+ * handler, the main caller for that case. Best-effort.
+ */
 export async function closePlaySession(
   t: AbsTarget,
   sessionId: string,
@@ -417,14 +441,17 @@ export async function closePlaySession(
   timeListenedSec: number,
   durationSec: number,
 ): Promise<void> {
-  await absPost(t, `/api/session/${encodeURIComponent(sessionId)}/close`, {
-    currentTime: currentTimeSec,
-    timeListened: timeListenedSec,
-    duration: durationSec,
-  }).catch(() => {})
+  await absPost(
+    t,
+    `/api/session/${encodeURIComponent(sessionId)}/close`,
+    {
+      currentTime: currentTimeSec,
+      timeListened: timeListenedSec,
+      duration: durationSec,
+    },
+    { keepalive: true },
+  ).catch(() => {})
 }
-
-const PLAY_MIME = ['audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/flac', 'audio/ogg']
 
 export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsItemDetail> {
   // Metadata comes from the item endpoint; playable tracks + true duration come
