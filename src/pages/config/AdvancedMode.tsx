@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { Icon } from '@/components/common/Icon'
 
 // A single "Advanced Options" flag shared across every config page. Pages opt in
 // by reading useAdvancedMode() and revealing their advanced controls (extra
@@ -59,7 +58,6 @@ export function AdvancedToggle() {
       onClick={() => setAdvanced(!advanced)}
       title="Show advanced options on this page"
     >
-      <Icon name="tune" />
       <span>Advanced Options</span>
       <span className={advanced ? 'toggle on' : 'toggle'} aria-hidden="true">
         <i />

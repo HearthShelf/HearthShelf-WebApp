@@ -236,6 +236,7 @@ export function ConfigShell({ menuMode = false }: { menuMode?: boolean }) {
             <br />
             {server?.name ?? 'HearthShelf'}
           </div>
+          <AdvancedToggle />
         </nav>
         {!mobileMenu && (
           <div className="config-body">
@@ -244,7 +245,6 @@ export function ConfigShell({ menuMode = false }: { menuMode?: boolean }) {
                 <Icon name="arrow_back" /> All settings
               </button>
             )}
-            <AdvancedToggle />
             {renderSection()}
           </div>
         )}
