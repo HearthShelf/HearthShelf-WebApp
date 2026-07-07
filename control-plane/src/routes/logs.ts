@@ -108,6 +108,7 @@ logs.post('/logs/mobile', async (c) => {
     server_id: null,
     message: body.message ?? null,
     detail,
+    clerk_user_id: identity.userId,
   })
   return c.json({ ok: true })
 })

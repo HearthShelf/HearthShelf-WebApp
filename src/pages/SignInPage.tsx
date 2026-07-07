@@ -10,8 +10,9 @@ import { notify } from '@/lib/notify'
  * embedded <SignIn /> renders the form; routing="path" lets it own /sign-in/*.
  *
  * Query params drive a one-time confirmation toast so arriving here never feels
- * like a dead-end: `signed_out=1` (deliberate sign-out) and `reason=expired`
- * (session expired / forced out).
+ * like a dead-end: `signed_out=1` (deliberate sign-out), `reason=expired`
+ * (session expired / forced out), and `reason=deleted` (account data deletion
+ * completed - see AccountPage's Danger zone).
  */
 export function SignInPage() {
   const [params] = useSearchParams()
@@ -22,6 +23,9 @@ export function SignInPage() {
     if (params.get('reason') === 'expired') {
       shown.current = true
       notify.error('Your session expired - please sign in again')
+    } else if (params.get('reason') === 'deleted') {
+      shown.current = true
+      notify.success('Your HearthShelf data has been deleted')
     } else if (params.get('signed_out')) {
       shown.current = true
       notify.success("You've been signed out")

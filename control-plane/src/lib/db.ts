@@ -212,6 +212,11 @@ export async function deleteLink(env: Env, clerkUserId: string, serverId: string
     .run()
 }
 
+/** Forget every server link for a user (account data-deletion flow). */
+export async function deleteAllLinksForUser(env: Env, clerkUserId: string): Promise<void> {
+  await env.DB.prepare(`DELETE FROM links WHERE clerk_user_id = ?`).bind(clerkUserId).run()
+}
+
 // --- user prefs (MyHS account-level) ---------------------------------------
 
 /** The user's default server_id, or null when unset. Reads the one-row-per-user
@@ -255,6 +260,11 @@ export async function clearDefaultServerIf(
   )
     .bind(now(), clerkUserId, serverId)
     .run()
+}
+
+/** Remove a user's prefs row entirely (account data-deletion flow). */
+export async function deleteUserPrefs(env: Env, clerkUserId: string): Promise<void> {
+  await env.DB.prepare(`DELETE FROM user_prefs WHERE clerk_user_id = ?`).bind(clerkUserId).run()
 }
 
 /** How many users are still linked to a server (to decide last-one-out cleanup). */
@@ -656,6 +666,11 @@ export async function getEntitlement(
     .first<EntitlementRow>()
 }
 
+/** Remove a user's plan/entitlement row (account data-deletion flow). */
+export async function deleteEntitlement(env: Env, clerkUserId: string): Promise<void> {
+  await env.DB.prepare(`DELETE FROM entitlements WHERE clerk_user_id = ?`).bind(clerkUserId).run()
+}
+
 /** Listing of all servers for the admin moderation view. */
 export async function listAllServers(env: Env): Promise<ServerRow[]> {
   const r = await env.DB.prepare(`SELECT * FROM servers ORDER BY created_at DESC`).all<ServerRow>()
@@ -747,6 +762,12 @@ export async function resetPinAttempts(env: Env, handle: string): Promise<void> 
 
 export async function deleteDeviceHandle(env: Env, handle: string): Promise<void> {
   await env.DB.prepare(`DELETE FROM device_handles WHERE handle = ?`).bind(handle).run()
+}
+
+/** Forget every remembered account-switcher handle for a user (account
+ *  data-deletion flow). */
+export async function deleteAllDeviceHandlesForUser(env: Env, clerkUserId: string): Promise<void> {
+  await env.DB.prepare(`DELETE FROM device_handles WHERE clerk_user_id = ?`).bind(clerkUserId).run()
 }
 
 /** Every remembered account for a user (used to forget-everywhere on full logout). */

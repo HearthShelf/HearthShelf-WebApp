@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Navigate } from 'react-router-dom'
-import { UserProfile } from '@clerk/clerk-react'
+import { UserProfile, useClerk } from '@clerk/clerk-react'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Loader2, Sparkles, Check } from 'lucide-react'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useServers } from '@/hooks/useServers'
 import { useActiveServer } from '@/hooks/useActiveServer'
-import { fetchMyPlan, ApiError, type Plan } from '@/api/controlPlane'
+import { fetchMyPlan, deleteMyAccount, ApiError, type Plan } from '@/api/controlPlane'
 import { ServerRow } from '@/components/ServerRow'
 import { LinkServerDialog } from '@/components/LinkServerDialog'
+import { DeleteAccountDialog } from '@/components/DeleteAccountDialog'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/common/Icon'
 import { PlaybackSettings } from '@/components/settings/PlaybackSettings'
@@ -297,6 +298,27 @@ function PlanLine({ on, children }: { on?: boolean; children: React.ReactNode })
 }
 
 function Profile() {
+  const { signOut } = useClerk()
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  async function handleConfirmDelete() {
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteMyAccount()
+      await signOut({ redirectUrl: '/sign-in?reason=deleted' })
+    } catch (err) {
+      setDeleting(false)
+      setDeleteError(
+        err instanceof ApiError
+          ? err.message
+          : 'Something went wrong deleting your data. Please try again.',
+      )
+    }
+  }
+
   return (
     <section>
       <div className="section-head">
@@ -306,6 +328,33 @@ function Profile() {
       {/* Clerk owns identity: email, password, security, connected accounts,
           active devices. Skinned to the dark shell via clerkAppearance. */}
       <UserProfile routing="hash" />
+
+      <div className="mt-8 rounded-xl border border-destructive/30 bg-card p-6">
+        <p className="t-eyebrow text-destructive">Danger zone</p>
+        <p className="t-muted mt-2 text-[13px]">
+          Permanently delete your HearthShelf account and everything tied to it: linked-server
+          pairings, plan info, remembered devices, and crash reports. This does not touch your own
+          self-hosted server.
+        </p>
+        <div className="mt-4">
+          <Button variant="destructive" onClick={() => setDialogOpen(true)}>
+            Delete my HearthShelf data
+          </Button>
+        </div>
+      </div>
+
+      {dialogOpen && (
+        <DeleteAccountDialog
+          busy={deleting}
+          error={deleteError}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => {
+            if (deleting) return
+            setDialogOpen(false)
+            setDeleteError(null)
+          }}
+        />
+      )}
     </section>
   )
 }

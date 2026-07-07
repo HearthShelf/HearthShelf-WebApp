@@ -88,6 +88,27 @@ export async function createSignInToken(
   return { token: data.token }
 }
 
+/**
+ * Delete a Clerk user's identity outright (the account data-deletion flow).
+ * Called only AFTER our own D1/collector data for the user has already been
+ * purged - once this succeeds, the user can no longer authenticate, so it must
+ * be the last step. Idempotent-ish: Clerk 404s if the user is already gone,
+ * which callers should treat as success.
+ */
+export async function deleteClerkUser(env: Env, userId: string): Promise<void> {
+  if (!env.CLERK_SECRET_KEY) throw new ClerkApiError(0, 'CLERK_SECRET_KEY not configured')
+
+  const res = await fetch(`${CLERK_API}/users/${encodeURIComponent(userId)}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${env.CLERK_SECRET_KEY}` },
+  })
+
+  if (!res.ok && res.status !== 404) {
+    const detail = await res.text().catch(() => '')
+    throw new ClerkApiError(res.status, detail.slice(0, 300))
+  }
+}
+
 export class ClerkApiError extends Error {
   status: number
   constructor(status: number, message: string) {

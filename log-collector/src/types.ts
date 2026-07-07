@@ -37,4 +37,7 @@ export interface IncomingLog {
   message?: string | null
   /** Arbitrary structured context; serialized to a JSON string on store. */
   detail?: unknown
+  /** The reporting Clerk user id, when known (mobile crash reports). Lets a
+   *  user's data-deletion request target their rows without scanning `detail`. */
+  clerk_user_id?: string | null
 }

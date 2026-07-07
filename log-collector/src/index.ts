@@ -30,6 +30,7 @@ import {
   sweepOldLogs,
   deleteLog,
   deleteLogs,
+  deleteLogsByUser,
   type LogQuery,
   type LogDeleteFilter,
 } from './db'
@@ -137,6 +138,16 @@ app.delete('/logs', async (c) => {
   return c.json({ ok: true, deleted })
 })
 
+// --- Internal delete: all rows for one Clerk user. Same x-cp-forward gate.
+//     Used by the account data-deletion flow to purge a user's crash reports. ---
+app.delete('/logs/by-user/:clerkUserId', async (c) => {
+  if (!internalOk(c)) return c.json({ error: 'unauthorized' }, 401)
+  const clerkUserId = c.req.param('clerkUserId')
+  if (!clerkUserId) return c.json({ error: 'bad_user_id' }, 400)
+  const deleted = await deleteLogsByUser(c.env, clerkUserId)
+  return c.json({ ok: true, deleted })
+})
+
 app.notFound((c) => c.json({ error: 'not_found' }, 404))
 app.onError((err, c) => {
   console.error('[log-collector] error:', err)
@@ -187,6 +198,7 @@ function normalize(body: unknown, source: LogSource): IncomingLog | null {
     server_id: typeof b.server_id === 'string' ? b.server_id : null,
     message: typeof b.message === 'string' ? b.message : null,
     detail: b.detail ?? null,
+    clerk_user_id: typeof b.clerk_user_id === 'string' ? b.clerk_user_id : null,
   }
 }
 

@@ -8,6 +8,7 @@
  *   GET  /servers                 user's linked servers (Clerk)
  *   POST /servers/:id/grant       mint a short-TTL grant (Clerk)
  *   DELETE /servers/:id           unlink (Clerk)
+ *   POST /account/delete          purge all data + delete Clerk identity (Clerk)
  *   GET  /health                  liveness
  *
  * See ../ARCHITECTURE.md for the trust model and why the control plane is never
@@ -26,6 +27,7 @@ import { email } from './routes/email'
 import { logs } from './routes/logs'
 import { admin } from './routes/admin'
 import { accounts } from './routes/accounts'
+import { account } from './routes/account'
 import { forwardLog } from './lib/logs'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -64,6 +66,7 @@ app.route('/', email)
 app.route('/', logs)
 app.route('/', admin)
 app.route('/', accounts)
+app.route('/', account)
 app.route('/', releases)
 app.route('/', telemetry)
 

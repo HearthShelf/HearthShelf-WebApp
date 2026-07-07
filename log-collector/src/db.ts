@@ -12,6 +12,7 @@ export interface LogRow {
   message: string | null
   detail: string | null
   ip: string | null
+  clerk_user_id: string | null
 }
 
 const MESSAGE_MAX = 2000
@@ -33,8 +34,8 @@ export async function insertLog(
       ? null
       : (typeof rec.detail === 'string' ? rec.detail : safeJson(rec.detail)).slice(0, DETAIL_MAX)
   await env.LOGS_DB.prepare(
-    `INSERT INTO infra_logs (ts, source, severity, event, server_id, message, detail, ip, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO infra_logs (ts, source, severity, event, server_id, message, detail, ip, created_at, clerk_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       nowMs,
@@ -46,6 +47,7 @@ export async function insertLog(
       detailStr,
       ip ? ip.slice(0, 64) : null,
       nowMs,
+      rec.clerk_user_id ? rec.clerk_user_id.slice(0, 128) : null,
     )
     .run()
 }
@@ -89,7 +91,7 @@ export async function queryLogs(env: Env, q: LogQuery): Promise<LogRow[]> {
   const clause = where.length ? `WHERE ${where.join(' AND ')}` : ''
   args.push(q.limit)
   const res = await env.LOGS_DB.prepare(
-    `SELECT id, ts, source, severity, event, server_id, message, detail, ip
+    `SELECT id, ts, source, severity, event, server_id, message, detail, ip, clerk_user_id
        FROM infra_logs ${clause}
        ORDER BY id DESC
        LIMIT ?`,
@@ -146,6 +148,15 @@ export async function deleteLogs(env: Env, f: LogDeleteFilter): Promise<number> 
   const clause = where.length ? `WHERE ${where.join(' AND ')}` : ''
   const res = await env.LOGS_DB.prepare(`DELETE FROM infra_logs ${clause}`)
     .bind(...args)
+    .run()
+  return res.meta?.changes ?? 0
+}
+
+/** Delete every row attributed to a Clerk user id (their crash reports). Used by
+ *  the account data-deletion flow. Returns the number of rows removed. */
+export async function deleteLogsByUser(env: Env, clerkUserId: string): Promise<number> {
+  const res = await env.LOGS_DB.prepare(`DELETE FROM infra_logs WHERE clerk_user_id = ?`)
+    .bind(clerkUserId)
     .run()
   return res.meta?.changes ?? 0
 }

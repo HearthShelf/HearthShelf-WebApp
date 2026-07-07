@@ -175,6 +175,21 @@ export async function unlinkServer(serverId: string): Promise<void> {
   await request(`/servers/${encodeURIComponent(serverId)}`, { method: 'DELETE' })
 }
 
+/**
+ * Permanently delete the signed-in user's HearthShelf account: every linked
+ * server, plan/entitlement, remembered device, and crash report, followed by
+ * the Clerk identity itself. Irreversible. On success the Clerk session is no
+ * longer valid - callers should sign out and redirect immediately.
+ *
+ * If the control plane purged our data but the Clerk identity delete failed,
+ * this throws an ApiError(500) whose message is still user-facing ("your data
+ * was deleted, but...") - the caller should surface it rather than retry
+ * blindly, since retrying re-runs an already-empty purge.
+ */
+export async function deleteMyAccount(): Promise<void> {
+  await request('/account/delete', { method: 'POST' })
+}
+
 interface ResetSecretResponse {
   ok: boolean
   server_id: string

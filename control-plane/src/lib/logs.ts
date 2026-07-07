@@ -19,6 +19,9 @@ export interface ForwardLog {
   server_id?: string | null
   message?: string | null
   detail?: unknown
+  /** The reporting Clerk user id, when known (mobile crash reports). Lets the
+   *  account data-deletion flow purge this user's rows from the collector. */
+  clerk_user_id?: string | null
 }
 
 /** Fire-and-forget a warn/error log to the collector. Never throws. */
@@ -83,6 +86,29 @@ export async function deleteLogs(env: Env, query: string): Promise<DeleteResult 
       method: 'DELETE',
       headers: { 'x-cp-forward': env.LOG_INGEST_TOKEN },
     })
+    if (!res.ok) return null
+    return (await res.json()) as DeleteResult
+  } catch {
+    return null
+  }
+}
+
+/** Delete every log row attributed to a Clerk user (their crash reports). Used
+ *  by the account data-deletion flow. Returns null if the collector is
+ *  unreachable/unconfigured, so the caller can decide how to treat that. */
+export async function deleteLogsByUser(
+  env: Env,
+  clerkUserId: string,
+): Promise<DeleteResult | null> {
+  if (!env.LOG_COLLECTOR || !env.LOG_INGEST_TOKEN) return null
+  try {
+    const res = await env.LOG_COLLECTOR.fetch(
+      `https://collector/logs/by-user/${encodeURIComponent(clerkUserId)}`,
+      {
+        method: 'DELETE',
+        headers: { 'x-cp-forward': env.LOG_INGEST_TOKEN },
+      },
+    )
     if (!res.ok) return null
     return (await res.json()) as DeleteResult
   } catch {
