@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Icon } from '@/components/common/Icon'
 import { Toggle } from '@/components/settings/controls'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useActiveServer } from '@/hooks/useActiveServer'
-import { getCommunityConfig, socialKeys } from '@/api/absSocial'
+import { GoodreadsImportDialog } from '@/components/GoodreadsImportDialog'
 import {
   connectHardcover,
   disconnectHardcover,
@@ -14,17 +13,18 @@ import {
   triggerHardcoverSync,
 } from '@/api/finishedBooks'
 
-export function ConnectionsSettings() {
+export function IntegrationsSettings() {
   return (
     <section>
       <div className="section-head">
         <Icon name="hub" />
-        <h2>Connections</h2>
+        <h2>Integrations</h2>
       </div>
       <p className="t-muted mb-4 text-[13px]">
-        Where your linked accounts, imports, and server integrations live.
+        Connect other services and import your reading history.
       </p>
       <HardcoverSettings />
+      <GoodreadsImport />
       <div className="cfg-card" style={{ marginTop: 'var(--s4)' }}>
         <div className="cfg-line">
           <Icon name="hub" style={{ color: 'var(--text-muted)' }} />
@@ -38,8 +38,6 @@ export function ConnectionsSettings() {
         </div>
       </div>
       <ExternalBookLinks />
-      <SearchSources />
-      <CommunitySharing />
     </section>
   )
 }
@@ -62,7 +60,10 @@ function ExternalBookLinks() {
             <div className="cl-t">Goodreads</div>
             <div className="cl-d">Show a Goodreads search link on each book's detail page.</div>
           </div>
-          <Toggle on={extGoodreads} onChange={(v) => setSetting('externalLinkGoodreads', v)} />
+          <Toggle
+            on={extGoodreads}
+            onChange={(v) => setSetting('externalLinkGoodreads', v)}
+          />
         </div>
         <div className="cfg-line">
           <Icon name="headphones" style={{ color: 'var(--text-muted)' }} />
@@ -85,37 +86,7 @@ function ExternalBookLinks() {
   )
 }
 
-function SearchSources() {
-  const searchExternalSources = useSettingsStore((s) => s.searchExternalSources)
-  const setSetting = useSettingsStore((s) => s.set)
-  return (
-    <div style={{ marginTop: 'var(--s6)' }}>
-      <div className="section-head">
-        <Icon name="search" />
-        <h2>Search</h2>
-      </div>
-      <div className="cfg-card">
-        <div className="cfg-line">
-          <Icon name="travel_explore" style={{ color: 'var(--text-muted)' }} />
-          <div className="cl-meta" style={{ flex: 1 }}>
-            <div className="cl-t">Search outside your library</div>
-            <div className="cl-d">
-              Also find audiobooks you don't own yet. Search shows them in a "Not in your library"
-              section so you can request them.
-            </div>
-          </div>
-          <Toggle
-            on={searchExternalSources}
-            onChange={(v) => setSetting('searchExternalSources', v)}
-          />
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function HardcoverSettings() {
-  const navigate = useNavigate()
   const qc = useQueryClient()
   const { target } = useActiveServer()
   const [token, setToken] = useState('')
@@ -206,64 +177,28 @@ function HardcoverSettings() {
             </button>
           </>
         )}
-        <button className="btn-sm" onClick={() => navigate('/settings/import/goodreads')}>
-          <Icon name="upload_file" /> Import from Goodreads
-        </button>
       </div>
     </div>
   )
 }
 
-function CommunitySharing() {
-  const { target } = useActiveServer()
-  const shareReadBooks = useSettingsStore((s) => s.shareReadBooks)
-  const shareCurrentlyListening = useSettingsStore((s) => s.shareCurrentlyListening)
-  const setSetting = useSettingsStore((s) => s.set)
-  const { data: community } = useQuery({
-    queryKey: socialKeys.communityConfig(target?.serverId ?? ''),
-    queryFn: () => getCommunityConfig(target!),
-    enabled: Boolean(target),
-    staleTime: 5 * 60 * 1000,
-  })
-  const defaultShare = community?.defaultShare ?? true
-  const defaultShareListening = community?.defaultShareListening ?? false
-  const readEffective = shareReadBooks ?? defaultShare
-  const listeningEffective = shareCurrentlyListening ?? defaultShareListening
+function GoodreadsImport() {
+  const [open, setOpen] = useState(false)
   return (
-    <div style={{ marginTop: 'var(--s6)' }}>
-      <div className="section-head">
-        <Icon name="groups" />
-        <h2>Community</h2>
-      </div>
-      <div className="cfg-card">
-        <div className="cfg-line">
-          <Icon name="leaderboard" style={{ color: 'var(--text-muted)' }} />
-          <div className="cl-meta" style={{ flex: 1 }}>
-            <div className="cl-t">Share my reading list</div>
-            <div className="cl-d">
-              {shareReadBooks === null
-                ? `Following the server default (currently ${defaultShare ? 'shared' : 'hidden'}) until you choose.`
-                : 'Appear on server reading lists with your name. Turn this off to stay hidden.'}
-            </div>
+    <div className="cfg-card" style={{ marginTop: 'var(--s4)' }}>
+      <div className="cfg-line">
+        <Icon name="upload_file" style={{ color: 'var(--text-muted)' }} />
+        <div className="cl-meta" style={{ flex: 1 }}>
+          <div className="cl-t">Import from Goodreads</div>
+          <div className="cl-d">
+            Upload your Goodreads export CSV to bring in your reading history.
           </div>
-          <Toggle on={readEffective} onChange={(v) => setSetting('shareReadBooks', v)} />
         </div>
-        <div className="cfg-line">
-          <Icon name="podcasts" style={{ color: 'var(--text-muted)' }} />
-          <div className="cl-meta" style={{ flex: 1 }}>
-            <div className="cl-t">Share when I'm listening</div>
-            <div className="cl-d">
-              {shareCurrentlyListening === null
-                ? `Following the server default (currently ${defaultShareListening ? 'shared' : 'hidden'}) until you choose.`
-                : "Let other listeners see you're currently listening. Turn this off to stay hidden."}
-            </div>
-          </div>
-          <Toggle
-            on={listeningEffective}
-            onChange={(v) => setSetting('shareCurrentlyListening', v)}
-          />
-        </div>
+        <button className="btn-sm" onClick={() => setOpen(true)}>
+          <Icon name="upload_file" /> Import
+        </button>
       </div>
+      {open && <GoodreadsImportDialog onClose={() => setOpen(false)} />}
     </div>
   )
 }

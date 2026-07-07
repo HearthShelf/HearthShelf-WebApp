@@ -19,7 +19,9 @@ import { SleepTimerSettings } from '@/components/settings/SleepTimerSettings'
 import { BookClubSettings } from '@/components/settings/BookClubSettings'
 import { ReadingSettings } from '@/components/settings/ReadingSettings'
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings'
-import { ConnectionsSettings } from '@/components/settings/ConnectionsSettings'
+import { IntegrationsSettings } from '@/components/settings/IntegrationsSettings'
+import { SearchSettings } from '@/components/settings/SearchSettings'
+import { CommunitySettings } from '@/components/settings/CommunitySettings'
 import { AccountSettings } from '@/components/settings/AccountSettings'
 
 type Section =
@@ -31,7 +33,9 @@ type Section =
   | 'bookClub'
   | 'reading'
   | 'appearance'
-  | 'connections'
+  | 'integrations'
+  | 'search'
+  | 'community'
   | 'account'
   | 'plan'
   | 'profile'
@@ -52,6 +56,7 @@ const NAV: { label: string; items: { id: Section; icon: string; label: string }[
       { id: 'carMode', icon: 'directions_car', label: 'Car mode' },
       { id: 'sleepTimer', icon: 'bedtime', label: 'Sleep timer' },
       { id: 'bookClub', icon: 'groups', label: 'Book Club' },
+      { id: 'community', icon: 'groups', label: 'Community' },
     ],
   },
   {
@@ -60,7 +65,10 @@ const NAV: { label: string; items: { id: Section; icon: string; label: string }[
   },
   {
     label: 'Library',
-    items: [{ id: 'connections', icon: 'hub', label: 'Connections' }],
+    items: [
+      { id: 'integrations', icon: 'hub', label: 'Integrations' },
+      { id: 'search', icon: 'search', label: 'Search' },
+    ],
   },
   {
     label: 'HearthShelf',
@@ -124,8 +132,12 @@ export function AccountPage({ menuMode = false }: { menuMode?: boolean }) {
         return <ReadingSettings />
       case 'appearance':
         return <AppearanceSettings />
-      case 'connections':
-        return <ConnectionsSettings />
+      case 'integrations':
+        return <IntegrationsSettings />
+      case 'search':
+        return <SearchSettings />
+      case 'community':
+        return <CommunitySettings />
       case 'account':
         return <AccountSettings />
       case 'plan':
