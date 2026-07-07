@@ -11,6 +11,7 @@ import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
 import { RecentListens } from '@/components/player/RecentListens'
 import { MobilePlayer } from '@/components/player/MobilePlayer'
 import { ManualQueueEditor } from '@/components/player/ManualQueueEditor'
+import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { CarPlayer } from '@/components/player/CarPlayer'
 import { Scrubber } from '@/components/player/Scrubber'
 import { TimelineMarkers } from '@/components/player/TimelineMarkers'
@@ -171,7 +172,7 @@ function QueuePanel({
   const queueMode = useSettingsStore((s) => s.queueMode)
   const setSetting = useSettingsStore((s) => s.set)
   const autoRules = useSettingsStore((s) => s.queueAutoRules)
-  const [dragIdx, setDragIdx] = useState<number | null>(null)
+  const { dragIndex, overIndex, getRowProps } = usePointerReorder(items.length, reorder)
   const [showRules, setShowRules] = useState(false)
 
   const setMode = (v: QueueMode) => {
@@ -303,40 +304,54 @@ function QueuePanel({
             Nothing queued. Add books with "Add to list".
           </div>
         ) : (
-          items.map((q, i) => (
-            <div
-              className={'queue-row' + (dragIdx === i ? ' dragging' : '')}
-              key={q.libraryItemId}
-              draggable={queueMode === 'manual'}
-              onDragStart={() => setDragIdx(i)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => {
-                if (dragIdx !== null && dragIdx !== i) reorder(dragIdx, i)
-                setDragIdx(null)
-              }}
-              onDragEnd={() => setDragIdx(null)}
-            >
-              <span
-                className="q-handle"
-                title={queueMode === 'manual' ? 'Drag to reorder' : undefined}
-                style={queueMode !== 'manual' ? { opacity: 0.3, cursor: 'default' } : undefined}
-              >
-                <Icon name="drag_indicator" />
-              </span>
-              <Cover itemId={q.libraryItemId} title={q.title} fs={3} />
+          items.map((q, i) => {
+            const draggable = queueMode === 'manual'
+            const { style: dragStyle, ...rowProps } = getRowProps(i)
+            return (
               <div
-                className="q-meta"
-                style={{ cursor: 'pointer' }}
-                onClick={() => onPlay(q.libraryItemId)}
+                className={'queue-row' + (draggable && dragIndex === i ? ' dragging' : '')}
+                key={q.libraryItemId}
+                {...(draggable ? rowProps : {})}
+                style={
+                  draggable
+                    ? {
+                        ...dragStyle,
+                        opacity: dragIndex === i ? 0.5 : 1,
+                        borderTop:
+                          overIndex === i && dragIndex !== i
+                            ? '2px solid var(--primary)'
+                            : undefined,
+                      }
+                    : undefined
+                }
               >
-                <div className="q-t">{q.title}</div>
-                <div className="q-s">{q.author}</div>
+                <span
+                  className="q-handle"
+                  title={draggable ? 'Drag to reorder' : undefined}
+                  style={!draggable ? { opacity: 0.3, cursor: 'default' } : undefined}
+                >
+                  <Icon name="drag_indicator" />
+                </span>
+                <Cover itemId={q.libraryItemId} title={q.title} fs={3} />
+                <div
+                  className="q-meta"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => onPlay(q.libraryItemId)}
+                >
+                  <div className="q-t">{q.title}</div>
+                  <div className="q-s">{q.author}</div>
+                </div>
+                <span
+                  className="bm-x"
+                  title="Remove"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => remove(q.libraryItemId)}
+                >
+                  <Icon name="close" />
+                </span>
               </div>
-              <span className="bm-x" title="Remove" onClick={() => remove(q.libraryItemId)}>
-                <Icon name="close" />
-              </span>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
     </div>

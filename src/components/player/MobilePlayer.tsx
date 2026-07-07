@@ -10,6 +10,7 @@ import { RecentListens } from '@/components/player/RecentListens'
 import { Scrubber } from '@/components/player/Scrubber'
 import { Cover } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
+import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { formatTimestamp } from '@hearthshelf/core'
 import type { AbsChapter, AbsItemDetail } from '@/api/absLibrary'
 
@@ -240,6 +241,10 @@ export function MobilePlayer({
   const reorder = useQueueStore((s) => s.reorder)
   const removeFromQueue = useQueueStore((s) => s.remove)
   const setQueueStoreMode = useQueueStore((s) => s.setMode)
+  // Pointer-based reorder (works on touch): one for the main manual list, one
+  // for the hand-queued list shown under Auto mode.
+  const queueDrag = usePointerReorder(queueItems.length, reorder)
+  const manualDrag = usePointerReorder(manualItems.length, reorder)
 
   const sleep = useSleepTimer()
   const { bookmarks, addBookmark: addBookmarkApi } = useBookmarks(libraryItemId)
@@ -256,10 +261,6 @@ export function MobilePlayer({
   const [car, setCar] = useState(false)
   const [order, setOrder] = useState<ActionKey[]>(MP_ACTIONS)
   const [edit, setEdit] = useState(false)
-  const [drag, setDrag] = useState<number | null>(null)
-  const [over, setOver] = useState<number | null>(null)
-  const [mDrag, setMDrag] = useState<number | null>(null)
-  const [mOver, setMOver] = useState<number | null>(null)
   const [aDrag, setADrag] = useState<number | null>(null)
   const [aOver, setAOver] = useState<number | null>(null)
   const [lists, setLists] = useState<Record<string, boolean>>({})
@@ -387,16 +388,6 @@ export function MobilePlayer({
   const vis = order.filter(okA)
   const toolbar = vis.slice(0, 4).map((k) => ({ key: k, ...ACT[k] }))
 
-  const commitQ = () => {
-    if (drag != null && over != null && drag !== over) reorder(drag, over)
-    setDrag(null)
-    setOver(null)
-  }
-  const commitM = () => {
-    if (mDrag != null && mOver != null && mDrag !== mOver) reorder(mDrag, mOver)
-    setMDrag(null)
-    setMOver(null)
-  }
   const commitA = () => {
     if (aDrag == null || aOver == null || aDrag === aOver) {
       setADrag(null)
@@ -993,75 +984,75 @@ export function MobilePlayer({
                 Nothing queued yet.
               </div>
             ) : (
-              queueItems.map((b, i) => (
-                <div
-                  key={b.libraryItemId}
-                  className={
-                    'mp-row' +
-                    (drag === i ? ' drag' : '') +
-                    (over === i && drag !== null && drag !== i ? ' over' : '')
-                  }
-                  draggable={queueMode === 'manual'}
-                  onDragStart={() => setDrag(i)}
-                  onDragOver={(e) => {
-                    e.preventDefault()
-                    if (over !== i) setOver(i)
-                  }}
-                  onDrop={commitQ}
-                  onDragEnd={commitQ}
-                >
-                  <Icon
-                    name="drag_indicator"
-                    style={{
-                      width: 22,
-                      textAlign: 'center',
-                      color: 'var(--text-muted)',
-                      fontSize: 20,
-                      cursor: 'grab',
-                    }}
-                  />
+              queueItems.map((b, i) => {
+                const draggable = queueMode === 'manual'
+                const { style: dragStyle, ...rowProps } = queueDrag.getRowProps(i)
+                return (
                   <div
-                    style={{
-                      width: 46,
-                      height: 46,
-                      borderRadius: 9,
-                      overflow: 'hidden',
-                      flex: 'none',
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => jumpTo(b.libraryItemId)}
+                    key={b.libraryItemId}
+                    className={
+                      'mp-row' +
+                      (draggable && queueDrag.dragIndex === i ? ' drag' : '') +
+                      (draggable && queueDrag.overIndex === i && queueDrag.dragIndex !== i
+                        ? ' over'
+                        : '')
+                    }
+                    {...(draggable ? rowProps : {})}
+                    style={draggable ? dragStyle : undefined}
                   >
-                    <Cover
-                      itemId={b.libraryItemId}
-                      title={b.title}
-                      fs={4}
-                      style={{ width: '100%', height: '100%', borderRadius: 0 }}
+                    <Icon
+                      name="drag_indicator"
+                      style={{
+                        width: 22,
+                        textAlign: 'center',
+                        color: 'var(--text-muted)',
+                        fontSize: 20,
+                        cursor: 'grab',
+                      }}
                     />
-                  </div>
-                  <div
-                    style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
-                    onClick={() => jumpTo(b.libraryItemId)}
-                  >
-                    <div className="mp-clamp1" style={{ fontSize: 13.5, fontWeight: 600 }}>
-                      {b.title}
+                    <div
+                      style={{
+                        width: 46,
+                        height: 46,
+                        borderRadius: 9,
+                        overflow: 'hidden',
+                        flex: 'none',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => jumpTo(b.libraryItemId)}
+                    >
+                      <Cover
+                        itemId={b.libraryItemId}
+                        title={b.title}
+                        fs={4}
+                        style={{ width: '100%', height: '100%', borderRadius: 0 }}
+                      />
                     </div>
                     <div
-                      className="mp-clamp1"
-                      style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 1 }}
+                      style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
+                      onClick={() => jumpTo(b.libraryItemId)}
                     >
-                      {b.author}
+                      <div className="mp-clamp1" style={{ fontSize: 13.5, fontWeight: 600 }}>
+                        {b.title}
+                      </div>
+                      <div
+                        className="mp-clamp1"
+                        style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 1 }}
+                      >
+                        {b.author}
+                      </div>
                     </div>
+                    <button
+                      className="mp-ib"
+                      style={{ width: 40, height: 40 }}
+                      onClick={() => jumpTo(b.libraryItemId)}
+                      title="Play now"
+                    >
+                      <Icon name="play_arrow" style={{ fontSize: 22 }} />
+                    </button>
                   </div>
-                  <button
-                    className="mp-ib"
-                    style={{ width: 40, height: 40 }}
-                    onClick={() => jumpTo(b.libraryItemId)}
-                    title="Play now"
-                  >
-                    <Icon name="play_arrow" style={{ fontSize: 22 }} />
-                  </button>
-                </div>
-              ))
+                )
+              })
             )}
             {queueMode === 'auto' && (
               <>
@@ -1082,75 +1073,73 @@ export function MobilePlayer({
                     Nothing queued by hand. Books you add play after your Auto picks.
                   </div>
                 ) : (
-                  manualItems.map((b, i) => (
-                    <div
-                      key={b.libraryItemId}
-                      className={
-                        'mp-row' +
-                        (mDrag === i ? ' drag' : '') +
-                        (mOver === i && mDrag !== null && mDrag !== i ? ' over' : '')
-                      }
-                      draggable
-                      onDragStart={() => setMDrag(i)}
-                      onDragOver={(e) => {
-                        e.preventDefault()
-                        if (mOver !== i) setMOver(i)
-                      }}
-                      onDrop={commitM}
-                      onDragEnd={commitM}
-                    >
-                      <Icon
-                        name="drag_indicator"
-                        style={{
-                          width: 22,
-                          textAlign: 'center',
-                          color: 'var(--text-muted)',
-                          fontSize: 20,
-                          cursor: 'grab',
-                        }}
-                      />
+                  manualItems.map((b, i) => {
+                    const { style: mStyle, ...mRowProps } = manualDrag.getRowProps(i)
+                    return (
                       <div
-                        style={{
-                          width: 46,
-                          height: 46,
-                          borderRadius: 9,
-                          overflow: 'hidden',
-                          flex: 'none',
-                          cursor: 'pointer',
-                        }}
-                        onClick={() => jumpTo(b.libraryItemId)}
+                        key={b.libraryItemId}
+                        className={
+                          'mp-row' +
+                          (manualDrag.dragIndex === i ? ' drag' : '') +
+                          (manualDrag.overIndex === i && manualDrag.dragIndex !== i ? ' over' : '')
+                        }
+                        {...mRowProps}
+                        style={mStyle}
                       >
-                        <Cover
-                          itemId={b.libraryItemId}
-                          title={b.title}
-                          fs={4}
-                          style={{ width: '100%', height: '100%', borderRadius: 0 }}
+                        <Icon
+                          name="drag_indicator"
+                          style={{
+                            width: 22,
+                            textAlign: 'center',
+                            color: 'var(--text-muted)',
+                            fontSize: 20,
+                            cursor: 'grab',
+                          }}
                         />
-                      </div>
-                      <div
-                        style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
-                        onClick={() => jumpTo(b.libraryItemId)}
-                      >
-                        <div className="mp-clamp1" style={{ fontSize: 13.5, fontWeight: 600 }}>
-                          {b.title}
+                        <div
+                          style={{
+                            width: 46,
+                            height: 46,
+                            borderRadius: 9,
+                            overflow: 'hidden',
+                            flex: 'none',
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => jumpTo(b.libraryItemId)}
+                        >
+                          <Cover
+                            itemId={b.libraryItemId}
+                            title={b.title}
+                            fs={4}
+                            style={{ width: '100%', height: '100%', borderRadius: 0 }}
+                          />
                         </div>
                         <div
-                          className="mp-clamp1"
-                          style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 1 }}
+                          style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
+                          onClick={() => jumpTo(b.libraryItemId)}
                         >
-                          {b.author}
+                          <div className="mp-clamp1" style={{ fontSize: 13.5, fontWeight: 600 }}>
+                            {b.title}
+                          </div>
+                          <div
+                            className="mp-clamp1"
+                            style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 1 }}
+                          >
+                            {b.author}
+                          </div>
                         </div>
+                        <button
+                          className="mp-ib"
+                          style={{ width: 40, height: 40 }}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={() => removeFromQueue(b.libraryItemId)}
+                          title="Remove"
+                        >
+                          <Icon name="close" style={{ fontSize: 20 }} />
+                        </button>
                       </div>
-                      <button
-                        className="mp-ib"
-                        style={{ width: 40, height: 40 }}
-                        onClick={() => removeFromQueue(b.libraryItemId)}
-                        title="Remove"
-                      >
-                        <Icon name="close" style={{ fontSize: 20 }} />
-                      </button>
-                    </div>
-                  ))
+                    )
+                  })
                 )}
               </>
             )}

@@ -7,6 +7,7 @@ import { getPlaylistsList } from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
 import { SetRow, Seg } from '@/components/settings/controls'
 import { ManualQueueEditor } from '@/components/player/ManualQueueEditor'
+import { usePointerReorder } from '@/hooks/usePointerReorder'
 
 const QUEUE_MODES: { value: QueueMode; label: string }[] = [
   { value: 'off', label: 'Off' },
@@ -46,36 +47,39 @@ function RuleList({
 }) {
   const toggle = (i: number) =>
     onChange(rules.map((r, idx) => (idx === i ? { ...r, on: !r.on } : r)))
-  const move = (i: number, dir: -1 | 1) => {
-    const j = i + dir
-    if (j < 0 || j >= rules.length) return
+  const reorder = (from: number, to: number) => {
     const next = rules.slice()
-    const [moved] = next.splice(i, 1)
-    next.splice(j, 0, moved)
+    const [moved] = next.splice(from, 1)
+    next.splice(to, 0, moved)
     onChange(next)
   }
+  const { dragIndex, overIndex, getRowProps } = usePointerReorder(rules.length, reorder)
   return (
     <div className="cfg-card">
       {rules.map((r, i) => {
         const meta = RULE_LABELS[r.id]
+        const { style, ...rowProps } = getRowProps(i)
         return (
-          <div className="cfg-line" key={r.id}>
+          <div
+            className={'cfg-line' + (dragIndex === i ? ' dragging' : '')}
+            key={r.id}
+            {...rowProps}
+            style={{
+              ...style,
+              opacity: dragIndex === i ? 0.5 : 1,
+              borderTop:
+                overIndex === i && dragIndex !== i ? '2px solid var(--primary)' : undefined,
+            }}
+          >
             <Icon name="drag_indicator" style={{ color: 'var(--text-muted)' }} />
             <div className="cl-meta" style={{ flex: 1 }}>
               <div className="cl-t">{meta.title}</div>
               <div className="cl-d">{meta.desc}</div>
             </div>
-            <button className="btn-sm btn-ghost" disabled={i === 0} onClick={() => move(i, -1)}>
-              Up
-            </button>
-            <button
-              className="btn-sm btn-ghost"
-              disabled={i === rules.length - 1}
-              onClick={() => move(i, 1)}
-            >
-              Down
-            </button>
-            <Toggle on={r.on} onChange={() => toggle(i)} />
+            {/* Stop the pointer-down from starting a drag when toggling. */}
+            <span onPointerDown={(e) => e.stopPropagation()}>
+              <Toggle on={r.on} onChange={() => toggle(i)} />
+            </span>
           </div>
         )
       })}
@@ -152,7 +156,7 @@ export function QueueSettings() {
         {s.queueMode === 'auto' && (
           <SetRow
             title="Auto rules"
-            desc="Use Up/Down to set priority. The queue fills from the top rule down."
+            desc="Drag to set priority. The queue fills from the top rule down."
             control={null}
             stacked
           >

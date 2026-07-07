@@ -1,7 +1,7 @@
-import { useState } from 'react'
 import { useQueueStore } from '@/store/queueStore'
 import { Cover } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
+import { usePointerReorder } from '@/hooks/usePointerReorder'
 
 // Shared editor for the durable hand-queued list, used by the player Up-next
 // panel and the Queue settings page. In Auto mode it also shows the current
@@ -28,7 +28,7 @@ export function ManualQueueEditor({
   const manual = useQueueStore((s) => s.manual)
   const remove = useQueueStore((s) => s.remove)
   const reorder = useQueueStore((s) => s.reorder)
-  const [dragIdx, setDragIdx] = useState<number | null>(null)
+  const { dragIndex, overIndex, getRowProps } = usePointerReorder(manual.length, reorder)
 
   const sectionLabel = (text: string) => (
     <div
@@ -79,36 +79,45 @@ export function ManualQueueEditor({
               : 'Nothing queued. Add books with "Add to list".'}
           </div>
         ) : (
-          manual.map((q, i) => (
-            <div
-              className={'queue-row' + (dragIdx === i ? ' dragging' : '')}
-              key={q.libraryItemId}
-              draggable
-              onDragStart={() => setDragIdx(i)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => {
-                if (dragIdx !== null && dragIdx !== i) reorder(dragIdx, i)
-                setDragIdx(null)
-              }}
-              onDragEnd={() => setDragIdx(null)}
-            >
-              <span className="q-handle" title="Drag to reorder">
-                <Icon name="drag_indicator" />
-              </span>
-              <Cover itemId={q.libraryItemId} title={q.title} fs={3} />
+          manual.map((q, i) => {
+            const { style, ...rowProps } = getRowProps(i)
+            return (
               <div
-                className="q-meta"
-                style={onPlay ? { cursor: 'pointer' } : undefined}
-                onClick={onPlay ? () => onPlay(q.libraryItemId) : undefined}
+                className={'queue-row' + (dragIndex === i ? ' dragging' : '')}
+                key={q.libraryItemId}
+                {...rowProps}
+                style={{
+                  ...style,
+                  opacity: dragIndex === i ? 0.5 : 1,
+                  borderTop:
+                    overIndex === i && dragIndex !== i ? '2px solid var(--primary)' : undefined,
+                }}
               >
-                <div className="q-t">{q.title}</div>
-                <div className="q-s">{q.author}</div>
+                <span className="q-handle" title="Drag to reorder">
+                  <Icon name="drag_indicator" />
+                </span>
+                <Cover itemId={q.libraryItemId} title={q.title} fs={3} />
+                <div
+                  className="q-meta"
+                  style={onPlay ? { cursor: 'pointer' } : undefined}
+                  // Tapping to play shouldn't start a drag; the surrounding row
+                  // still drags from the handle, cover, and empty space.
+                  onClick={onPlay ? () => onPlay(q.libraryItemId) : undefined}
+                >
+                  <div className="q-t">{q.title}</div>
+                  <div className="q-s">{q.author}</div>
+                </div>
+                <span
+                  className="bm-x"
+                  title="Remove"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => remove(q.libraryItemId)}
+                >
+                  <Icon name="close" />
+                </span>
               </div>
-              <span className="bm-x" title="Remove" onClick={() => remove(q.libraryItemId)}>
-                <Icon name="close" />
-              </span>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
     </div>
