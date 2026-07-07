@@ -255,7 +255,15 @@ export const useSettingsStore = create<SettingsState>()(
         if (Object.keys(patch).length) set({ ...patch, meta } as Partial<SettingsState>)
       },
     }),
-    { name: 'hearthshelf:settings' },
+    {
+      name: 'hearthshelf:settings',
+      // Backfill rules added since a value was persisted (book-club, manual) as
+      // soon as localStorage rehydrates, so the picker shows the full rule set
+      // without waiting for a server pull.
+      onRehydrateStorage: () => (state) => {
+        if (state) state.queueAutoRules = normalizeAutoRules(state.queueAutoRules)
+      },
+    },
   ),
 )
 
