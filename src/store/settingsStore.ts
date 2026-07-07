@@ -2,7 +2,12 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { QueueMode, AutoRuleId } from '@/store/queueStore'
 import type { SettingScope, SettingValue } from '@hearthshelf/core'
-import { SETTINGS_CATALOG, settingDefault } from '@hearthshelf/core'
+import {
+  SETTINGS_CATALOG,
+  settingDefault,
+  DEFAULT_AUTO_RULES,
+  normalizeAutoRules,
+} from '@hearthshelf/core'
 
 // Client-only player + appearance preferences. Rendered from localStorage for an
 // instant first paint, then reconciled per-key with the active server's
@@ -11,9 +16,6 @@ import { SETTINGS_CATALOG, settingDefault } from '@hearthshelf/core'
 // and tracks a per-key updatedAt in `meta` so sync merges at the setting level
 // (per-key last-writer-wins). The catalog in @hearthshelf/core is the shared
 // definition of each key's scope + default.
-
-// The default order/priority of the Auto-queue rules. All on by default.
-export const DEFAULT_AUTO_RULES: AutoRuleId[] = ['finish-series', 'in-progress', 'new-in-series']
 
 export type ScrubberScope = 'chapter' | 'book'
 export type Theme = 'dark' | 'flat' | 'light' | 'oled'
@@ -73,10 +75,9 @@ export interface AutoRulePref {
   on: boolean
 }
 
-export const DEFAULT_AUTO_RULE_PREFS: AutoRulePref[] = DEFAULT_AUTO_RULES.map((id) => ({
-  id,
-  on: true,
-}))
+// Canonical default rules + order come from @hearthshelf/core, so this client
+// never drifts from the shared rule set (e.g. book-club) again.
+export const DEFAULT_AUTO_RULE_PREFS: AutoRulePref[] = DEFAULT_AUTO_RULES.map((r) => ({ ...r }))
 
 export interface SettingsState {
   // Appearance
@@ -245,7 +246,9 @@ export const useSettingsStore = create<SettingsState>()(
           const remote = rows[key]
           const localAt = state.meta[key] ?? -1
           if (remote.updatedAt >= localAt) {
-            patch[key] = remote.value
+            // Backfill rules added since the value was stored (e.g. book-club)
+            // so the picker never hides a rule the shared set now defines.
+            patch[key] = key === 'queueAutoRules' ? normalizeAutoRules(remote.value) : remote.value
             meta[key] = remote.updatedAt
           }
         }
