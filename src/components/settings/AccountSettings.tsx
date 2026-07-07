@@ -11,6 +11,28 @@ import { Toggle } from '@/components/settings/controls'
 import { isCarBrowser } from '@/hooks/useCarMode'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useClerkAvatarSync } from '@/hooks/useClerkAvatarSync'
+import { deleteServerAvatar, type AvatarSyncFailReason } from '@/api/avatars'
+
+function syncFailMessage(reason: AvatarSyncFailReason): string {
+  switch (reason) {
+    case 'no_photo':
+      return 'No Clerk photo to sync yet.'
+    case 'fetch_failed':
+      return "Couldn't download your Clerk photo. Try again in a moment."
+    case 'encode_failed':
+      return "Couldn't process your Clerk photo. Try a different photo in your account settings."
+    case 'no_token':
+      return "Not signed in to this server. Reconnect and try again."
+    case 'no_abs_user':
+      return "Couldn't confirm your account on this server. Try again in a moment."
+    case 'request_failed':
+      return "Couldn't reach this server. Try again in a moment."
+    case 'server_skipped':
+      return 'A custom photo is set on this server. Remove it to use your Clerk photo instead.'
+    default:
+      return 'Nothing to sync.'
+  }
+}
 
 function fmtDay(d: Date | null | undefined): string {
   if (!d) return '-'
@@ -34,6 +56,8 @@ export function AccountSettings() {
   const [uploading, setUploading] = useState(false)
   const [uploadErr, setUploadErr] = useState<string | null>(null)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
+  const [syncBlocked, setSyncBlocked] = useState(false)
+  const [removing, setRemoving] = useState(false)
 
   const { data: me } = useQuery({
     queryKey: ['me', target?.serverUrl],
@@ -77,8 +101,27 @@ export function AccountSettings() {
 
   const handleSyncPhoto = async () => {
     setSyncMsg(null)
-    const ok = await syncClerkPhoto()
-    setSyncMsg(ok ? 'Photo synced to this server.' : 'Nothing to sync, or a custom photo is set here.')
+    setSyncBlocked(false)
+    const result = await syncClerkPhoto()
+    setSyncMsg(result.ok ? 'Photo synced to this server.' : syncFailMessage(result.reason))
+    setSyncBlocked(!result.ok && result.reason === 'server_skipped')
+  }
+
+  const handleRemoveCustomPhoto = async () => {
+    if (!target || !me?.id) return
+    setRemoving(true)
+    try {
+      const ok = await deleteServerAvatar(target, me.id)
+      if (!ok) {
+        setSyncMsg("Couldn't remove the custom photo. Try again in a moment.")
+        return
+      }
+      setSyncBlocked(false)
+      const result = await syncClerkPhoto()
+      setSyncMsg(result.ok ? 'Photo synced to this server.' : syncFailMessage(result.reason))
+    } finally {
+      setRemoving(false)
+    }
   }
 
   // Permissions from the active server (update/delete/download/upload booleans)
@@ -159,6 +202,17 @@ export function AccountSettings() {
           <div className="cfg-line" style={{ color: 'var(--text-muted)', fontSize: 13 }}>
             <Icon name="info" style={{ color: 'var(--text-muted)' }} />
             {syncMsg}
+            {syncBlocked && (
+              <button
+                className="btn-sm btn-ghost"
+                onClick={handleRemoveCustomPhoto}
+                disabled={removing}
+                style={{ marginLeft: 'auto' }}
+              >
+                {removing ? <Loader2 size={16} className="animate-spin" /> : <Icon name="delete" />}
+                {removing ? 'Removing' : 'Remove custom photo'}
+              </button>
+            )}
           </div>
         )}
         <div className="cfg-line">

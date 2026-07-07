@@ -16,7 +16,7 @@ import { useUser } from '@clerk/clerk-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getMe } from '@/api/absLibrary'
-import { syncClerkAvatar } from '@/api/avatars'
+import { syncClerkAvatar, type AvatarSyncResult } from '@/api/avatars'
 
 // Fingerprint of the last Clerk imageUrl we synced to a given server, so an
 // unchanged photo doesn't re-upload on every load. Keyed by server id.
@@ -24,7 +24,10 @@ function fpKey(serverId: string): string {
   return `hs:clerk-avatar-fp:${serverId}`
 }
 
-export function useClerkAvatarSync(): { sync: () => Promise<boolean>; syncing: boolean } {
+export function useClerkAvatarSync(): {
+  sync: () => Promise<AvatarSyncResult>
+  syncing: boolean
+} {
   const { user, isLoaded } = useUser()
   const { target } = useActiveServer()
   const queryClient = useQueryClient()
@@ -33,32 +36,34 @@ export function useClerkAvatarSync(): { sync: () => Promise<boolean>; syncing: b
   const inFlight = useRef(false)
 
   const run = useCallback(
-    async (force: boolean): Promise<boolean> => {
-      if (inFlight.current) return false
-      if (!isLoaded || !user || !target) return false
+    async (force: boolean): Promise<AvatarSyncResult> => {
+      if (inFlight.current) return { ok: false, reason: 'request_failed' }
+      if (!isLoaded || !user || !target) return { ok: false, reason: 'no_abs_user' }
       const imageUrl = user.imageUrl
-      if (!imageUrl) return false
-      if (!force && localStorage.getItem(fpKey(target.serverId)) === imageUrl) return false
+      if (!imageUrl) return { ok: false, reason: 'no_photo' }
+      if (!force && localStorage.getItem(fpKey(target.serverId)) === imageUrl) {
+        return { ok: false, reason: 'no_photo' }
+      }
 
       inFlight.current = true
       setSyncing(true)
       try {
         // The store keys by ABS user id on THIS server, not the Clerk id.
         const me = await getMe(target)
-        if (!me?.id) return false
-        const ok = await syncClerkAvatar(target, me.id, imageUrl)
+        if (!me?.id) return { ok: false, reason: 'no_abs_user' }
+        const result = await syncClerkAvatar(target, me.id, imageUrl)
         // Record the fingerprint whenever the server accepted the request path
-        // (ok true = stored; a skip because a manual upload wins is also "done" -
-        // but we only stamp on a real store so a later upload-removal re-syncs).
-        if (ok) {
+        // (a skip because a manual upload wins is also "done" - but we only stamp
+        // on a real store so a later upload-removal re-syncs).
+        if (result.ok) {
           localStorage.setItem(fpKey(target.serverId), imageUrl)
           // Other users' views cache-bust on ?v=; nudge our own me query so the
           // account page reflects the new server-side photo if it reads it.
           queryClient.invalidateQueries({ queryKey: ['me', target.serverUrl] })
         }
-        return ok
+        return result
       } catch {
-        return false
+        return { ok: false, reason: 'request_failed' }
       } finally {
         inFlight.current = false
         setSyncing(false)
