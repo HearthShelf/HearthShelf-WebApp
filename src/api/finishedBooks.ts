@@ -55,8 +55,9 @@ export function matchRows(
 export function importRows(
   t: AbsTarget,
   rows: ImportRow[],
-): Promise<{ inserted: number; updated: number }> {
-  return fbFetch(t, '/import', { method: 'POST', body: JSON.stringify({ rows }) })
+  backfillAbs = false,
+): Promise<{ inserted: number; updated: number; absBackfilled?: number }> {
+  return fbFetch(t, '/import', { method: 'POST', body: JSON.stringify({ rows, backfillAbs }) })
 }
 export function getHardcoverAccount(t: AbsTarget): Promise<HardcoverAccountStatus> {
   return fbFetch(t, '/hardcover')
