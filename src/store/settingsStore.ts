@@ -132,6 +132,11 @@ export interface SettingsState {
   queueMode: QueueMode
   queueAutoRules: AutoRulePref[]
 
+  // Reading goal: books the user aims to finish this year (0 = no goal set).
+  // Account-scoped so it follows the user; the Stats page shows progress against
+  // booksThisYear.
+  yearlyBookGoal: number
+
   // Library
   unifiedHome: boolean
   // When on, Search also looks up titles you don't own via the Audible catalog
@@ -216,6 +221,8 @@ export const useSettingsStore = create<SettingsState>()(
 
       queueMode: 'manual',
       queueAutoRules: DEFAULT_AUTO_RULE_PREFS,
+
+      yearlyBookGoal: 0,
 
       unifiedHome: false,
       searchExternalSources: true,

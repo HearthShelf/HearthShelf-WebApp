@@ -6663,6 +6663,147 @@
   cursor: pointer;
 }
 
+/* Yearly reading goal card: a progress ring beside the count + pace hint, or an
+   invite to set a goal when none exists. */
+.goal-body {
+  display: flex;
+  align-items: center;
+  gap: var(--s6);
+}
+
+.goal-ring {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  flex: 0 0 auto;
+}
+
+.goal-ring-track {
+  stroke: var(--c-highest);
+}
+
+.goal-ring-fill {
+  stroke: var(--p);
+  transition: stroke-dashoffset 0.5s ease;
+}
+
+.goal-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.goal-ring-num {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.goal-ring-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.goal-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.goal-headline {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.goal-pace {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.goal-pace-good {
+  color: var(--p);
+}
+
+.goal-pace-done {
+  color: #7fa86b;
+}
+
+.goal-pace-behind {
+  color: var(--text-muted);
+}
+
+.goal-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.goal-edit-btn {
+  margin-top: var(--s3);
+  gap: 6px;
+}
+
+.goal-edit-btn .ms {
+  font-size: 16px;
+}
+
+/* Empty state: no goal set yet. */
+.goal-empty {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+}
+
+.goal-empty-ico {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--p) 18%, transparent);
+  color: var(--p);
+}
+
+.goal-empty-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.goal-empty-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.goal-empty-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Inline editor (shared by the empty + set states). */
+.goal-editor-label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: var(--s3);
+}
+
+.goal-editor-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.goal-editor-row .set-num {
+  width: 90px;
+}
+
 .hub-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));

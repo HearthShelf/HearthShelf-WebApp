@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
+import { useSettingsStore } from '@/store/settingsStore'
 import {
   getHsStats,
   getStatsHistory,
@@ -129,6 +130,8 @@ function vmFromFallback(s: ListeningStatsFull): StatsVM {
 export function StatsPage() {
   const { target } = useActiveServer()
   const [window, setWindow] = useState<LeaderboardWindow>('all')
+  const yearlyBookGoal = useSettingsStore((s) => s.yearlyBookGoal)
+  const setSetting = useSettingsStore((s) => s.set)
 
   // Primary: the server's HearthShelf backend (/hs/stats), richer than ABS's own
   // payload. Returns null on a slim/older server, and the fallback query below
@@ -428,6 +431,12 @@ export function StatsPage() {
         </div>
       </div>
 
+      <GoalCard
+        goal={yearlyBookGoal}
+        booksThisYear={stats.booksThisYear}
+        onSetGoal={(n) => setSetting('yearlyBookGoal', n)}
+      />
+
       {mostListened.length > 0 && (
         <div className="section">
           <SectionHead icon="trending_up" title="Most listened to" />
@@ -688,6 +697,192 @@ function CompareCard({
             </div>
           )
         })}
+      </div>
+    </div>
+  )
+}
+
+// Fraction of the current calendar year elapsed (0..1), for the "on pace" hint.
+function yearElapsedFraction(): number {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), 0, 1).getTime()
+  const end = new Date(now.getFullYear() + 1, 0, 1).getTime()
+  return (now.getTime() - start) / (end - start)
+}
+
+// A circular SVG progress ring. `frac` is clamped 0..1; the ring uses the accent
+// with the track in the neutral surface, matching the heatmap/bars palette.
+function ProgressRing({ frac, label, sub }: { frac: number; label: string; sub: string }) {
+  const r = 52
+  const c = 2 * Math.PI * r
+  const clamped = Math.max(0, Math.min(1, frac))
+  return (
+    <div className="goal-ring">
+      <svg viewBox="0 0 120 120" width="120" height="120">
+        <circle className="goal-ring-track" cx="60" cy="60" r={r} fill="none" strokeWidth="10" />
+        <circle
+          className="goal-ring-fill"
+          cx="60"
+          cy="60"
+          r={r}
+          fill="none"
+          strokeWidth="10"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - clamped)}
+          transform="rotate(-90 60 60)"
+        />
+      </svg>
+      <div className="goal-ring-center">
+        <div className="goal-ring-num">{label}</div>
+        <div className="goal-ring-sub">{sub}</div>
+      </div>
+    </div>
+  )
+}
+
+// Yearly reading goal: progress toward finishing N books this calendar year.
+// Editable inline; when no goal is set (0) it invites the user to set one.
+// booksThisYear is null when the ABS database isn't mounted - then we can show
+// the target but not real progress, so we say so instead of faking a ring.
+function GoalCard({
+  goal,
+  booksThisYear,
+  onSetGoal,
+}: {
+  goal: number
+  booksThisYear: number | null
+  onSetGoal: (n: number) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(String(goal || ''))
+
+  const startEdit = () => {
+    setDraft(goal ? String(goal) : '')
+    setEditing(true)
+  }
+  const commit = () => {
+    const n = Math.max(0, Math.min(1000, Math.round(Number(draft) || 0)))
+    onSetGoal(n)
+    setEditing(false)
+  }
+
+  const editor = (
+    <div className="goal-editor">
+      <label className="goal-editor-label" htmlFor="goal-input">
+        Books to finish this year
+      </label>
+      <div className="goal-editor-row">
+        <input
+          id="goal-input"
+          type="number"
+          className="set-num"
+          min={0}
+          max={1000}
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit()
+            if (e.key === 'Escape') setEditing(false)
+          }}
+        />
+        <button className="btn btn-primary" onClick={commit}>
+          Save
+        </button>
+        {goal > 0 && (
+          <button className="btn" onClick={() => setEditing(false)}>
+            Cancel
+          </button>
+        )}
+      </div>
+    </div>
+  )
+
+  // No goal yet: invite the user to set one.
+  if (goal <= 0) {
+    return (
+      <div className="section">
+        <SectionHead icon="flag" title="Reading goal" />
+        <div className="chart-card goal-card" style={{ marginTop: 0 }}>
+          {editing ? (
+            editor
+          ) : (
+            <div className="goal-empty">
+              <div className="goal-empty-ico">
+                <Icon name="flag" />
+              </div>
+              <div className="goal-empty-text">
+                <div className="goal-empty-title">Set a reading goal</div>
+                <div className="goal-empty-sub">
+                  Pick how many books you want to finish this year and track your progress.
+                </div>
+              </div>
+              <button className="btn btn-primary" onClick={startEdit}>
+                Set a goal
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  const done = booksThisYear ?? 0
+  const frac = goal > 0 ? done / goal : 0
+  const pct = Math.round(frac * 100)
+  const remaining = Math.max(0, goal - done)
+  const expected = goal * yearElapsedFraction()
+  const ahead = done - expected
+  let pace: { text: string; tone: 'good' | 'behind' | 'done' }
+  if (done >= goal) pace = { text: 'Goal reached - nice work!', tone: 'done' }
+  else if (ahead >= 0.5)
+    pace = { text: `${Math.round(ahead)} ahead of schedule`, tone: 'good' }
+  else if (ahead <= -0.5)
+    pace = { text: `${Math.round(-ahead)} behind schedule`, tone: 'behind' }
+  else pace = { text: 'Right on pace', tone: 'good' }
+
+  return (
+    <div className="section">
+      <SectionHead icon="flag" title="Reading goal" />
+      <div className="chart-card goal-card" style={{ marginTop: 0 }}>
+        {editing ? (
+          editor
+        ) : (
+          <div className="goal-body">
+            <ProgressRing
+              frac={frac}
+              label={booksThisYear == null ? '--' : `${pct}%`}
+              sub={`of ${goal}`}
+            />
+            <div className="goal-meta">
+              {booksThisYear == null ? (
+                <>
+                  <div className="goal-headline">Goal: {goal} books</div>
+                  <div className="goal-sub">
+                    Progress needs the library database - it isn't available on this server.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="goal-headline">
+                    {done} of {goal} books this year
+                  </div>
+                  <div className={'goal-pace goal-pace-' + pace.tone}>{pace.text}</div>
+                  {remaining > 0 && (
+                    <div className="goal-sub">
+                      {remaining} to go{remaining === 1 ? '' : ''}
+                    </div>
+                  )}
+                </>
+              )}
+              <button className="btn goal-edit-btn" onClick={startEdit}>
+                <Icon name="edit" />
+                Edit goal
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
