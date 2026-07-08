@@ -16,20 +16,24 @@ import { useToast } from '@/hooks/useToast'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 
-// "Use HearthShelf email" - the 1-click relay. Only shown on a paired box that
-// can offer it (available) or already has it on (active). When active, SMTP setup
-// below is unnecessary. Enabling points ABS's SMTP at the loopback relay.
-function EmailRelayCard() {
-  const qc = useQueryClient()
-  const { toast, show } = useToast()
+function useEmailRelayStatus() {
   const { target } = useActiveServer()
-  const { data: relay } = useQuery({
+  return useQuery({
     queryKey: hostedKeys.emailRelay(target?.serverId ?? ''),
     queryFn: () => getEmailRelayStatus(target!),
     enabled: Boolean(target),
     staleTime: 30 * 1000,
     retry: false,
   })
+}
+
+// "Use HearthShelf email" - the 1-click relay. Only shown on a paired box that
+// can offer it (available) or already has it on (active). When active, SMTP setup
+// below is unnecessary. Enabling points ABS's SMTP at the loopback relay.
+function EmailRelayCard({ relay }: { relay: ReturnType<typeof useEmailRelayStatus>['data'] }) {
+  const qc = useQueryClient()
+  const { toast, show } = useToast()
+  const { target } = useActiveServer()
 
   const enable = useMutation({
     mutationFn: () => enableEmailRelay(target!),
@@ -63,7 +67,7 @@ function EmailRelayCard() {
             <div className="sr-t">Send through HearthShelf</div>
             <div className="sr-d">
               {relay.active
-                ? 'Sending through HearthShelf - no SMTP setup needed below.'
+                ? 'Sending through HearthShelf.'
                 : 'Send ebooks and invites through HearthShelf without setting up your own SMTP server.'}
             </div>
           </div>
@@ -111,7 +115,12 @@ export function ConfigEmail() {
     )
   }
 
-  return <EmailForm key={JSON.stringify(data.settings)} settings={data.settings} />
+  return <EmailFormLoaded settings={data.settings} />
+}
+
+function EmailFormLoaded({ settings }: { settings: ABSEmailSettings }) {
+  const { data: relay } = useEmailRelayStatus()
+  return <EmailForm key={JSON.stringify(settings)} settings={settings} relay={relay} />
 }
 
 function Field({ label, children }: { label: ReactNode; children: ReactNode }) {
@@ -125,9 +134,16 @@ function Field({ label, children }: { label: ReactNode; children: ReactNode }) {
   )
 }
 
-function EmailForm({ settings }: { settings: ABSEmailSettings }) {
+function EmailForm({
+  settings,
+  relay,
+}: {
+  settings: ABSEmailSettings
+  relay: ReturnType<typeof useEmailRelayStatus>['data']
+}) {
   const qc = useQueryClient()
   const { target } = useActiveServer()
+  const relayActive = relay?.active ?? false
 
   const [host, setHost] = useState(settings.host ?? '')
   const [port, setPort] = useState(settings.port != null ? String(settings.port) : '465')
@@ -199,12 +215,31 @@ function EmailForm({ settings }: { settings: ABSEmailSettings }) {
         <p className="page-sub">SMTP server used to send ebooks to e-readers.</p>
       </div>
 
-      <EmailRelayCard />
+      <EmailRelayCard relay={relay} />
 
       <div className="section-head">
         <Icon name="dns" />
         <h2>SMTP server</h2>
+        {relayActive && (
+          <span style={{ marginLeft: 'auto' }}>
+            <span className="badge-pill">Managed by HS</span>
+          </span>
+        )}
       </div>
+      {relayActive ? (
+        <div className="cfg-card">
+          <div className="cfg-line">
+            <Icon name="lock" style={{ color: 'var(--text-muted)' }} />
+            <div className="cl-meta" style={{ flex: 1 }}>
+              <div className="cl-t">Managed by HearthShelf</div>
+              <div className="cl-d">
+                Email is sending through HearthShelf. Turn off "Send through HearthShelf" above to
+                configure your own SMTP server.
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="cfg-card">
         <Field label="SMTP host">
           <input
@@ -284,6 +319,7 @@ function EmailForm({ settings }: { settings: ABSEmailSettings }) {
           </button>
         </div>
       </div>
+      )}
 
       <EreaderDevices devices={devices} onChange={saveDevices} />
     </>
