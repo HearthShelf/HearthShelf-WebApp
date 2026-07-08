@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import type { AbsTarget } from '@/api/absLibrary'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
+import { useDebounced, useLibrarySearch } from '@/hooks/useLibrary'
 import { Icon } from '@/components/common/Icon'
 import { parseGoodreadsCsv, isReadRow, type GoodreadsRow } from '@/lib/goodreadsCsv'
 import {
@@ -85,6 +87,8 @@ export function GoodreadsImportDialog({ onClose }: { onClose: () => void }) {
         ? cur.map((r) => (!r.resolved ? { ...r, resolvedLibraryItemId: null, resolved: true } : r))
         : cur,
     )
+  const editRow = (index: number) =>
+    setRows((cur) => (cur ? cur.map((r, i) => (i === index ? { ...r, resolved: false } : r)) : cur))
 
   const commit = useMutation({
     mutationFn: () => {
@@ -192,39 +196,14 @@ export function GoodreadsImportDialog({ onClose }: { onClose: () => void }) {
             </div>
             <div className="cfg-card">
               {rows.map((r, i) => (
-                <div className="cfg-line" key={`${r.title}-${i}`}>
-                  <Icon
-                    name={r.resolvedLibraryItemId ? 'check_circle' : 'help'}
-                    fill={Boolean(r.resolvedLibraryItemId)}
-                    style={{ color: r.resolvedLibraryItemId ? '#5a9c52' : 'var(--text-muted)' }}
-                  />
-                  <div className="cl-meta" style={{ flex: 1 }}>
-                    <div className="cl-t">{r.title}</div>
-                    <div className="cl-d">
-                      {r.author} {r.dateFinished ? `- read ${r.dateFinished}` : ''}
-                    </div>
-                  </div>
-                  {r.status === 'ambiguous' && !r.resolved ? (
-                    <select
-                      className="fld"
-                      style={{ maxWidth: 280 }}
-                      value=""
-                      onChange={(e) => resolveRow(i, e.target.value || null)}
-                    >
-                      <option value="">Pick a match...</option>
-                      {r.candidates.map((c) => (
-                        <option key={c.libraryItemId} value={c.libraryItemId}>
-                          {c.title} - {c.author}
-                        </option>
-                      ))}
-                      <option value="">None of these</option>
-                    </select>
-                  ) : (
-                    <span className="badge-pill">
-                      {r.resolvedLibraryItemId ? 'Matched' : 'History only'}
-                    </span>
-                  )}
-                </div>
+                <GoodreadsReviewRow
+                  key={`${r.title}-${i}`}
+                  row={r}
+                  target={target}
+                  libraryId={activeId}
+                  onResolve={(libraryItemId) => resolveRow(i, libraryItemId)}
+                  onEdit={() => editRow(i)}
+                />
               ))}
             </div>
             <button
@@ -239,6 +218,139 @@ export function GoodreadsImportDialog({ onClose }: { onClose: () => void }) {
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+function GoodreadsReviewRow({
+  row: r,
+  target,
+  libraryId,
+  onResolve,
+  onEdit,
+}: {
+  row: ReviewRow
+  target: AbsTarget | null
+  libraryId: string | null
+  onResolve: (libraryItemId: string | null) => void
+  onEdit: () => void
+}) {
+  const [query, setQuery] = useState('')
+  const debouncedQuery = useDebounced(query, 300)
+  const searching = !r.resolved && debouncedQuery.trim().length > 0
+  const { data: results, isFetching } = useLibrarySearch(
+    target as AbsTarget,
+    libraryId ?? undefined,
+    debouncedQuery,
+    searching && Boolean(target),
+  )
+
+  const editable = !r.resolved
+
+  return (
+    <div className="cfg-line" style={{ flexWrap: 'wrap', alignItems: editable ? 'flex-start' : 'center' }}>
+      <Icon
+        name={r.resolvedLibraryItemId ? 'check_circle' : 'help'}
+        fill={Boolean(r.resolvedLibraryItemId)}
+        style={{ color: r.resolvedLibraryItemId ? '#5a9c52' : 'var(--text-muted)', marginTop: editable ? 2 : 0 }}
+      />
+      <div className="cl-meta" style={{ flex: 1, minWidth: 200 }}>
+        <div className="cl-t">{r.title}</div>
+        <div className="cl-d">
+          {r.author} {r.dateFinished ? `- read ${r.dateFinished}` : ''}
+        </div>
+
+        {editable && (
+          <div style={{ marginTop: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {r.candidates.length > 0 && (
+              <select
+                className="fld"
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) onResolve(e.target.value)
+                }}
+              >
+                <option value="">
+                  {r.status === 'ambiguous' ? 'Pick a suggested match...' : 'Suggested matches...'}
+                </option>
+                {r.candidates.map((c) => (
+                  <option key={c.libraryItemId} value={c.libraryItemId}>
+                    {c.title} - {c.author}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            <div style={{ position: 'relative' }}>
+              <input
+                className="fld"
+                type="text"
+                placeholder="Search your library..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {searching && (
+                <div
+                  className="cfg-card"
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    zIndex: 10,
+                    marginTop: 4,
+                    padding: 4,
+                    maxHeight: 240,
+                    overflowY: 'auto',
+                  }}
+                >
+                  {isFetching && <div className="cl-d" style={{ padding: '8px 10px' }}>Searching...</div>}
+                  {!isFetching && results?.length === 0 && (
+                    <div className="cl-d" style={{ padding: '8px 10px' }}>No matches found.</div>
+                  )}
+                  {!isFetching &&
+                    results?.map((res) => (
+                      <div
+                        key={res.id}
+                        className="cfg-line"
+                        style={{ padding: '8px 10px', cursor: 'pointer' }}
+                        onClick={() => {
+                          setQuery('')
+                          onResolve(res.id)
+                        }}
+                      >
+                        <div className="cl-meta">
+                          <div className="cl-t">{res.title}</div>
+                          <div className="cl-d">{res.author}</div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {editable ? (
+        <button
+          className="icon-btn"
+          title="Skip - keep as history only, no library match"
+          aria-label="Skip - keep as history only, no library match"
+          onClick={() => onResolve(null)}
+        >
+          <Icon name="block" />
+        </button>
+      ) : (
+        <button
+          className="badge-pill"
+          style={{ cursor: 'pointer', border: 'none' }}
+          onClick={onEdit}
+          title="Click to change"
+        >
+          {r.resolvedLibraryItemId ? 'Matched' : 'History only'}
+        </button>
+      )}
     </div>
   )
 }
