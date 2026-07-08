@@ -90,6 +90,7 @@ function HardcoverSettings() {
   const qc = useQueryClient()
   const { target } = useActiveServer()
   const [token, setToken] = useState('')
+  const hardcoverDocsUrl = 'https://docs.hearthshelf.com/webapp/hardcover'
   const { data } = useQuery({
     queryKey: finishedBooksKeys.hardcover(target?.serverId ?? ''),
     queryFn: () => getHardcoverAccount(target!),
@@ -138,17 +139,39 @@ function HardcoverSettings() {
         <span className="badge-pill">{connected ? 'Connected' : 'Not connected'}</span>
       </div>
       {!connected && (
-        <div className="field full" style={{ marginTop: 'var(--s3)' }}>
-          <label>Personal access token</label>
-          <input
-            className="fld"
-            type="password"
-            autoComplete="off"
-            placeholder="Paste your Hardcover API token"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-          />
-        </div>
+        <>
+          <div className="field full" style={{ marginTop: 'var(--s3)' }}>
+            <label>Personal access token</label>
+            <input
+              className="fld"
+              type="password"
+              autoComplete="off"
+              placeholder="Paste your Hardcover API token"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+            />
+          </div>
+          <details style={{ marginTop: 'var(--s2)' }}>
+            <summary
+              style={{
+                color: 'var(--primary)',
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 700,
+              }}
+            >
+              Need Help?
+            </summary>
+            <div className="cl-d" style={{ marginTop: 'var(--s2)' }}>
+              Create a personal access token in Hardcover, paste it here, then HearthShelf will sync
+              books you mark finished to your Hardcover reading history. Your token is stored on
+              your connected HearthShelf server and is not shown again after it is saved.{' '}
+              <a href={hardcoverDocsUrl} target="_blank" rel="noreferrer noopener">
+                Read the Hardcover integration guide.
+              </a>
+            </div>
+          </details>
+        </>
       )}
       <div style={{ display: 'flex', gap: 'var(--s2)', marginTop: 'var(--s3)' }}>
         {!connected ? (
