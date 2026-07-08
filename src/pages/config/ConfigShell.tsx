@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getMe } from '@/api/absLibrary'
-import { getUsers, getLibrariesAdmin, adminKeys } from '@/api/absAdmin'
+import { getUsers, getLibrariesAdmin, getServiceAccountIds, adminKeys, serviceAccountKeys } from '@/api/absAdmin'
+import { getServerRuntime, hostedKeys } from '@/api/absHosted'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ConfigUsers } from '@/pages/config/ConfigUsers'
@@ -80,6 +81,27 @@ export function ConfigShell({ menuMode = false }: { menuMode?: boolean }) {
     staleTime: 60 * 1000,
   })
 
+  // Exclude service accounts from the Users badge count, matching the filter
+  // ConfigUsers.tsx applies to the list itself (see its `serviceUsername` comment).
+  const { data: trackedServiceIds } = useQuery({
+    queryKey: serviceAccountKeys.ids(target?.serverId ?? ''),
+    queryFn: () => getServiceAccountIds(target!),
+    enabled: Boolean(target) && isAdmin,
+    staleTime: 60 * 1000,
+  })
+  const { data: runtime } = useQuery({
+    queryKey: hostedKeys.runtime(target?.serverId ?? ''),
+    queryFn: () => getServerRuntime(target!),
+    enabled: Boolean(target) && isAdmin,
+    staleTime: 5 * 60 * 1000,
+  })
+  const serviceUsername = runtime?.serviceUsername ?? null
+  const trackedServiceIdSet = new Set(trackedServiceIds?.ids ?? [])
+  const humanUserCount = usersData?.users.filter(
+    (u) =>
+      !trackedServiceIdSet.has(u.id) && !(serviceUsername != null && u.username === serviceUsername),
+  ).length
+
   if (!target || meLoading) {
     return <LoadingSpinner className="py-24" label="Loading server settings..." />
   }
@@ -111,7 +133,7 @@ export function ConfigShell({ menuMode = false }: { menuMode?: boolean }) {
           id: 'users',
           icon: 'group',
           label: 'Users',
-          badge: usersData?.users.length,
+          badge: humanUserCount,
         },
         { id: 'service-accounts', icon: 'smart_toy', label: 'Service Accounts' },
         { id: 'apikeys', icon: 'key', label: 'API Keys' },
