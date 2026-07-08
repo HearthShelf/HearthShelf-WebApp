@@ -21,18 +21,44 @@ interface ReviewRow extends GoodreadsRow {
   resolved: boolean
 }
 
+// Large imports (thousands of rows) go through /match and /import in chunks
+// so a single request can't time out a proxy or block the event loop for too
+// long. /match re-fetches the whole library per call but is otherwise pure
+// in-memory scoring, so it tolerates a bigger batch than /import, which does
+// a sequential DB write per row plus an ABS backfill call.
+const MATCH_BATCH_SIZE = 500
+const IMPORT_BATCH_SIZE = 150
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
+  return out
+}
+
 export function GoodreadsImportDialog({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
   const { target, libraries, activeId, select } = useActiveLibrary()
   const [rows, setRows] = useState<ReviewRow[] | null>(null)
   const [matching, setMatching] = useState(false)
+  const [matchProgress, setMatchProgress] = useState<{ done: number; total: number } | null>(null)
+  const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(
+    null,
+  )
   const [message, setMessage] = useState<string | null>(null)
   const [backfillAbs, setBackfillAbs] = useState(true)
+  const [hideMatched, setHideMatched] = useState(false)
   const unresolvedCount = useMemo(() => rows?.filter((r) => !r.resolved).length ?? 0, [rows])
   const matchedCount = useMemo(
     () => rows?.filter((r) => r.resolved && r.resolvedLibraryItemId).length ?? 0,
     [rows],
   )
+  const visibleRows = useMemo(() => {
+    if (!rows) return []
+    if (!hideMatched) return rows.map((r, i) => ({ row: r, index: i }))
+    return rows
+      .map((r, i) => ({ row: r, index: i }))
+      .filter(({ row }) => !row.resolved || !row.resolvedLibraryItemId)
+  }, [rows, hideMatched])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -50,13 +76,21 @@ export function GoodreadsImportDialog({ onClose }: { onClose: () => void }) {
       return
     }
     setMatching(true)
+    setMatchProgress(null)
     try {
       const readRows = (await parseGoodreadsCsv(file)).filter(isReadRow)
-      const { matches } = await matchRows(
-        target,
-        activeId,
-        readRows.map((r) => ({ title: r.title, author: r.author, isbn: r.isbn ?? r.isbn13 })),
-      )
+      const batches = chunk(readRows, MATCH_BATCH_SIZE)
+      setMatchProgress({ done: 0, total: readRows.length })
+      const matches: MatchRow[] = []
+      for (const batch of batches) {
+        const { matches: batchMatches } = await matchRows(
+          target,
+          activeId,
+          batch.map((r) => ({ title: r.title, author: r.author, isbn: r.isbn ?? r.isbn13 })),
+        )
+        matches.push(...batchMatches)
+        setMatchProgress({ done: matches.length, total: readRows.length })
+      }
       setRows(
         readRows.map((r, i) => {
           const m = matches[i]
@@ -71,10 +105,15 @@ export function GoodreadsImportDialog({ onClose }: { onClose: () => void }) {
         }),
       )
       setMessage(`Found ${readRows.length} read book${readRows.length === 1 ? '' : 's'}.`)
-    } catch {
-      setMessage('Could not parse or match that CSV.')
+    } catch (err) {
+      setMessage(
+        err instanceof Error && err.message
+          ? `Could not match against your library - ${err.message}`
+          : 'Could not parse or match that CSV.',
+      )
     } finally {
       setMatching(false)
+      setMatchProgress(null)
     }
   }
 
@@ -96,7 +135,7 @@ export function GoodreadsImportDialog({ onClose }: { onClose: () => void }) {
     setRows((cur) => (cur ? cur.map((r, i) => (i === index ? { ...r, resolved: false } : r)) : cur))
 
   const commit = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!target) throw new Error('no target')
       const reviewed: ImportRow[] = (rows ?? []).map((r) => ({
         title: r.title,
@@ -106,18 +145,37 @@ export function GoodreadsImportDialog({ onClose }: { onClose: () => void }) {
         rating: r.rating,
         libraryItemId: r.resolvedLibraryItemId,
       }))
-      return importRows(target, reviewed, backfillAbs)
+      const batches = chunk(reviewed, IMPORT_BATCH_SIZE)
+      setImportProgress({ done: 0, total: reviewed.length })
+      let inserted = 0
+      let updated = 0
+      let absBackfilled = 0
+      for (let i = 0; i < batches.length; i++) {
+        const isLast = i === batches.length - 1
+        // Only ask for the ABS backfill sweep on the last batch - it picks up
+        // every unsynced row so far in one shot, no need to run it per chunk.
+        const result = await importRows(target, batches[i], isLast && backfillAbs)
+        inserted += result.inserted
+        updated += result.updated
+        absBackfilled += result.absBackfilled ?? 0
+        setImportProgress({ done: inserted + updated, total: reviewed.length })
+      }
+      return { inserted, updated, absBackfilled }
     },
     onSuccess: (result) => {
       if (target) qc.invalidateQueries({ queryKey: finishedBooksKeys.list(target.serverId) })
       setRows(null)
+      setImportProgress(null)
       const backfilled = result.absBackfilled ?? 0
       setMessage(
         `Imported ${result.inserted + result.updated} books` +
           (backfilled ? ` - ${backfilled} marked finished in your library` : ''),
       )
     },
-    onError: () => setMessage('Import failed - try again'),
+    onError: (err) => {
+      setImportProgress(null)
+      setMessage(`Import failed - ${err instanceof Error ? err.message : 'try again'}`)
+    },
   })
 
   return (
@@ -179,7 +237,12 @@ export function GoodreadsImportDialog({ onClose }: { onClose: () => void }) {
                 }}
               />
             </div>
-            {matching && <div className="p-toast">Matching against your library...</div>}
+            {matching && (
+              <ImportProgressBar
+                label="Matching against your library..."
+                progress={matchProgress}
+              />
+            )}
             {message && <div className="p-toast">{message}</div>}
           </div>
         )}
@@ -189,22 +252,41 @@ export function GoodreadsImportDialog({ onClose }: { onClose: () => void }) {
             <div className="cfg-card" style={{ marginBottom: 'var(--s4)' }}>
               <div className="cl-d">
                 {rows.length} read book{rows.length === 1 ? '' : 's'} found.{' '}
-                {unresolvedCount > 0
-                  ? `${unresolvedCount} need a decision before import.`
-                  : 'Ready to import.'}
+                {unresolvedCount > 0 ? (
+                  <strong style={{ color: 'var(--text)' }}>
+                    {unresolvedCount} need a decision before you can import.
+                  </strong>
+                ) : (
+                  'Ready to import.'
+                )}
               </div>
-              {unresolvedCount > 0 && (
-                <button
+              <div style={{ display: 'flex', gap: 'var(--s3)', marginTop: 'var(--s3)', flexWrap: 'wrap' }}>
+                {unresolvedCount > 0 && (
+                  <button className="btn-sm" onClick={stubAllUnresolved}>
+                    Save unresolved as history only
+                  </button>
+                )}
+                <label
                   className="btn-sm"
-                  style={{ marginTop: 'var(--s3)' }}
-                  onClick={stubAllUnresolved}
+                  style={{ cursor: 'pointer', background: 'var(--fill)' }}
                 >
-                  Save unresolved as history only
-                </button>
-              )}
+                  <input
+                    type="checkbox"
+                    checked={hideMatched}
+                    onChange={(e) => setHideMatched(e.target.checked)}
+                    style={{ marginRight: 6 }}
+                  />
+                  Hide matched
+                </label>
+              </div>
             </div>
             <div className="cfg-card">
-              {rows.map((r, i) => (
+              {visibleRows.length === 0 && (
+                <div className="cl-d" style={{ padding: '12px 0' }}>
+                  Every book is matched. Uncheck &ldquo;Hide matched&rdquo; to review them.
+                </div>
+              )}
+              {visibleRows.map(({ row: r, index: i }) => (
                 <GoodreadsReviewRow
                   key={`${r.title}-${i}`}
                   row={r}
@@ -239,18 +321,67 @@ export function GoodreadsImportDialog({ onClose }: { onClose: () => void }) {
               </div>
             </label>
 
-            <button
-              className="btn-sm btn-green"
-              style={{ marginTop: 'var(--s3)' }}
-              disabled={unresolvedCount > 0 || commit.isPending}
-              onClick={() => commit.mutate()}
-            >
-              <Icon name="save" /> Confirm &amp; import
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', marginTop: 'var(--s3)' }}>
+              <button
+                className="btn-sm btn-green"
+                disabled={unresolvedCount > 0 || commit.isPending}
+                onClick={() => commit.mutate()}
+              >
+                <Icon name="save" /> Confirm &amp; import
+              </button>
+              {unresolvedCount > 0 && !commit.isPending && (
+                <span className="cl-d">
+                  Resolve or skip the remaining {unresolvedCount} book
+                  {unresolvedCount === 1 ? '' : 's'} first, or use &ldquo;Save unresolved as
+                  history only&rdquo; above.
+                </span>
+              )}
+            </div>
+            {commit.isPending && (
+              <ImportProgressBar label="Importing..." progress={importProgress} />
+            )}
             {message && <div className="p-toast">{message}</div>}
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+function ImportProgressBar({
+  label,
+  progress,
+}: {
+  label: string
+  progress: { done: number; total: number } | null
+}) {
+  const pct = progress && progress.total > 0 ? Math.min(100, (progress.done / progress.total) * 100) : 0
+  return (
+    <div className="cfg-card" style={{ marginTop: 'var(--s3)' }}>
+      <div className="cl-d" style={{ marginBottom: progress ? 8 : 0 }}>
+        {label}
+        {progress ? ` (${progress.done}/${progress.total})` : ''}
+      </div>
+      {progress && (
+        <div
+          style={{
+            height: 6,
+            borderRadius: 99,
+            background: 'var(--c-highest)',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              height: '100%',
+              width: `${pct}%`,
+              borderRadius: 99,
+              background: '#5a9c52',
+              transition: 'width 0.3s ease',
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }
