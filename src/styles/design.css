@@ -6549,6 +6549,120 @@
   background: var(--c-highest);
 }
 
+/* Full-year calendar heatmap (from durable snapshot history). Columns are weeks,
+   rows are Sun..Sat, filled top-to-bottom then left-to-right, so the whole grid
+   reads as a GitHub-style contribution calendar. Scrolls horizontally on narrow
+   viewports rather than squishing the cells. */
+.heatmap-wrap {
+  overflow-x: auto;
+}
+
+.heatmap-year {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 1fr);
+  gap: 3px;
+  min-width: 640px;
+}
+
+.heatmap-year i {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: var(--c-highest);
+}
+
+.heatmap-months {
+  display: grid;
+  gap: 3px;
+  min-width: 640px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.heatmap-months span {
+  grid-row: 1;
+  white-space: nowrap;
+}
+
+/* Me-vs-target compare card. Two stacked bars per metric (you on top, the target
+   below), each scaled to the larger of the pair. Reuses the accent/muted palette
+   so it sits with the rest of the stats surface. */
+.compare-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: var(--s3);
+}
+
+.compare-head span:first-child {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.compare-row {
+  padding: var(--s3) 0;
+}
+
+.compare-row + .compare-row {
+  border-top: 1px solid var(--hairline);
+}
+
+.compare-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.compare-side {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.compare-side + .compare-side {
+  margin-top: 5px;
+}
+
+.compare-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--c-highest);
+  overflow: hidden;
+}
+
+.compare-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--text-muted);
+  min-width: 2px;
+}
+
+.compare-side.me .compare-bar i {
+  background: var(--accent);
+}
+
+.compare-val {
+  min-width: 48px;
+  text-align: right;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.compare-picker {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+  background: var(--c-high);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
 .hub-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));

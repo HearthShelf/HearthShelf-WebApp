@@ -24,6 +24,8 @@ import type {
   HSListeningNowUser,
   HSListeningNowResponse,
   HSListeningNowBulkResponse,
+  HSCompareResponse,
+  HSCompareStats,
 } from '@hearthshelf/core'
 
 // Re-exported under the names this module has always used, so existing
@@ -46,6 +48,7 @@ export const socialKeys = {
     ['social', 'finished-by', serverId, libraryItemId] as const,
   listeningNow: (serverId: string, libraryItemId: string) =>
     ['social', 'listening-now', serverId, libraryItemId] as const,
+  compare: (serverId: string, userId: string) => ['social', 'compare', serverId, userId] as const,
 }
 
 /**
@@ -296,5 +299,79 @@ export async function getListeningNowBulk(
     return { available: true, byItem }
   } catch {
     return LISTENING_NOW_BULK_UNAVAILABLE
+  }
+}
+
+const ZERO_COMPARE_STATS: HSCompareStats = {
+  booksFinished: 0,
+  secondsListened: 0,
+  activeDays: null,
+}
+
+const COMPARE_UNAVAILABLE: HSCompareResponse = {
+  available: false,
+  scope: 'server',
+  me: ZERO_COMPARE_STATS,
+  target: ZERO_COMPARE_STATS,
+}
+
+interface RawCompareStats {
+  booksFinished?: number
+  secondsListened?: number
+  activeDays?: number | null
+}
+
+interface RawCompare {
+  available?: boolean
+  scope?: 'server' | 'user'
+  me?: RawCompareStats | null
+  target?: RawCompareStats | null
+  userId?: string
+  username?: string
+}
+
+function mapCompareStats(r: RawCompareStats | null | undefined): HSCompareStats {
+  return {
+    booksFinished: r?.booksFinished ?? 0,
+    secondsListened: r?.secondsListened ?? 0,
+    activeDays: typeof r?.activeDays === 'number' ? r.activeDays : null,
+  }
+}
+
+/**
+ * Compare the caller's listening totals against a target: the whole-server
+ * per-user average (default, no identity leaked) or one opted-in user
+ * (`opts.userId`, drawn only from the leaderboard's privacy-filtered roster).
+ *
+ * Returns a neutral unavailable response on ANY failure/older server, and also
+ * when the server reports available:false (it sends me:null/target:null then, so
+ * we normalize to zeroed stats the caller can gate on `available`). The user
+ * variant 403s server-side if the target isn't shareable - that degrades to
+ * unavailable here so the picker never breaks.
+ */
+export async function getCompare(
+  t: AbsTarget,
+  opts: { userId?: string } = {},
+): Promise<HSCompareResponse> {
+  const token = getAbsToken(t.serverId)
+  if (!token) return COMPARE_UNAVAILABLE
+  try {
+    const qs = opts.userId ? `?userId=${encodeURIComponent(opts.userId)}` : ''
+    const res = await fetch(`${origin(t)}/hs/social/compare${qs}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    })
+    if (!res.ok) return COMPARE_UNAVAILABLE
+    const data = (await res.json()) as RawCompare
+    if (!data || data.available !== true || !data.me || !data.target) return COMPARE_UNAVAILABLE
+    return {
+      available: true,
+      scope: data.scope === 'user' ? 'user' : 'server',
+      me: mapCompareStats(data.me),
+      target: mapCompareStats(data.target),
+      userId: data.userId,
+      username: data.username,
+    }
+  } catch {
+    return COMPARE_UNAVAILABLE
   }
 }
