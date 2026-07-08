@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, useSearchParams } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { ActiveServerMediaUI } from '@/components/shared/ActiveServerMediaUI'
 import { HomePage } from '@/pages/HomePage'
@@ -51,6 +51,19 @@ import { PlayerProvider } from '@/player/PlayerProvider'
 // so none of them carry a server id in the URL - the active server is ambient.
 function withShell(element: React.ReactNode) {
   return <ActiveServerMediaUI>{element}</ActiveServerMediaUI>
+}
+
+// /pair?code=XXXX-XXXX -> /account/servers?code=XXXX-XXXX. A bare <Navigate>
+// would drop the query string; this preserves it so AccountPage can read it.
+function PairRedirect() {
+  const [params] = useSearchParams()
+  const code = params.get('code')
+  return (
+    <Navigate
+      to={code ? `/account/servers?code=${encodeURIComponent(code)}` : '/account/servers'}
+      replace
+    />
+  )
 }
 
 export const router = createBrowserRouter([
@@ -130,7 +143,9 @@ export const router = createBrowserRouter([
 
       // Deep-link entry points. These resolve a server id from the query, set it
       // active, and bounce to the clean library - the UUID never sticks in the URL.
-      { path: '/pair', element: <Navigate to="/account" replace /> },
+      // /pair keeps the ?code= query string alive on its way to /account/servers,
+      // which reads it and opens the Link-a-server dialog pre-filled.
+      { path: '/pair', element: <PairRedirect /> },
       { path: '/invite', element: <InvitePage /> },
       { path: '/connect-box', element: <ConnectBoxPage /> },
 

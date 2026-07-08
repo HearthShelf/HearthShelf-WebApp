@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useParams, useNavigate, Navigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useParams, useNavigate, useSearchParams, Navigate } from 'react-router-dom'
 import { UserProfile, useClerk } from '@clerk/clerk-react'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Loader2, Sparkles, Check } from 'lucide-react'
@@ -194,6 +194,26 @@ function MyServers() {
   const { data: servers, isLoading } = useServers()
   const { server: active } = useActiveServer()
   const [linkOpen, setLinkOpen] = useState(false)
+  const [params, setParams] = useSearchParams()
+
+  // A /pair?code=... deep link lands here as /account/servers?code=... - open
+  // the Link-a-server dialog pre-filled instead of making the user retype it.
+  // The param is stripped right away so a refresh/back doesn't reopen it.
+  const dialogCode = params.get('code') || ''
+  useEffect(() => {
+    if (!dialogCode) return
+    setLinkOpen(true)
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('code')
+        return next
+      },
+      { replace: true },
+    )
+    // dialogCode is read once on arrival; setParams/params intentionally excluded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogCode])
 
   return (
     <section>
@@ -240,7 +260,9 @@ function MyServers() {
         </>
       )}
 
-      {linkOpen && <LinkServerDialog onClose={() => setLinkOpen(false)} />}
+      {linkOpen && (
+        <LinkServerDialog onClose={() => setLinkOpen(false)} initialCode={dialogCode} />
+      )}
     </section>
   )
 }
