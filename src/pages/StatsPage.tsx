@@ -248,7 +248,7 @@ export function StatsPage() {
   // otherwise we fall back to the most-listened list.
   const h = stats?.highlights
   const hasHighlights = Boolean(
-    h && (h.longestBook || h.shortestBook || h.topAuthor || h.topNarrator),
+    h && (h.longestBook || h.shortestBook || h.topAuthor || h.topNarrator || h.mostReRead),
   )
 
   // One listening bar chart with three server-computed views:
@@ -982,35 +982,69 @@ function hoursOnly(seconds: number): string {
 // Finished-book highlight badges: longest / shortest book, most-read author /
 // narrator. Each card only renders when its data exists, so a fresh user with no
 // finishes shows nothing rather than empty cards.
+interface HighlightCard {
+  key: string
+  cap: string
+  headline: string
+  sub: string
+  // A book card shows its cover; a person card shows an icon.
+  book?: { itemId: string; title: string } | null
+  icon?: string
+}
+
+function bookCount(n: number): string {
+  return `${n} ${n === 1 ? 'book' : 'books'}`
+}
+
 function HighlightsSection({ highlights }: { highlights: HSStatsHighlights }) {
-  const cards: { icon: string; cap: string; headline: string; sub: string }[] = []
+  const cards: HighlightCard[] = []
+  const bookOf = (b: { title: string; libraryItemId: string | null }) =>
+    b.libraryItemId ? { itemId: b.libraryItemId, title: b.title || 'Untitled' } : null
+
   if (highlights.longestBook)
     cards.push({
-      icon: 'straighten',
+      key: 'longest',
       cap: 'Longest book finished',
       headline: highlights.longestBook.title || 'Untitled',
       sub: hoursOnly(highlights.longestBook.durationSec),
+      book: bookOf(highlights.longestBook),
+      icon: 'straighten',
     })
   if (highlights.shortestBook)
     cards.push({
-      icon: 'compress',
+      key: 'shortest',
       cap: 'Shortest book finished',
       headline: highlights.shortestBook.title || 'Untitled',
       sub: hoursOnly(highlights.shortestBook.durationSec),
+      book: bookOf(highlights.shortestBook),
+      icon: 'compress',
     })
   if (highlights.topAuthor)
     cards.push({
-      icon: 'edit_note',
+      key: 'author',
       cap: 'Most-read author',
       headline: highlights.topAuthor.name,
-      sub: `${highlights.topAuthor.count} ${highlights.topAuthor.count === 1 ? 'book' : 'books'}`,
+      sub: bookCount(highlights.topAuthor.count),
+      icon: 'edit_note',
     })
   if (highlights.topNarrator)
     cards.push({
-      icon: 'record_voice_over',
+      key: 'narrator',
       cap: 'Most-read narrator',
       headline: highlights.topNarrator.name,
-      sub: `${highlights.topNarrator.count} ${highlights.topNarrator.count === 1 ? 'book' : 'books'}`,
+      sub: bookCount(highlights.topNarrator.count),
+      icon: 'record_voice_over',
+    })
+  if (highlights.mostReRead)
+    cards.push({
+      key: 'reread',
+      cap: 'Most re-read',
+      headline: highlights.mostReRead.title || 'Untitled',
+      sub: `${highlights.mostReRead.completions}x finished`,
+      book: highlights.mostReRead.libraryItemId
+        ? { itemId: highlights.mostReRead.libraryItemId, title: highlights.mostReRead.title || 'Untitled' }
+        : null,
+      icon: 'replay',
     })
 
   if (!cards.length) return null
@@ -1020,17 +1054,26 @@ function HighlightsSection({ highlights }: { highlights: HSStatsHighlights }) {
       <SectionHead icon="workspace_premium" title="Highlights" />
       <div className="badge-grid">
         {cards.map((c) => (
-          <div className="badge-card" key={c.cap}>
-            <div className="badge-ico">
-              <Icon name={c.icon} />
-            </div>
-            <div className="badge-body">
-              <div className="badge-cap">{c.cap}</div>
-              <div className="badge-headline" title={c.headline}>
-                {c.headline}
+          <div className="badge-card" key={c.key}>
+            {c.book ? (
+              <Cover
+                itemId={c.book.itemId}
+                title={c.book.title}
+                fs={3}
+                className="badge-cover"
+              />
+            ) : (
+              <div className="badge-ico">
+                <Icon name={c.icon ?? 'workspace_premium'} />
               </div>
+            )}
+            <div className="badge-body">
+              <div className="badge-top">
+                <span className="badge-cap">{c.cap}</span>
+                <span className="badge-stat">{c.sub}</span>
+              </div>
+              <div className="badge-headline">{c.headline}</div>
             </div>
-            <div className="badge-stat">{c.sub}</div>
           </div>
         ))}
       </div>

@@ -190,10 +190,11 @@ interface RawHsStats {
 }
 
 interface RawHighlights {
-  longestBook?: { title?: string; durationSec?: number } | null
-  shortestBook?: { title?: string; durationSec?: number } | null
+  longestBook?: { title?: string; durationSec?: number; libraryItemId?: string | null } | null
+  shortestBook?: { title?: string; durationSec?: number; libraryItemId?: string | null } | null
   topAuthor?: { name?: string; count?: number } | null
   topNarrator?: { name?: string; count?: number } | null
+  mostReRead?: { title?: string; completions?: number; libraryItemId?: string | null } | null
 }
 
 function numOrNull(v: number | null | undefined): number | null {
@@ -201,10 +202,10 @@ function numOrNull(v: number | null | undefined): number | null {
 }
 
 function mapHighlightBook(
-  b: { title?: string; durationSec?: number } | null | undefined,
-): { title: string; durationSec: number } | null {
+  b: { title?: string; durationSec?: number; libraryItemId?: string | null } | null | undefined,
+): { title: string; durationSec: number; libraryItemId: string | null } | null {
   if (!b || typeof b.durationSec !== 'number') return null
-  return { title: b.title ?? '', durationSec: b.durationSec }
+  return { title: b.title ?? '', durationSec: b.durationSec, libraryItemId: b.libraryItemId ?? null }
 }
 
 function mapHighlightPerson(
@@ -221,6 +222,14 @@ function mapHighlights(h: RawHighlights | null | undefined): HSStatsHighlights |
     shortestBook: mapHighlightBook(h.shortestBook),
     topAuthor: mapHighlightPerson(h.topAuthor),
     topNarrator: mapHighlightPerson(h.topNarrator),
+    mostReRead:
+      h.mostReRead && h.mostReRead.title != null && (h.mostReRead.completions ?? 0) >= 2
+        ? {
+            title: h.mostReRead.title,
+            completions: h.mostReRead.completions ?? 0,
+            libraryItemId: h.mostReRead.libraryItemId ?? null,
+          }
+        : null,
   }
 }
 

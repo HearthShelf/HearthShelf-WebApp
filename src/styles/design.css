@@ -6833,17 +6833,20 @@
   width: 90px;
 }
 
-/* Finished-book highlight badges. A responsive grid of cards, each an icon +
-   caption/headline + a right-aligned stat. */
+/* Finished-book highlight badges. A responsive grid of cards; each card is a
+   cover (books) or icon (people) on the left, then a body whose top row holds the
+   caption + the stat, with the book/person name flowing below on as many lines as
+   it needs (no truncation). Cards grow to fit their text. */
 .badge-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: var(--s3);
+  align-items: start;
 }
 
 .badge-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--s3);
   background: var(--c-high);
   border-radius: var(--r-card);
@@ -6851,8 +6854,8 @@
 }
 
 .badge-ico {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
@@ -6861,30 +6864,47 @@
   color: var(--p);
 }
 
+.badge-cover {
+  width: 44px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+}
+
 .badge-body {
   flex: 1;
   min-width: 0;
 }
 
+/* Caption on the left, stat pinned to the right, on one shared row. */
+.badge-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
 .badge-cap {
   font-size: 12px;
   color: var(--text-muted);
-}
-
-.badge-headline {
-  font-size: 15px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.25;
 }
 
 .badge-stat {
   flex: 0 0 auto;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--p);
+  white-space: nowrap;
+}
+
+/* The name/title: wraps freely across lines, never truncated. */
+.badge-headline {
+  margin-top: 3px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 /* By-month averages: two headline numbers side by side above a mini bar row. */
