@@ -12,7 +12,13 @@
 import { absGet } from './absClient'
 import type { AbsTarget } from './absLibrary'
 import { getAbsToken } from '@/lib/absTokens'
-import type { HSListeningStats, HSStatsHistory, HSStatsHistoryDay } from '@hearthshelf/core'
+import type {
+  HSListeningStats,
+  HSStatsHistory,
+  HSStatsHistoryDay,
+  HSStatsHighlights,
+  HSStatsMonth,
+} from '@hearthshelf/core'
 
 /** One book's all-time listening time, resolved for the "Most listened" list. */
 export interface StatsItem {
@@ -136,7 +142,11 @@ export async function getStatsHistory(
     if (!res.ok) return HISTORY_UNAVAILABLE
     const data = (await res.json()) as RawHistory
     if (!data || data.available !== true) return HISTORY_UNAVAILABLE
-    return { available: true, days: (data.days ?? []).map(mapHistoryDay) }
+    return {
+      available: true,
+      days: (data.days ?? []).map(mapHistoryDay),
+      months: (data.months ?? []).map(mapHistoryMonth),
+    }
   } catch {
     return HISTORY_UNAVAILABLE
   }
@@ -176,10 +186,42 @@ interface RawHsStats {
   booksFinished?: number | null
   booksThisYear?: number | null
   sessionCount?: number | null
+  highlights?: RawHighlights | null
+}
+
+interface RawHighlights {
+  longestBook?: { title?: string; durationSec?: number } | null
+  shortestBook?: { title?: string; durationSec?: number } | null
+  topAuthor?: { name?: string; count?: number } | null
+  topNarrator?: { name?: string; count?: number } | null
 }
 
 function numOrNull(v: number | null | undefined): number | null {
   return typeof v === 'number' ? v : null
+}
+
+function mapHighlightBook(
+  b: { title?: string; durationSec?: number } | null | undefined,
+): { title: string; durationSec: number } | null {
+  if (!b || typeof b.durationSec !== 'number') return null
+  return { title: b.title ?? '', durationSec: b.durationSec }
+}
+
+function mapHighlightPerson(
+  p: { name?: string; count?: number } | null | undefined,
+): { name: string; count: number } | null {
+  if (!p || !p.name) return null
+  return { name: p.name, count: p.count ?? 0 }
+}
+
+function mapHighlights(h: RawHighlights | null | undefined): HSStatsHighlights | null {
+  if (!h) return null
+  return {
+    longestBook: mapHighlightBook(h.longestBook),
+    shortestBook: mapHighlightBook(h.shortestBook),
+    topAuthor: mapHighlightPerson(h.topAuthor),
+    topNarrator: mapHighlightPerson(h.topNarrator),
+  }
 }
 
 function mapHsStats(d: RawHsStats): HSListeningStats {
@@ -202,6 +244,7 @@ function mapHsStats(d: RawHsStats): HSListeningStats {
     booksFinished: numOrNull(d.booksFinished),
     booksThisYear: numOrNull(d.booksThisYear),
     sessionCount: numOrNull(d.sessionCount),
+    highlights: mapHighlights(d.highlights),
   }
 }
 
@@ -213,6 +256,12 @@ interface RawHistory {
     sessions?: number
     booksFinished?: number
   }>
+  months?: Array<{
+    month?: string
+    seconds?: number
+    books?: number
+    activeDays?: number
+  }>
 }
 
 function mapHistoryDay(d: NonNullable<RawHistory['days']>[number]): HSStatsHistoryDay {
@@ -221,5 +270,14 @@ function mapHistoryDay(d: NonNullable<RawHistory['days']>[number]): HSStatsHisto
     secondsListened: d.secondsListened ?? 0,
     sessions: d.sessions ?? 0,
     booksFinished: d.booksFinished ?? 0,
+  }
+}
+
+function mapHistoryMonth(m: NonNullable<RawHistory['months']>[number]): HSStatsMonth {
+  return {
+    month: m.month ?? '',
+    seconds: m.seconds ?? 0,
+    books: m.books ?? 0,
+    activeDays: m.activeDays ?? 0,
   }
 }

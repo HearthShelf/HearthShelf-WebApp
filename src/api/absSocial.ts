@@ -319,6 +319,8 @@ interface RawCompareStats {
   booksFinished?: number
   secondsListened?: number
   activeDays?: number | null
+  avgPerActiveDaySec?: number
+  booksThisYear?: number | null
 }
 
 interface RawCompare {
@@ -335,6 +337,9 @@ function mapCompareStats(r: RawCompareStats | null | undefined): HSCompareStats 
     booksFinished: r?.booksFinished ?? 0,
     secondsListened: r?.secondsListened ?? 0,
     activeDays: typeof r?.activeDays === 'number' ? r.activeDays : null,
+    avgPerActiveDaySec: typeof r?.avgPerActiveDaySec === 'number' ? r.avgPerActiveDaySec : undefined,
+    booksThisYear:
+      r?.booksThisYear === null ? null : typeof r?.booksThisYear === 'number' ? r.booksThisYear : undefined,
   }
 }
 

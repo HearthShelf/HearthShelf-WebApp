@@ -6824,6 +6824,85 @@
   width: 90px;
 }
 
+/* Finished-book highlight badges. A responsive grid of cards, each an icon +
+   caption/headline + a right-aligned stat. */
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--s3);
+}
+
+.badge-card {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  background: var(--c-high);
+  border-radius: var(--r-card);
+  padding: var(--s4);
+}
+
+.badge-ico {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--p) 16%, transparent);
+  color: var(--p);
+}
+
+.badge-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.badge-cap {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.badge-headline {
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.badge-stat {
+  flex: 0 0 auto;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--p);
+}
+
+/* By-month averages: two headline numbers side by side above a mini bar row. */
+.month-avgs {
+  display: flex;
+  gap: var(--s6);
+}
+
+.month-avg-num {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.month-avg-num u {
+  font-style: normal;
+  font-size: 0.6em;
+  color: var(--text-muted);
+  margin-left: 1px;
+}
+
+.month-avg-cap {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
 .hub-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));

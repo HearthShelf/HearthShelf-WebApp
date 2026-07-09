@@ -23,6 +23,8 @@ import {
   avgSession,
   type HSListeningStats,
   type HSStatsHistory,
+  type HSStatsHighlights,
+  type HSStatsMonth,
   type HSCompareResponse,
   type LeaderboardWindow,
 } from '@hearthshelf/core'
@@ -103,6 +105,7 @@ interface StatsVM {
   dayStreak: number
   booksThisYear: number | null
   sessionCount: number | null
+  highlights: HSStatsHighlights | null
 }
 
 function vmFromHs(s: HSListeningStats): StatsVM {
@@ -118,6 +121,7 @@ function vmFromHs(s: HSListeningStats): StatsVM {
     dayStreak: s.dayStreak,
     booksThisYear: s.booksThisYear,
     sessionCount: s.sessionCount,
+    highlights: s.highlights ?? null,
   }
 }
 
@@ -144,6 +148,7 @@ function vmFromFallback(s: ListeningStatsFull): StatsVM {
     dayStreak: 0,
     booksThisYear: null,
     sessionCount: null,
+    highlights: null,
   }
 }
 
@@ -237,6 +242,14 @@ export function StatsPage() {
       .slice(0, 8)
   }, [stats])
   const mlMax = mostListened[0]?.hours || 1
+
+  // Highlight badges replace "Most listened to" when the server supplies them
+  // (db-derived). At least one populated field is required to show the grid;
+  // otherwise we fall back to the most-listened list.
+  const h = stats?.highlights
+  const hasHighlights = Boolean(
+    h && (h.longestBook || h.shortestBook || h.topAuthor || h.topNarrator),
+  )
 
   // One listening bar chart with three server-computed views:
   //   last7   - the 7 most recent calendar days (byDay)
@@ -392,7 +405,7 @@ export function StatsPage() {
               <Icon name="event_available" />
             </div>
             <div className="t-num">{stats.booksThisYear}</div>
-            <div className="t-cap">This year</div>
+            <div className="t-cap">Books this year</div>
           </div>
         )}
         <div className="tile">
@@ -458,31 +471,37 @@ export function StatsPage() {
         onSetGoal={(n) => setSetting('yearlyBookGoal', n)}
       />
 
-      {mostListened.length > 0 && (
-        <div className="section">
-          <SectionHead icon="trending_up" title="Most listened to" />
-          <div className="chart-card" style={{ marginTop: 0 }}>
-            <div className="ml-list">
-              {mostListened.map((b, i) => (
-                <div className="ml-row" key={b.id} data-cv={tintFor(b.title)}>
-                  <span className="ml-rank">{i + 1}</span>
-                  <Cover itemId={b.id} title={b.title} fs={4} />
-                  <div className="ml-meta">
-                    <div className="ml-t">{b.title}</div>
-                    <div className="ml-s">{[b.author, b.narrator].filter(Boolean).join(' · ')}</div>
-                    <div className="ml-bar">
-                      <i style={{ width: (b.hours / mlMax) * 100 + '%' }} />
+      {hasHighlights ? (
+        <HighlightsSection highlights={stats.highlights!} />
+      ) : (
+        mostListened.length > 0 && (
+          <div className="section">
+            <SectionHead icon="trending_up" title="Most listened to" />
+            <div className="chart-card" style={{ marginTop: 0 }}>
+              <div className="ml-list">
+                {mostListened.map((b, i) => (
+                  <div className="ml-row" key={b.id} data-cv={tintFor(b.title)}>
+                    <span className="ml-rank">{i + 1}</span>
+                    <Cover itemId={b.id} title={b.title} fs={4} />
+                    <div className="ml-meta">
+                      <div className="ml-t">{b.title}</div>
+                      <div className="ml-s">
+                        {[b.author, b.narrator].filter(Boolean).join(' · ')}
+                      </div>
+                      <div className="ml-bar">
+                        <i style={{ width: (b.hours / mlMax) * 100 + '%' }} />
+                      </div>
                     </div>
+                    <span className="ml-h">
+                      {b.hours.toFixed(1)}
+                      <small>h</small>
+                    </span>
                   </div>
-                  <span className="ml-h">
-                    {b.hours.toFixed(1)}
-                    <small>h</small>
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        )
       )}
 
       <div className="chart-card">
@@ -577,6 +596,8 @@ export function StatsPage() {
         </div>
       )}
 
+      {history?.available && <MonthCard months={history.months ?? []} />}
+
       {compare?.available && (
         <CompareCard
           compare={compare}
@@ -651,28 +672,55 @@ function CompareCard({
   const targetLabel =
     compare.scope === 'user' ? compare.username || 'That listener' : 'Server average'
 
-  const rows: { label: string; me: number; target: number; fmt: (n: number) => string }[] = [
+  // Every shared stat, side by side. A row is included only when BOTH sides
+  // carry the value (older servers omit the newer fields; the server aggregate
+  // has no activeDays), so nothing renders a misleading 0-vs-real bar.
+  const roundInt = (n: number) => String(Math.round(n))
+  const hoursFmt = (n: number) => `${n.toFixed(1)}h`
+  const specs: {
+    label: string
+    me: number | null | undefined
+    target: number | null | undefined
+    fmt: (n: number) => string
+  }[] = [
     {
       label: 'Books finished',
       me: compare.me.booksFinished,
       target: compare.target.booksFinished,
-      fmt: (n) => String(Math.round(n)),
+      fmt: roundInt,
     },
     {
       label: 'Hours listened',
       me: compare.me.secondsListened / 3600,
       target: compare.target.secondsListened / 3600,
-      fmt: (n) => `${n.toFixed(1)}h`,
+      fmt: hoursFmt,
     },
-  ]
-  if (compare.me.activeDays != null && compare.target.activeDays != null) {
-    rows.push({
+    {
+      label: 'Books this year',
+      me: compare.me.booksThisYear,
+      target: compare.target.booksThisYear,
+      fmt: roundInt,
+    },
+    {
       label: 'Active days',
       me: compare.me.activeDays,
       target: compare.target.activeDays,
-      fmt: (n) => String(Math.round(n)),
-    })
-  }
+      fmt: roundInt,
+    },
+    {
+      label: 'Avg / active day',
+      me: compare.me.avgPerActiveDaySec != null ? compare.me.avgPerActiveDaySec / 3600 : undefined,
+      target:
+        compare.target.avgPerActiveDaySec != null
+          ? compare.target.avgPerActiveDaySec / 3600
+          : undefined,
+      fmt: hoursFmt,
+    },
+  ]
+  const rows = specs.filter(
+    (s): s is { label: string; me: number; target: number; fmt: (n: number) => string } =>
+      typeof s.me === 'number' && typeof s.target === 'number',
+  )
 
   return (
     <div className="section">
@@ -913,6 +961,117 @@ function GoalCard({
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// Hours label for badge sub-stats: one decimal under 10h so a 1.7h book doesn't
+// round to "2h"; whole hours above that ("47h").
+function hoursOnly(seconds: number): string {
+  const h = seconds / 3600
+  return h < 10 ? `${Math.round(h * 10) / 10}h` : `${Math.round(h)}h`
+}
+
+// Finished-book highlight badges: longest / shortest book, most-read author /
+// narrator. Each card only renders when its data exists, so a fresh user with no
+// finishes shows nothing rather than empty cards.
+function HighlightsSection({ highlights }: { highlights: HSStatsHighlights }) {
+  const cards: { icon: string; cap: string; headline: string; sub: string }[] = []
+  if (highlights.longestBook)
+    cards.push({
+      icon: 'straighten',
+      cap: 'Longest book finished',
+      headline: highlights.longestBook.title || 'Untitled',
+      sub: hoursOnly(highlights.longestBook.durationSec),
+    })
+  if (highlights.shortestBook)
+    cards.push({
+      icon: 'compress',
+      cap: 'Shortest book finished',
+      headline: highlights.shortestBook.title || 'Untitled',
+      sub: hoursOnly(highlights.shortestBook.durationSec),
+    })
+  if (highlights.topAuthor)
+    cards.push({
+      icon: 'edit_note',
+      cap: 'Most-read author',
+      headline: highlights.topAuthor.name,
+      sub: `${highlights.topAuthor.count} ${highlights.topAuthor.count === 1 ? 'book' : 'books'}`,
+    })
+  if (highlights.topNarrator)
+    cards.push({
+      icon: 'record_voice_over',
+      cap: 'Most-read narrator',
+      headline: highlights.topNarrator.name,
+      sub: `${highlights.topNarrator.count} ${highlights.topNarrator.count === 1 ? 'book' : 'books'}`,
+    })
+
+  if (!cards.length) return null
+
+  return (
+    <div className="section">
+      <SectionHead icon="workspace_premium" title="Highlights" />
+      <div className="badge-grid">
+        {cards.map((c) => (
+          <div className="badge-card" key={c.cap}>
+            <div className="badge-ico">
+              <Icon name={c.icon} />
+            </div>
+            <div className="badge-body">
+              <div className="badge-cap">{c.cap}</div>
+              <div className="badge-headline" title={c.headline}>
+                {c.headline}
+              </div>
+            </div>
+            <div className="badge-stat">{c.sub}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// By-month averages from the durable snapshot history. Shows average hours and
+// average books per month across every month HS has snapshotted, plus a mini bar
+// row of monthly hours. Only rendered when there is at least one month of history.
+function MonthCard({ months }: { months: HSStatsMonth[] }) {
+  if (months.length === 0) return null
+  const totalHours = months.reduce((s, m) => s + m.seconds / 3600, 0)
+  const totalBooks = months.reduce((s, m) => s + m.books, 0)
+  const avgHours = totalHours / months.length
+  const avgBooks = totalBooks / months.length
+  // Last 12 months of hours, for the mini bar row.
+  const recent = months.slice(-12).map((m) => ({
+    label: m.month.slice(5), // 'MM'
+    hours: Math.round((m.seconds / 3600) * 10) / 10,
+  }))
+  const max = Math.max(0.1, ...recent.map((r) => r.hours))
+
+  return (
+    <div className="chart-card" style={{ marginTop: 'var(--s6)' }}>
+      <SectionHead icon="calendar_view_month" title="By month" />
+      <div className="chart-sub">Averages across {months.length} {months.length === 1 ? 'month' : 'months'} of history</div>
+      <div className="month-avgs">
+        <div className="month-avg">
+          <div className="month-avg-num">{avgHours.toFixed(1)}<u>h</u></div>
+          <div className="month-avg-cap">Avg hours / month</div>
+        </div>
+        <div className="month-avg">
+          <div className="month-avg-num">{avgBooks.toFixed(1)}</div>
+          <div className="month-avg-cap">Avg books / month</div>
+        </div>
+      </div>
+      {recent.length > 1 && (
+        <div className="bars" style={{ marginTop: 'var(--s4)' }}>
+          {recent.map((r, i) => (
+            <div className="bar-col" key={i}>
+              <span className="v">{r.hours}h</span>
+              <div className="bar" style={{ height: (r.hours / max) * 100 + '%' }} />
+              <span className="d">{r.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
