@@ -165,6 +165,7 @@ interface RawHsStats {
   activeDays?: number
   byDay?: Record<string, number>
   byDayOfWeek?: Record<string, number>
+  byWeekdayAvg?: Record<string, number>
   mostListened?: Array<{
     id?: string
     title?: string
@@ -190,6 +191,7 @@ function mapHsStats(d: RawHsStats): HSListeningStats {
     activeDays: d.activeDays ?? 0,
     byDay: d.byDay ?? {},
     byDayOfWeek: d.byDayOfWeek ?? {},
+    byWeekdayAvg: d.byWeekdayAvg ?? {},
     mostListened: (d.mostListened ?? []).map((m) => ({
       id: m.id ?? '',
       title: m.title ?? 'Untitled',

@@ -18,6 +18,7 @@ import {
 import {
   activeDays as computeActiveDays,
   dayOfWeekTotals,
+  dayOfWeekAverages,
   avgPerActiveDay,
   avgSession,
   type HSListeningStats,
@@ -38,6 +39,13 @@ const WINDOWS: { id: LeaderboardWindow; label: string }[] = [
 ]
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+type DowMode = 'last7' | 'total' | 'average'
+const DOW_MODES: { id: DowMode; label: string }[] = [
+  { id: 'last7', label: 'Last 7' },
+  { id: 'total', label: 'Total' },
+  { id: 'average', label: 'Average' },
+]
 const MONTH_LABELS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ]
@@ -55,6 +63,14 @@ function SectionHead({ icon, title }: { icon: string; title: string }) {
 // Whole hours, for the compact leaderboard listening column.
 function hoursLabel(seconds: number): string {
   return `${Math.floor(seconds / 3600)}h`
+}
+
+// Bar value label from hours: whole/decimal hours at >=1h, minutes below that so
+// sub-hour averages don't all read "0.3h". "0" for empty bars.
+function barValueLabel(hours: number): string {
+  if (hours <= 0) return '0'
+  if (hours >= 1) return `${hours}h`
+  return `${Math.round(hours * 60)}m`
 }
 
 // Compact "3h 20m" / "45m" from seconds, for stat tiles.
@@ -81,6 +97,7 @@ interface StatsVM {
   activeDays: number
   byDay: Record<string, number>
   byDayOfWeek: Record<string, number>
+  byWeekdayAvg: Record<string, number>
   mostListened: { id: string; title: string; author: string; narrator: string; timeSec: number }[]
   bookCount: number
   dayStreak: number
@@ -95,6 +112,7 @@ function vmFromHs(s: HSListeningStats): StatsVM {
     activeDays: s.activeDays,
     byDay: s.byDay,
     byDayOfWeek: s.byDayOfWeek,
+    byWeekdayAvg: s.byWeekdayAvg ?? dayOfWeekAverages(s.byDay),
     mostListened: s.mostListened,
     bookCount: s.mostListened.length,
     dayStreak: s.dayStreak,
@@ -104,8 +122,9 @@ function vmFromHs(s: HSListeningStats): StatsVM {
 }
 
 // The ABS-native fallback lacks the server-computed fields, so derive what we can
-// (active days + day-of-week) client-side via the shared Core helpers and leave
-// the ABS-db-only fields null.
+// from byDay via the shared Core helpers and leave the ABS-db-only fields null.
+// byDayOfWeek (total) needs ABS's raw dayOfWeek map, which the fallback payload
+// doesn't carry, so it stays empty; byWeekdayAvg is derivable from byDay alone.
 function vmFromFallback(s: ListeningStatsFull): StatsVM {
   return {
     totalTimeSec: s.totalTimeSec,
@@ -113,6 +132,7 @@ function vmFromFallback(s: ListeningStatsFull): StatsVM {
     activeDays: computeActiveDays(s.byDay),
     byDay: s.byDay,
     byDayOfWeek: dayOfWeekTotals(null),
+    byWeekdayAvg: dayOfWeekAverages(s.byDay),
     mostListened: s.items.map((it) => ({
       id: it.id,
       title: it.title,
@@ -132,6 +152,7 @@ export function StatsPage() {
   const [window, setWindow] = useState<LeaderboardWindow>('all')
   const yearlyBookGoal = useSettingsStore((s) => s.yearlyBookGoal)
   const setSetting = useSettingsStore((s) => s.set)
+  const [dowMode, setDowMode] = useState<DowMode>('last7')
 
   // Primary: the server's HearthShelf backend (/hs/stats), richer than ABS's own
   // payload. Returns null on a slim/older server, and the fallback query below
@@ -217,34 +238,34 @@ export function StatsPage() {
   }, [stats])
   const mlMax = mostListened[0]?.hours || 1
 
-  // Last 7 calendar days from the days map (date string -> seconds).
-  const week = useMemo(() => {
+  // One listening bar chart with three server-computed views:
+  //   last7   - the 7 most recent calendar days (byDay)
+  //   total   - total time per weekday, Sun..Sat (byDayOfWeek, a running sum)
+  //   average - average time per occurrence of each weekday (byWeekdayAvg)
+  // Hours to one decimal. `bars` carries a per-bar label + value; `hot` flags the
+  // busiest bar. The value formatter differs (average shows m under ~1h).
+  const bars = useMemo(() => {
     if (!stats) return [] as { d: string; v: number }[]
-    const out: { d: string; v: number }[] = []
-    const now = new Date()
-    for (let i = 6; i >= 0; i--) {
-      const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i)
-      out.push({
-        d: DAY_LABELS[day.getDay()],
-        v: Math.round(((stats.byDay[dayKey(day)] ?? 0) / 3600) * 10) / 10,
-      })
+    if (dowMode === 'last7') {
+      const out: { d: string; v: number }[] = []
+      const now = new Date()
+      for (let i = 6; i >= 0; i--) {
+        const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i)
+        out.push({
+          d: DAY_LABELS[day.getDay()],
+          v: Math.round(((stats.byDay[dayKey(day)] ?? 0) / 3600) * 10) / 10,
+        })
+      }
+      return out
     }
-    return out
-  }, [stats])
-  const weekMax = Math.max(0.1, ...week.map((d) => d.v))
-  const hotIdx = week.length ? week.reduce((m, d, i) => (d.v > week[m].v ? i : m), 0) : 0
-
-  // Per-weekday totals ('0'..'6' Sun..Sat), as hours, for the day-of-week bars.
-  const dow = useMemo(() => {
-    if (!stats) return [] as { d: string; v: number }[]
+    const src = dowMode === 'average' ? stats.byWeekdayAvg : stats.byDayOfWeek
     return DAY_LABELS.map((label, i) => ({
       d: label,
-      v: Math.round(((stats.byDayOfWeek[String(i)] ?? 0) / 3600) * 10) / 10,
+      v: Math.round(((src[String(i)] ?? 0) / 3600) * 10) / 10,
     }))
-  }, [stats])
-  const dowMax = Math.max(0.1, ...dow.map((d) => d.v))
-  const dowHotIdx = dow.length ? dow.reduce((m, d, i) => (d.v > dow[m].v ? i : m), 0) : 0
-  const hasDow = dow.some((d) => d.v > 0)
+  }, [stats, dowMode])
+  const barsMax = Math.max(0.1, ...bars.map((d) => d.v))
+  const barsHot = bars.length ? bars.reduce((m, d, i) => (d.v > bars[m].v ? i : m), 0) : 0
 
   // Full-year heatmap from durable history when available: one cell per day for
   // the last ~53 weeks, aligned so each column is a week (Sun..Sat top to bottom).
@@ -465,32 +486,40 @@ export function StatsPage() {
       )}
 
       <div className="chart-card">
-        <SectionHead icon="bar_chart" title="Last 7 days" />
+        <div className="chart-card-head">
+          <SectionHead
+            icon="bar_chart"
+            title={dowMode === 'last7' ? 'Last 7 days' : 'By day of week'}
+          />
+          <div className="toolbar2">
+            {DOW_MODES.map((m) => (
+              <button
+                key={m.id}
+                className={'pill' + (dowMode === m.id ? ' on' : '')}
+                onClick={() => setDowMode(m.id)}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="chart-sub">
+          {dowMode === 'last7'
+            ? 'Hours listened each of the last 7 days'
+            : dowMode === 'total'
+              ? 'Total hours listened on each weekday'
+              : 'Average hours per weekday'}
+        </div>
         <div className="bars">
-          {week.map((d, i) => (
-            <div className={'bar-col' + (i === hotIdx ? ' hot' : '')} key={i}>
-              <span className="v">{d.v}h</span>
-              <div className="bar" style={{ height: (d.v / weekMax) * 100 + '%' }} />
+          {bars.map((d, i) => (
+            <div className={'bar-col' + (i === barsHot ? ' hot' : '')} key={i}>
+              <span className="v">{barValueLabel(d.v)}</span>
+              <div className="bar" style={{ height: (d.v / barsMax) * 100 + '%' }} />
               <span className="d">{d.d}</span>
             </div>
           ))}
         </div>
       </div>
-
-      {hasDow && (
-        <div className="chart-card" style={{ marginTop: 'var(--s6)' }}>
-          <SectionHead icon="date_range" title="By day of week" />
-          <div className="bars">
-            {dow.map((d, i) => (
-              <div className={'bar-col' + (i === dowHotIdx ? ' hot' : '')} key={i}>
-                <span className="v">{d.v}h</span>
-                <div className="bar" style={{ height: (d.v / dowMax) * 100 + '%' }} />
-                <span className="d">{d.d}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {yearHeat ? (
         <div className="chart-card" style={{ marginTop: 'var(--s6)' }}>

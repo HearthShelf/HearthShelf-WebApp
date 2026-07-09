@@ -3684,6 +3684,26 @@
   margin-top: var(--s4);
 }
 
+/* Chart header: section title on the left, a view toggle (pills) on the right,
+   wrapping to its own line on narrow screens. */
+.chart-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.chart-card-head .section-head {
+  margin-bottom: 0;
+}
+
+.chart-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 4px 0 var(--s4);
+}
+
 .bars {
   display: flex;
   align-items: flex-end;
