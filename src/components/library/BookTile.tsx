@@ -3,7 +3,7 @@ import type { AbsLibraryItem } from '@/api/absLibrary'
 import { Cover, tintFor } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
-import { useMarkFinished } from '@/hooks/useMarkFinished'
+import { usePromptedMarkFinished } from '@/hooks/useMarkFinished'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 
 interface BookTileProps {
@@ -39,7 +39,7 @@ export function BookTile({
 }: BookTileProps) {
   const navigate = useNavigate()
   const ui = useMediaUI()
-  const { markFinished } = useMarkFinished()
+  const { markFinishedPrompted } = usePromptedMarkFinished()
   // Touch UIs can't hover, so the reveal-on-hover action buttons are dropped -
   // tapping the tile opens the book detail page instead.
   const isMobile = useIsMobile()
@@ -105,9 +105,9 @@ export function BookTile({
                   className="ha-btn"
                   title={finished ? 'Mark not finished' : 'Mark finished'}
                   onClick={stop(() => {
-                    void markFinished([item.id], !finished).then(() =>
-                      onToast?.(finished ? 'Marked not finished' : 'Marked finished'),
-                    )
+                    void markFinishedPrompted([item.id], !finished).then((ok) => {
+                      if (ok) onToast?.(finished ? 'Marked not finished' : 'Marked finished')
+                    })
                   })}
                 >
                   <Icon name="check" fill={finished} />

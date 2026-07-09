@@ -8,7 +8,7 @@ import { getFinishedBy, getListeningNow, socialKeys } from '@/api/absSocial'
 import { getNotes, notesKeys } from '@/api/absNotes'
 import type { HSFinishedByResponse, HSListeningNowResponse } from '@hearthshelf/core'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
-import { useMarkFinished } from '@/hooks/useMarkFinished'
+import { usePromptedMarkFinished } from '@/hooks/useMarkFinished'
 import { useBookmarks } from '@/hooks/useBookmarks'
 import { useToast } from '@/hooks/useToast'
 import { usePlayer } from '@/player/PlayerProvider'
@@ -63,7 +63,7 @@ export function ItemDetailPage() {
   const player = usePlayer()
   const ui = useMediaUI()
   const progressById = useMediaProgress()
-  const { markFinished, isPending: marking } = useMarkFinished()
+  const { markFinishedPrompted, isPending: marking } = usePromptedMarkFinished()
   const { toast, show } = useToast()
   const addToQueue = useQueueStore((s) => s.add)
   const extGoodreads = useSettingsStore((s) => s.externalLinkGoodreads)
@@ -387,7 +387,7 @@ export function ItemDetailPage() {
             <button
               className={'pill' + (finished ? ' on' : '')}
               disabled={marking}
-              onClick={() => void markFinished([data.id], !finished)}
+              onClick={() => void markFinishedPrompted([data.id], !finished)}
             >
               <Icon name={finished ? 'task_alt' : 'check'} fill={finished} />{' '}
               {finished ? 'Finished' : 'Mark finished'}

@@ -549,15 +549,23 @@ export async function saveProgress(
   })
 }
 
-/** Mark an item finished or not finished. */
+/**
+ * Mark an item finished or not finished.
+ *
+ * When finishing, an optional `finishedAt` (epoch ms) backdates the completion
+ * so it lands in the right bucket for year/listening stats. ABS honors a
+ * supplied `finishedAt` on the progress PATCH; omit it and the server stamps
+ * the current time.
+ */
 export async function setItemFinished(
   t: AbsTarget,
   itemId: string,
   finished: boolean,
+  finishedAt?: number,
 ): Promise<void> {
-  await absPatch(t, `/api/me/progress/${encodeURIComponent(itemId)}`, {
-    isFinished: finished,
-  })
+  const body: { isFinished: boolean; finishedAt?: number } = { isFinished: finished }
+  if (finished && typeof finishedAt === 'number') body.finishedAt = finishedAt
+  await absPatch(t, `/api/me/progress/${encodeURIComponent(itemId)}`, body)
 }
 
 // --- bulk media progress (/api/me -> mediaProgress[]) -----------------------

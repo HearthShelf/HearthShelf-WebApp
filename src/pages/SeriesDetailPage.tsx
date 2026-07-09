@@ -10,7 +10,7 @@ import { missingSeriesBooks, seriesSeqFromName, seriesCompletion } from '@hearth
 import type { OwnedSeriesBook } from '@hearthshelf/core'
 import { SeriesMissingBooks } from '@/components/requests/SeriesMissingBooks'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
-import { useMarkFinished } from '@/hooks/useMarkFinished'
+import { usePromptedMarkFinished } from '@/hooks/useMarkFinished'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useToast } from '@/hooks/useToast'
@@ -63,7 +63,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
   const navigate = useNavigate()
   const ui = useMediaUI()
   const progressById = useMediaProgress()
-  const { markFinished, isPending: marking } = useMarkFinished()
+  const { markFinishedPrompted, isPending: marking } = usePromptedMarkFinished()
   const isMobile = useIsMobile()
   const { toast, show } = useToast()
   const books = orderBooks(series.books ?? [])
@@ -119,7 +119,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
   // Quick-mark the whole series: finish all, or unfinish if already all done.
   const markSeries = () => {
     if (!books.length) return
-    void markFinished(
+    void markFinishedPrompted(
       books.map((b) => b.id),
       !allSeriesFinished,
     )
@@ -129,7 +129,9 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
     const ids = [...selected]
     if (!ids.length) return
     const allFinished = ids.every((id) => progressById.get(id)?.isFinished)
-    void markFinished(ids, !allFinished).then(clearSel)
+    void markFinishedPrompted(ids, !allFinished).then((ok) => {
+      if (ok) clearSel()
+    })
   }
 
   // Per-book progress, finished count, totals.

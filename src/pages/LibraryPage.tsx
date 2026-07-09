@@ -19,7 +19,7 @@ import { useToast } from '@/hooks/useToast'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
-import { useMarkFinished } from '@/hooks/useMarkFinished'
+import { usePromptedMarkFinished } from '@/hooks/useMarkFinished'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { Cover, tintFor } from '@/components/shared/Cover'
@@ -85,7 +85,7 @@ export function LibraryPage() {
   const { active, activeId } = useActiveLibrary()
   const ui = useMediaUI()
   const progressById = useMediaProgress()
-  const { markFinished, isPending: marking } = useMarkFinished()
+  const { markFinishedPrompted, isPending: marking } = usePromptedMarkFinished()
   const isMobile = useIsMobile()
 
   const [fill, setFillState] = useState<boolean>(() => localStorage.getItem(FILL_KEY) === '1')
@@ -630,7 +630,9 @@ export function LibraryPage() {
                 onClick={() => {
                   const ids = [...selected]
                   const allFinished = ids.every((id) => progressById.get(id)?.isFinished)
-                  void markFinished(ids, !allFinished).then(clearSel)
+                  void markFinishedPrompted(ids, !allFinished).then((ok) => {
+                    if (ok) clearSel()
+                  })
                 }}
               >
                 <Icon name="task_alt" />{' '}

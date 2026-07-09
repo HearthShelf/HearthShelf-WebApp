@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { MediaUIProvider, type MediaUI } from '@/components/shared/MediaUIContext'
+import { FinishPromptProvider, useFinishPrompt } from '@/components/shared/FinishPrompt'
 import { absMediaUrl } from '@/api/absClient'
 import { getItemDetail, setItemFinished, type AbsTarget } from '@/api/absLibrary'
 import { usePlayer } from '@/player/PlayerProvider'
@@ -23,9 +24,20 @@ export function WebAppMediaUIProvider({
   target: AbsTarget
   children: ReactNode
 }) {
+  // FinishPromptProvider must wrap the MediaUI value builder so its markFinished
+  // capability can open the "when did you finish?" prompt.
+  return (
+    <FinishPromptProvider>
+      <MediaUIValue target={target}>{children}</MediaUIValue>
+    </FinishPromptProvider>
+  )
+}
+
+function MediaUIValue({ target, children }: { target: AbsTarget; children: ReactNode }) {
   const navigate = useNavigate()
   const player = usePlayer()
   const qc = useQueryClient()
+  const { promptFinish } = useFinishPrompt()
 
   const value = useMemo<MediaUI>(
     () => ({
@@ -59,11 +71,19 @@ export function WebAppMediaUIProvider({
         }
       },
       markFinished: (itemId, finished) => {
-        void setItemFinished(target, itemId, finished).then(() => {
+        void (async () => {
+          // Finishing asks when; unfinishing is instant.
+          let finishedAt: number | undefined
+          if (finished) {
+            const choice = await promptFinish()
+            if (!choice) return // dismissed
+            finishedAt = choice.finishedAt ?? undefined
+          }
+          await setItemFinished(target, itemId, finished, finishedAt)
           // Refresh shelves/items so progress + finished state reflect the change.
           qc.invalidateQueries({ queryKey: ['abs-shelves', target.serverId] })
           qc.invalidateQueries({ queryKey: ['abs-item', target.serverId, itemId] })
-        })
+        })()
       },
       // Clean, server-agnostic routes - the active server is ambient.
       authorHref: (authorId) => `/author/${authorId}`,
@@ -71,7 +91,7 @@ export function WebAppMediaUIProvider({
       narratorHref: (narrator) => `/library?narrator=${encodeURIComponent(narrator)}`,
       genreHref: (genre) => `/library?genre=${encodeURIComponent(genre)}`,
     }),
-    [target, navigate, player, qc],
+    [target, navigate, player, qc, promptFinish],
   )
 
   return <MediaUIProvider value={value}>{children}</MediaUIProvider>

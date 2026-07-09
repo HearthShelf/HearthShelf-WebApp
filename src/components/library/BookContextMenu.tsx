@@ -12,7 +12,7 @@ import { Icon } from '@/components/common/Icon'
 import { AddToListModal } from '@/components/library/AddToListModal'
 import { BatchEditModal } from '@/components/library/BatchEditModal'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
-import { useMarkFinished } from '@/hooks/useMarkFinished'
+import { usePromptedMarkFinished, useMarkFinished } from '@/hooks/useMarkFinished'
 import { useQueueStore } from '@/store/queueStore'
 
 interface Pos {
@@ -79,6 +79,7 @@ export function BookContextMenu({
     })()
 
   const { markFinished } = useMarkFinished()
+  const { markFinishedPrompted } = usePromptedMarkFinished()
   const addToQueue = useQueueStore((s) => s.add)
 
   // Admin gating: edit metadata is only offered when the signed-in user can
@@ -201,9 +202,9 @@ export function BookContextMenu({
       <button
         className={'mp-item' + (finished ? ' on' : '')}
         onClick={act(() => {
-          void markFinished([item.id], !finished).then(() =>
-            onToast?.(finished ? 'Marked not finished' : 'Marked finished'),
-          )
+          void markFinishedPrompted([item.id], !finished).then((ok) => {
+            if (ok) onToast?.(finished ? 'Marked not finished' : 'Marked finished')
+          })
         })}
       >
         <Icon name="check_circle" fill={finished} />
