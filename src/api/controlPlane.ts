@@ -382,6 +382,19 @@ export async function inviteToServer(
   })
 }
 
+/**
+ * Accept an invite by its token (from the /invite?token= link). Relay-proof:
+ * links the invited server to the signed-in user regardless of account email,
+ * so Sign in with Apple "Hide My Email" users get connected. Returns the linked
+ * server id so the caller can make it active.
+ */
+export async function acceptInvite(token: string): Promise<{ ok: boolean; serverId: string }> {
+  return request<{ ok: boolean; serverId: string }>('/invite/accept', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  })
+}
+
 // --- account switcher (device-remembered accounts) -------------------------
 
 interface RememberResponse {

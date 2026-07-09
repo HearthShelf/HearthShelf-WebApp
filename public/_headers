@@ -1,0 +1,11 @@
+# Serve the Apple App Site Association as JSON. The file is intentionally
+# extensionless (Apple requires the exact path
+# /.well-known/apple-app-site-association with no suffix), so Cloudflare Pages
+# would otherwise serve it as octet-stream. iOS fetches it over HTTPS with no
+# redirects to verify the app's associated domain (applinks:app.hearthshelf.com).
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+
+# Android App Links verification file.
+/.well-known/assetlinks.json
+  Content-Type: application/json

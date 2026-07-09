@@ -29,6 +29,16 @@ export function serverSecret(): string {
   return b64url(bytes)
 }
 
+/**
+ * A long opaque invite token (base64url, ~256 bits). Carried in the invite link
+ * as a bearer capability: whoever follows the link and authenticates claims the
+ * invite, so it must be unguessable. Delivered only to the invited email.
+ */
+export function inviteToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32))
+  return b64url(bytes)
+}
+
 export function b64url(bytes: Uint8Array): string {
   let bin = ''
   for (const b of bytes) bin += String.fromCharCode(b)

@@ -30,6 +30,7 @@ import {
   deleteServer,
   createLink,
   upsertInvite,
+  inviteByToken,
   pendingInvitesForEmail,
   pendingInvitesForServer,
   markInviteAccepted,
@@ -51,7 +52,7 @@ import { mintCertGrant, hsDirectZone } from '../lib/certBroker'
 import { createClerkInvitation, ClerkApiError } from '../lib/clerkApi'
 import { sendEmail, EmailError } from '../lib/email'
 import { renderInviteEmail } from '../lib/emailTemplates'
-import { uuid, sha256Hex, timingSafeEqual, serverSecret } from '../lib/ids'
+import { uuid, sha256Hex, timingSafeEqual, serverSecret, inviteToken } from '../lib/ids'
 import { probeServer, validatePublicUrl, type ProbeStatus } from '../lib/reachability'
 
 export const servers = new Hono<{ Bindings: Env }>()
@@ -89,6 +90,49 @@ async function acceptPendingInvites(c: Context<{ Bindings: Env }>, user: ClerkId
     await markInviteAccepted(c.env, inv.id)
   }
 }
+
+/**
+ * Accept an invite by its token. This is the relay-proof path: the token is a
+ * bearer capability delivered only to the invited email, so possession of it
+ * (plus an authenticated session) authorizes the link regardless of what email
+ * the account carries. This is what makes invites work for Sign in with Apple
+ * "Hide My Email" users, whose account email is a @privaterelay address that
+ * never matches the invited one.
+ *
+ * Intentionally does NOT require a verified email: the token, not the email, is
+ * the proof. The token is single-use (marked accepted) and re-minted on every
+ * re-invite, so a claimed or superseded link is inert.
+ */
+servers.post('/invite/accept', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return c.json({ error: 'unauthorized' }, 401)
+
+  let body: { token?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const token = typeof body.token === 'string' ? body.token.trim() : ''
+  if (!token) return c.json({ error: 'invalid_token' }, 400)
+
+  const inv = await inviteByToken(c.env, token)
+  // Not found / already accepted / revoked all look the same to the caller so a
+  // token can't be probed for validity beyond "this exact one is live".
+  if (!inv) return c.json({ error: 'invite_not_found' }, 404)
+
+  await createLink(c.env, {
+    id: uuid(),
+    clerkUserId: user.userId,
+    serverId: inv.server_id,
+    email: user.email,
+    role: inv.role,
+    displayName: inv.server_name,
+  })
+  await markInviteAccepted(c.env, inv.id)
+
+  return c.json({ ok: true, serverId: inv.server_id })
+})
 
 /**
  * The signed-in user's own plan/entitlement. D1 entitlements is the sole source
@@ -351,6 +395,7 @@ servers.post('/servers/:id/invite', async (c) => {
     clerkInvitationId = null
   }
 
+  const token = inviteToken()
   await upsertInvite(c.env, {
     id: uuid(),
     email,
@@ -358,6 +403,7 @@ servers.post('/servers/:id/invite', async (c) => {
     role,
     invitedBy: user.userId,
     clerkInvitationId,
+    token,
   })
 
   // Branded companion invite via Resend. Clerk's email carries the actual
@@ -367,9 +413,11 @@ servers.post('/servers/:id/invite', async (c) => {
   let branded = false
   try {
     const server = await getServer(c.env, serverId)
+    // The token drives acceptance (relay-proof); server is kept only so the
+    // landing page can show which library before the list loads.
     const { subject, html, text } = renderInviteEmail({
       serverName: server?.name ?? null,
-      acceptUrl: `${APP_ORIGIN}/invite?server=${encodeURIComponent(serverId)}`,
+      acceptUrl: `${APP_ORIGIN}/invite?token=${encodeURIComponent(token)}&server=${encodeURIComponent(serverId)}`,
     })
     await sendEmail(c.env, { to: email, subject, html, text })
     branded = true
@@ -600,6 +648,7 @@ servers.post('/servers/invite-from-server', async (c) => {
     role,
     invitedBy: 'server',
     clerkInvitationId,
+    token: inviteToken(),
   })
 
   return c.json({ ok: true, email, role, emailed: clerkInvitationId !== null })

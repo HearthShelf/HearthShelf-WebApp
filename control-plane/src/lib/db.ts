@@ -424,6 +424,7 @@ export interface InviteRow {
   role: 'admin' | 'user'
   invited_by: string | null
   clerk_invitation_id: string | null
+  token: string | null
   status: 'pending' | 'accepted' | 'revoked'
   created_at: number
   accepted_at: number | null
@@ -438,22 +439,54 @@ export async function upsertInvite(
     role: 'admin' | 'user'
     invitedBy: string | null
     clerkInvitationId: string | null
+    token: string
   },
 ): Promise<void> {
+  // Re-inviting the same (email, server) refreshes the row AND mints a fresh
+  // token so an older leaked link stops working once a new invite is sent.
   await env.DB.prepare(
     `INSERT INTO pending_invites
-       (id, email, server_id, role, invited_by, clerk_invitation_id, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+       (id, email, server_id, role, invited_by, clerk_invitation_id, token, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
      ON CONFLICT (email, server_id) DO UPDATE SET
        role = excluded.role,
        invited_by = excluded.invited_by,
        clerk_invitation_id = excluded.clerk_invitation_id,
+       token = excluded.token,
        status = 'pending',
        created_at = excluded.created_at,
        accepted_at = NULL`,
   )
-    .bind(inv.id, inv.email, inv.serverId, inv.role, inv.invitedBy, inv.clerkInvitationId, now())
+    .bind(
+      inv.id,
+      inv.email,
+      inv.serverId,
+      inv.role,
+      inv.invitedBy,
+      inv.clerkInvitationId,
+      inv.token,
+      now(),
+    )
     .run()
+}
+
+/**
+ * A single pending invite by its opaque token, with server details. This is the
+ * relay-proof acceptance path: possession of the token (delivered only to the
+ * invited email) authorizes the link, independent of the account's own email.
+ */
+export async function inviteByToken(
+  env: Env,
+  token: string,
+): Promise<(InviteRow & { public_url: string; server_name: string | null }) | null> {
+  const r = await env.DB.prepare(
+    `SELECT i.*, s.public_url, s.name AS server_name
+       FROM pending_invites i JOIN servers s ON s.server_id = i.server_id
+      WHERE i.token = ? AND i.status = 'pending'`,
+  )
+    .bind(token)
+    .first<InviteRow & { public_url: string; server_name: string | null }>()
+  return r ?? null
 }
 
 /** All pending invites for a (verified) email, with server details. */

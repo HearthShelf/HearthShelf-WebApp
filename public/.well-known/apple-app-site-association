@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "HCU6KVPTDC.com.hearthshelf.mobile",
+        "paths": [
+          "/invite",
+          "/invite/*"
+        ]
+      }
+    ]
+  }
+}
