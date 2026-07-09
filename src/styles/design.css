@@ -3704,6 +3704,15 @@
   margin: 4px 0 var(--s4);
 }
 
+/* Empty state inside a chart card (e.g. a bar chart with no data yet). */
+.chart-empty {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
 .bars {
   display: flex;
   align-items: flex-end;

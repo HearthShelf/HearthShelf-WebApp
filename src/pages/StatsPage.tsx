@@ -279,6 +279,9 @@ export function StatsPage() {
   }, [stats, dowMode])
   const barsMax = Math.max(0.1, ...bars.map((d) => d.v))
   const barsHot = bars.length ? bars.reduce((m, d, i) => (d.v > bars[m].v ? i : m), 0) : 0
+  // Every bar zero: an empty account, or the current view has no data yet. Show a
+  // friendly note instead of a row of flat zero-bars.
+  const barsEmpty = !bars.some((d) => d.v > 0)
 
   // Full-year heatmap from durable history when available: one cell per day for
   // the last ~53 weeks, aligned so each column is a week (Sun..Sat top to bottom).
@@ -529,15 +532,19 @@ export function StatsPage() {
               ? 'Total hours listened on each weekday'
               : 'Average hours per weekday'}
         </div>
-        <div className="bars">
-          {bars.map((d, i) => (
-            <div className={'bar-col' + (i === barsHot ? ' hot' : '')} key={i}>
-              <span className="v">{barValueLabel(d.v)}</span>
-              <div className="bar" style={{ height: (d.v / barsMax) * 100 + '%' }} />
-              <span className="d">{d.d}</span>
-            </div>
-          ))}
-        </div>
+        {barsEmpty ? (
+          <div className="chart-empty">No listening yet.</div>
+        ) : (
+          <div className="bars">
+            {bars.map((d, i) => (
+              <div className={'bar-col' + (i === barsHot ? ' hot' : '')} key={i}>
+                <span className="v">{barValueLabel(d.v)}</span>
+                <div className="bar" style={{ height: (d.v / barsMax) * 100 + '%' }} />
+                <span className="d">{d.d}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {yearHeat ? (
