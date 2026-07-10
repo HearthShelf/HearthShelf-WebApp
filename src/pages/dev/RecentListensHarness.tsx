@@ -17,13 +17,30 @@ const CHAPTERS = Array.from({ length: 12 }, (_, i) => ({
 
 const SESSIONS = [
   {
+    id: 's0',
+    libraryItemId: ITEM_ID,
+    startTime: 1200,
+    currentTime: 2600,
+    timeListening: 1350,
+    startedAt: Date.now() - 3600_000,
+    deviceInfo: {
+      deviceId: 'hearthshelf-mobile-ios',
+      clientName: 'HearthShelf Mobile',
+      osName: 'iOS',
+    },
+  },
+  {
     id: 's1',
     libraryItemId: ITEM_ID,
     startTime: 3600,
     currentTime: 5400,
     timeListening: 1500,
     startedAt: Date.now() - 2 * 3600_000,
-    deviceInfo: { osName: 'Android' },
+    deviceInfo: {
+      deviceId: 'hearthshelf-mobile-android',
+      clientName: 'HearthShelf Mobile',
+      osName: 'Android',
+    },
   },
   {
     id: 's2',
@@ -92,7 +109,7 @@ export function RecentListensHarness() {
 
   return (
     <div style={{ maxWidth: 460, margin: '40px auto', padding: 16 }}>
-      <h2 style={{ marginBottom: 16 }}>Recent listens</h2>
+      <h2 style={{ marginBottom: 16 }}>Recent Listens</h2>
       <RecentListens libraryItemId={ITEM_ID} chapters={CHAPTERS} onSeek={() => {}} />
     </div>
   )

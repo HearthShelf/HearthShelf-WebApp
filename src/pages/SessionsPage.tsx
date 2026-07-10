@@ -7,7 +7,8 @@ import {
   type ListeningSessionsPage,
 } from '@/api/absLibrary'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
-import { formatTimestamp, fmtSessDate, classifyDevice } from '@hearthshelf/core'
+import { formatTimestamp, fmtSessDate } from '@hearthshelf/core'
+import { DeviceKindIcon } from '@/components/common/DeviceKindIcon'
 import { Cover, tintFor } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
@@ -114,7 +115,6 @@ export function SessionsPage() {
                 <div className="sh-list">
                   {g.rows.map((s) => {
                     const when = fmtSessDate(s.startedAt)
-                    const dev = classifyDevice(s.deviceInfo)
                     return (
                       <div
                         className="sh-row"
@@ -130,11 +130,7 @@ export function SessionsPage() {
                         </div>
                         <span className="sh-dur">{formatTimestamp(s.timeListeningSec)}</span>
                         <span className="sh-when">
-                          <Icon
-                            name={dev.icon}
-                            style={{ fontSize: 15 }}
-                            title={s.device ? `${dev.label} - ${s.device}` : dev.label}
-                          />
+                          <DeviceKindIcon deviceInfo={s.deviceInfo} device={s.device} size={15} />
                           {when.time}
                         </span>
                         <button

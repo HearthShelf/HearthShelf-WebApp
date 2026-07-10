@@ -965,7 +965,7 @@ export function PlayerPage() {
           {pop === 'recent' && (
             <div className="p-pop">
               <div className="pop-head">
-                <Icon name="history" /> Recent listens
+                <Icon name="history" /> Recent Listens
                 <span className="pop-x" onClick={() => setPop(null)}>
                   <Icon name="close" style={{ fontSize: 18 }} />
                 </span>
@@ -1031,7 +1031,7 @@ export function PlayerPage() {
               className={'pill' + (pop === 'recent' ? ' on' : '')}
               onClick={() => togglePop('recent')}
             >
-              <Icon name="history" /> Recent listens
+              <Icon name="history" /> Recent Listens
             </button>
           </div>
         </div>

@@ -1387,7 +1387,7 @@ export function MobilePlayer({
       )}
 
       {sheet === 'recent' && (
-        <Sheet kicker="This book" title="Recent listens" onClose={closeSheet}>
+        <Sheet kicker="This book" title="Recent Listens" onClose={closeSheet}>
           <div
             style={{
               overflowY: 'auto',

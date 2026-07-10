@@ -3,7 +3,8 @@ import { getRecentSessions } from '@/api/absPlayback'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
-import { formatTimestamp, fmtSessDate, classifyDevice } from '@hearthshelf/core'
+import { formatTimestamp, fmtSessDate } from '@hearthshelf/core'
+import { DeviceKindIcon } from '@/components/common/DeviceKindIcon'
 import type { AbsTarget } from '@/api/absLibrary'
 
 /** Minimal chapter shape needed to label a session's position range. All player
@@ -70,7 +71,6 @@ export function RecentListens({
         const endCh = chapterAt(s.currentTime)
         const chapterLabel =
           startCh && endCh && startCh !== endCh ? `${startCh} → ${endCh}` : (endCh ?? startCh)
-        const dev = classifyDevice(s.deviceInfo)
         return (
           <button
             key={s.id}
@@ -78,10 +78,10 @@ export function RecentListens({
             onClick={() => onSeek(s.startTime)}
             title="Play from where this session started"
           >
-            <Icon
-              name={dev.icon}
-              title={dev.label}
-              style={{ color: 'var(--text-muted)', fontSize: 19 }}
+            <DeviceKindIcon
+              deviceInfo={s.deviceInfo}
+              size={19}
+              style={{ color: 'var(--text-muted)' }}
             />
             <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

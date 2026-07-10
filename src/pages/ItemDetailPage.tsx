@@ -394,7 +394,7 @@ export function ItemDetailPage() {
             </button>
             {(pct > 0 || finished) && (
               <button className="pill" onClick={() => setShowSessions(true)}>
-                <Icon name="history" /> Previous sessions
+                <Icon name="history" /> Recent Listens
               </button>
             )}
             {canEdit && (
@@ -684,7 +684,7 @@ export function ItemDetailPage() {
         />
       )}
       {showSessions && (
-        <Modal title="Previous sessions" onClose={() => setShowSessions(false)}>
+        <Modal title="Recent Listens" onClose={() => setShowSessions(false)}>
           <RecentListens
             libraryItemId={data.id}
             chapters={chapters}
