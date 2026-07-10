@@ -6,6 +6,7 @@ import { useDraggableCard } from '@/hooks/useDraggableCard'
 import { Scrubber } from '@/components/player/Scrubber'
 import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
 import { RecentListens } from '@/components/player/RecentListens'
+import { SyncStatusPill } from '@/components/player/SyncStatusPill'
 import { formatTimestamp } from '@hearthshelf/core'
 import { Cover } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
@@ -153,6 +154,9 @@ export function CarPlayer({
           <div className="car-ch">
             Ch {ci + 1} / {chapters.length || 1}
           </div>
+        </div>
+        <div onPointerDown={(e) => e.stopPropagation()}>
+          <SyncStatusPill />
         </div>
         <button
           className="car-icon-btn"

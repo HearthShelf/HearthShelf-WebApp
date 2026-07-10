@@ -5,7 +5,15 @@
  * minified item form for lists (denormalized title/authorName, cover via the
  * item's /cover endpoint). Only the fields we render are typed.
  */
-import { absGet, absPatch, absPost, absDelete, absMediaUrl, playDeviceInfo } from './absClient'
+import {
+  absGet,
+  absPatch,
+  absPost,
+  absDelete,
+  absMediaUrl,
+  playDeviceInfo,
+  AbsError,
+} from './absClient'
 import { getAbsToken } from '@/lib/absTokens'
 import type {
   ABSBookMetadata,
@@ -390,10 +398,19 @@ interface RawPlaySession {
   }>
 }
 
+/** Outcome of a play-session sync, so the caller can drive the sync-status pill
+ *  and reopen a session ABS has forgotten (404) instead of retrying it forever. */
+export type SyncResult = 'ok' | 'gone' | 'failed'
+
 /**
  * Report listened time to an open play session. THIS is what makes ABS count
  * listening time and create a session record (the stateless progress PATCH only
- * moves the resume point - it never accrues stats/sessions). Best-effort.
+ * moves the resume point - it never accrues stats/sessions).
+ *
+ * Returns 'ok' on success, 'gone' when ABS no longer knows this session id (404 -
+ * server restarted or it expired; the caller should reopen a fresh session), or
+ * 'failed' for any other error (offline / connection dropped - the caller should
+ * bank the listened-time and go red).
  */
 export async function syncPlaySession(
   t: AbsTarget,
@@ -401,12 +418,17 @@ export async function syncPlaySession(
   currentTimeSec: number,
   timeListenedSec: number,
   durationSec: number,
-): Promise<void> {
-  await absPost(t, `/api/session/${encodeURIComponent(sessionId)}/sync`, {
-    currentTime: currentTimeSec,
-    timeListened: timeListenedSec,
-    duration: durationSec,
-  }).catch(() => {})
+): Promise<SyncResult> {
+  try {
+    await absPost(t, `/api/session/${encodeURIComponent(sessionId)}/sync`, {
+      currentTime: currentTimeSec,
+      timeListened: timeListenedSec,
+      duration: durationSec,
+    })
+    return 'ok'
+  } catch (e) {
+    return e instanceof AbsError && e.status === 404 ? 'gone' : 'failed'
+  }
 }
 
 const PLAY_MIME = ['audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/flac', 'audio/ogg']
@@ -451,6 +473,39 @@ export async function closePlaySession(
     },
     { keepalive: true },
   ).catch(() => {})
+}
+
+/**
+ * A listening session recorded while the server was unreachable, banked locally
+ * and waiting to reach ABS. Matches the PlaybackSession fields ABS's
+ * /api/session/local-all ingests. `timeListening` must be > 0 or ABS drops it.
+ */
+export interface LocalSession {
+  id: string
+  libraryItemId: string
+  mediaType: 'book'
+  displayTitle: string
+  duration: number
+  currentTime: number
+  timeListening: number
+  /** ms epoch. */
+  startedAt: number
+  /** ms epoch. Compared against server progress for the LWW guard. */
+  updatedAt: number
+}
+
+/**
+ * Replay locally-banked offline sessions to ABS in one batch. The server ingests
+ * each as a real playback session (so an hour listened offline shows up in recent
+ * listens + stats with the right listened-time and date), applying its
+ * last-write-wins guard per session. Throws on a failed request so the caller can
+ * keep the batch pending and retry on the next reconnect.
+ */
+export async function syncLocalSessions(t: AbsTarget, sessions: LocalSession[]): Promise<void> {
+  await absPost(t, '/api/session/local-all', {
+    deviceInfo: playDeviceInfo(),
+    sessions,
+  })
 }
 
 export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsItemDetail> {

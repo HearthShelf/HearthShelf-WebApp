@@ -8,6 +8,7 @@ import { useSettingsStore } from '@/store/settingsStore'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSleepTimer } from '@/hooks/useSleepTimer'
 import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
+import { SyncStatusPill } from '@/components/player/SyncStatusPill'
 import { RecentListens } from '@/components/player/RecentListens'
 import { MobilePlayer } from '@/components/player/MobilePlayer'
 import { ManualQueueEditor } from '@/components/player/ManualQueueEditor'
@@ -784,9 +785,7 @@ export function PlayerPage() {
             </h1>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <span className="pill sync-pill ok" title="Your progress is saved as you listen">
-              <Icon name="cloud_done" /> Synced
-            </span>
+            <SyncStatusPill />
             {carModeSetting !== 'on' && (
               <button
                 className="pill"

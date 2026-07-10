@@ -7,6 +7,7 @@ import { useBookmarks } from '@/hooks/useBookmarks'
 import { useSleepTimer } from '@/hooks/useSleepTimer'
 import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
 import { RecentListens } from '@/components/player/RecentListens'
+import { SyncStatusPill } from '@/components/player/SyncStatusPill'
 import { Scrubber } from '@/components/player/Scrubber'
 import { Cover } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
@@ -499,6 +500,9 @@ export function MobilePlayer({
             }}
           >
             HearthShelf{genre ? ' · ' + genre : ''}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>
+            <SyncStatusPill />
           </div>
         </div>
         <button

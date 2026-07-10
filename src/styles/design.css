@@ -1894,6 +1894,12 @@
 .recent-row:hover {
   background: var(--fill);
 }
+.recent-row-live {
+  background: color-mix(in oklab, var(--primary) 8%, transparent);
+}
+.recent-row-live:hover {
+  background: color-mix(in oklab, var(--primary) 13%, transparent);
+}
 
 /* ---- table inline link (people / series rows) ---- */
 .tbl-link {
@@ -9663,6 +9669,141 @@ select.fld {
 }
 .sync-pill.bad .ms {
   color: #e0846f;
+}
+.sync-pill.pending {
+  color: var(--primary);
+  border-color: color-mix(in oklab, var(--primary) 42%, var(--hairline));
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+}
+.sync-pill.pending .ms {
+  color: var(--primary);
+}
+
+/* ---- player sync-status dialog ---- */
+.sync-dialog {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 4px 2px;
+}
+.sync-dialog h3 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+}
+.sync-dialog-body {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  max-width: 32ch;
+}
+.sync-dialog-badge {
+  width: 60px;
+  height: 60px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sync-dialog-badge .ms {
+  font-size: 30px;
+}
+.sync-dialog-badge.ok {
+  color: #7fbd6f;
+  background: color-mix(in oklab, #5a9c52 15%, transparent);
+}
+.sync-dialog-badge.pending {
+  color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 14%, transparent);
+}
+.sync-dialog-badge.bad {
+  color: #e0846f;
+  background: color-mix(in oklab, #c4463a 15%, transparent);
+}
+.sync-dialog-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.sync-dialog-meta .ms {
+  font-size: 15px;
+}
+.sync-dialog-queued {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--card-foreground) 5%, transparent);
+  text-align: left;
+}
+.sync-dialog-queued-head {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.sync-dialog-queued-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  min-width: 0;
+}
+.sync-dialog-queued-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sync-dialog-queued-row .ms {
+  font-size: 15px;
+  color: var(--primary);
+}
+.sync-dialog-queued-more {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.sync-dialog-result {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  text-align: left;
+}
+.sync-dialog-result.ok {
+  color: #6fae5f;
+  background: color-mix(in oklab, #5a9c52 12%, transparent);
+}
+.sync-dialog-result.bad {
+  color: #d97a64;
+  background: color-mix(in oklab, #c4463a 12%, transparent);
+}
+.sync-dialog-btn {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px;
+  border-radius: 12px;
+  border: none;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sync-dialog-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* ---- Now Playing empty state: cozy hearth ---- */
