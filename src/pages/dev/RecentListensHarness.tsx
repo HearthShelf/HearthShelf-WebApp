@@ -49,7 +49,7 @@ const SESSIONS = [
     currentTime: 6100,
     timeListening: 680,
     startedAt: Date.now() - 26 * 3600_000,
-    deviceInfo: { browserName: 'Chrome' },
+    deviceInfo: { deviceId: 'hearthshelf-web', clientName: 'HearthShelf' },
   },
   {
     id: 's3',
