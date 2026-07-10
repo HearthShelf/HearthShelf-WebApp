@@ -25,6 +25,10 @@ interface QueueStoreState {
   add: (entry: QueueEntry) => void
   remove: (libraryItemId: string) => void
   reorder: (from: number, to: number) => void
+  /** Replace the durable hand-queued list wholesale. Used when reordering the
+   *  hand-added rows inside the merged Auto list (their new relative order is
+   *  derived from the merged list and set here). */
+  reorderManual: (manual: QueueEntry[]) => void
   clear: () => void
   setItems: (items: QueueEntry[]) => void
   /** Adopt a server-pulled queue WITHOUT bumping updatedAt (so it isn't echoed
@@ -63,8 +67,7 @@ export const useQueueStore = create<QueueStoreState>()(
       remove: (id) =>
         set((s) => {
           const manual = s.manual.filter((i) => i.libraryItemId !== id)
-          const items =
-            s.mode === 'manual' ? manual : s.items.filter((i) => i.libraryItemId !== id)
+          const items = s.mode === 'manual' ? manual : s.items.filter((i) => i.libraryItemId !== id)
           return { manual, items, updatedAt: Date.now() }
         }),
       reorder: (from, to) =>
@@ -75,6 +78,12 @@ export const useQueueStore = create<QueueStoreState>()(
           const items = s.mode === 'manual' ? manual : s.items
           return { manual, items, updatedAt: Date.now() }
         }),
+      reorderManual: (manual) =>
+        set((s) => ({
+          manual,
+          items: s.mode === 'manual' ? manual : s.items,
+          updatedAt: Date.now(),
+        })),
       clear: () =>
         set((s) => ({
           manual: [],

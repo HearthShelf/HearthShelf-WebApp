@@ -26,7 +26,11 @@ const RULE_LABELS: Record<AutoRuleId, { title: string; desc: string }> = {
   },
   'new-in-series': {
     title: 'New book in a started series',
-    desc: 'Queue unread books from any series you have begun but not completed.',
+    desc: 'Queue the next book from each series you have begun but not finished.',
+  },
+  'new-in-series-all': {
+    title: 'Include every book in the series',
+    desc: 'Instead of just the next one, queue all the books left in each series you started.',
   },
   'book-club': {
     title: 'Books your clubs are reading',
@@ -59,6 +63,10 @@ function RuleList({
       {rules.map((r, i) => {
         const meta = RULE_LABELS[r.id]
         const { style, ...rowProps } = getRowProps(i)
+        // new-in-series-all is a sub-modifier of new-in-series: indent it and
+        // dim/disable it while the parent is off (it does nothing on its own).
+        const isSub = r.id === 'new-in-series-all'
+        const parentOff = isSub && !rules.find((x) => x.id === 'new-in-series')?.on
         return (
           <div
             className={'cfg-line' + (dragIndex === i ? ' dragging' : '')}
@@ -66,7 +74,8 @@ function RuleList({
             {...rowProps}
             style={{
               ...style,
-              opacity: dragIndex === i ? 0.5 : 1,
+              opacity: dragIndex === i ? 0.5 : parentOff ? 0.45 : 1,
+              paddingLeft: isSub ? 28 : undefined,
               borderTop:
                 overIndex === i && dragIndex !== i ? '2px solid var(--primary)' : undefined,
             }}
@@ -78,7 +87,7 @@ function RuleList({
             </div>
             {/* Stop the pointer-down from starting a drag when toggling. */}
             <span onPointerDown={(e) => e.stopPropagation()}>
-              <Toggle on={r.on} onChange={() => toggle(i)} />
+              <Toggle on={r.on} onChange={() => !parentOff && toggle(i)} />
             </span>
           </div>
         )
