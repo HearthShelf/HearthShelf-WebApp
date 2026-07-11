@@ -36,6 +36,11 @@ import {
 } from '@/player/syncState'
 import { recordLocalSession, flushPendingProgress } from '@/player/pendingProgress'
 
+/** Auto-dismiss the player after this long continuously PAUSED, to release the
+ *  open ABS session and the tab's audio graph (memory watchdog, not a session
+ *  age cap - active listening is never cut off). */
+const IDLE_DISMISS_MS = 6 * 60 * 60 * 1000
+
 /**
  * App-level playback. One <audio> element lives here (via useAudioPlayer), so a
  * book keeps playing as the user navigates between pages. The item page and the
@@ -150,9 +155,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // offline-banked sessions. Returns true when something reached the server.
   const forceSyncNow = useCallback(async (): Promise<boolean> => {
     const cur = nowRef.current
-    const t: AbsTarget | null = cur
-      ? { serverId: cur.serverId, serverUrl: cur.serverUrl }
-      : null
+    const t: AbsTarget | null = cur ? { serverId: cur.serverId, serverUrl: cur.serverUrl } : null
     if (!t) return false
     let live = false
     if (cur?.playSessionId) {
@@ -252,47 +255,43 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         // Nothing new to send AND we're already synced: don't churn the pill.
         if (outstanding <= 0 && getSyncState().status === 'synced') return
         syncStatePending()
-        void syncPlaySession(
-          t,
-          item.playSessionId,
-          sec,
-          outstanding,
-          item.totalDurationSec,
-        ).then((res) => {
-          if (res === 'ok') {
-            unsyncedRef.current = 0
-            syncStateSynced(Date.now())
-          } else if (res === 'gone') {
-            // ABS forgot this session (restart/expiry). Reopen and re-point so
-            // the next tick syncs against a live id instead of failing forever.
-            void openPlaySession(t, item.itemId).then((newId) => {
-              if (!newId) {
-                syncStateFailed()
-                return
-              }
-              setNow((cur) =>
-                cur && cur.itemId === item.itemId && cur.playSessionId === item.playSessionId
-                  ? { ...cur, playSessionId: newId }
-                  : cur,
-              )
-            })
-          } else {
-            // Connection dropped: keep the listened-time banked (unsyncedRef is
-            // untouched) AND bank a replayable offline session, then go red.
-            recordLocalSession({
-              id: `play_local_${item.itemId}_${sessionStartedAtRef.current}`,
-              libraryItemId: item.itemId,
-              mediaType: 'book',
-              displayTitle: item.title,
-              duration: item.totalDurationSec,
-              currentTime: sec,
-              timeListening: liveTotal,
-              startedAt: sessionStartedAtRef.current,
-              updatedAt: Date.now(),
-            })
-            syncStateFailed()
-          }
-        })
+        void syncPlaySession(t, item.playSessionId, sec, outstanding, item.totalDurationSec).then(
+          (res) => {
+            if (res === 'ok') {
+              unsyncedRef.current = 0
+              syncStateSynced(Date.now())
+            } else if (res === 'gone') {
+              // ABS forgot this session (restart/expiry). Reopen and re-point so
+              // the next tick syncs against a live id instead of failing forever.
+              void openPlaySession(t, item.itemId).then((newId) => {
+                if (!newId) {
+                  syncStateFailed()
+                  return
+                }
+                setNow((cur) =>
+                  cur && cur.itemId === item.itemId && cur.playSessionId === item.playSessionId
+                    ? { ...cur, playSessionId: newId }
+                    : cur,
+                )
+              })
+            } else {
+              // Connection dropped: keep the listened-time banked (unsyncedRef is
+              // untouched) AND bank a replayable offline session, then go red.
+              recordLocalSession({
+                id: `play_local_${item.itemId}_${sessionStartedAtRef.current}`,
+                libraryItemId: item.itemId,
+                mediaType: 'book',
+                displayTitle: item.title,
+                duration: item.totalDurationSec,
+                currentTime: sec,
+                timeListening: liveTotal,
+                startedAt: sessionStartedAtRef.current,
+                updatedAt: Date.now(),
+              })
+              syncStateFailed()
+            }
+          },
+        )
       },
       [target, now, refreshProgress],
     ),
@@ -314,6 +313,40 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const server = await getItemProgress(target, now.itemId)
         if (server && !server.isFinished) {
           if (Math.abs(server.currentTimeSec - positionRef.current) > 30) {
+            // The book moved on another device while this tab sat paused. ABS
+            // only auto-closes an open session on the SAME device, so our open
+            // session on this device is now stale and would keep a session alive
+            // in ABS memory. Rotate it: close ours at the old spot, then (since
+            // the user IS resuming here - a legit new stint on this device) open
+            // a fresh session. The seek below lands us at the newer position.
+            const t = target
+            const item = now
+            if (item.playSessionId) {
+              void closePlaySession(
+                t,
+                item.playSessionId,
+                positionRef.current,
+                0,
+                item.totalDurationSec,
+              )
+              // Null the id first so ticks don't sync a dead session while the
+              // reopen is in flight.
+              setNow((cur) =>
+                cur && cur.itemId === item.itemId && cur.playSessionId === item.playSessionId
+                  ? { ...cur, playSessionId: null }
+                  : cur,
+              )
+              void openPlaySession(t, item.itemId).then((newId) => {
+                if (!newId) return
+                sessionStartedAtRef.current = Date.now()
+                unsyncedRef.current = 0
+                setNow((cur) =>
+                  cur && cur.itemId === item.itemId && cur.playSessionId === null
+                    ? { ...cur, playSessionId: newId }
+                    : cur,
+                )
+              })
+            }
             seekToRef.current(server.currentTimeSec)
           }
         }
@@ -389,53 +422,42 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setNow(null)
   }, [player, target, now, refreshProgress])
 
-  // Close the open ABS play session when the tab is going away, so a browser
-  // session that's never explicitly dismissed (the overwhelmingly common case -
+  // Session lifecycle across tab hides and teardown.
+  //
+  // A pause - even a long one (a meeting, stepping away) - must NOT split the
+  // session: one listening stint is one session. So we do NOT close on
+  // `visibilitychange`->hidden anymore (tab switch, minimize, screen off). We
+  // only SYNC on hide, banking the current position + outstanding listened-time
+  // via `fetch(..., {keepalive:true})` so it survives a hide that turns into a
+  // real teardown moments later. The session stays open across the hide, so
+  // there's nothing to reopen on return.
+  //
+  // The ONLY thing that closes the session here is `pagehide` (real unload:
   // closing the tab, navigating off-site, the Tesla browser tearing down on
-  // power-off) still gets persisted into listening history. Without this, only
-  // the position PATCH (a separate mechanism, see onSaveProgress above) kept
-  // resuming-elsewhere working, while the session itself stayed open in ABS's
-  // memory forever and never appeared in "Previous sessions".
-  //
-  // `visibilitychange`->hidden fires reliably (tab switch, app switch, screen
-  // off) and is our primary signal; `pagehide` covers the actual unload. Both
-  // use `fetch(..., {keepalive:true})` (via closePlaySession -> absPost) so the
-  // request survives navigation - a plain fetch can be cancelled mid-flight on
-  // unload. We deliberately do NOT clear `now`/pause playback here: the tab may
-  // just be backgrounded and resume shortly (audio keeps playing), matching how
-  // the mobile app only closes on an actual stop/background-kill, not on every
-  // hide.
-  //
-  // If the tab comes back while the same book is still loaded, the closed
-  // session id is gone from ABS's memory (GET /api/session/:id only finds OPEN
-  // sessions) - syncing against it would silently fail forever via the
-  // onSaveProgress catch. So on becoming visible again after a hide-close, open
-  // a fresh session and swap it into `now` before any further sync fires.
+  // power-off), so the stint still lands in "Previous sessions". A hard-killed
+  // tab that never fires pagehide just leaves the session open until ABS's 36h
+  // reaper - no stats are lost (the hidden-sync already banked the time; the
+  // stateless position PATCH in onSaveProgress keeps resume-elsewhere working).
   useEffect(() => {
     if (!target || !now?.playSessionId) return
     const sessionId = now.playSessionId
-    const itemId = now.itemId
     const t = target
     const durationSec = now.totalDurationSec
     let closed = false
+    const onVisibility = () => {
+      if (document.visibilityState !== 'hidden') return
+      // Bank progress + outstanding listened-time; do not close.
+      const outstanding = unsyncedRef.current
+      void syncPlaySession(t, sessionId, positionRef.current, outstanding, durationSec, {
+        keepalive: true,
+      }).then((res) => {
+        if (res === 'ok') unsyncedRef.current = 0
+      })
+    }
     const closeOnce = () => {
       if (closed) return
       closed = true
       void closePlaySession(t, sessionId, positionRef.current, 0, durationSec)
-    }
-    const onVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        closeOnce()
-      } else if (closed) {
-        void openPlaySession(t, itemId).then((newSessionId) => {
-          if (!newSessionId) return
-          setNow((cur) =>
-            cur && cur.itemId === itemId && cur.playSessionId === sessionId
-              ? { ...cur, playSessionId: newSessionId }
-              : cur,
-          )
-        })
-      }
     }
     document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('pagehide', closeOnce)
@@ -445,15 +467,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, [target, now?.itemId, now?.playSessionId, now?.totalDurationSec])
 
+  // Idle memory watchdog. A tab left open and PAUSED overnight would otherwise
+  // hold an open ABS session plus this tab's live <audio> element/timers/buffers
+  // until ABS's 36h reaper - hours of leaked RAM. So after ~6h of continuous
+  // PAUSE we auto-dismiss the player (close() releases the session and drops
+  // now-playing, which unmounts the audio graph). This is keyed off pause time,
+  // NOT session age: active continuous listening is never interrupted.
+  useEffect(() => {
+    if (!now || player.playing) return
+    const id = setInterval(() => {
+      if (Date.now() - pausedSinceRef.current >= IDLE_DISMISS_MS) close()
+    }, 60_000)
+    return () => clearInterval(id)
+  }, [now, player.playing, close])
+
   // Flush offline-banked sessions when the browser reports it's back online (and
   // once on mount, in case a prior tab banked sessions the server never received).
   // Best-effort: a failed flush leaves everything banked for the next reconnect.
   useEffect(() => {
     const flush = () => {
       const cur = nowRef.current
-      const t: AbsTarget | null = cur
-        ? { serverId: cur.serverId, serverUrl: cur.serverUrl }
-        : null
+      const t: AbsTarget | null = cur ? { serverId: cur.serverId, serverUrl: cur.serverUrl } : null
       if (t) void flushPendingProgress(t)
     }
     flush()

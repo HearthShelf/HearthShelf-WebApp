@@ -418,13 +418,19 @@ export async function syncPlaySession(
   currentTimeSec: number,
   timeListenedSec: number,
   durationSec: number,
+  opts?: { keepalive?: boolean },
 ): Promise<SyncResult> {
   try {
-    await absPost(t, `/api/session/${encodeURIComponent(sessionId)}/sync`, {
-      currentTime: currentTimeSec,
-      timeListened: timeListenedSec,
-      duration: durationSec,
-    })
+    await absPost(
+      t,
+      `/api/session/${encodeURIComponent(sessionId)}/sync`,
+      {
+        currentTime: currentTimeSec,
+        timeListened: timeListenedSec,
+        duration: durationSec,
+      },
+      opts,
+    )
     return 'ok'
   } catch (e) {
     return e instanceof AbsError && e.status === 404 ? 'gone' : 'failed'
@@ -435,11 +441,12 @@ const PLAY_MIME = ['audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/flac', 'audio/
 
 /**
  * Open a fresh play session for an already-loaded item, without re-fetching its
- * metadata/tracks/chapters. Used to replace a session that was closed on tab
- * hide-away (see PlayerProvider) once the tab becomes active again, so
- * subsequent listened-time syncs have a live session id instead of silently
- * failing against one ABS has already forgotten. Returns null if ABS refuses
- * (e.g. offline) - the caller just keeps playing without a session to sync.
+ * metadata/tracks/chapters. Used when the current session must be rotated: the 6h
+ * idle watchdog fired, or a resume found the book was listened to on another
+ * device (see PlayerProvider), so subsequent listened-time syncs have a live
+ * session id instead of silently failing against one ABS has already forgotten.
+ * Returns null if ABS refuses (e.g. offline) - the caller just keeps playing
+ * without a session to sync.
  */
 export async function openPlaySession(t: AbsTarget, itemId: string): Promise<string | null> {
   const session = await absPost<RawPlaySession>(
@@ -451,10 +458,10 @@ export async function openPlaySession(t: AbsTarget, itemId: string): Promise<str
 }
 
 /**
- * Close an open play session (on stop / unmount / tab hide-away). `keepalive`
+ * Close an open play session (on stop / unmount / real tab teardown). `keepalive`
  * lets the request survive a `pagehide`/tab-close, where a plain fetch would
- * otherwise be cancelled mid-flight - see PlayerProvider's visibilitychange
- * handler, the main caller for that case. Best-effort.
+ * otherwise be cancelled mid-flight - see PlayerProvider's pagehide handler, the
+ * main caller for that case. Best-effort.
  */
 export async function closePlaySession(
   t: AbsTarget,
