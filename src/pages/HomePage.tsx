@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { useQueries } from '@tanstack/react-query'
+import { useState, useEffect, useMemo } from 'react'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { useUser } from '@clerk/clerk-react'
+import { continueSeriesShelf } from '@hearthshelf/core'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useHomeShelves, useItemsInProgress } from '@/hooks/useLibrary'
@@ -8,14 +9,16 @@ import { useMediaProgress } from '@/hooks/useMediaProgress'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { useSettingsStore } from '@/store/settingsStore'
+import { useDismissalsStore } from '@/store/dismissalsStore'
 import { Cover, tintFor } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
 import { BookTile } from '@/components/library/BookTile'
+import { BookContextMenu } from '@/components/library/BookContextMenu'
 import { SeriesCard } from '@/components/library/SeriesCard'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 import { useToast } from '@/hooks/useToast'
-import type { AbsLibraryItem, MediaProgress } from '@/api/absLibrary'
+import { getSeries, type AbsLibraryItem, type MediaProgress } from '@/api/absLibrary'
 import { getHomeShelves, getItemsInProgress, mergeHomeShelves, type HomeShelf } from '@/api/absHome'
 
 const SHELF_ICONS: Record<string, string> = {
@@ -237,6 +240,32 @@ export function HomePage() {
 
   const progressById = useMediaProgress()
 
+  // Dismissals hide series/books from the Continue-* shelves (and the queue).
+  const hydrateDismissals = useDismissalsStore((s) => s.hydrate)
+  const dismissedSeries = useDismissalsStore((s) => s.seriesIds)
+  const dismissedItems = useDismissalsStore((s) => s.itemIds)
+  useEffect(() => {
+    if (target) void hydrateDismissals(target)
+  }, [target, hydrateDismissals])
+  const dismissedItemSet = useMemo(() => new Set(dismissedItems), [dismissedItems])
+
+  // Continue-Series is built from @hearthshelf/core (real series ids per tile),
+  // off the /series endpoint - the missing shelf the hosted app never showed.
+  const { data: seriesData } = useQuery({
+    queryKey: ['home-series', target?.serverId ?? '', activeId ?? ''],
+    queryFn: () => getSeries(safeTarget, activeId as string),
+    enabled: Boolean(target) && Boolean(activeId),
+    staleTime: 2 * 60 * 1000,
+  })
+  const continueSeries = useMemo(() => {
+    const all = seriesData?.results ?? []
+    if (!all.length) return []
+    return continueSeriesShelf(all, progressById, {
+      seriesIds: dismissedSeries,
+      itemIds: dismissedItems,
+    })
+  }, [seriesData, progressById, dismissedSeries, dismissedItems])
+
   if (!target) return null
 
   const name = user?.firstName || user?.username || 'there'
@@ -341,38 +370,103 @@ export function HomePage() {
         </div>
       )}
 
-      {ordered.map((sh) => (
-        <div className="section" key={sh.id}>
+      {/* Continue Series (built from core, real series ids for dismissal). */}
+      {continueSeries.length > 0 && (
+        <div className="section">
           <div className="section-head">
-            <Icon name={SHELF_ICONS[sh.id] ?? 'library_books'} />
-            <h2>{sh.label}</h2>
+            <Icon name={SHELF_ICONS['continue-series'] ?? 'auto_stories'} />
+            <h2>Continue Series</h2>
           </div>
-          {sh.type === 'series' ? (
-            <div className="series-grid">
-              {sh.series.map((s) => (
-                <SeriesCard key={s.id} series={s} />
-              ))}
-            </div>
-          ) : (
-            <div className="shelf-row">
-              {sh.items.map((item) => {
-                const p = progressById.get(item.id)
-                return (
+          <div className="shelf-row">
+            {continueSeries.map(({ series, nextBook }) => {
+              const p = progressById.get(nextBook.id)
+              return (
+                <BookContextMenu
+                  key={nextBook.id}
+                  item={nextBook}
+                  target={target}
+                  progress={p?.progress ?? 0}
+                  finished={p?.isFinished}
+                  source="series"
+                  seriesId={series.id}
+                  seriesName={series.name}
+                  onToast={show}
+                >
                   <BookTile
-                    key={item.id}
-                    item={item}
+                    item={nextBook}
                     progress={p?.progress ?? 0}
                     finished={p?.isFinished}
                     fs={compact ? 12 : 15}
                     compact={compact}
                     onToast={show}
                   />
-                )
-              })}
-            </div>
-          )}
+                </BookContextMenu>
+              )
+            })}
+          </div>
         </div>
-      ))}
+      )}
+
+      {ordered.map((sh) => {
+        const isContinueListening = sh.id === 'continue-listening'
+        return (
+          <div className="section" key={sh.id}>
+            <div className="section-head">
+              <Icon name={SHELF_ICONS[sh.id] ?? 'library_books'} />
+              <h2>{sh.label}</h2>
+            </div>
+            {sh.type === 'series' ? (
+              <div className="series-grid">
+                {sh.series.map((s) => (
+                  <SeriesCard key={s.id} series={s} />
+                ))}
+              </div>
+            ) : (
+              <div className="shelf-row">
+                {sh.items
+                  .filter((item) => !(isContinueListening && dismissedItemSet.has(item.id)))
+                  .map((item) => {
+                    const p = progressById.get(item.id)
+                    // Continue-Listening tiles get the dismiss + reset menu.
+                    if (isContinueListening) {
+                      return (
+                        <BookContextMenu
+                          key={item.id}
+                          item={item}
+                          target={target}
+                          progress={p?.progress ?? 0}
+                          finished={p?.isFinished}
+                          source="listening"
+                          onToast={show}
+                        >
+                          <BookTile
+                            item={item}
+                            progress={p?.progress ?? 0}
+                            finished={p?.isFinished}
+                            fs={compact ? 12 : 15}
+                            compact={compact}
+                            onToast={show}
+                          />
+                        </BookContextMenu>
+                      )
+                    }
+                    return (
+                      <BookTile
+                        key={item.id}
+                        item={item}
+                        progress={p?.progress ?? 0}
+                        finished={p?.isFinished}
+                        fs={compact ? 12 : 15}
+                        compact={compact}
+                        onToast={show}
+                      />
+                    )
+                  })}
+              </div>
+            )}
+          </div>
+        )
+      })}
 
       {toast && (
         <div className="p-toast">

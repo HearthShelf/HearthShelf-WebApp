@@ -630,6 +630,16 @@ export async function setItemFinished(
   await absPatch(t, `/api/me/progress/${encodeURIComponent(itemId)}`, body)
 }
 
+/** Reset an item's progress to the start (currentTime/progress 0, not finished).
+ *  Used by the Continue-Listening "Reset progress" action. */
+export async function resetItemProgress(t: AbsTarget, itemId: string): Promise<void> {
+  await absPatch(t, `/api/me/progress/${encodeURIComponent(itemId)}`, {
+    currentTime: 0,
+    progress: 0,
+    isFinished: false,
+  })
+}
+
 // --- bulk media progress (/api/me -> mediaProgress[]) -----------------------
 
 /** One item's listening progress, as ABS returns it in /api/me. */

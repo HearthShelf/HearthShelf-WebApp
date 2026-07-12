@@ -14,11 +14,17 @@ import { BatchEditModal } from '@/components/library/BatchEditModal'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { usePromptedMarkFinished, useMarkFinished } from '@/hooks/useMarkFinished'
 import { useQueueStore } from '@/store/queueStore'
+import { useDismissalsStore } from '@/store/dismissalsStore'
+import { resetItemProgress } from '@/api/absLibrary'
+import { getServerQueue } from '@/api/absQueue'
 
 interface Pos {
   x: number
   y: number
 }
+
+// Where the tile lives, so the menu can offer the right "hide" action.
+export type BookMenuSource = 'series' | 'listening' | 'browse'
 
 interface BookContextMenuProps {
   item: AbsLibraryItem
@@ -29,6 +35,7 @@ interface BookContextMenuProps {
   authorId?: string
   seriesId?: string
   seriesName?: string
+  source?: BookMenuSource
   onToast?: (msg: string) => void
   // Refresh the surrounding list after an edit (e.g. invalidate series query).
   onChanged?: () => void
@@ -46,6 +53,7 @@ export function BookContextMenu({
   authorId,
   seriesId,
   seriesName,
+  source = 'browse',
   onToast,
   onChanged,
   children,
@@ -81,6 +89,54 @@ export function BookContextMenu({
   const { markFinished } = useMarkFinished()
   const { markFinishedPrompted } = usePromptedMarkFinished()
   const addToQueue = useQueueStore((s) => s.add)
+  const adoptQueue = useQueueStore((s) => s.adoptServer)
+  const dismiss = useDismissalsStore((s) => s.dismiss)
+
+  const { title: mTitle, seriesName: mSeriesName } = item.media.metadata
+
+  const repullQueue = () => {
+    void getServerQueue(target)
+      .then((q) => adoptQueue(q.items, q.manual, q.playlistId, q.updatedAt))
+      .catch(() => {})
+  }
+
+  // Hide a series (Continue-Series) or this book (Continue-Listening) from Auto
+  // sources. Reversible via Settings > Queue > Hidden from shelves.
+  const hideFromShelves = async () => {
+    if (source === 'series') {
+      const sid = resolvedSeriesId
+      const sname = seriesName ?? mSeriesName ?? 'series'
+      if (!sid) return
+      try {
+        await dismiss(target, 'series', sid, sname)
+        onToast?.(`Hid "${sname}" - restore in Settings`)
+        repullQueue()
+      } catch {
+        onToast?.('Could not hide that')
+      }
+    } else {
+      try {
+        await dismiss(target, 'item', item.id, mTitle ?? 'book')
+        onToast?.(`Hid "${mTitle}" - restore in Settings`)
+        repullQueue()
+      } catch {
+        onToast?.('Could not hide that')
+      }
+    }
+  }
+
+  // Reset a Continue-Listening book to the start AND hide it from the shelf.
+  const resetProgress = async () => {
+    try {
+      await resetItemProgress(target, item.id)
+      onChanged?.()
+      await dismiss(target, 'item', item.id, mTitle ?? 'book')
+      onToast?.(`Reset "${mTitle}"`)
+      repullQueue()
+    } catch {
+      onToast?.('Could not reset progress')
+    }
+  }
 
   // Admin gating: edit metadata is only offered when the signed-in user can
   // update items on this server.
@@ -211,9 +267,23 @@ export function BookContextMenu({
         {finished ? 'Mark as unfinished' : 'Mark as finished'}
       </button>
 
-      {progress > 0 && !finished && (
-        <button className="mp-item" onClick={act(() => void markFinished([item.id], false))}>
+      {source === 'listening' ? (
+        <button className="mp-item" onClick={act(() => void resetProgress())}>
           <Icon name="replay" /> Reset progress
+        </button>
+      ) : (
+        progress > 0 &&
+        !finished && (
+          <button className="mp-item" onClick={act(() => void markFinished([item.id], false))}>
+            <Icon name="replay" /> Reset progress
+          </button>
+        )
+      )}
+
+      {((source === 'series' && resolvedSeriesId) || source === 'listening') && (
+        <button className="mp-item" onClick={act(() => void hideFromShelves())}>
+          <Icon name="visibility_off" />
+          {source === 'series' ? 'Hide this series' : 'Not right now'}
         </button>
       )}
 

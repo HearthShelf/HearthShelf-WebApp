@@ -1,7 +1,9 @@
+import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSettingsStore, type AutoRulePref } from '@/store/settingsStore'
 import type { QueueMode, AutoRuleId } from '@/store/queueStore'
 import { useQueueStore } from '@/store/queueStore'
+import { useDismissalsStore } from '@/store/dismissalsStore'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { getPlaylistsList } from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
@@ -193,7 +195,53 @@ export function QueueSettings() {
             control={<PlaylistPicker />}
           />
         )}
+        <HiddenFromShelves />
       </div>
     </section>
+  )
+}
+
+// The user's "not right now" dismissals, each with a Restore button.
+function HiddenFromShelves() {
+  const { target } = useActiveLibrary()
+  const seriesIds = useDismissalsStore((s) => s.seriesIds)
+  const itemIds = useDismissalsStore((s) => s.itemIds)
+  const labels = useDismissalsStore((s) => s.labels)
+  const hydrate = useDismissalsStore((s) => s.hydrate)
+  const restore = useDismissalsStore((s) => s.restore)
+
+  useEffect(() => {
+    if (target) void hydrate(target)
+  }, [target, hydrate])
+
+  const rows: { kind: 'series' | 'item'; id: string }[] = [
+    ...seriesIds.map((id) => ({ kind: 'series' as const, id })),
+    ...itemIds.map((id) => ({ kind: 'item' as const, id })),
+  ]
+  if (rows.length === 0 || !target) return null
+
+  return (
+    <SetRow
+      title="Hidden from shelves"
+      desc="Series and books you hid from your Auto queue and Continue shelves. Restore to bring them back."
+      control={null}
+      stacked
+    >
+      <div className="rule-list">
+        {rows.map((r) => (
+          <div className="rule-row" key={`${r.kind}:${r.id}`} style={{ cursor: 'default' }}>
+            <Icon name={r.kind === 'series' ? 'collections_bookmark' : 'menu_book'} />
+            <div className="rule-meta" style={{ flex: 1 }}>
+              <div className="rule-t">
+                {labels[r.id] ?? (r.kind === 'series' ? 'Hidden series' : 'Hidden book')}
+              </div>
+            </div>
+            <button className="btn-ghost" onClick={() => void restore(target, r.kind, r.id)}>
+              Restore
+            </button>
+          </div>
+        ))}
+      </div>
+    </SetRow>
   )
 }
