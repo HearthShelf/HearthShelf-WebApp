@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/common/Icon'
 import { PlaybackSettings } from '@/components/settings/PlaybackSettings'
 import { QueueSettings } from '@/components/settings/QueueSettings'
+import { ActiveServerMediaUI } from '@/components/shared/ActiveServerMediaUI'
 import { CarModeSettings } from '@/components/settings/CarModeSettings'
 import { SleepTimerSettings } from '@/components/settings/SleepTimerSettings'
 import { BookClubSettings } from '@/components/settings/BookClubSettings'
@@ -121,7 +122,15 @@ export function AccountPage({ menuMode = false }: { menuMode?: boolean }) {
       case 'playback':
         return <PlaybackSettings />
       case 'queue':
-        return <QueueSettings />
+        // The queue editor renders book covers (Cover -> useMediaUI), so it needs
+        // the active-server MediaUI provider that the rest of /account runs
+        // without. Scope it to this section so linking a server / other settings
+        // stay reachable when no server is connected.
+        return (
+          <ActiveServerMediaUI>
+            <QueueSettings />
+          </ActiveServerMediaUI>
+        )
       case 'carMode':
         return <CarModeSettings />
       case 'sleepTimer':
