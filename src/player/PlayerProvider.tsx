@@ -121,6 +121,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // `unsynced` is listened-time reported to a sync that failed, banked for retry.
   const sessionStartedAtRef = useRef<number>(Date.now())
   const unsyncedRef = useRef<number>(0)
+  // True while a play-session reopen (after a 404) is in flight, so overlapping
+  // ticks don't each fire their own POST /play - which would make ABS close the
+  // prior reopen's session and 404 the next sync, looping forever and hammering
+  // the server (this took down the all-in-one box once).
+  const reopeningRef = useRef(false)
   // Latest `now`, so the visibilitychange / flush closures can read the current
   // book without re-subscribing on every field change.
   const nowRef = useRef<NowPlaying | null>(null)
@@ -261,19 +266,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               unsyncedRef.current = 0
               syncStateSynced(Date.now())
             } else if (res === 'gone') {
-              // ABS forgot this session (restart/expiry). Reopen and re-point so
-              // the next tick syncs against a live id instead of failing forever.
-              void openPlaySession(t, item.itemId).then((newId) => {
-                if (!newId) {
-                  syncStateFailed()
-                  return
-                }
-                setNow((cur) =>
-                  cur && cur.itemId === item.itemId && cur.playSessionId === item.playSessionId
-                    ? { ...cur, playSessionId: newId }
-                    : cur,
-                )
-              })
+              // ABS forgot this session (restart/expiry). Reopen ONCE and re-point
+              // so the next tick syncs against a live id instead of failing
+              // forever. Guard against overlapping reopens: a second POST /play
+              // makes ABS close the first reopen's session, 404-ing the next sync
+              // and looping. Null the id while reopening so in-flight ticks skip
+              // the sync (onSaveProgress bails when playSessionId is null).
+              if (reopeningRef.current) return
+              reopeningRef.current = true
+              setNow((cur) =>
+                cur && cur.itemId === item.itemId && cur.playSessionId === item.playSessionId
+                  ? { ...cur, playSessionId: null }
+                  : cur,
+              )
+              void openPlaySession(t, item.itemId)
+                .then((newId) => {
+                  if (!newId) {
+                    syncStateFailed()
+                    return
+                  }
+                  setNow((cur) =>
+                    cur && cur.itemId === item.itemId && cur.playSessionId === null
+                      ? { ...cur, playSessionId: newId }
+                      : cur,
+                  )
+                })
+                .finally(() => {
+                  reopeningRef.current = false
+                })
             } else {
               // Connection dropped: keep the listened-time banked (unsyncedRef is
               // untouched) AND bank a replayable offline session, then go red.
@@ -321,7 +341,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             // a fresh session. The seek below lands us at the newer position.
             const t = target
             const item = now
-            if (item.playSessionId) {
+            if (item.playSessionId && !reopeningRef.current) {
+              reopeningRef.current = true
               void closePlaySession(
                 t,
                 item.playSessionId,
@@ -336,16 +357,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                   ? { ...cur, playSessionId: null }
                   : cur,
               )
-              void openPlaySession(t, item.itemId).then((newId) => {
-                if (!newId) return
-                sessionStartedAtRef.current = Date.now()
-                unsyncedRef.current = 0
-                setNow((cur) =>
-                  cur && cur.itemId === item.itemId && cur.playSessionId === null
-                    ? { ...cur, playSessionId: newId }
-                    : cur,
-                )
-              })
+              void openPlaySession(t, item.itemId)
+                .then((newId) => {
+                  if (!newId) return
+                  sessionStartedAtRef.current = Date.now()
+                  unsyncedRef.current = 0
+                  setNow((cur) =>
+                    cur && cur.itemId === item.itemId && cur.playSessionId === null
+                      ? { ...cur, playSessionId: newId }
+                      : cur,
+                  )
+                })
+                .finally(() => {
+                  reopeningRef.current = false
+                })
             }
             seekToRef.current(server.currentTimeSec)
           }

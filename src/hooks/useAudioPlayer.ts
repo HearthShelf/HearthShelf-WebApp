@@ -64,6 +64,14 @@ export function useAudioPlayer({
   // Latest onBookEnded, read by the [tracks] effect without re-subscribing.
   const onBookEndedRef = useRef(onBookEnded)
   onBookEndedRef.current = onBookEnded
+  // Latest onSaveProgress, read by the [tracks] effect's save() without
+  // re-subscribing. Critical: the save closure is captured once per track set,
+  // so a plain reference would keep calling a stale onSaveProgress after the
+  // owner updated (e.g. repointed the play-session id on a 404 reopen) - the
+  // stale closure would sync a dead session forever, looping 404->reopen and
+  // hammering the server. Reading through a ref always uses the current one.
+  const onSaveProgressRef = useRef(onSaveProgress)
+  onSaveProgressRef.current = onSaveProgress
   // Latest onBeforeResume, read by resume() without re-subscribing handlers.
   const onBeforeResumeRef = useRef(onBeforeResume)
   onBeforeResumeRef.current = onBeforeResume
@@ -240,7 +248,7 @@ export function useAudioPlayer({
         // never moved must not echo startAtSec back and clobber newer progress
         // (e.g. progress made on another device since this book was opened).
         const moved = positionRef.current !== startAtSec
-        if (listened > 0 || moved) onSaveProgress(positionRef.current, listened)
+        if (listened > 0 || moved) onSaveProgressRef.current(positionRef.current, listened)
       }
     }
 
