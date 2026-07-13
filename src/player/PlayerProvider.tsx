@@ -243,16 +243,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         // every tick (no status change - a normal tick doesn't flip the pill).
         const liveTotal = (getSyncState().live?.timeListening ?? 0) + listened
         syncStateTick(sec, liveTotal)
-        // Stateless progress PATCH keeps the resume point current.
-        void saveProgress(t, item.itemId, sec, item.totalDurationSec).then(() =>
-          refreshProgress(t.serverId),
-        )
-        // AND sync the open play session so ABS accrues listening time + records
-        // a session (the PATCH alone never does - that's why stats showed 0h).
-        // `listened` is real wall-clock played-time, which ABS ADDS to the
-        // session total - reporting a position delta here counted seeks as
-        // listening and inflated history.
-        if (!item.playSessionId) return
+        // The session sync below ALSO writes the resume point (currentTime) into
+        // mediaProgresses, so the stateless PATCH is redundant whenever a session
+        // is open - firing both was two concurrent writes to the SAME row every
+        // tick, doubling ABS's write load and inviting SQLITE_BUSY lock
+        // contention (which crashed the all-in-one box). Only PATCH as a fallback
+        // when there's NO open session to carry the position.
+        if (!item.playSessionId) {
+          void saveProgress(t, item.itemId, sec, item.totalDurationSec).then(() =>
+            refreshProgress(t.serverId),
+          )
+          return
+        }
+        // Sync the open play session: ABS accrues listening time, records a
+        // session, AND advances the resume point. `listened` is real wall-clock
+        // played-time, which ABS ADDS to the session total - reporting a position
+        // delta here counted seeks as listening and inflated history.
         // Fold this tick's listened-time into the outstanding total, so a sync
         // that failed earlier retries its banked time on the next tick.
         unsyncedRef.current += listened
@@ -265,6 +271,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             if (res === 'ok') {
               unsyncedRef.current = 0
               syncStateSynced(Date.now())
+              // The sync moved the resume point on the server; refresh the views
+              // that read it (formerly done by the now-removed redundant PATCH).
+              refreshProgress(t.serverId)
             } else if (res === 'gone') {
               // ABS forgot this session (restart/expiry). Reopen ONCE and re-point
               // so the next tick syncs against a live id instead of failing
