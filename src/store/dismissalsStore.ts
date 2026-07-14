@@ -1,6 +1,22 @@
 import { create } from 'zustand'
 import type { AbsTarget } from '@/api/absLibrary'
 import { getServerDismissals, addServerDismissal, removeServerDismissal } from '@/api/absDismissals'
+import { recomputeServerQueue } from '@/api/absQueue'
+import { useQueueStore } from '@/store/queueStore'
+
+// Dismissing/restoring hides or re-exposes a series/book across every Auto rule,
+// so rebuild the queue now instead of waiting for the play-cooldown / nightly
+// job. Best-effort; Auto is server-authoritative so we don't stomp a Manual edit.
+async function recomputeAfterDismissChange(t: AbsTarget) {
+  if (useQueueStore.getState().mode !== 'auto') return
+  try {
+    const q = await recomputeServerQueue(t)
+    if (useQueueStore.getState().mode === 'manual') return
+    useQueueStore.getState().adoptServer(q.items, q.manual, q.playlistId, q.updatedAt)
+  } catch {
+    // Server unreachable - the nightly job backstops.
+  }
+}
 
 // Per-user "not right now" dismissals of series/books from Auto sources (the
 // queue + the Continue-* home shelves). Synced from /hs/dismissals; every shelf
@@ -53,6 +69,7 @@ export const useDismissalsStore = create<DismissalsState>((set, get) => ({
     try {
       const d = await addServerDismissal(t, kind, entityId)
       set({ seriesIds: d.seriesIds, itemIds: d.itemIds })
+      void recomputeAfterDismissChange(t)
     } catch {
       set(prev)
       throw new Error('dismiss_failed')
@@ -67,6 +84,7 @@ export const useDismissalsStore = create<DismissalsState>((set, get) => ({
     try {
       const d = await removeServerDismissal(t, kind, entityId)
       set({ seriesIds: d.seriesIds, itemIds: d.itemIds })
+      void recomputeAfterDismissChange(t)
     } catch {
       set(prev)
       throw new Error('restore_failed')

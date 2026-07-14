@@ -22,7 +22,7 @@ import {
   type AbsTarget,
 } from '@/api/absLibrary'
 import { useQueueStore } from '@/store/queueStore'
-import { getServerQueue } from '@/api/absQueue'
+import { recomputeServerQueue } from '@/api/absQueue'
 import { useSettingsStore } from '@/store/settingsStore'
 import {
   syncStateStartSession,
@@ -40,6 +40,10 @@ import { recordLocalSession, flushPendingProgress } from '@/player/pendingProgre
  *  open ABS session and the tab's audio graph (memory watchdog, not a session
  *  age cap - active listening is never cut off). */
 const IDLE_DISMISS_MS = 6 * 60 * 60 * 1000
+// Real playback seconds a newly-started book must accrue before its Auto-queue
+// recompute fires. Long enough to ignore an accidental tap you back out of,
+// short enough that up-next isn't stale for long after a legit book change.
+const QUEUE_RECOMPUTE_COOLDOWN_SEC = 120
 
 /**
  * App-level playback. One <audio> element lives here (via useAudioPlayer), so a
@@ -130,6 +134,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // book without re-subscribing on every field change.
   const nowRef = useRef<NowPlaying | null>(null)
   nowRef.current = now
+  // Play-cooldown: accrued playback seconds for the current book, and whether
+  // the current book arrived via a book-end auto-advance (which must NOT arm a
+  // recompute) vs. an explicit play (which arms one). See the cooldown effect.
+  const cooldownItemRef = useRef<string | null>(null)
+  const cooldownAccruedRef = useRef(0)
+  const cooldownLastPosRef = useRef(0)
+  const cooldownFiredRef = useRef(false)
+  const advancedByEndRef = useRef(false)
 
   // Start (or restart) the live sync session whenever a new book loads. Green to
   // begin with - a fresh session has nothing outstanding yet.
@@ -186,24 +198,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [refreshProgress])
 
   // When a book finishes, auto-advance to the next queued item (unless the queue
-  // is off). We pop the queue, load the item on the SAME server, and autoplay it.
-  // The server owns the queue: pull it fresh first (Auto recomputes on GET, so
-  // it reflects the book that just finished), then consume the head.
+  // is off). We pop the head of the queue we ALREADY hold and autoplay it - no
+  // re-pull, no recompute. Recomputing here would rebuild in the instant the
+  // just-finished book is still settling: the server's "current item" heuristic
+  // would skip it and jump to a stale in-progress book, dropping the next book in
+  // the series (the "book ended and it jumped away" bug). The new book's own
+  // play-cooldown recomputes once it's genuinely playing.
   const onBookEnded = useCallback(() => {
     if (!target) return
     const t = target
     void (async () => {
       if (useQueueStore.getState().mode === 'off') return
-      try {
-        const server = await getServerQueue(t)
-        useQueueStore
-          .getState()
-          .adoptServer(server.items, server.manual, server.playlistId, server.updatedAt)
-      } catch {
-        // offline / unreachable: fall back to the local queue below
-      }
       const nextEntry = useQueueStore.getState().next()
       if (!nextEntry) return
+      // Mark this play as an auto-advance so the cooldown effect doesn't arm a
+      // recompute for it (only explicit plays should).
+      advancedByEndRef.current = true
       try {
         const d = await getItemDetail(t, nextEntry.libraryItemId)
         play({
@@ -417,6 +427,52 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     pausedSinceRef.current = Date.now()
   }, [now?.itemId])
+
+  // Play-cooldown, part 1: a new book loaded. Reset the accrual and decide
+  // whether this play should arm a recompute. An explicit play arms it; a book-
+  // end auto-advance (advancedByEndRef) does not - it plays the queue head we
+  // already hold and defers recompute to when the NEW book has been listened to.
+  useEffect(() => {
+    const armed = !advancedByEndRef.current
+    advancedByEndRef.current = false
+    cooldownItemRef.current = armed ? (now?.itemId ?? null) : null
+    cooldownAccruedRef.current = 0
+    cooldownLastPosRef.current = player.positionSec
+    cooldownFiredRef.current = false
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now?.itemId])
+
+  // Play-cooldown, part 2: accrue real playback seconds each tick; once past the
+  // threshold, recompute the Auto queue (stamping this book as current) and adopt
+  // it. Only counts small forward steps so seeks/rewinds don't count. Fires once.
+  useEffect(() => {
+    const armedItem = cooldownItemRef.current
+    if (!armedItem || cooldownFiredRef.current) return
+    if (!target || useQueueStore.getState().mode !== 'auto') return
+    if (now?.itemId !== armedItem) return
+    const pos = player.positionSec
+    if (player.playing) {
+      const delta = pos - cooldownLastPosRef.current
+      if (delta > 0 && delta < 5) cooldownAccruedRef.current += delta
+    }
+    cooldownLastPosRef.current = pos
+    if (cooldownAccruedRef.current >= QUEUE_RECOMPUTE_COOLDOWN_SEC) {
+      cooldownFiredRef.current = true
+      const t = target
+      void recomputeServerQueue(t, armedItem)
+        .then((res) => {
+          // Don't stomp an in-flight Manual edit; Auto is server-authoritative.
+          if (useQueueStore.getState().mode === 'manual') return
+          useQueueStore
+            .getState()
+            .adoptServer(res.items, res.manual, res.playlistId, res.updatedAt)
+        })
+        .catch(() => {
+          // Best-effort; the nightly job backstops.
+        })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player.positionSec, player.playing, now?.itemId, target])
 
   // OS/car media-widget metadata (title, author, cover art). Lives here - not on
   // the book detail page - because playback (and the mini-player) outlives that

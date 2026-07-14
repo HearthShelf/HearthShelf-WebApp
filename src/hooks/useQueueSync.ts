@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useQueueStore } from '@/store/queueStore'
 import { useActiveServer } from '@/hooks/useActiveServer'
-import { getServerQueue, putServerQueue } from '@/api/absQueue'
+import { getServerQueue, putServerQueue, recomputeServerQueue } from '@/api/absQueue'
 import { hasAbsToken, subscribeAbsTokens } from '@/lib/absTokens'
 
 const PUSH_DEBOUNCE_MS = 400
@@ -70,8 +70,8 @@ export function useQueueSync() {
       if (sid === target.serverId && hasAbsToken(sid)) pull()
     })
 
-    // A queue is server-recomputed each GET (Auto mode), so re-pull when the tab
-    // regains focus to catch changes made on another device.
+    // Cheap refresh on refocus: a plain GET returns the stored queue (no
+    // recompute), so this just picks up changes another device already computed.
     const onFocus = () => pull()
     window.addEventListener('focus', onFocus)
 
@@ -106,6 +106,19 @@ export function useQueueSync() {
                 .getState()
                 .adoptServer(res.items, res.manual, res.playlistId, res.updatedAt)
               hydrating.current = false
+            } else if (useQueueStore.getState().mode === 'auto') {
+              // A hand-edit to the manual list landed, but in Auto mode the
+              // server splices manual into the computed `items` only on a
+              // recompute. Rebuild now so the merged up-next list reflects it.
+              recomputeServerQueue(target)
+                .then((q) => {
+                  if (useQueueStore.getState().mode === 'manual') return
+                  hydrating.current = true
+                  useQueueStore.getState().adoptServer(q.items, q.manual, q.playlistId, q.updatedAt)
+                  hydrating.current = false
+                  lastAt.current = useQueueStore.getState().updatedAt
+                })
+                .catch(() => {})
             }
             lastAt.current = useQueueStore.getState().updatedAt
           })

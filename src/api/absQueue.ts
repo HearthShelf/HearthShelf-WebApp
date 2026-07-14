@@ -36,9 +36,25 @@ async function queueFetch<T>(t: AbsTarget, path: string, options: RequestInit = 
   return res.json() as Promise<T>
 }
 
-/** The server's current queue (computed for Auto mode, stored otherwise). */
+/** The server's stored queue. A plain GET no longer recomputes (that's now
+ *  trigger-based - see recomputeServerQueue), so this is a cheap read used for
+ *  foreground refresh and cross-device pulls. */
 export function getServerQueue(t: AbsTarget): Promise<QueueState> {
   return queueFetch<QueueState>(t, '/hs/queue')
+}
+
+/** Ask the server to rebuild the Auto queue now and return it. Called on the
+ *  triggers (play-cooldown, settings/manual/dismissal edits) instead of on every
+ *  read. `currentItemId` is the book now playing; the server seeds finish-series
+ *  from it and stores it for the nightly rebuild. */
+export function recomputeServerQueue(
+  t: AbsTarget,
+  currentItemId?: string | null,
+): Promise<QueueState> {
+  return queueFetch<QueueState>(t, '/hs/queue/recompute', {
+    method: 'POST',
+    body: JSON.stringify(currentItemId === undefined ? {} : { currentItemId }),
+  })
 }
 
 /** Push the (Manual) queue. The server LWW-guards on updatedAt and returns the

@@ -4,7 +4,7 @@ import { useSettingsStore, SYNCED_KEYS, scopeOf } from '@/store/settingsStore'
 import { useQueueStore } from '@/store/queueStore'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getServerSettings, putServerSettings, type SettingChange } from '@/api/absSettings'
-import { getServerQueue } from '@/api/absQueue'
+import { recomputeServerQueue } from '@/api/absQueue'
 import type { AbsTarget } from '@/api/absLibrary'
 
 const PUSH_DEBOUNCE_MS = 1200
@@ -13,9 +13,10 @@ function mirrorQueueMode() {
   useQueueStore.getState().setMode(useSettingsStore.getState().queueMode)
 }
 
-async function pullServerQueue(target: AbsTarget) {
+async function recomputeQueue(target: AbsTarget) {
   try {
-    const res = await getServerQueue(target)
+    // A plain GET no longer recomputes; a mode/rules change must rebuild now.
+    const res = await recomputeServerQueue(target)
     useQueueStore.getState().adoptServer(res.items, res.manual, res.playlistId, res.updatedAt)
   } catch {
     // Server unreachable - keep the current queue cache as-is.
@@ -111,7 +112,7 @@ export function useSettingsSync() {
               hydrating.current = false
             }
             lastMeta.current = { ...useSettingsStore.getState().meta }
-            if (queueSettingsChanged) void pullServerQueue(target)
+            if (queueSettingsChanged) void recomputeQueue(target)
           })
           .catch(() => {
             // Best-effort; localStorage already holds the change.
