@@ -211,6 +211,22 @@ export function ItemDetailPage() {
   const finished = progress?.isFinished ?? false
   const chaptersLeft = Math.round(chapters.length * (1 - pct))
 
+  // Where the listener is right now: live player position when this book is the
+  // one playing, otherwise the last saved position for this item.
+  const isPlayingThis =
+    player.now?.itemId === data.id && player.now?.serverId === target.serverId
+  const listenPos = isPlayingThis ? player.positionSec : progress?.currentTime ?? 0
+  // The chapter containing listenPos. Past the last chapter's end we fall back to
+  // the last chapter (matches the mobile player). -1 when there's no progress yet.
+  const currentChapterIdx =
+    !finished && (isPlayingThis || listenPos > 0) && chapters.length > 0
+      ? chapters.findIndex((c) => listenPos >= c.start && listenPos < c.end)
+      : -1
+  const activeIdx =
+    currentChapterIdx === -1 && listenPos > 0 && chapters.length > 0 && !finished
+      ? chapters.length - 1
+      : currentChapterIdx
+
   const playLabel = finished ? 'Listen again' : pct > 0 ? 'Resume' : 'Start listening'
 
   const description = data.description ? stripHtml(data.description) : ''
@@ -558,14 +574,30 @@ export function ItemDetailPage() {
                 <span>Start</span>
                 <span>Length</span>
               </div>
-              {chapters.map((c, i) => (
-                <div className="dt-row chap" key={i} onClick={() => playChapter(c.start)}>
-                  <span className="num">{i + 1}</span>
-                  <span>{c.title}</span>
-                  <span className="mono">{formatTimestamp(c.start)}</span>
-                  <span className="mono">{formatTimestamp(c.end - c.start)}</span>
-                </div>
-              ))}
+              {chapters.map((c, i) => {
+                const isNow = i === activeIdx
+                const isDone = !isNow && (finished || listenPos >= c.end)
+                return (
+                  <div
+                    className={'dt-row chap' + (isNow ? ' now' : '') + (isDone ? ' done' : '')}
+                    key={i}
+                    onClick={() => playChapter(c.start)}
+                  >
+                    <span className="num">
+                      {isNow ? (
+                        <Icon name="graphic_eq" title="Now playing" />
+                      ) : isDone ? (
+                        <Icon name="check_circle" fill title="Finished" />
+                      ) : (
+                        i + 1
+                      )}
+                    </span>
+                    <span>{c.title}</span>
+                    <span className="mono">{formatTimestamp(c.start)}</span>
+                    <span className="mono">{formatTimestamp(c.end - c.start)}</span>
+                  </div>
+                )
+              })}
             </>
           )}
 

@@ -5607,6 +5607,32 @@
   background: var(--fill);
 }
 
+.dt-row.chap.now {
+  background: var(--row-now);
+}
+
+.dt-row.chap.now span:nth-child(2) {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.dt-row.chap.done span:nth-child(2) {
+  color: var(--text-muted);
+}
+
+.dt-row.chap .num .ms {
+  font-size: 18px;
+  vertical-align: middle;
+}
+
+.dt-row.chap.now .num .ms {
+  color: var(--primary);
+}
+
+.dt-row.chap.done .num .ms {
+  color: var(--chart-3);
+}
+
 .dt-row.track {
   grid-template-columns: 34px 1fr 90px 90px 80px;
 }
