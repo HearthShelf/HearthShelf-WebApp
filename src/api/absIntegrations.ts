@@ -11,7 +11,11 @@
  */
 import { getAbsToken } from '@/lib/absTokens'
 import type { AbsTarget } from './absLibrary'
-import type { HSIntegrationsConfig, HSIntegrationsEnvLocks, HSIntegrationsPatch } from '@hearthshelf/core'
+import type {
+  HSIntegrationsConfig,
+  HSIntegrationsEnvLocks,
+  HSIntegrationsPatch,
+} from '@hearthshelf/core'
 
 // Canonical `/hs/integrations/config` shapes now come from @hearthshelf/core;
 // aliased to the module's historical local names so callers stay unchanged.
@@ -21,6 +25,25 @@ export type IntegrationsConfigPatch = HSIntegrationsPatch
 
 export const integrationsKeys = {
   config: (serverId: string) => ['integrations', 'config', serverId] as const,
+}
+
+export function parseRmabLoginTokenInput(value: string): {
+  token: string
+  baseUrl: string | null
+} {
+  const trimmed = value.trim()
+  if (!/^https?:\/\//i.test(trimmed)) return { token: value, baseUrl: null }
+  try {
+    const parsed = new URL(trimmed)
+    const marker = '/auth/token/login'
+    const markerAt = parsed.pathname.indexOf(marker)
+    const token = parsed.searchParams.get('token')?.trim()
+    if (markerAt < 0 || !token) return { token: value, baseUrl: null }
+    const basePath = parsed.pathname.slice(0, markerAt)
+    return { token, baseUrl: `${parsed.origin}${basePath}`.replace(/\/$/, '') }
+  } catch {
+    return { token: value, baseUrl: null }
+  }
 }
 
 function origin(t: AbsTarget): string {
@@ -39,8 +62,12 @@ async function intFetch<T>(t: AbsTarget, path: string, options: RequestInit = {}
       ...options.headers,
     },
   })
-  if (!res.ok) throw new Error(`integrations ${res.status}`)
-  return res.json() as Promise<T>
+  const body = (await res.json().catch(() => null)) as Record<string, unknown> | null
+  if (!res.ok) {
+    const message = typeof body?.message === 'string' ? body.message : `Integrations ${res.status}`
+    throw new Error(message)
+  }
+  return body as T
 }
 
 export function getIntegrationsConfig(t: AbsTarget): Promise<IntegrationsConfig> {

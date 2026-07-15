@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCustomProviders, adminContentKeys } from '@/api/absAdmin'
 import {
   getIntegrationsConfig,
-  saveIntegrationsConfig,
   integrationsKeys,
+  parseRmabLoginTokenInput,
+  saveIntegrationsConfig,
   type IntegrationsConfig,
   type IntegrationsConfigPatch,
 } from '@/api/absIntegrations'
@@ -23,6 +24,13 @@ const REGION_LABELS: Record<string, string> = {
   de: 'Germany',
   es: 'Spain',
   fr: 'France',
+}
+
+function rmabUrlMismatch(baseUrl: string | null, currentUrl: string): string | null {
+  if (!baseUrl || !currentUrl.trim()) return null
+  const normalizedCurrent = currentUrl.trim().replace(/\/$/, '').toLowerCase()
+  if (normalizedCurrent === baseUrl.toLowerCase()) return null
+  return `The login URL is for ${baseUrl}, but Server URL is ${currentUrl.trim()}. Verify that both addresses reach the same ReadMeABook server.`
 }
 
 // Inline marker next to a field pinned by an environment variable (read-only).
@@ -101,6 +109,8 @@ function IntegrationsForm({ config }: { config: IntegrationsConfig }) {
   // Editable text fields; secrets are separate write-only inputs (blank = keep).
   const [rmabUrl, setRmabUrl] = useState(config.rmabUrl ?? '')
   const [rmabToken, setRmabToken] = useState('')
+  const [rmabUrlWarning, setRmabUrlWarning] = useState<string | null>(null)
+  const [pastedRmabBaseUrl, setPastedRmabBaseUrl] = useState<string | null>(null)
   const [audplexusUrl, setAudplexusUrl] = useState(config.audplexusUrl ?? '')
   const [audplexusKey, setAudplexusKey] = useState('')
   const [region, setRegion] = useState(config.audibleRegion)
@@ -121,7 +131,7 @@ function IntegrationsForm({ config }: { config: IntegrationsConfig }) {
       setAudplexusKey('')
       show('Integrations saved')
     },
-    onError: () => show('Could not save - admin permission required'),
+    onError: (err) => show(err instanceof Error ? err.message : 'Could not validate ReadMeABook'),
   })
 
   const env = config.env
@@ -131,6 +141,22 @@ function IntegrationsForm({ config }: { config: IntegrationsConfig }) {
     if (!env.rmabUrl) patch.rmabUrl = rmabUrl.trim() || null
     if (!env.rmabLoginToken && rmabToken.trim()) patch.rmabLoginToken = rmabToken.trim()
     save.mutate(patch)
+  }
+  const updateRmabToken = (value: string) => {
+    const parsed = parseRmabLoginTokenInput(value)
+    setRmabToken(parsed.token)
+    setPastedRmabBaseUrl(parsed.baseUrl)
+    if (!parsed.baseUrl) {
+      setRmabUrlWarning(null)
+      return
+    }
+    const currentUrl = env.rmabUrl ? (config.rmabUrl ?? '') : rmabUrl.trim()
+    if (!currentUrl && !env.rmabUrl) {
+      setRmabUrl(parsed.baseUrl)
+      setRmabUrlWarning(null)
+      return
+    }
+    setRmabUrlWarning(rmabUrlMismatch(parsed.baseUrl, currentUrl))
   }
   const saveAudplexus = () => {
     const patch: IntegrationsConfigPatch = {}
@@ -161,9 +187,9 @@ function IntegrationsForm({ config }: { config: IntegrationsConfig }) {
           <Icon name="info" style={{ color: '#d9a45a', marginTop: 2 }} />
           <div className="sr-d">
             <strong>Use a Login Token, not an API Token.</strong> In ReadMeABook, open Admin
-            {' > '}Users, choose a dedicated admin service account, and enable Login Token. Copy
-            only the <code>rmab_...</code> value after <code>?token=</code> from the generated URL.
-            The account must be an admin so every HearthShelf request action is available.
+            {' > '}Users, choose a dedicated admin service account, and enable Login Token. Copy and
+            paste the generated URL, or just its <code>rmab_...</code> token. The account must be an
+            admin so every HearthShelf request action is available.
           </div>
         </div>
         <div className="field full">
@@ -173,7 +199,10 @@ function IntegrationsForm({ config }: { config: IntegrationsConfig }) {
             placeholder="https://audiobooks.example.com"
             value={env.rmabUrl ? (config.rmabUrl ?? '') : rmabUrl}
             disabled={env.rmabUrl}
-            onChange={(e) => setRmabUrl(e.target.value)}
+            onChange={(e) => {
+              setRmabUrl(e.target.value)
+              setRmabUrlWarning(rmabUrlMismatch(pastedRmabBaseUrl, e.target.value))
+            }}
           />
         </div>
         <div className="field full">
@@ -187,13 +216,18 @@ function IntegrationsForm({ config }: { config: IntegrationsConfig }) {
                 ? '•••••••• (from environment)'
                 : config.rmabHasToken
                   ? '•••••••• (leave blank to keep)'
-                  : 'Paste login token'
+                  : 'Paste rmab_... token or full login URL'
             }
             value={rmabToken}
             disabled={env.rmabLoginToken}
-            onChange={(e) => setRmabToken(e.target.value)}
+            onChange={(e) => updateRmabToken(e.target.value)}
           />
         </div>
+        {rmabUrlWarning && (
+          <div className="rr-err" style={{ color: '#d9a45a' }}>
+            <Icon name="warning" fill /> {rmabUrlWarning}
+          </div>
+        )}
         {!(env.rmabUrl && env.rmabLoginToken) && (
           <button className="btn-sm btn-green" disabled={save.isPending} onClick={saveRmab}>
             <Icon name="save" /> Save
