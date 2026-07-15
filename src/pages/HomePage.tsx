@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import { useUser } from '@clerk/clerk-react'
 import { continueSeriesShelf } from '@hearthshelf/core'
 import { useActiveServer } from '@/hooks/useActiveServer'
@@ -219,22 +219,21 @@ export function HomePage() {
   // /api/me/items-in-progress is already server-wide, so the unified in-progress
   // is just that same call with no library filter. The shelves are per-library,
   // so we fetch each library's shelves and merge them by shelf id.
-  const unifiedQueries = useQueries({
-    queries: unified
-      ? [
-          {
-            queryKey: ['abs-items-in-progress', target?.serverId, '__all__'],
-            queryFn: () => getItemsInProgress(safeTarget),
-            staleTime: 30 * 1000,
-          },
-          ...libraries.map((lib) => ({
-            queryKey: ['abs-home-shelves', target?.serverId, lib.id],
-            queryFn: () => getHomeShelves(safeTarget, lib.id),
-            staleTime: 60 * 1000,
-          })),
-        ]
-      : [],
-  })
+  const unifiedQueryOptions: UseQueryOptions<AbsLibraryItem[] | HomeShelf[]>[] = unified
+    ? [
+        {
+          queryKey: ['abs-items-in-progress', target?.serverId, '__all__'],
+          queryFn: () => getItemsInProgress(safeTarget),
+          staleTime: 30 * 1000,
+        },
+        ...libraries.map((lib) => ({
+          queryKey: ['abs-home-shelves', target?.serverId, lib.id],
+          queryFn: () => getHomeShelves(safeTarget, lib.id),
+          staleTime: 60 * 1000,
+        })),
+      ]
+    : []
+  const unifiedQueries = useQueries({ queries: unifiedQueryOptions })
   const unifiedInProgressQuery = unified ? unifiedQueries[0] : undefined
   const unifiedShelfQueries = unified ? unifiedQueries.slice(1) : []
 
