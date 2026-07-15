@@ -154,6 +154,18 @@ function IntegrationsForm({ config }: { config: IntegrationsConfig }) {
         </span>
       </div>
       <div className="cfg-card">
+        <div
+          className="cfg-line"
+          style={{ alignItems: 'flex-start', gap: 10, marginBottom: 'var(--s4)' }}
+        >
+          <Icon name="info" style={{ color: '#d9a45a', marginTop: 2 }} />
+          <div className="sr-d">
+            <strong>Use a Login Token, not an API Token.</strong> In ReadMeABook, open Admin
+            {' > '}Users, choose a dedicated admin service account, and enable Login Token. Copy
+            only the <code>rmab_...</code> value after <code>?token=</code> from the generated URL.
+            The account must be an admin so every HearthShelf request action is available.
+          </div>
+        </div>
         <div className="field full">
           <label>Server URL{env.rmabUrl && <EnvLockTag />}</label>
           <input
@@ -165,7 +177,7 @@ function IntegrationsForm({ config }: { config: IntegrationsConfig }) {
           />
         </div>
         <div className="field full">
-          <label>Login token{env.rmabLoginToken && <EnvLockTag />}</label>
+          <label>Login token (not API token){env.rmabLoginToken && <EnvLockTag />}</label>
           <input
             className="fld"
             type="password"
