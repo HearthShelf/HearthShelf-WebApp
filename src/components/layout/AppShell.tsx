@@ -9,6 +9,7 @@ import { useSettingsSync } from '@/hooks/useSettingsSync'
 import { useQueueSync } from '@/hooks/useQueueSync'
 import { useNotePops } from '@/hooks/useNotePops'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useSettingsStore } from '@/store/settingsStore'
 import { useNavCollapsed } from '@/hooks/useNavCollapsed'
 import { useCarMode } from '@/hooks/useCarMode'
 import { useCarFaded } from '@/hooks/useCarFaded'
@@ -40,6 +41,9 @@ export function AppShell() {
   const carMode = useCarMode()
   const carShell = carMode && pathname === '/player'
   const carFaded = useCarFaded()
+  // User can hide the docked mini player; the full player stays reachable from
+  // the player nav / a book's Play button.
+  const hideMiniPlayer = useSettingsStore((s) => s.hideMiniPlayer)
 
   // Drive the connection to the active server for the whole shell.
   useConnectActiveServer()
@@ -78,7 +82,7 @@ export function AppShell() {
           <Outlet />
         </div>
       </div>
-      {!carShell && <MiniPlayer />}
+      {!carShell && !hideMiniPlayer && <MiniPlayer />}
       {/* MobileNav (bottom tab bar + "More" drawer) lives at the .app level, a
           sibling of the mini-player - NOT inside .main - so its drawer can layer
           ABOVE the mini-player. Nested in .main it was trapped in .main's lower

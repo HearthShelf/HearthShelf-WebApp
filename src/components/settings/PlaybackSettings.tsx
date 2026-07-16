@@ -125,6 +125,11 @@ export function PlaybackSettings() {
             </div>
           }
         />
+        <SetRow
+          title="Hide mini player"
+          desc="Turn off the docked bar that shows what's playing. Open the full player from the nav or a book's Play button."
+          control={<Toggle on={s.hideMiniPlayer} onChange={(v) => set('hideMiniPlayer', v)} />}
+        />
       </div>
 
       <div className="section-head" style={{ marginTop: 'var(--s6)' }}>

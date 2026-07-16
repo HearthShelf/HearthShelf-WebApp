@@ -110,6 +110,9 @@ export interface SettingsState {
   tapArtworkTogglesPlay: boolean
   // Double-tap the margins beside the artwork to skip (on by default).
   skipHotspots: boolean
+  // Hide the docked mini player. Off (default) keeps the bar; on hides it and the
+  // full player is reached from the player nav / a book's Play button.
+  hideMiniPlayer: boolean
 
   // Car mode (in-car browser player)
   carMode: CarMode
@@ -210,6 +213,7 @@ export const useSettingsStore = create<SettingsState>()(
       skipBackCustom: 20,
       tapArtworkTogglesPlay: false,
       skipHotspots: true,
+      hideMiniPlayer: false,
 
       carMode: 'auto',
       carPlayerRect: null,
