@@ -7,7 +7,7 @@ import { useActiveServer } from '@/hooks/useActiveServer'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSleepTimer } from '@/hooks/useSleepTimer'
-import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
+import { SpeedPopover, SleepPopover, VolumePopover } from '@/components/player/PlayerPopovers'
 import { SyncStatusPill } from '@/components/player/SyncStatusPill'
 import { RecentListens } from '@/components/player/RecentListens'
 import { MobilePlayer } from '@/components/player/MobilePlayer'
@@ -41,7 +41,7 @@ interface Chap {
 }
 
 type Panel = 'chapters' | 'details' | 'queue' | 'reader' | null
-type Pop = 'speed' | 'sleep' | 'bookmark' | 'recent' | null
+type Pop = 'speed' | 'sleep' | 'bookmark' | 'recent' | 'volume' | null
 
 function PanelHead({
   icon,
@@ -388,7 +388,8 @@ export function PlayerPage() {
   // browsing the whole library.
   const { data: inProgress } = useItemsInProgress(target as AbsTarget, undefined, Boolean(target))
   const resumeBook = inProgress?.[0]
-  const { now, playing, positionSec, togglePlay, seekTo, rate, setRate } = usePlayer()
+  const { now, playing, positionSec, togglePlay, seekTo, rate, setRate, volume, setVolume } =
+    usePlayer()
 
   const libraryItemId = now?.itemId ?? null
   const title = now?.title ?? ''
@@ -928,6 +929,11 @@ export function PlayerPage() {
               <SleepPopover ctl={sleepCtl} onClose={() => setPop(null)} />
             </div>
           )}
+          {pop === 'volume' && (
+            <div className="p-pop">
+              <VolumePopover volume={volume} setVolume={setVolume} onClose={() => setPop(null)} />
+            </div>
+          )}
           {pop === 'bookmark' && (
             <div className="p-pop">
               <div className="pop-head">
@@ -1021,6 +1027,15 @@ export function PlayerPage() {
               onClick={() => togglePop('speed')}
             >
               <Icon name="speed" /> {speed}×
+            </button>
+            <button
+              className={'pill' + (pop === 'volume' ? ' on' : '')}
+              onClick={() => togglePop('volume')}
+            >
+              <Icon
+                name={volume <= 0 ? 'volume_off' : volume < 0.5 ? 'volume_down' : 'volume_up'}
+              />{' '}
+              {Math.round(volume * 100)}%
             </button>
             <button
               className={'pill' + (pop === 'sleep' || sleepCtl.active ? ' on' : '')}

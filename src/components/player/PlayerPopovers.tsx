@@ -66,6 +66,73 @@ export function SpeedPopover({
   )
 }
 
+const VOLUME_PRESETS = [0.25, 0.5, 0.75, 1]
+
+// Pick the speaker glyph that matches the level (muted / low / high).
+function volumeIcon(v: number): string {
+  if (v <= 0) return 'volume_off'
+  if (v < 0.5) return 'volume_down'
+  return 'volume_up'
+}
+
+// Volume popover: live percent, slider (0-100%), preset chips, and a mute
+// toggle that remembers the pre-mute level. Shared by the full player and the
+// persistent play bar.
+export function VolumePopover({
+  volume,
+  setVolume,
+  onClose,
+}: {
+  volume: number
+  setVolume: (v: number) => void
+  onClose: () => void
+}) {
+  const muted = volume <= 0
+  const toggleMute = () => setVolume(muted ? 1 : 0)
+  return (
+    <>
+      <div className="pop-head">
+        <Icon name={volumeIcon(volume)} /> Volume
+        <span className="pop-x" onClick={onClose}>
+          <Icon name="close" style={{ fontSize: 18 }} />
+        </span>
+      </div>
+      <div className="speed-val">
+        {Math.round(volume * 100)}
+        <small>%</small>
+      </div>
+      <div className="pop-row" style={{ gap: 10 }}>
+        <button
+          className="icon-btn"
+          onClick={toggleMute}
+          title={muted ? 'Unmute' : 'Mute'}
+          aria-label={muted ? 'Unmute' : 'Mute'}
+        >
+          <Icon name={volumeIcon(volume)} />
+        </button>
+        <input
+          className="speed-slider"
+          style={{ flex: 1 }}
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={volume}
+          onChange={(e) => setVolume(Number(e.target.value))}
+          aria-label="Volume"
+        />
+      </div>
+      <div className="sleep-grid">
+        {VOLUME_PRESETS.map((v) => (
+          <button key={v} className={Math.abs(v - volume) < 0.001 ? 'on' : ''} onClick={() => setVolume(v)}>
+            {Math.round(v * 100)}%
+          </button>
+        ))}
+      </div>
+    </>
+  )
+}
+
 // Sleep-timer popover: duration / chapter / clock stop modes plus the stop
 // sequence (rewind, fade). All logic lives in useSleepTimer (ctl).
 export function SleepPopover({ ctl, onClose }: { ctl: SleepCtl; onClose: () => void }) {

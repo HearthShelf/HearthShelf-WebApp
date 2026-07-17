@@ -5,11 +5,11 @@ import { useSettingsStore } from '@/store/settingsStore'
 import { useSleepTimer } from '@/hooks/useSleepTimer'
 import { Icon } from '@/components/common/Icon'
 import { tintFor } from '@/components/shared/Cover'
-import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
+import { SpeedPopover, SleepPopover, VolumePopover } from '@/components/player/PlayerPopovers'
 import { Scrubber } from '@/components/player/Scrubber'
 import { formatTimestamp } from '@hearthshelf/core'
 
-type Pop = 'speed' | 'sleep' | 'chapters' | null
+type Pop = 'speed' | 'sleep' | 'chapters' | 'volume' | null
 
 /**
  * Docked mini-player in the app shell. Rendered once by AppShell and never
@@ -21,12 +21,12 @@ type Pop = 'speed' | 'sleep' | 'chapters' | null
  *  - position/playing/rate and the transport actions come from the hook
  *
  * Parity gaps vs. the self-hosted PlayerBar (intentional):
- *  - Volume: PlayerProvider does not expose volume, so the volume popover is omitted.
  *  - Bookmarks/Queue panels + panel pre-select: the WebApp player has no
  *    requestPanel store, so the expand button just opens /player.
  */
 export function MiniPlayer() {
-  const { now, close, playing, positionSec, togglePlay, seekTo, skip, rate, setRate } = usePlayer()
+  const { now, close, playing, positionSec, togglePlay, seekTo, skip, rate, setRate, volume, setVolume } =
+    usePlayer()
 
   // Swipe-to-dismiss: drag the bar horizontally; past the threshold on release it
   // dismisses (which stops playback). Tracked in a ref during the gesture and
@@ -198,6 +198,22 @@ export function MiniPlayer() {
       </div>
 
       <div className="pb-right">
+        <div className="pb-pop-wrap">
+          {pop === 'volume' && (
+            <div className="p-pop pb-pop">
+              <VolumePopover volume={volume} setVolume={setVolume} onClose={() => setPop(null)} />
+            </div>
+          )}
+          <button
+            className={'icon-btn' + (pop === 'volume' ? ' on' : '')}
+            title="Volume"
+            aria-label="Volume"
+            onClick={() => togglePop('volume')}
+          >
+            <Icon name={volume <= 0 ? 'volume_off' : volume < 0.5 ? 'volume_down' : 'volume_up'} />
+          </button>
+        </div>
+
         <div className="pb-pop-wrap">
           {pop === 'speed' && (
             <div className="p-pop pb-pop">
