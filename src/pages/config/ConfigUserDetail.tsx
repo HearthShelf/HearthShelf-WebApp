@@ -1,13 +1,22 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { getUsers, updateUser, adminKeys } from '@/api/absAdmin'
+import {
+  getUsers,
+  updateUser,
+  adminKeys,
+  adminSectionKeys,
+  getUserListeningStats,
+  getUserListeningSessions,
+} from '@/api/absAdmin'
 import { getLinkedAbsUserIds, hostedKeys } from '@/api/absHosted'
 import { EditUserAccountModal, type EditUserAccountValues } from '@/components/config/EditUserAccountModal'
 import { ChangePasswordModal } from '@/components/config/ChangePasswordModal'
 import { EditPermissionsModal, type EditPermissionsValues } from '@/components/config/EditPermissionsModal'
 import { useActiveServer } from '@/hooks/useActiveServer'
-import { fmtSessDate } from '@hearthshelf/core'
+import { fmtSessDate, formatDuration, computeListeningStats } from '@hearthshelf/core'
+import { Cover, tintFor } from '@/components/shared/Cover'
+import { DeviceKindIcon } from '@/components/common/DeviceKindIcon'
 import { Icon } from '@/components/common/Icon'
 import { Avatar } from '@/components/common/Avatar'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
@@ -40,6 +49,26 @@ export function ConfigUserDetail({ userId }: { userId: string }) {
     retry: false,
   })
 
+  // Per-user listening reads (admin-scoped ABS endpoints). Sessions double as
+  // the "last seen" source: ABS only stamps user.lastSeen on websocket auth,
+  // which REST-only HearthShelf clients never trigger.
+  const { data: stats } = useQuery({
+    queryKey: adminSectionKeys.userStats(target?.serverId ?? '', userId),
+    queryFn: () => getUserListeningStats(target!, userId),
+    enabled: Boolean(target),
+    staleTime: 60 * 1000,
+    retry: false,
+  })
+  const [sessPage, setSessPage] = useState(0)
+  const { data: sessions } = useQuery({
+    queryKey: adminSectionKeys.userSessions(target?.serverId ?? '', userId, sessPage),
+    queryFn: () => getUserListeningSessions(target!, userId, sessPage),
+    enabled: Boolean(target),
+    staleTime: 60 * 1000,
+    retry: false,
+    placeholderData: (prev) => prev,
+  })
+
   const user = data?.users.find((u) => u.id === userId)
 
   if (!target || isLoading) {
@@ -56,10 +85,22 @@ export function ConfigUserDetail({ userId }: { userId: string }) {
 
   const linkedToHosted = linkedIds?.has(user.id) ?? false
 
+  // Fold the raw ABS stats payload into the computed shape (streak, active
+  // days, most-listened) with the same math the Stats page uses.
+  const hs = stats ? computeListeningStats(stats, new Date()) : null
+  const topBooks = hs?.mostListened.slice(0, 5) ?? []
+  const topMax = topBooks[0]?.timeSec || 1
+
   // Show only the boolean permission flags that are enabled (skip the array
   // fields librariesAccessible / itemTagsSelected, which aren't simple toggles).
   const perms = Object.entries(user.permissions ?? {}).filter(([, v]) => v === true)
-  const seen = user.lastSeen ? fmtSessDate(user.lastSeen) : null
+  // Prefer real playback activity over ABS's websocket-only lastSeen stamp.
+  const newestSess = sessPage === 0 ? sessions?.sessions[0] : undefined
+  const lastActive = Math.max(
+    user.lastSeen ?? 0,
+    newestSess ? newestSess.updatedAt || newestSess.startedAt || 0 : 0,
+  )
+  const seen = lastActive > 0 ? fmtSessDate(lastActive) : null
 
   const closeEdit = () => {
     setEditMode(null)
@@ -197,6 +238,157 @@ export function ConfigUserDetail({ userId }: { userId: string }) {
               </span>
             ))}
           </div>
+        </>
+      )}
+
+      {hs && hs.totalTimeSec > 0 && (
+        <>
+          <div className="section-head">
+            <Icon name="headphones" />
+            <h2>Listening stats</h2>
+          </div>
+          <div className="stat-tiles">
+            <div className="tile">
+              <div className="t-ico">
+                <Icon name="schedule" />
+              </div>
+              <div className="t-num">{formatDuration(hs.totalTimeSec)}</div>
+              <div className="t-cap">Total time</div>
+            </div>
+            <div className="tile">
+              <div className="t-ico">
+                <Icon name="menu_book" />
+              </div>
+              <div className="t-num">{hs.mostListened.length}</div>
+              <div className="t-cap">Books listened</div>
+            </div>
+            <div className="tile">
+              <div className="t-ico">
+                <Icon name="calendar_today" />
+              </div>
+              <div className="t-num">{hs.activeDays}</div>
+              <div className="t-cap">Active days</div>
+            </div>
+            {hs.dayStreak > 0 && (
+              <div className="tile">
+                <div
+                  className="t-ico"
+                  style={{
+                    background: 'color-mix(in oklab, var(--accent) 22%, transparent)',
+                    color: 'var(--accent)',
+                  }}
+                >
+                  <Icon name="local_fire_department" fill />
+                </div>
+                <div className="t-num">{hs.dayStreak}</div>
+                <div className="t-cap">Day streak</div>
+              </div>
+            )}
+            <div className="tile">
+              <div className="t-ico">
+                <Icon name="date_range" />
+              </div>
+              <div className="t-num">{formatDuration(hs.weekSec)}</div>
+              <div className="t-cap">This week</div>
+            </div>
+            <div className="tile">
+              <div className="t-ico" style={hs.todaySec > 0 ? {
+                background: 'color-mix(in oklab, var(--accent) 22%, transparent)',
+                color: 'var(--accent)',
+              } : undefined}>
+                <Icon name="today" fill={hs.todaySec > 0} />
+              </div>
+              <div className="t-num">{formatDuration(hs.todaySec)}</div>
+              <div className="t-cap">Today</div>
+            </div>
+          </div>
+
+          {topBooks.length > 0 && (
+            <>
+              <div className="section-head">
+                <Icon name="trending_up" />
+                <h2>Most listened to</h2>
+              </div>
+              <div className="chart-card" style={{ marginTop: 0 }}>
+                <div className="ml-list">
+                  {topBooks.map((b, i) => (
+                    <div className="ml-row" key={b.id} data-cv={tintFor(b.title)}>
+                      <span className="ml-rank">{i + 1}</span>
+                      <Cover itemId={b.id} title={b.title} fs={4} />
+                      <div className="ml-meta">
+                        <div className="ml-t">{b.title}</div>
+                        <div className="ml-s">
+                          {[b.author, b.narrator].filter(Boolean).join(' · ')}
+                        </div>
+                        <div className="ml-bar">
+                          <i style={{ width: (b.timeSec / topMax) * 100 + '%' }} />
+                        </div>
+                      </div>
+                      <span className="ml-h">
+                        {(b.timeSec / 3600).toFixed(1)}
+                        <small>h</small>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {sessions && sessions.total > 0 && (
+        <>
+          <div className="section-head">
+            <Icon name="history" />
+            <h2>Recent sessions</h2>
+          </div>
+          <div className="cfg-card">
+            {sessions.sessions.map((s) => {
+              const when = fmtSessDate(s.updatedAt || s.startedAt)
+              return (
+                <div className="cfg-line" key={s.id}>
+                  <DeviceKindIcon
+                    deviceInfo={s.deviceInfo}
+                    size={18}
+                    style={{ color: 'var(--text-muted)' }}
+                  />
+                  <div className="cl-meta">
+                    <div className="cl-t">{s.displayTitle}</div>
+                    <div className="cl-d">
+                      {[s.displayAuthor, formatDuration(s.timeListening)]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </div>
+                  </div>
+                  <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    {when.day} · {when.time}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+          {sessions.numPages > 1 && (
+            <div className="t-actions" style={{ marginTop: 10, justifyContent: 'flex-end' }}>
+              <button
+                className="btn-sm btn-ghost"
+                disabled={sessPage === 0}
+                onClick={() => setSessPage((p) => Math.max(0, p - 1))}
+              >
+                <Icon name="chevron_left" /> Newer
+              </button>
+              <span style={{ color: 'var(--text-muted)', fontSize: 13, alignSelf: 'center' }}>
+                {sessPage + 1} / {sessions.numPages}
+              </span>
+              <button
+                className="btn-sm btn-ghost"
+                disabled={sessPage + 1 >= sessions.numPages}
+                onClick={() => setSessPage((p) => p + 1)}
+              >
+                Older <Icon name="chevron_right" />
+              </button>
+            </div>
+          )}
         </>
       )}
 

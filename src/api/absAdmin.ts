@@ -25,6 +25,8 @@ import type {
   ABSApiKey,
   ABSApiKeysResponse,
   ABSServerSettings,
+  ABSListeningStats,
+  ABSListeningSessionsResponse,
 } from '@hearthshelf/core'
 
 export type {
@@ -313,6 +315,9 @@ export async function getSearchProviders(t: AbsTarget): Promise<{
 // for the sections in this block, keyed per server so a switch re-fetches.
 export const adminSectionKeys = {
   sessions: (serverId: string, page: number) => ['admin', serverId, 'sessions', page] as const,
+  userStats: (serverId: string, userId: string) => ['admin', serverId, 'user-stats', userId] as const,
+  userSessions: (serverId: string, userId: string, page: number) =>
+    ['admin', serverId, 'user-sessions', userId, page] as const,
   backups: (serverId: string) => ['admin', serverId, 'backups'] as const,
   logs: (serverId: string) => ['admin', serverId, 'logs'] as const,
   apiKeys: (serverId: string) => ['admin', serverId, 'apikeys'] as const,
@@ -353,6 +358,33 @@ export async function getSessions(
   const res = await absGet<Partial<ABSSessionsResponse>>(
     t,
     `/api/sessions?page=${page}&itemsPerPage=${itemsPerPage}`,
+  )
+  return {
+    total: res.total ?? 0,
+    numPages: res.numPages ?? 0,
+    page: res.page ?? page,
+    itemsPerPage: res.itemsPerPage ?? itemsPerPage,
+    sessions: res.sessions ?? [],
+  }
+}
+
+// --- Per-user listening data (admin) ----------------------------------------
+// GET /api/users/:id/listening-stats and /listening-sessions - same payload
+// shapes as the me-scoped reads, but readable by an admin for any user.
+
+export function getUserListeningStats(t: AbsTarget, userId: string): Promise<ABSListeningStats> {
+  return absGet<ABSListeningStats>(t, `/api/users/${userId}/listening-stats`)
+}
+
+export async function getUserListeningSessions(
+  t: AbsTarget,
+  userId: string,
+  page = 0,
+  itemsPerPage = 10,
+): Promise<ABSListeningSessionsResponse> {
+  const res = await absGet<Partial<ABSListeningSessionsResponse>>(
+    t,
+    `/api/users/${userId}/listening-sessions?page=${page}&itemsPerPage=${itemsPerPage}`,
   )
   return {
     total: res.total ?? 0,
