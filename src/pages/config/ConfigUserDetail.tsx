@@ -191,7 +191,7 @@ export function ConfigUserDetail({ userId }: { userId: string }) {
           <div className="cl-meta">
             <div className="cl-t">Profile</div>
           </div>
-          <Avatar name={user.username} size={48} />
+          <Avatar name={user.username} target={target} userId={user.id} size={48} />
         </div>
       </div>
 

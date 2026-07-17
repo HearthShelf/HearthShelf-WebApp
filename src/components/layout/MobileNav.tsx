@@ -215,7 +215,7 @@ function MobileDrawer({
       <aside className={'mdrawer' + (open ? ' open' : '')} role="dialog" aria-label="More">
         <div className="msheet-grab" />
         <div className="msheet-user">
-          <Avatar name={name} imageUrl={user?.imageUrl} size={46} />
+          <Avatar name={name} target={target} userId={absMe?.id} size={46} />
           <div className="msheet-umeta">
             <div className="msheet-uname">{name}</div>
             {/* Server NAME, never the Direct URL. */}

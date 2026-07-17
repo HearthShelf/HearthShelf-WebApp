@@ -54,9 +54,16 @@ interface NavItemDef {
 
 function UserMenu() {
   const { user } = useUser()
-  const { server } = useActiveServer()
+  const { server, target } = useActiveServer()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+
+  const { data: absMe } = useQuery({
+    queryKey: ['abs-me', target?.serverId],
+    queryFn: () => getMe(target!),
+    enabled: Boolean(target),
+    staleTime: 5 * 60 * 1000,
+  })
 
   // Platform-admin link, shown only to the platform_admins roster (403-aware).
   const { data: adminMe } = useQuery({
@@ -88,7 +95,7 @@ function UserMenu() {
         </div>
       )}
       <button className={'user-chip' + (open ? ' on' : '')} onClick={() => setOpen((o) => !o)}>
-        <Avatar name={name} imageUrl={user?.imageUrl} size={36} />
+        <Avatar name={name} target={target} userId={absMe?.id} size={36} />
         <span className="u-meta">
           <span className="u-name">{name}</span>
           {/* The server's friendly NAME - never the Direct URL or a UUID. */}

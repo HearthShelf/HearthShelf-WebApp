@@ -408,7 +408,7 @@ export function ConfigUsers() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Avatar name={u.username} size={30} />
+                      <Avatar name={u.username} target={target} userId={u.id} size={30} />
                       <span className="lnk" onClick={() => navigate(`/config/users/${u.id}`)}>
                         {u.username}
                       </span>

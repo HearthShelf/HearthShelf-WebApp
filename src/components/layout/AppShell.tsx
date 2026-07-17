@@ -8,6 +8,7 @@ import { useApplySettings } from '@/hooks/useApplySettings'
 import { useSettingsSync } from '@/hooks/useSettingsSync'
 import { useQueueSync } from '@/hooks/useQueueSync'
 import { useNotePops } from '@/hooks/useNotePops'
+import { useClerkAvatarSync } from '@/hooks/useClerkAvatarSync'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useNavCollapsed } from '@/hooks/useNavCollapsed'
@@ -55,6 +56,10 @@ export function AppShell() {
   useQueueSync()
   // Toast when playback crosses a club note (deep-links into the club room).
   useNotePops()
+  // Keep the connected server's copy of our Clerk photo current, so every
+  // in-app avatar (which reads from the server, never Clerk directly) has
+  // something to show without requiring a visit to Settings first.
+  useClerkAvatarSync()
 
   return (
     <div

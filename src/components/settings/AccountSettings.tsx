@@ -161,7 +161,7 @@ export function AccountSettings() {
             {uploading ? (
               <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-muted)' }} />
             ) : (
-              <Avatar name={displayName} imageUrl={user.imageUrl} size={52} />
+              <Avatar name={displayName} target={target} userId={me?.id} size={52} />
             )}
             <span className="acct-avatar-badge">
               <Icon name="photo_camera" />

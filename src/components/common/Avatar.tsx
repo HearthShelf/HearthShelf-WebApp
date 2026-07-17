@@ -2,11 +2,14 @@
  * A user avatar with a graceful initials fallback.
  *
  * Two modes:
- *  - Pass `imageUrl` (Clerk's hosted avatar) for the signed-in user's OWN chrome
- *    - the freshest source, no round-trip.
- *  - Pass `target` + `userId` for ANY user (leaderboard, finished-by): the photo
- *    is served by that server's HearthShelf backend at GET /hs/avatars/:userId,
- *    which ranks uploaded -> Gravatar -> synced Clerk photo -> initials.
+ *  - Pass `target` + `userId` for any signed-in-and-connected user (yourself
+ *    included): the photo is served by that server's HearthShelf backend at
+ *    GET /hs/avatars/:userId, which ranks uploaded -> Gravatar -> synced Clerk
+ *    photo -> initials. This is the source of truth - prefer it whenever a
+ *    server connection exists, even for "me".
+ *  - Pass `imageUrl` (Clerk's hosted avatar) ONLY where no server session
+ *    exists yet, e.g. the remembered-accounts switcher roster (other Clerk
+ *    identities on this device you haven't switched into).
  * Either way we render initials first and reveal the image only once it actually
  * loads, so a missing/slow avatar never flashes a broken image.
  */
@@ -42,9 +45,10 @@ interface AvatarProps {
 }
 
 export function Avatar({ name, imageUrl, target, userId, size = 36, className }: AvatarProps) {
-  // Resolve the source: an explicit Clerk imageUrl wins; otherwise the server
-  // route if we have a target + userId; otherwise initials only.
-  const src = imageUrl || (target && userId ? serverAvatarUrl(target, userId) : null)
+  // Resolve the source: the server-stored photo wins whenever we have a
+  // target + userId; Clerk's imageUrl is only a fallback for pre-connection
+  // contexts (the account switcher); otherwise initials only.
+  const src = (target && userId ? serverAvatarUrl(target, userId) : null) || imageUrl || null
 
   // Track load state per source identity. When `src` changes the <img> remounts
   // (keyed), so a stale success never bleeds onto a new src.
