@@ -1,7 +1,10 @@
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { AbsSeries } from '@/api/absLibrary'
 import { Cover, tintFor } from '@/components/shared/Cover'
+import { AvatarStack } from '@/components/common/AvatarStack'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
+import { useReadersOfItems, useReadersTarget } from '@/components/shared/ReadersContext'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
 
 interface SeriesCardProps {
@@ -14,6 +17,8 @@ export function SeriesCard({ series, selectionActive = false }: SeriesCardProps)
   const ui = useMediaUI()
   const progressById = useMediaProgress()
   const books = series.books ?? []
+  const readersTarget = useReadersTarget()
+  const readers = useReadersOfItems(useMemo(() => books.map((b) => b.id), [books]))
   const shown = books.slice(0, 4)
   const extra = books.length - shown.length
   const author = books[0]?.media.metadata.authorName || ''
@@ -52,6 +57,11 @@ export function SeriesCard({ series, selectionActive = false }: SeriesCardProps)
           </div>
           <span>{Math.round(pct * 100)}%</span>
         </div>
+        {readers.length > 0 && (
+          <div className="b-readers">
+            <AvatarStack users={readers} target={readersTarget} max={4} size={21} />
+          </div>
+        )}
       </div>
     </div>
   )

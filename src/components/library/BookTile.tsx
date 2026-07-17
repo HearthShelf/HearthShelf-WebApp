@@ -2,7 +2,9 @@ import { useNavigate } from 'react-router-dom'
 import type { AbsLibraryItem } from '@/api/absLibrary'
 import { Cover, tintFor } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
+import { AvatarStack } from '@/components/common/AvatarStack'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
+import { useReadersOf, useReadersTarget } from '@/components/shared/ReadersContext'
 import { usePromptedMarkFinished } from '@/hooks/useMarkFinished'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 
@@ -39,6 +41,8 @@ export function BookTile({
 }: BookTileProps) {
   const navigate = useNavigate()
   const ui = useMediaUI()
+  const readers = useReadersOf(item.id)
+  const readersTarget = useReadersTarget()
   const { markFinishedPrompted } = usePromptedMarkFinished()
   // Touch UIs can't hover, so the reveal-on-hover action buttons are dropped -
   // tapping the tile opens the book detail page instead.
@@ -92,6 +96,17 @@ export function BookTile({
                 <Icon name="check" fill style={{ opacity: selected ? 1 : 0 }} />
               </button>
             )}
+            {compact && readers.length > 0 && (
+              <div className="cv-readers">
+                <AvatarStack
+                  users={readers}
+                  target={readersTarget}
+                  max={3}
+                  size={18}
+                  ring="rgba(8,6,4,0.55)"
+                />
+              </div>
+            )}
             {!anySelected && !isMobile && (
               <div className="hover-actions">
                 <button
@@ -129,6 +144,11 @@ export function BookTile({
         {progress > 0 && !finished && (
           <div className="b-prog">
             <i style={{ width: Math.min(100, progress * 100) + '%' }} />
+          </div>
+        )}
+        {!compact && readers.length > 0 && (
+          <div className="b-readers">
+            <AvatarStack users={readers} target={readersTarget} max={4} size={21} />
           </div>
         )}
       </div>

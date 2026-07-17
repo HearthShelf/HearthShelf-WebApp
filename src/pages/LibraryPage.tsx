@@ -26,6 +26,7 @@ import { Cover, tintFor } from '@/components/shared/Cover'
 import { PodcastsGrid } from '@/pages/PodcastsGrid'
 import { BookTile } from '@/components/library/BookTile'
 import { SeriesCard } from '@/components/library/SeriesCard'
+import { ReadersProvider } from '@/components/shared/ReadersContext'
 import { AzJumpRail } from '@/components/library/AzJumpRail'
 import { letterOf } from '@hearthshelf/core'
 import { BatchEditModal } from '@/components/library/BatchEditModal'
@@ -153,7 +154,7 @@ export function LibraryPage() {
   const { data: seriesData } = useQuery({
     queryKey: ['library-series', target?.serverId, activeId],
     queryFn: () => getSeries(target!, activeId as string, 0, 1000),
-    enabled: Boolean(target) && activeId !== null && tab === 'series',
+    enabled: Boolean(target) && activeId !== null,
     staleTime: 2 * 60 * 1000,
   })
 
@@ -186,6 +187,9 @@ export function LibraryPage() {
   const qc = useQueryClient()
 
   const allItems = useMemo<AbsLibraryItem[]>(() => data?.results ?? [], [data])
+  // All loaded item ids, so reader-avatar stacks on book/series/person cards
+  // resolve from one batched finished-by query for the whole library.
+  const readerItemIds = useMemo(() => allItems.map((it) => it.id), [allItems])
 
   // Filter + sort the books client-side. The progress segment (prog) and the
   // unified filter menu stack; both narrow the list.
@@ -519,6 +523,7 @@ export function LibraryPage() {
   ]
 
   return (
+    <ReadersProvider itemIds={readerItemIds}>
     <div
       className="page fade-in"
       style={
@@ -1042,5 +1047,6 @@ export function LibraryPage() {
         </div>
       )}
     </div>
+    </ReadersProvider>
   )
 }

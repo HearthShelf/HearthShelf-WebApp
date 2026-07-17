@@ -1,5 +1,7 @@
 import { Play, Check, BookOpen } from 'lucide-react'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
+import { AvatarStack } from '@/components/common/AvatarStack'
+import { useReadersOf, useReadersTarget } from '@/components/shared/ReadersContext'
 
 /**
  * Pure, shareable library tile: cover + title + author + optional progress, with
@@ -22,6 +24,8 @@ export interface BookTileItem {
 export function BookTile({ item }: { item: BookTileItem }) {
   const ui = useMediaUI()
   const cover = ui.coverUrl(item.id)
+  const readers = useReadersOf(item.id)
+  const readersTarget = useReadersTarget()
 
   const stop = (fn: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -76,6 +80,12 @@ export function BookTile({ item }: { item: BookTileItem }) {
             className="h-full bg-primary"
             style={{ width: `${Math.min(100, item.progress * 100)}%` }}
           />
+        </div>
+      )}
+
+      {readers.length > 0 && (
+        <div className="mt-2">
+          <AvatarStack users={readers} target={readersTarget} max={4} size={21} />
         </div>
       )}
     </div>

@@ -21,6 +21,7 @@ import type {
   LeaderboardWindow,
   HSFinishedByUser,
   HSFinishedByResponse,
+  HSFinishedByBulkResponse,
   HSListeningNowUser,
   HSListeningNowResponse,
   HSListeningNowBulkResponse,
@@ -46,6 +47,8 @@ export const socialKeys = {
     ['social', 'leaderboard', serverId, window] as const,
   finishedBy: (serverId: string, libraryItemId: string) =>
     ['social', 'finished-by', serverId, libraryItemId] as const,
+  finishedByBulk: (serverId: string, libraryItemIds: string[]) =>
+    ['social', 'finished-by-bulk', serverId, libraryItemIds] as const,
   listeningNow: (serverId: string, libraryItemId: string) =>
     ['social', 'listening-now', serverId, libraryItemId] as const,
   compare: (serverId: string, userId: string) => ['social', 'compare', serverId, userId] as const,
@@ -230,6 +233,76 @@ export async function getFinishedBy(
   } catch {
     return FINISHED_BY_UNAVAILABLE
   }
+}
+
+const FINISHED_BY_BULK_UNAVAILABLE: HSFinishedByBulkResponse = { available: false, byItem: {} }
+// The server caps a single POST at 100 ids; a full library exceeds that, so we
+// chunk and merge.
+const FINISHED_BY_BULK_CHUNK = 100
+
+function mapFinishedByUser(u: RawFinishedByUser): HSFinishedByUser {
+  return {
+    userId: u.userId ?? '',
+    username: u.username ?? '',
+    finishedAt: u.finishedAt ?? null,
+  }
+}
+
+/**
+ * Who finished each of many books, privacy-filtered server-side, for reader
+ * avatars on library/browse cards. Chunks to the server's 100-id cap and merges.
+ * Returns { available: false, byItem: {} } on any failure/older server so callers
+ * hide the avatars. When even one chunk succeeds the result is available; failed
+ * chunks simply contribute no entries.
+ */
+export async function getFinishedByBulk(
+  t: AbsTarget,
+  libraryItemIds: string[],
+): Promise<HSFinishedByBulkResponse> {
+  const token = getAbsToken(t.serverId)
+  const ids = [...new Set(libraryItemIds.filter(Boolean))]
+  if (!token || ids.length === 0) return FINISHED_BY_BULK_UNAVAILABLE
+
+  const chunks: string[][] = []
+  for (let i = 0; i < ids.length; i += FINISHED_BY_BULK_CHUNK) {
+    chunks.push(ids.slice(i, i + FINISHED_BY_BULK_CHUNK))
+  }
+
+  const results = await Promise.all(
+    chunks.map(async (chunk) => {
+      try {
+        const res = await fetch(`${origin(t)}/hs/social/finished-by`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({ libraryItemIds: chunk }),
+        })
+        if (!res.ok) return null
+        const data = (await res.json()) as {
+          available?: boolean
+          byItem?: Record<string, RawFinishedByUser[]>
+        }
+        if (!data || data.available !== true) return null
+        return data.byItem ?? {}
+      } catch {
+        return null
+      }
+    }),
+  )
+
+  const succeeded = results.filter((r): r is Record<string, RawFinishedByUser[]> => r !== null)
+  if (succeeded.length === 0) return FINISHED_BY_BULK_UNAVAILABLE
+
+  const byItem: Record<string, HSFinishedByUser[]> = {}
+  for (const chunk of succeeded) {
+    for (const [id, users] of Object.entries(chunk)) {
+      byItem[id] = users.map(mapFinishedByUser)
+    }
+  }
+  return { available: true, byItem }
 }
 
 interface RawListeningNowUser {

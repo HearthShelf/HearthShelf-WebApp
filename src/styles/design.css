@@ -2515,6 +2515,25 @@
   margin-top: 18px;
 }
 
+/* reader avatars in a card's meta row (who else finished this) */
+.b-readers {
+  margin-top: 9px;
+}
+
+/* compact tiles: reader avatars overlay the cover bottom-left, out of the way
+   on hover so the artwork and hover actions read cleanly */
+.cv-readers {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 5;
+  transition: opacity 0.15s;
+}
+.book:hover .cv-readers {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .player {
   position: relative;
   z-index: 2;
