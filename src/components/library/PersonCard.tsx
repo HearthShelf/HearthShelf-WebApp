@@ -20,6 +20,7 @@ interface PersonCardProps {
   person: Person
   selected: boolean
   anySelected: boolean
+  canEdit: boolean
   onToggleSelect: () => void
   onOpen: () => void
   onEdit: () => void
@@ -38,6 +39,7 @@ export function PersonCard({
   person,
   selected,
   anySelected,
+  canEdit,
   onToggleSelect,
   onOpen,
   onEdit,
@@ -56,30 +58,34 @@ export function PersonCard({
     <div
       className={'person-card' + (selected ? ' sel' : '')}
       data-cv={cv}
-      onClick={() => (anySelected ? onToggleSelect() : onOpen())}
+      onClick={() => (canEdit && anySelected ? onToggleSelect() : onOpen())}
     >
-      <button
-        className={'pc-check' + (selected ? ' on' : '')}
-        title={selected ? 'Deselect' : 'Select'}
-        onClick={(e) => {
-          e.stopPropagation()
-          onToggleSelect()
-        }}
-      >
-        <Icon name="check" />
-      </button>
-      <div className="pc-actions">
-        <button
-          className="pc-act"
-          title="Edit"
-          onClick={(e) => {
-            e.stopPropagation()
-            onEdit()
-          }}
-        >
-          <Icon name="edit" />
-        </button>
-      </div>
+      {canEdit && (
+        <>
+          <button
+            className={'pc-check' + (selected ? ' on' : '')}
+            title={selected ? 'Deselect' : 'Select'}
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleSelect()
+            }}
+          >
+            <Icon name="check" />
+          </button>
+          <div className="pc-actions">
+            <button
+              className="pc-act"
+              title="Edit"
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit()
+              }}
+            >
+              <Icon name="edit" />
+            </button>
+          </div>
+        </>
+      )}
 
       <div className="pc-top">
         <div
