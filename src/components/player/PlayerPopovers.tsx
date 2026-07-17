@@ -66,8 +66,6 @@ export function SpeedPopover({
   )
 }
 
-const VOLUME_PRESETS = [0.25, 0.5, 0.75, 1]
-
 // Pick the speaker glyph that matches the level (muted / low / high).
 function volumeIcon(v: number): string {
   if (v <= 0) return 'volume_off'
@@ -121,13 +119,6 @@ export function VolumePopover({
           onChange={(e) => setVolume(Number(e.target.value))}
           aria-label="Volume"
         />
-      </div>
-      <div className="sleep-grid">
-        {VOLUME_PRESETS.map((v) => (
-          <button key={v} className={Math.abs(v - volume) < 0.001 ? 'on' : ''} onClick={() => setVolume(v)}>
-            {Math.round(v * 100)}%
-          </button>
-        ))}
       </div>
     </>
   )
