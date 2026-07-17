@@ -24,7 +24,7 @@ function origin(t: AbsTarget): string {
  * The GET URL for a user's photo on a connected server, with an optional cache
  * bust. Used to render OTHER users (initials fallback handled by <Avatar>).
  */
-export function serverAvatarUrl(t: AbsTarget, userId: string, version?: number): string {
+export function serverAvatarUrl(t: AbsTarget, userId: string, version?: number | string): string {
   const base = `${origin(t)}${HS_ENDPOINTS.avatar(encodeURIComponent(userId))}`
   return version != null ? `${base}?v=${version}` : base
 }
@@ -112,6 +112,32 @@ export async function syncClerkAvatar(
     return { ok: true }
   } catch {
     return { ok: false, reason: 'request_failed' }
+  }
+}
+
+export type AvatarProbeResult =
+  | { state: 'stored' } // a 200: an upload or synced Clerk photo (no way to tell which from here)
+  | { state: 'gravatar_redirect' } // a 302 to Gravatar
+  | { state: 'none' } // a 404 - the client falls back to initials
+  | { state: 'unknown'; detail: string } // network error or unexpected status
+
+/**
+ * Diagnostics only: classify what the GET route currently resolves to for a
+ * user, without downloading or rendering the image. Used by the Account page's
+ * Advanced panel to explain a missing avatar - the route's Cache-Control means
+ * this can still reflect a stale answer for up to 5 minutes after a change.
+ */
+export async function probeAvatarSource(t: AbsTarget, userId: string): Promise<AvatarProbeResult> {
+  try {
+    const res = await fetch(serverAvatarUrl(t, userId, Date.now()), { redirect: 'manual' })
+    // A manual-redirect fetch of a cross-origin 3xx resolves as an opaque
+    // response with status 0 - we can't see the Location, only that it redirected.
+    if (res.type === 'opaqueredirect' || res.status === 302) return { state: 'gravatar_redirect' }
+    if (res.status === 200) return { state: 'stored' }
+    if (res.status === 404) return { state: 'none' }
+    return { state: 'unknown', detail: `HTTP ${res.status}` }
+  } catch (err) {
+    return { state: 'unknown', detail: err instanceof Error ? err.message : 'network error' }
   }
 }
 

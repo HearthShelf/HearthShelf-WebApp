@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useUser } from '@clerk/clerk-react'
 import { useQuery } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
@@ -11,7 +11,14 @@ import { Toggle } from '@/components/settings/controls'
 import { isCarBrowser } from '@/hooks/useCarMode'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useClerkAvatarSync } from '@/hooks/useClerkAvatarSync'
-import { deleteServerAvatar, type AvatarSyncFailReason } from '@/api/avatars'
+import {
+  deleteServerAvatar,
+  probeAvatarSource,
+  type AvatarProbeResult,
+  type AvatarSyncFailReason,
+  type AvatarSyncResult,
+} from '@/api/avatars'
+import type { AbsTarget } from '@/api/absLibrary'
 
 function syncFailMessage(reason: AvatarSyncFailReason): string {
   switch (reason) {
@@ -34,6 +41,27 @@ function syncFailMessage(reason: AvatarSyncFailReason): string {
   }
 }
 
+function syncResultLabel(result: AvatarSyncResult | null): string {
+  if (!result) return 'not run yet'
+  if (result.ok) return 'synced OK'
+  return syncFailMessage(result.reason)
+}
+
+function probeLabel(probe: AvatarProbeResult | 'loading' | null): string {
+  if (probe === null) return 'expand to check'
+  if (probe === 'loading') return 'checking...'
+  switch (probe.state) {
+    case 'stored':
+      return 'a stored photo (upload or synced Clerk copy)'
+    case 'gravatar_redirect':
+      return 'your Gravatar'
+    case 'none':
+      return 'nothing - initials fallback'
+    case 'unknown':
+      return `couldn't tell (${probe.detail})`
+  }
+}
+
 function fmtDay(d: Date | null | undefined): string {
   if (!d) return '-'
   return d.toLocaleDateString(undefined, {
@@ -49,9 +77,13 @@ export function AccountSettings() {
   const useGravatar = useSettingsStore((s) => s.useGravatar)
   const useSharedSettings = useSettingsStore((s) => s.useSharedSettings)
   const setSetting = useSettingsStore((s) => s.set)
+  // Cache-busts our own avatar <img> whenever the Gravatar preference changes -
+  // the server's resolved photo can flip (Gravatar <-> Clerk/initials) without
+  // the URL changing, and the GET route caches for 5 minutes.
+  const avatarVersion = useSettingsStore((s) => s.meta.useGravatar)
   // null = never chose, so the default (on) applies; only an explicit false is off.
   const gravatarOn = useGravatar !== false
-  const { sync: syncClerkPhoto, syncing } = useClerkAvatarSync()
+  const { sync: syncClerkPhoto, syncing, lastResult } = useClerkAvatarSync()
 
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -161,7 +193,13 @@ export function AccountSettings() {
             {uploading ? (
               <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-muted)' }} />
             ) : (
-              <Avatar name={displayName} target={target} userId={me?.id} size={52} />
+              <Avatar
+                name={displayName}
+                target={target}
+                userId={me?.id}
+                version={avatarVersion}
+                size={52}
+              />
             )}
             <span className="acct-avatar-badge">
               <Icon name="photo_camera" />
@@ -282,15 +320,50 @@ export function AccountSettings() {
         </>
       )}
 
-      <AdvancedPanel />
+      <AdvancedPanel
+        target={target}
+        absUserId={me?.id}
+        hasClerkPhoto={!!user.imageUrl}
+        lastResult={lastResult}
+        avatarVersion={avatarVersion}
+      />
     </section>
   )
 }
 
-function AdvancedPanel() {
+function AdvancedPanel({
+  target,
+  absUserId,
+  hasClerkPhoto,
+  lastResult,
+  avatarVersion,
+}: {
+  target: AbsTarget | null
+  absUserId: string | undefined
+  hasClerkPhoto: boolean
+  lastResult: AvatarSyncResult | null
+  avatarVersion: number | undefined
+}) {
   const showAdvanced = useSettingsStore((s) => s.showAdvanced)
   const set = useSettingsStore((s) => s.set)
   const [copied, setCopied] = useState(false)
+  const [probe, setProbe] = useState<AvatarProbeResult | 'loading' | null>(null)
+
+  // Probe the live GET route only while the panel is open, so it's not a
+  // background request on every Account page visit. Re-probes whenever the
+  // Gravatar preference or a sync attempt could have changed the answer, so
+  // the panel doesn't go stale while left open.
+  useEffect(() => {
+    if (!showAdvanced || !target || !absUserId) return
+    let cancelled = false
+    setProbe('loading')
+    void probeAvatarSource(target, absUserId).then((r) => {
+      if (!cancelled) setProbe(r)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [showAdvanced, target, absUserId, avatarVersion, lastResult])
 
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
   const detected = isCarBrowser()
@@ -325,6 +398,20 @@ function AdvancedPanel() {
 
       {showAdvanced && (
         <div className="cfg-card" style={{ marginTop: 10 }}>
+          <div className="cfg-line" style={{ alignItems: 'flex-start' }}>
+            <Icon name="account_circle" style={{ color: 'var(--text-muted)', marginTop: 2 }} />
+            <div className="cl-meta" style={{ flex: 1 }}>
+              <div className="cl-t">Photo sync</div>
+              <div className="cl-d">
+                Clerk photo: {hasClerkPhoto ? 'present' : 'none set'}
+                <br />
+                Last sync attempt: {syncResultLabel(lastResult)}
+                <br />
+                Server currently serving: {probeLabel(probe)}
+              </div>
+            </div>
+          </div>
+
           <div className="cfg-line">
             <Icon name="tag" style={{ color: 'var(--text-muted)' }} />
             <div className="cl-meta" style={{ flex: 1 }}>

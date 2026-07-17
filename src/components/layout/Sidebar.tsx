@@ -57,6 +57,9 @@ function UserMenu() {
   const { server, target } = useActiveServer()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  // Cache-busts our own avatar <img> when the Gravatar preference changes -
+  // see AccountSettings.tsx for why the URL alone won't pick this up.
+  const avatarVersion = useSettingsStore((s) => s.meta.useGravatar)
 
   const { data: absMe } = useQuery({
     queryKey: ['abs-me', target?.serverId],
@@ -89,7 +92,7 @@ function UserMenu() {
         </div>
       )}
       <button className={'user-chip' + (open ? ' on' : '')} onClick={() => setOpen((o) => !o)}>
-        <Avatar name={name} target={target} userId={absMe?.id} size={36} />
+        <Avatar name={name} target={target} userId={absMe?.id} version={avatarVersion} size={36} />
         <span className="u-meta">
           <span className="u-name">{name}</span>
           {/* The server's friendly NAME - never the Direct URL or a UUID. */}

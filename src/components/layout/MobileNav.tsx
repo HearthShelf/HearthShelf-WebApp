@@ -12,6 +12,7 @@ import { useAdminMe } from '@/hooks/useAdminMe'
 import { PinEntryOverlay } from '@/components/account/PinEntryOverlay'
 import { useRememberedAccounts, type RememberedAccount } from '@/store/rememberedAccounts'
 import { useAccountSwitch } from '@/auth/useAccountSwitch'
+import { useSettingsStore } from '@/store/settingsStore'
 
 // Which primary tab (or "more") a path belongs to, so the matching bottom-bar
 // item lights up. Mirrors the sidebar grouping.
@@ -93,6 +94,9 @@ function MobileDrawer({
   const { server, target } = useActiveServer()
   const { libraries, active, select } = useActiveLibrary()
   const isPodcast = active?.mediaType === 'podcast'
+  // Cache-busts our own avatar <img> when the Gravatar preference changes -
+  // see AccountSettings.tsx for why the URL alone won't pick this up.
+  const avatarVersion = useSettingsStore((s) => s.meta.useGravatar)
 
   const remembered = useRememberedAccounts((s) => s.accounts)
   const forgetLocal = useRememberedAccounts((s) => s.forget)
@@ -210,7 +214,7 @@ function MobileDrawer({
       <aside className={'mdrawer' + (open ? ' open' : '')} role="dialog" aria-label="More">
         <div className="msheet-grab" />
         <div className="msheet-user">
-          <Avatar name={name} target={target} userId={absMe?.id} size={46} />
+          <Avatar name={name} target={target} userId={absMe?.id} version={avatarVersion} size={46} />
           <div className="msheet-umeta">
             <div className="msheet-uname">{name}</div>
             {/* Server NAME, never the Direct URL. */}

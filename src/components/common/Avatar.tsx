@@ -13,7 +13,7 @@
  * Either way we render initials first and reveal the image only once it actually
  * loads, so a missing/slow avatar never flashes a broken image.
  */
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { serverAvatarUrl } from '@/api/avatars'
 import type { AbsTarget } from '@/api/absLibrary'
 
@@ -40,15 +40,34 @@ interface AvatarProps {
   target?: AbsTarget | null
   /** The user's ABS id on `target`, for the server photo route. */
   userId?: string
+  /**
+   * Cache-bust the server photo URL. The route's response can change without
+   * the underlying file changing (e.g. toggling the Gravatar preference, or a
+   * fresh Clerk sync), and the GET has a 5-minute Cache-Control - pass a value
+   * that changes whenever that user's resolved photo might have (an upload's
+   * own version, or a settings `meta` timestamp for "my own" avatar).
+   */
+  version?: number | string
   size?: number
   className?: string
+  /** Merged onto the outer span, e.g. a ring `boxShadow` for stacked avatars. */
+  style?: CSSProperties
 }
 
-export function Avatar({ name, imageUrl, target, userId, size = 36, className }: AvatarProps) {
+export function Avatar({
+  name,
+  imageUrl,
+  target,
+  userId,
+  version,
+  size = 36,
+  className,
+  style,
+}: AvatarProps) {
   // Resolve the source: the server-stored photo wins whenever we have a
   // target + userId; Clerk's imageUrl is only a fallback for pre-connection
   // contexts (the account switcher); otherwise initials only.
-  const src = (target && userId ? serverAvatarUrl(target, userId) : null) || imageUrl || null
+  const src = (target && userId ? serverAvatarUrl(target, userId, version) : null) || imageUrl || null
 
   // Track load state per source identity. When `src` changes the <img> remounts
   // (keyed), so a stale success never bleeds onto a new src.
@@ -72,6 +91,7 @@ export function Avatar({ name, imageUrl, target, userId, size = 36, className }:
         fontWeight: 700,
         fontSize: Math.round(size * 0.36),
         userSelect: 'none',
+        ...style,
       }}
     >
       {!loaded && initials(name)}
