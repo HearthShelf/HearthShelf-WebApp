@@ -490,10 +490,17 @@ export function LibraryPage() {
   }
 
   // Keep tab/filter in sync if the user navigates here with new query params
-  // (e.g. the Narrators page links to /library?narrator=NAME).
+  // (e.g. the Narrators page links to /library?narrator=NAME). These filters
+  // apply to the Books grid, so switch to it - otherwise a click while on the
+  // Narrators/Authors tab updates the URL but shows no visible change.
   useEffect(() => {
-    if (genreParam) setFilter(`genres|${genreParam}`)
-    else if (narratorFilter) setFilter(`narrators|${narratorFilter}`)
+    if (genreParam) {
+      setFilter(`genres|${genreParam}`)
+      setTab('books')
+    } else if (narratorFilter) {
+      setFilter(`narrators|${narratorFilter}`)
+      setTab('books')
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [genreParam, narratorFilter])
 
@@ -640,9 +647,11 @@ export function LibraryPage() {
                   ? 'Mark not finished'
                   : 'Mark finished'}
               </button>
-              <button className="pill" onClick={() => setBatchEditing(true)}>
-                <Icon name="edit" /> Edit
-              </button>
+              {canUpdate && (
+                <button className="pill" onClick={() => setBatchEditing(true)}>
+                  <Icon name="edit" /> Edit
+                </button>
+              )}
               <button className="pill" onClick={() => setBatchAdding(true)}>
                 <Icon name="playlist_add" /> Add to…
               </button>
@@ -888,12 +897,12 @@ export function LibraryPage() {
       {(tab === 'authors' || tab === 'narrators') && (
         <>
           <div className={'toolbar2' + (personAnySelected ? ' sel-bar' : '')}>
-            {!personAnySelected && !isMobile && (
+            {canUpdate && !personAnySelected && !isMobile && (
               <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
                 Hover to select, edit, or merge
               </span>
             )}
-            {personSel.size === 1 && (
+            {canUpdate && personSel.size === 1 && (
               <button
                 className="btn-sm btn-ghost"
                 onClick={() => setPersonEditing(selectedPeople[0])}
@@ -901,12 +910,12 @@ export function LibraryPage() {
                 <Icon name="edit" /> Edit
               </button>
             )}
-            {personSel.size >= 2 && (
+            {canUpdate && personSel.size >= 2 && (
               <button className="btn-sm btn-primary" onClick={() => setPersonMerging(true)}>
                 <Icon name="merge" /> Merge {personSel.size}
               </button>
             )}
-            {personAnySelected && (
+            {canUpdate && personAnySelected && (
               <button
                 className="btn-sm btn-ghost danger"
                 onClick={() => setPersonDeleting(selectedPeople)}
@@ -914,7 +923,7 @@ export function LibraryPage() {
                 <Icon name="delete" /> Remove {personSel.size}
               </button>
             )}
-            {personAnySelected && (
+            {canUpdate && personAnySelected && (
               <button className="btn-sm btn-ghost" onClick={() => setPersonSel(new Set())}>
                 Clear
               </button>
@@ -949,6 +958,7 @@ export function LibraryPage() {
                           person={p}
                           selected={personSel.has(p.id)}
                           anySelected={personAnySelected}
+                          canEdit={canUpdate}
                           onToggleSelect={() => togglePersonSel(p.id)}
                           onOpen={() => {
                             if (tab === 'narrators') {
