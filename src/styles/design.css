@@ -2489,8 +2489,28 @@
 }
 
 .avatar-stack .hs-avatar + .hs-avatar,
+.avatar-stack .hs-avatar-wrap + .hs-avatar,
+.avatar-stack .hs-avatar + .hs-avatar-wrap,
+.avatar-stack .hs-avatar-wrap + .hs-avatar-wrap,
 .avatar-stack .avatar-more {
   margin-left: -8px;
+}
+
+/* wrapper so the in-progress dot can sit on the avatar's corner */
+.hs-avatar-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+/* in-progress marker: accent dot on the avatar's lower-right */
+.reading-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+  z-index: 1;
 }
 
 .avatar-more {

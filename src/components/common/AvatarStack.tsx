@@ -4,6 +4,8 @@ import { Avatar } from '@/components/common/Avatar'
 export interface StackUser {
   userId: string
   username: string
+  /** 'reading' readers get a marker distinguishing them from finishers. */
+  status?: 'finished' | 'reading'
 }
 
 interface AvatarStackProps {
@@ -22,9 +24,10 @@ interface AvatarStackProps {
 
 /**
  * Overlapping cluster of reader avatars with a +N overflow chip, for showing
- * "who finished this" on library/browse cards and detail pages. Wraps the shared
+ * who has read a book on library/browse cards and detail pages. Wraps the shared
  * Avatar so each face resolves its server-stored photo (falling back to initials).
- * Renders nothing when there are no users.
+ * In-progress readers ('reading') carry a small accent dot so they read as
+ * distinct from finishers. Renders nothing when there are no users.
  */
 export function AvatarStack({
   users,
@@ -37,21 +40,41 @@ export function AvatarStack({
   if (!users.length) return null
   const shown = users.slice(0, max)
   const extra = users.length - shown.length
-  const names = users.map((u) => u.username).join(', ')
+  const names = users.map((u) => `${u.username}${u.status === 'reading' ? ' (reading)' : ''}`).join(', ')
+  // The in-progress dot scales with the avatar but stays legible on small tiles.
+  const dot = Math.max(6, Math.round(size * 0.32))
 
   return (
     <div className="avatar-stack" title={names}>
-      {shown.map((u) => (
-        <Avatar
-          key={u.userId}
-          name={u.username}
-          target={target}
-          userId={u.userId}
-          size={size}
-          className="hs-avatar"
-          style={{ boxShadow: `0 0 0 2px ${ring}` }}
-        />
-      ))}
+      {shown.map((u) =>
+        u.status === 'reading' ? (
+          <span key={u.userId} className="hs-avatar-wrap">
+            <Avatar
+              name={u.username}
+              target={target}
+              userId={u.userId}
+              size={size}
+              className="hs-avatar"
+              style={{ boxShadow: `0 0 0 2px ${ring}` }}
+            />
+            <span
+              className="reading-dot"
+              title={`${u.username} is reading this`}
+              style={{ width: dot, height: dot, boxShadow: `0 0 0 2px ${ring}` }}
+            />
+          </span>
+        ) : (
+          <Avatar
+            key={u.userId}
+            name={u.username}
+            target={target}
+            userId={u.userId}
+            size={size}
+            className="hs-avatar"
+            style={{ boxShadow: `0 0 0 2px ${ring}` }}
+          />
+        ),
+      )}
       {extra > 0 && (
         <span
           className="avatar-more"

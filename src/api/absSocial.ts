@@ -196,6 +196,7 @@ interface RawFinishedByUser {
   userId?: string
   username?: string
   finishedAt?: number | null
+  status?: 'finished' | 'reading'
 }
 
 interface RawFinishedBy {
@@ -245,6 +246,7 @@ function mapFinishedByUser(u: RawFinishedByUser): HSFinishedByUser {
     userId: u.userId ?? '',
     username: u.username ?? '',
     finishedAt: u.finishedAt ?? null,
+    status: u.status === 'reading' ? 'reading' : 'finished',
   }
 }
 
