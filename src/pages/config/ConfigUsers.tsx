@@ -8,6 +8,7 @@ import {
   deleteUser,
   setUserActive,
   createUser,
+  updateUser,
   getServiceAccountIds,
   serviceAccountKeys,
   adminKeys,
@@ -31,6 +32,10 @@ import { Icon } from '@/components/common/Icon'
 import { Avatar } from '@/components/common/Avatar'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { AddUserModal } from '@/components/config/AddUserModal'
+import {
+  BulkPermissionsModal,
+  type BulkPermissionsValues,
+} from '@/components/config/BulkPermissionsModal'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 
@@ -46,6 +51,10 @@ export function ConfigUsers() {
   const [formError, setFormError] = useState<string | null>(null)
   const [recoverOpen, setRecoverOpen] = useState(false)
   const [recovering, setRecovering] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [bulkError, setBulkError] = useState<string | null>(null)
 
   const { data: hostedStatus } = useQuery({
     queryKey: hostedKeys.status(target?.serverId ?? ''),
@@ -213,6 +222,52 @@ export function ConfigUsers() {
     }
   }
 
+  const toggleSelect = (id: string) =>
+    setSelected((s) => {
+      const next = new Set(s)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  const selectedUsers = users.filter((u) => selected.has(u.id))
+  const allSelected = users.length > 0 && selectedUsers.length === users.length
+  const toggleSelectAll = () =>
+    setSelected(allSelected ? new Set() : new Set(users.map((u) => u.id)))
+
+  // Applies the chosen type/enabled/permissions to every selected user, one
+  // PATCH per user. Guards: never disable yourself, never change a root
+  // account's type (ABS rejects it). Partial failures are reported by name.
+  const applyBulk = async (values: BulkPermissionsValues) => {
+    setBulkBusy(true)
+    setBulkError(null)
+    const failed: string[] = []
+    for (const u of selectedUsers) {
+      const patch: Parameters<typeof updateUser>[2] = {
+        permissions: values.permissions,
+        isActive: isSelf(u) ? true : values.isActive,
+      }
+      if (u.type !== 'root') patch.type = values.type
+      try {
+        await updateUser(target, u.id, patch)
+      } catch {
+        failed.push(u.username)
+      }
+    }
+    qc.invalidateQueries({ queryKey: adminKeys.users(target.serverId) })
+    setBulkBusy(false)
+    if (failed.length > 0) {
+      setBulkError(`Could not update: ${failed.join(', ')}`)
+    } else {
+      const skippedSelf = !values.isActive && selectedUsers.some((u) => isSelf(u))
+      setBulkOpen(false)
+      setSelected(new Set())
+      show(
+        `Updated ${selectedUsers.length} ${selectedUsers.length === 1 ? 'user' : 'users'}` +
+          (skippedSelf ? ' (your own account stays enabled)' : ''),
+      )
+    }
+  }
+
   const create = async (values: UserFormSubmit) => {
     if (!values.password) return
     setBusy(true)
@@ -296,11 +351,43 @@ export function ConfigUsers() {
       {isLoading && <LoadingSpinner className="py-12" label="Loading users..." />}
       {isError && <ErrorState message="Could not load users." onRetry={refetch} />}
 
+      {selectedUsers.length > 0 && (
+        <div
+          className="cfg-card"
+          style={{
+            marginBottom: 'var(--s4)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '10px 14px',
+          }}
+        >
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+            {selectedUsers.length} selected
+          </span>
+          <div style={{ flex: 1 }} />
+          <button className="btn-sm btn-ghost" onClick={() => setSelected(new Set())}>
+            Clear
+          </button>
+          <button className="btn-sm btn-accent" onClick={() => setBulkOpen(true)}>
+            <Icon name="key" /> Edit permissions
+          </button>
+        </div>
+      )}
+
       {data && (
         <div className="tbl-wrap">
           <table className="tbl">
             <thead>
               <tr>
+                <th style={{ width: 32 }}>
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="Select all users"
+                  />
+                </th>
                 <th>User</th>
                 <th>Type</th>
                 <th>Last seen</th>
@@ -311,6 +398,14 @@ export function ConfigUsers() {
             <tbody>
               {users.map((u) => (
                 <tr key={u.id}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(u.id)}
+                      onChange={() => toggleSelect(u.id)}
+                      aria-label={`Select ${u.username}`}
+                    />
+                  </td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <Avatar name={u.username} size={30} />
@@ -421,6 +516,20 @@ export function ConfigUsers() {
           confirmLabel="Recover admins"
           onConfirm={() => void doRecover()}
           onClose={() => setRecoverOpen(false)}
+        />
+      )}
+
+      {bulkOpen && (
+        <BulkPermissionsModal
+          target={target}
+          users={selectedUsers}
+          busy={bulkBusy}
+          error={bulkError}
+          onSubmit={(v) => void applyBulk(v)}
+          onClose={() => {
+            setBulkOpen(false)
+            setBulkError(null)
+          }}
         />
       )}
 
