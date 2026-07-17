@@ -7,7 +7,11 @@ import type { AbsTarget } from '@/api/absLibrary'
 // with fake users and a dead target (library/tag queries fail to their empty
 // states) so the layout can be eyeballed without Clerk or a live ABS server.
 // Gated to import.meta.env.DEV in the router.
-const fakeTarget = { serverId: 'dev', baseUrl: 'http://127.0.0.1:1', token: 'x' } as AbsTarget
+const fakeTarget = {
+  serverId: 'dev',
+  serverUrl: 'http://127.0.0.1:1',
+  token: 'x',
+} as unknown as AbsTarget
 
 const fakeUsers = [
   { id: '1', username: 'jaime', type: 'user', isActive: true },
