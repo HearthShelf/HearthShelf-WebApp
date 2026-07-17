@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { tintFor } from '@/components/shared/Cover'
 import { Cover } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
@@ -45,12 +45,19 @@ export function PersonCard({
   onEdit,
 }: PersonCardProps) {
   const { target } = useActiveServer()
-  const [imgOk, setImgOk] = useState(person.kind === 'author' && Boolean(person.imagePath))
+  // Track only load failures. Whether a photo *exists* is derived from current
+  // props, not seeded once - imagePath arrives from a separate query that often
+  // resolves after this card first mounts, and a one-shot initial state would
+  // latch to "no photo" and never pick it up.
+  const [imgErr, setImgErr] = useState(false)
   const cv = tintFor(person.name)
   const photoSrc =
-    target && person.kind === 'author'
+    target && person.kind === 'author' && person.imagePath
       ? absMediaUrl(target, `/api/authors/${person.id}/image`)
       : null
+  const imgOk = Boolean(photoSrc) && !imgErr
+  // Retry when the photo target changes (new author id or a freshly-set image).
+  useEffect(() => setImgErr(false), [person.id, person.imagePath])
   const covers = person.books.slice(0, 4)
   const more = person.count - covers.length
 
@@ -100,7 +107,7 @@ export function PersonCard({
               className="pc-photo"
               src={photoSrc}
               alt={person.name}
-              onError={() => setImgOk(false)}
+              onError={() => setImgErr(true)}
             />
           ) : (
             initialsOf(person.name)

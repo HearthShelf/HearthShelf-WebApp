@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { tintFor } from '@/components/shared/Cover'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { absMediaUrl } from '@/api/absClient'
@@ -24,9 +24,14 @@ interface AuthorCardProps {
 // with initials. Carries data-cv for the cover-glow hover.
 export function AuthorCard({ author, onOpen }: AuthorCardProps) {
   const { target } = useActiveServer()
-  const [imgOk, setImgOk] = useState(Boolean(author.imagePath))
+  // Derive photo presence from current props (imagePath can arrive after mount);
+  // state tracks only a load failure. See PersonCard for the same reasoning.
+  const [imgErr, setImgErr] = useState(false)
   const cv = tintFor(author.name)
-  const photoSrc = target ? absMediaUrl(target, `/api/authors/${author.id}/image`) : null
+  const photoSrc =
+    target && author.imagePath ? absMediaUrl(target, `/api/authors/${author.id}/image`) : null
+  const imgOk = Boolean(photoSrc) && !imgErr
+  useEffect(() => setImgErr(false), [author.id, author.imagePath])
 
   return (
     <div className="author-card" data-cv={cv} onClick={() => onOpen(author.id)}>
@@ -41,7 +46,7 @@ export function AuthorCard({ author, onOpen }: AuthorCardProps) {
             className="author-photo"
             src={photoSrc}
             alt={author.name}
-            onError={() => setImgOk(false)}
+            onError={() => setImgErr(true)}
           />
         ) : (
           initialsOf(author.name)
