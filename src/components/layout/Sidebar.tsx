@@ -9,7 +9,7 @@ import { AccountSwitcher } from '@/components/account/AccountSwitcher'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getMe } from '@/api/absLibrary'
-import { fetchAdminMe, ApiError } from '@/api/controlPlane'
+import { useAdminMe } from '@/hooks/useAdminMe'
 import { useRmabEnabled } from '@/hooks/useRmab'
 import { useDiscoverEnabled, useQuestGiverEnabled } from '@/hooks/useQuestGiver'
 import { useNavCollapsed, toggleNavCollapsed } from '@/hooks/useNavCollapsed'
@@ -66,13 +66,7 @@ function UserMenu() {
   })
 
   // Platform-admin link, shown only to the platform_admins roster (403-aware).
-  const { data: adminMe } = useQuery({
-    queryKey: ['admin-me'],
-    queryFn: fetchAdminMe,
-    retry: (count, e) =>
-      !(e instanceof ApiError && (e.status === 403 || e.status === 401)) && count < 2,
-    staleTime: 5 * 60_000,
-  })
+  const { data: adminMe } = useAdminMe()
 
   useEffect(() => {
     if (!open) return

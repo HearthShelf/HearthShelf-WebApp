@@ -7,7 +7,8 @@ import { useActiveServer } from '@/hooks/useActiveServer'
 import { Avatar } from '@/components/common/Avatar'
 import { Icon } from '@/components/common/Icon'
 import { getMe } from '@/api/absLibrary'
-import { fetchAdminMe, ApiError, forgetRemembered } from '@/api/controlPlane'
+import { ApiError, forgetRemembered } from '@/api/controlPlane'
+import { useAdminMe } from '@/hooks/useAdminMe'
 import { PinEntryOverlay } from '@/components/account/PinEntryOverlay'
 import { useRememberedAccounts, type RememberedAccount } from '@/store/rememberedAccounts'
 import { useAccountSwitch } from '@/auth/useAccountSwitch'
@@ -151,13 +152,7 @@ function MobileDrawer({
     }
   }
 
-  const { data: adminMe } = useQuery({
-    queryKey: ['admin-me'],
-    queryFn: fetchAdminMe,
-    retry: (count, e) =>
-      !(e instanceof ApiError && (e.status === 403 || e.status === 401)) && count < 2,
-    staleTime: 5 * 60_000,
-  })
+  const { data: adminMe } = useAdminMe()
 
   // ABS *server* admin (distinct from the platform admin above). Gates the
   // Server (/config) drawer row, mirroring the desktop sidebar.

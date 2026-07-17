@@ -1,7 +1,7 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Loader2, ShieldAlert, ShieldCheck } from 'lucide-react'
-import { fetchAdminMe, ApiError } from '@/api/controlPlane'
+import { ApiError } from '@/api/controlPlane'
+import { useAdminMe } from '@/hooks/useAdminMe'
 import { cn } from '@/lib/cn'
 
 /**
@@ -19,12 +19,7 @@ const TABS = [
 ]
 
 export function AdminLayout() {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['admin-me'],
-    queryFn: fetchAdminMe,
-    retry: (count, e) =>
-      !(e instanceof ApiError && (e.status === 403 || e.status === 401)) && count < 2,
-  })
+  const { data, isLoading, error } = useAdminMe()
 
   const forbidden = error instanceof ApiError && error.status === 403
 

@@ -1,9 +1,8 @@
 import { Link, Outlet } from 'react-router-dom'
 import { UserButton } from '@clerk/clerk-react'
-import { useQuery } from '@tanstack/react-query'
 import { Wordmark } from '@/components/Wordmark'
 import { MiniPlayer } from '@/player/MiniPlayer'
-import { fetchAdminMe, ApiError } from '@/api/controlPlane'
+import { useAdminMe } from '@/hooks/useAdminMe'
 
 // AGPL-3.0 source offer (License section 13): the complete source of this hosted
 // app must be available to its network users. Override at build time with
@@ -17,15 +16,9 @@ const SOURCE_URL =
  * back to the server picker. Per-server chrome mounts inside <Outlet />.
  */
 export function AppLayout() {
-  // Show the Admin link only to platform admins. The query is 403-aware (a
-  // non-admin simply gets no link); shares the 'admin-me' cache with AdminLayout.
-  const { data: adminMe } = useQuery({
-    queryKey: ['admin-me'],
-    queryFn: fetchAdminMe,
-    retry: (count, e) =>
-      !(e instanceof ApiError && (e.status === 403 || e.status === 401)) && count < 2,
-    staleTime: 5 * 60_000,
-  })
+  // Show the Admin link only to platform admins. Shared 403-aware query (a
+  // non-admin simply gets no link).
+  const { data: adminMe } = useAdminMe()
 
   return (
     <div className="flex min-h-full flex-col">
