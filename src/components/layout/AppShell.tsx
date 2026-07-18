@@ -15,6 +15,7 @@ import { useNavCollapsed } from '@/hooks/useNavCollapsed'
 import { useCarMode } from '@/hooks/useCarMode'
 import { useCarFaded } from '@/hooks/useCarFaded'
 import { SharedDevicePrompt } from '@/components/account/SharedDevicePrompt'
+import { ServerHealthWatcher } from '@/components/hosted/ServerHealthWatcher'
 import { UpdateBanner } from '@/components/common/UpdateBanner'
 
 /**
@@ -94,6 +95,7 @@ export function AppShell() {
           stacking context and rendered under the playbar. */}
       {isMobile && !immersive && <MobileNav />}
       <SharedDevicePrompt />
+      <ServerHealthWatcher />
     </div>
   )
 }
