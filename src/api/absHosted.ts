@@ -361,6 +361,34 @@ export function revokeInvite(t: AbsTarget, inviteId: string): Promise<{ ok: bool
   })
 }
 
+export interface RemoveUserResult {
+  ok: boolean
+  /** The ABS account is gone. */
+  deleted: boolean
+  /** The hosted-side link is gone too. False when unpaired or the control
+   *  plane couldn't be reached - the user is removed locally but would still
+   *  see this server in their picker. */
+  unlinked: boolean
+  email: string | null
+  invites_revoked?: number
+}
+
+/**
+ * Remove a user from this server everywhere: delete the ABS account AND drop
+ * the hosted link, so they stop seeing the server and can't be silently
+ * re-admitted by recreating an account with the same email.
+ */
+export function removeUser(
+  t: AbsTarget,
+  absUserId: string,
+  email?: string | null,
+): Promise<RemoveUserResult> {
+  return hsFetch<RemoveUserResult>(t, '/hs/hosted/remove-user', {
+    method: 'POST',
+    body: JSON.stringify({ abs_user_id: absUserId, email: email ?? undefined }),
+  })
+}
+
 // The ABS user ids that have signed in via app.hearthshelf.com on this server.
 // Box-local (hosted_user_keys) - no control-plane round trip.
 export async function getLinkedAbsUserIds(t: AbsTarget): Promise<Set<string>> {

@@ -5,7 +5,6 @@ import {
   getUsers,
   getOnlineUserIds,
   getLastSeenByUser,
-  deleteUser,
   setUserActive,
   createUser,
   updateUser,
@@ -22,6 +21,7 @@ import {
   inviteFromServer,
   getPendingInvites,
   revokeInvite,
+  removeUser,
   hostedKeys,
 } from '@/api/absHosted'
 import type { PendingInvite } from '@/api/absHosted'
@@ -284,9 +284,16 @@ export function ConfigUsers() {
     show(isActive ? `Enabled ${u.username}` : `Disabled ${u.username}`)
   }
   const doDelete = async (u: ABSAdminUser) => {
-    await deleteUser(target, u.id)
+    const r = await removeUser(target, u.id, u.email)
     qc.invalidateQueries({ queryKey: adminKeys.users(target.serverId) })
-    show(`Deleted ${u.username}`)
+    qc.invalidateQueries({ queryKey: hostedKeys.invites(target.serverId) })
+    // Say so when the hosted link outlived the account - otherwise the admin
+    // thinks they're fully removed and is surprised when they still get in.
+    show(
+      r.unlinked
+        ? `Removed ${u.username}`
+        : `Deleted ${u.username}, but couldn't remove their HearthShelf account access. Try again when the server is back online.`,
+    )
   }
 
   const doRecover = async () => {

@@ -217,6 +217,44 @@ export async function deleteAllLinksForUser(env: Env, clerkUserId: string): Prom
   await env.DB.prepare(`DELETE FROM links WHERE clerk_user_id = ?`).bind(clerkUserId).run()
 }
 
+/**
+ * Drop every link between an email and one server, whoever holds it.
+ *
+ * Keyed by email rather than clerk_user_id because the server calling this
+ * knows its ABS user's email, not their Clerk id - and a user removed before
+ * they ever signed in hosted-side has a link but no local subject mapping.
+ * Returns the number of links removed so the caller can report it.
+ */
+export async function deleteLinksForEmail(
+  env: Env,
+  serverId: string,
+  email: string,
+): Promise<number> {
+  const r = await env.DB.prepare(`DELETE FROM links WHERE server_id = ? AND email = ?`)
+    .bind(serverId, email.toLowerCase())
+    .run()
+  return r.meta?.changes ?? 0
+}
+
+/**
+ * Revoke every still-pending invite for an email on one server. Paired with
+ * deleteLinksForEmail: removing someone must not leave a live code behind that
+ * silently re-admits them. Returns the number revoked.
+ */
+export async function revokeInvitesForEmail(
+  env: Env,
+  serverId: string,
+  email: string,
+): Promise<number> {
+  const r = await env.DB.prepare(
+    `UPDATE pending_invites SET status = 'revoked'
+      WHERE server_id = ? AND email = ? AND status = 'pending'`,
+  )
+    .bind(serverId, email.toLowerCase())
+    .run()
+  return r.meta?.changes ?? 0
+}
+
 // --- user prefs (MyHS account-level) ---------------------------------------
 
 /** The user's default server_id, or null when unset. Reads the one-row-per-user

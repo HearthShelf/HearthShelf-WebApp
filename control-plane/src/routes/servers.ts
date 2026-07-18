@@ -10,7 +10,12 @@
  *   POST   /servers/:id/invite    - invite someone by email (admin only)
  *   GET    /servers/:id/invites   - list pending invites (admin only)
  *
- * Server-to-server (HS authenticates with its server secret), optional path:
+ * Server-to-server (HS authenticates with its server secret):
+ *   POST   /servers/invite-from-server  - invite by email from the HS UI
+ *   POST   /servers/invites-for-server  - list this server's pending invites
+ *   POST   /servers/unlink-from-server  - forget a removed user's link + invites
+ *
+ * Server-to-server, optional path:
  *   POST   /servers/grant        - reserved for a future server-pull model;
  *                                  the default flow is the SPA minting grants
  *                                  it then hands to the browser/HS. Kept as a
@@ -24,6 +29,8 @@ import {
   listLinksForUser,
   getLink,
   deleteLink,
+  deleteLinksForEmail,
+  revokeInvitesForEmail,
   getServer,
   touchServer,
   setServerName,
@@ -715,6 +722,57 @@ servers.post('/servers/invite-from-server', async (c) => {
   }
 
   return c.json({ ok: true, email, role, code: token, emailed })
+})
+
+/**
+ * Server-initiated unlink. When an admin removes a user from the self-hosted HS
+ * UI, the box calls this so the hosted side forgets them too. Without it the
+ * link row survives: the removed user keeps seeing the server in their picker,
+ * and - because links are matched by email - anyone later recreating an ABS
+ * account with that address is silently re-admitted with no new invite.
+ *
+ * Keyed by email, not Clerk id: the box knows the ABS user's address, and a
+ * user removed before ever signing in hosted-side has no local subject mapping.
+ * Any still-pending invite for that address is revoked in the same breath, so
+ * removal can't leave a live code behind.
+ *
+ * Idempotent - removing someone who was never linked returns ok with zeroes.
+ */
+servers.post('/servers/unlink-from-server', async (c) => {
+  let body: { server_id?: string; server_secret?: string; email?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const serverId = (body.server_id || '').trim()
+  const secret = body.server_secret || ''
+  if (!serverId || !secret) return c.json({ error: 'server_id and server_secret required' }, 400)
+
+  const server = await getServer(c.env, serverId)
+  if (!server) return c.json({ error: 'server_unknown' }, 404)
+  const presented = await sha256Hex(secret)
+  if (!timingSafeEqual(presented, server.server_secret_hash)) {
+    return c.json({ error: 'bad_server_secret' }, 401)
+  }
+
+  const email = normalizeEmail(body.email)
+  if (!email || !email.includes('@')) return c.json({ error: 'invalid_email' }, 400)
+
+  const unlinked = await deleteLinksForEmail(c.env, serverId, email)
+  const invitesRevoked = await revokeInvitesForEmail(c.env, serverId, email)
+
+  // Worth an audit trail: this is the one path where a server removes a user's
+  // access to itself without that user acting.
+  await writeAudit(c.env, {
+    id: uuid(),
+    actor: `server:${serverId}`,
+    action: 'unlink_from_server',
+    target: email,
+    detail: { unlinked, invitesRevoked },
+  })
+
+  return c.json({ ok: true, email, unlinked, invites_revoked: invitesRevoked })
 })
 
 /**
