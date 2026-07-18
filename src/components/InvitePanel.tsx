@@ -24,7 +24,7 @@ export function InvitePanel({ serverId }: { serverId: string }) {
       {
         onSuccess: (r) => {
           setEmail('')
-          notify.success(r.emailed ? `Invited ${r.email} - email sent` : `Invited ${r.email}`)
+          notify.success(`Invited ${r.email} - email sent`)
         },
         // Failures surface via the global mutation error toast.
       },

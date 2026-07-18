@@ -21,8 +21,10 @@ import {
   getHostedStatus,
   inviteFromServer,
   getPendingInvites,
+  revokeInvite,
   hostedKeys,
 } from '@/api/absHosted'
+import type { PendingInvite } from '@/api/absHosted'
 import type { UserFormSubmit } from '@/components/config/UserForm'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
@@ -72,20 +74,44 @@ export function ConfigUsers() {
   })
 
   // Resending is just re-inviting the same email - the backend upserts the
-  // pending invite and re-attempts the Clerk email either way.
+  // pending invite, mints a FRESH code (retiring the old one), and re-sends.
   const [resendingEmail, setResendingEmail] = useState<string | null>(null)
+  const [copiedCode, setCopiedCode] = useState<string | null>(null)
+  const [pendingRevoke, setPendingRevoke] = useState<PendingInvite | null>(null)
+
+  async function copyCode(code: string) {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopiedCode(code)
+      window.setTimeout(() => setCopiedCode(null), 2000)
+    } catch {
+      show('Could not copy - select the code and copy it manually.')
+    }
+  }
+
+  const revoke = useMutation({
+    mutationFn: (inviteId: string) => revokeInvite(target!, inviteId),
+    onSuccess: () => {
+      show('Invite canceled')
+      setPendingRevoke(null)
+      void refetchInvites()
+    },
+    onError: (e: Error) => {
+      show(friendlyError(e, 'Could not cancel the invite'))
+      setPendingRevoke(null)
+    },
+  })
+
   const invite = useMutation({
     mutationFn: (opts: { email: string; role: 'admin' | 'user' }) =>
       inviteFromServer(target!, opts.email, opts.role),
     onSuccess: (r) => {
       show(
-        resendingEmail
-          ? r.emailed
-            ? `Invite resent to ${r.email}`
-            : `Invite recorded for ${r.email}`
-          : r.emailed
-            ? `Invited ${r.email} - email sent`
-            : `Invited ${r.email}`,
+        !r.emailed
+          ? `Invited ${r.email}, but the email didn't send - give them the code ${r.code}`
+          : resendingEmail
+            ? `Invite resent to ${r.email} - the old code no longer works`
+            : `Invited ${r.email} - email sent`,
       )
       if (!resendingEmail) setAdding(false)
       setResendingEmail(null)
@@ -308,24 +334,61 @@ export function ConfigUsers() {
           <div className="sr-t" style={{ marginBottom: 'var(--s2)' }}>
             Pending invites
           </div>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 12px' }}>
+            If someone can't find their email, read them the invite code - they can type it into
+            the HearthShelf app on their phone.
+          </p>
           {pendingInvites.map((inv) => (
-            <div className="set-row" key={inv.email}>
+            <div className="set-row" key={inv.id}>
               <div className="sr-meta">
                 <div className="sr-t">{inv.email}</div>
                 <div className="sr-d">
                   {inv.role} · invited {fmtSessDate(inv.created_at).day}
                 </div>
+                {inv.code && (
+                  <button
+                    type="button"
+                    title="Copy invite code"
+                    onClick={() => void copyCode(inv.code!)}
+                    style={{
+                      marginTop: 6,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                      fontSize: 16,
+                      letterSpacing: 2,
+                      color: 'var(--text)',
+                    }}
+                  >
+                    {inv.code}
+                    <Icon name={copiedCode === inv.code ? 'check' : 'content_copy'} />
+                  </button>
+                )}
               </div>
-              <button
-                className="btn-sm btn-ghost"
-                disabled={invite.isPending}
-                onClick={() => {
-                  setResendingEmail(inv.email)
-                  invite.mutate({ email: inv.email, role: inv.role })
-                }}
-              >
-                <Icon name="send" /> Resend
-              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  className="btn-sm btn-ghost"
+                  disabled={invite.isPending}
+                  onClick={() => {
+                    setResendingEmail(inv.email)
+                    invite.mutate({ email: inv.email, role: inv.role })
+                  }}
+                >
+                  <Icon name="send" /> Resend
+                </button>
+                <button
+                  className="btn-sm btn-ghost"
+                  disabled={revoke.isPending}
+                  onClick={() => setPendingRevoke(inv)}
+                >
+                  <Icon name="close" /> Cancel
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -549,6 +612,17 @@ export function ConfigUsers() {
           danger
           onConfirm={() => void setActive(pendingDisable, false)}
           onClose={() => setPendingDisable(null)}
+        />
+      )}
+
+      {pendingRevoke && (
+        <ConfirmDialog
+          title="Cancel invite"
+          message={`Cancel the invite for ${pendingRevoke.email}? Their invite code will stop working. You can always invite them again.`}
+          confirmLabel="Cancel invite"
+          danger
+          onConfirm={() => revoke.mutate(pendingRevoke.id)}
+          onClose={() => setPendingRevoke(null)}
         />
       )}
 

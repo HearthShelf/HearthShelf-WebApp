@@ -317,6 +317,9 @@ export interface InviteResult {
   ok: boolean
   email: string
   role: 'admin' | 'user'
+  /** The freshly minted invite code, shown to the admin. */
+  code: string
+  /** False if the email couldn't be sent - the admin should read out the code. */
   emailed: boolean
 }
 
@@ -333,9 +336,13 @@ export function inviteFromServer(
 }
 
 export interface PendingInvite {
+  id: string
   email: string
   role: 'admin' | 'user'
+  /** The XXXX-XXXX code, so an admin can read it out if the email never landed. */
+  code: string | null
   created_at: number
+  expires_at: number | null
 }
 
 /** Pending invites for this server (forwarded to the control plane). */
@@ -344,6 +351,14 @@ export async function getPendingInvites(t: AbsTarget): Promise<PendingInvite[]> 
     method: 'GET',
   })
   return res.invites ?? []
+}
+
+/** Cancel a pending invite - its code stops working immediately. */
+export function revokeInvite(t: AbsTarget, inviteId: string): Promise<{ ok: boolean }> {
+  return hsFetch(t, '/hs/hosted/invites/revoke', {
+    method: 'POST',
+    body: JSON.stringify({ invite_id: inviteId }),
+  })
 }
 
 // The ABS user ids that have signed in via app.hearthshelf.com on this server.

@@ -211,7 +211,7 @@ export function ConfigHosted() {
   const invite = useMutation({
     mutationFn: () => inviteFromServer(target!, email.trim(), role),
     onSuccess: (r) => {
-      show(r.emailed ? `Invited ${r.email} - email sent` : `Invited ${r.email}`)
+      show(`Invited ${r.email} - email sent`)
       setEmail('')
     },
     onError: (e: Error) => show(friendlyError(e, 'Invite failed')),

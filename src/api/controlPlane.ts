@@ -212,7 +212,6 @@ interface InviteResponse {
   ok: boolean
   email: string
   role: 'admin' | 'user'
-  emailed: boolean
 }
 
 export type LogSource = 'vps' | 'cp' | 'box' | 'mobile'
