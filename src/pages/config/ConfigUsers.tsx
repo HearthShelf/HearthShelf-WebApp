@@ -41,6 +41,16 @@ import {
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 
+// Where an invite is redeemed. Matches the acceptUrl the control plane builds
+// for the invite email (APP_ORIGIN + /invite), so the link an admin shares by
+// hand is the same one the email carries.
+const INVITE_ORIGIN = 'https://app.hearthshelf.com'
+const inviteUrl = (code: string) => `${INVITE_ORIGIN}/invite?token=${encodeURIComponent(code)}`
+
+// Distinguishes the "copied the whole message" tick from the "copied just the
+// code" tick, since both live on the same row and share one copied-state.
+const shareKey = (inv: PendingInvite) => `share:${inv.id}`
+
 export function ConfigUsers() {
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -89,6 +99,41 @@ export function ConfigUsers() {
     }
   }
 
+  /**
+   * A ready-to-paste invite message. The recipient may be on a desktop reading
+   * Discord, so it carries BOTH ways in: the tappable link (best case - opens
+   * the app straight to the invite) and the bare code they can type on a phone
+   * that never got the email. Named for the library so the message makes sense
+   * out of context, arriving with no other explanation.
+   */
+  async function copyInstructions(inv: PendingInvite) {
+    if (!inv.code) return
+    // Avoid "my HearthShelf library on HearthShelf" when the server is unnamed.
+    const opener = server?.name
+      ? `You're invited to "${server.name}" on HearthShelf.`
+      : `You're invited to my HearthShelf library.`
+    const text = [
+      opener,
+      '',
+      '1. Install HearthShelf on your phone (App Store or Google Play).',
+      '2. Sign in, then enter this invite code:',
+      '',
+      `   ${inv.code}`,
+      '',
+      `Already have the app open? Just tap: ${inviteUrl(inv.code)}`,
+      '',
+      'The code expires in 14 days.',
+    ].join('\n')
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedCode(shareKey(inv))
+      window.setTimeout(() => setCopiedCode(null), 2000)
+      show('Invite message copied - paste it anywhere')
+    } catch {
+      show('Could not copy - select the code and copy it manually.')
+    }
+  }
+
   const revoke = useMutation({
     mutationFn: (inviteId: string) => revokeInvite(target!, inviteId),
     onSuccess: () => {
@@ -108,13 +153,33 @@ export function ConfigUsers() {
     onSuccess: (r) => {
       show(
         !r.emailed
-          ? `Invited ${r.email}, but the email didn't send - give them the code ${r.code}`
+          ? `Invited ${r.email}, but the email didn't send - share the code below instead`
           : resendingEmail
             ? `Invite resent to ${r.email} - the old code no longer works`
             : `Invited ${r.email} - email sent`,
       )
       if (!resendingEmail) setAdding(false)
       setResendingEmail(null)
+
+      // Seed the list from the POST response rather than waiting on a refetch.
+      // The response already carries the new code, so writing it straight into
+      // the cache means it's on screen the instant the invite succeeds - a
+      // refetch alone left the row code-less until a manual reload.
+      qc.setQueryData<PendingInvite[]>(hostedKeys.invites(target?.serverId ?? ''), (prev) => {
+        const row: PendingInvite = {
+          // The POST doesn't return the row id; a refetch fills in the real one.
+          // Key off email so a resend replaces the existing row instead of
+          // duplicating it.
+          id: prev?.find((p) => p.email === r.email)?.id ?? `pending:${r.email}`,
+          email: r.email,
+          role: r.role,
+          code: r.code,
+          created_at: Date.now(),
+          expires_at: null,
+        }
+        const rest = (prev ?? []).filter((p) => p.email !== r.email)
+        return [row, ...rest]
+      })
       void refetchInvites()
     },
     onError: (e: Error) => {
@@ -187,7 +252,8 @@ export function ConfigUsers() {
   const serviceUserIds = useMemo(() => new Set(trackedData?.ids ?? []), [trackedData])
   const allUsers = data?.users ?? []
   const users = allUsers.filter(
-    (u) => !serviceUserIds.has(u.id) && !(serviceUsername != null && u.username === serviceUsername),
+    (u) =>
+      !serviceUserIds.has(u.id) && !(serviceUsername != null && u.username === serviceUsername),
   )
   const serviceCount = allUsers.length - users.length
   // Disabled admin/root accounts - the trigger for the break-glass recovery card.
@@ -335,42 +401,63 @@ export function ConfigUsers() {
             Pending invites
           </div>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 12px' }}>
-            If someone can't find their email, read them the invite code - they can type it into
-            the HearthShelf app on their phone.
+            We emailed each person their invite. If it didn't arrive, send them the code and link
+            below however you like - Discord, text, whatever works.
           </p>
           {pendingInvites.map((inv) => (
             <div className="set-row" key={inv.id}>
-              <div className="sr-meta">
+              <div className="sr-meta" style={{ minWidth: 0 }}>
                 <div className="sr-t">{inv.email}</div>
                 <div className="sr-d">
                   {inv.role} · invited {fmtSessDate(inv.created_at).day}
                 </div>
                 {inv.code && (
-                  <button
-                    type="button"
-                    title="Copy invite code"
-                    onClick={() => void copyCode(inv.code!)}
-                    style={{
-                      marginTop: 6,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      background: 'none',
-                      border: 'none',
-                      padding: 0,
-                      cursor: 'pointer',
-                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-                      fontSize: 16,
-                      letterSpacing: 2,
-                      color: 'var(--text)',
-                    }}
-                  >
-                    {inv.code}
-                    <Icon name={copiedCode === inv.code ? 'check' : 'content_copy'} />
-                  </button>
+                  <div style={{ marginTop: 8 }}>
+                    <button
+                      type="button"
+                      title="Copy just the code"
+                      onClick={() => void copyCode(inv.code!)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                        fontSize: 18,
+                        letterSpacing: 2,
+                        color: 'var(--text)',
+                      }}
+                    >
+                      {inv.code}
+                      <Icon name={copiedCode === inv.code ? 'check' : 'content_copy'} />
+                    </button>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: 'var(--text-muted)',
+                        marginTop: 4,
+                        wordBreak: 'break-all',
+                      }}
+                    >
+                      Enter this code in the HearthShelf app, or open{' '}
+                      <span style={{ color: 'var(--text)' }}>{inviteUrl(inv.code)}</span>
+                    </div>
+                  </div>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                {inv.code && (
+                  <button
+                    className="btn-sm btn-ghost"
+                    title="Copy a ready-to-send message with the code and link"
+                    onClick={() => void copyInstructions(inv)}
+                  >
+                    <Icon name={copiedCode === shareKey(inv) ? 'check' : 'ios_share'} /> Copy invite
+                  </button>
+                )}
                 <button
                   className="btn-sm btn-ghost"
                   disabled={invite.isPending}
