@@ -480,19 +480,9 @@ export async function uploadBackup(t: AbsTarget, file: File): Promise<void> {
 }
 
 // --- Logs -------------------------------------------------------------------
-// GET /api/logger-data -> { currentDailyLogs: [...] }
-
-export interface ABSLogEntry {
-  timestamp: string
-  source: string
-  message: string
-  level?: number
-}
-
-export async function getLogs(t: AbsTarget): Promise<{ currentDailyLogs: ABSLogEntry[] }> {
-  const res = await absGet<{ currentDailyLogs?: ABSLogEntry[] }>(t, '/api/logger-data')
-  return { currentDailyLogs: res.currentDailyLogs ?? [] }
-}
+// Log fetching now lives in the unified ConfigLogs page (via useAdminDataSource).
+// Re-export the shared type for any remaining importer.
+export type { ABSLogEntry } from '@hearthshelf/core'
 
 // --- API keys ---------------------------------------------------------------
 // GET/POST /api/api-keys; DELETE /api/api-keys/:id

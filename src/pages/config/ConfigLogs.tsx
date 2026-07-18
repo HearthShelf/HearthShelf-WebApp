@@ -1,9 +1,18 @@
+// UNIFIED admin page (POC for the admin-surface unification).
+//
+// This file is byte-identical in the self-hosted SPA and the hosted WebApp. It
+// reaches its server ONLY through useAdminDataSource(), so it carries no
+// app-specific fetch layer: the self-hosted app binds the hook to a same-origin
+// request, the hosted app binds it to the active linked server. To share this
+// page, the two apps keep an identical copy (a future @hearthshelf/admin-ui
+// package would host the single copy); the seam that makes that possible is the
+// data-source hook, not the page.
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getLogs, adminSectionKeys, type ABSLogEntry } from '@/api/absAdmin'
-import { useActiveServer } from '@/hooks/useActiveServer'
+import type { ABSLogEntry, ABSLoggerData, HSAppLogResponse } from '@hearthshelf/core'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { useAdminDataSource } from '@/admin/adminDataSource'
 
 const LEVEL_LABEL: Record<number, string> = {
   0: 'TRACE',
@@ -23,6 +32,7 @@ function LogView({ logs, className }: { logs: ABSLogEntry[]; className?: string 
           {l.level != null && (
             <span style={{ color: 'var(--text-muted)' }}>[{LEVEL_LABEL[l.level] ?? l.level}]</span>
           )}{' '}
+          {l.source && <span style={{ color: 'var(--text-muted)' }}>[{l.source}]</span>}{' '}
           {l.message}
         </div>
       ))}
@@ -35,7 +45,8 @@ function downloadLogs(logs: ABSLogEntry[]) {
   const text = logs
     .map((l) => {
       const lvl = l.level != null ? ` [${LEVEL_LABEL[l.level] ?? l.level}]` : ''
-      return `${l.timestamp}${lvl} ${l.message}`
+      const source = l.source ? ` [${l.source}]` : ''
+      return `${l.timestamp}${lvl}${source} ${l.message}`
     })
     .join('\n')
   const date = new Date().toISOString().slice(0, 10)
@@ -51,24 +62,32 @@ function downloadLogs(logs: ABSLogEntry[]) {
 }
 
 export function ConfigLogs() {
-  const { target } = useActiveServer()
-  const [enlarged, setEnlarged] = useState(false)
-
+  const { request } = useAdminDataSource()
   const { data } = useQuery({
-    queryKey: adminSectionKeys.logs(target?.serverId ?? ''),
-    queryFn: () => getLogs(target!),
-    enabled: Boolean(target),
+    queryKey: ['admin', 'logs'],
+    queryFn: () => request<ABSLoggerData>('/api/logger-data'),
     staleTime: 10 * 1000,
   })
+  // HearthShelf's own app-log ring (backend warnings/errors surfaced in the UI).
+  // Kept in a separate query so an older server without /hs/logs still shows the
+  // ABS logs. Best-effort: a failure yields no HS lines rather than an error.
+  const { data: hearthShelfData } = useQuery({
+    queryKey: ['admin', 'hearthshelf-logs'],
+    queryFn: () => request<HSAppLogResponse>('/hs/logs').catch(() => ({ logs: [] })),
+    refetchInterval: 10 * 1000,
+  })
+  const [enlarged, setEnlarged] = useState(false)
 
-  const logs = data?.currentDailyLogs ?? []
+  const logs = [...(data?.currentDailyLogs ?? []), ...(hearthShelfData?.logs ?? [])].sort(
+    (a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp),
+  )
 
   return (
     <>
       <div className="page-head">
         <div className="eyebrow">Admin</div>
         <h1 className="title-xl">Logs</h1>
-        {data && <p className="page-sub">Today's server log · {logs.length} lines</p>}
+        {data && <p className="page-sub">AudiobookShelf + HearthShelf logs · {logs.length} lines</p>}
       </div>
 
       {!data ? (
