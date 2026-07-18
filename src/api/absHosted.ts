@@ -26,6 +26,8 @@ import type {
   HSHostedPortCheckResult,
   HSHostedRecoverAdminsResponse,
   HSHostedEmailRelayStatus,
+  HSServiceHealth,
+  HSServiceCredentialOverrideRequest,
 } from '@hearthshelf/core'
 
 export type { HSMode }
@@ -173,6 +175,31 @@ export type HostedStatus = HSHostedConfigStatus
 
 export function getHostedStatus(t: AbsTarget): Promise<HostedStatus> {
   return hsFetch<HostedStatus>(t, '/hs/hosted/config', { method: 'GET' })
+}
+
+// --- Service account credential health --------------------------------------
+
+// Live health of the ABS admin credential used to provision invited users.
+export function getServiceHealth(t: AbsTarget): Promise<HSServiceHealth> {
+  return hsFetch<HSServiceHealth>(t, '/hs/hosted/service-health', { method: 'GET' })
+}
+
+// Reset the credential by minting a fresh durable key from the current admin
+// session. The one-click fix when the credential has gone stale/broken.
+export function resetServiceCredential(t: AbsTarget): Promise<{ ok: true; status: string }> {
+  return hsFetch(t, '/hs/hosted/service-credential/reset', { method: 'POST' })
+}
+
+// Manual recovery when auto-repair can't help: a new service-account password,
+// or a known-good admin token/key pasted directly.
+export function overrideServiceCredential(
+  t: AbsTarget,
+  body: HSServiceCredentialOverrideRequest,
+): Promise<{ ok: true; status: string }> {
+  return hsFetch(t, '/hs/hosted/service-credential/override', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
 }
 
 // hs.direct provisioning state. 'pending' = paired but the cert isn't installed

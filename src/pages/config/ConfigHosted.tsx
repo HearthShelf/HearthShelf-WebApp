@@ -12,10 +12,14 @@ import {
   checkPort,
   pollPairStatus,
   disconnectHosted,
+  getServiceHealth,
+  resetServiceCredential,
+  overrideServiceCredential,
   hostedKeys,
   type PairResult,
   type PortCheckResult,
 } from '@/api/absHosted'
+import { ServiceAccountHealth } from '@/components/hosted/ServiceAccountHealth'
 
 // "12:34" style mm:ss left until the pairing code expires, or null once gone.
 function timeLeft(expiresAt: string | number, nowMs: number): string | null {
@@ -301,12 +305,15 @@ export function ConfigHosted() {
           </div>
         )}
 
-        {!status.hasAbsAdminToken && status.paired && (
-          <div className="banner warn" style={{ marginTop: 'var(--s4)' }}>
-            <Icon name="warning" />
-            No admin token saved for provisioning - invited users can't be created automatically
-            until this is set.
-          </div>
+        {status.paired && target && (
+          <ServiceAccountHealth
+            getHealth={() => getServiceHealth(target)}
+            onReset={() => resetServiceCredential(target)}
+            onOverride={(b) => overrideServiceCredential(target, b)}
+            onChanged={() =>
+              qc.invalidateQueries({ queryKey: hostedKeys.status(target.serverId) })
+            }
+          />
         )}
 
         {status.paired && (
