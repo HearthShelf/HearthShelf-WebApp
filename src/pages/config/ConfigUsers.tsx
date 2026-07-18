@@ -405,7 +405,7 @@ export function ConfigUsers() {
             below however you like - Discord, text, whatever works.
           </p>
           {pendingInvites.map((inv) => (
-            <div className="set-row" key={inv.id}>
+            <div className="set-row invite-row" key={inv.id}>
               <div className="sr-meta" style={{ minWidth: 0 }}>
                 <div className="sr-t">{inv.email}</div>
                 <div className="sr-d">
@@ -439,7 +439,7 @@ export function ConfigUsers() {
                         fontSize: 12,
                         color: 'var(--text-muted)',
                         marginTop: 4,
-                        wordBreak: 'break-all',
+                        overflowWrap: 'anywhere',
                       }}
                     >
                       Enter this code in the HearthShelf app, or open{' '}
@@ -448,7 +448,10 @@ export function ConfigUsers() {
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <div
+                className="invite-actions"
+                style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}
+              >
                 {inv.code && (
                   <button
                     className="btn-sm btn-ghost"
@@ -519,8 +522,8 @@ export function ConfigUsers() {
       )}
 
       {data && (
-        <div className="tbl-wrap">
-          <table className="tbl">
+        <div className="tbl-wrap users-tbl-wrap">
+          <table className="tbl users-tbl">
             <thead>
               <tr>
                 <th style={{ width: 32 }}>
@@ -541,7 +544,7 @@ export function ConfigUsers() {
             <tbody>
               {users.map((u) => (
                 <tr key={u.id}>
-                  <td>
+                  <td className="u-check">
                     <input
                       type="checkbox"
                       checked={selected.has(u.id)}
@@ -549,7 +552,7 @@ export function ConfigUsers() {
                       aria-label={`Select ${u.username}`}
                     />
                   </td>
-                  <td>
+                  <td className="u-user">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <Avatar name={u.username} target={target} userId={u.id} size={30} />
                       <span className="lnk" onClick={() => navigate(`/config/users/${u.id}`)}>
@@ -557,8 +560,8 @@ export function ConfigUsers() {
                       </span>
                     </div>
                   </td>
-                  <td>{u.type}</td>
-                  <td className="num">
+                  <td data-label="Type">{u.type}</td>
+                  <td className="num" data-label="Last seen">
                     {(() => {
                       // Most recent of ABS's record lastSeen and the session-
                       // derived activity (the latter is what app users actually
@@ -568,7 +571,7 @@ export function ConfigUsers() {
                       return seen > 0 ? fmtSessDate(seen).day : 'never'
                     })()}
                   </td>
-                  <td>
+                  <td data-label="Status">
                     {!u.isActive ? (
                       <span style={{ color: 'var(--primary)' }}>
                         <Icon name="block" style={{ fontSize: 15, verticalAlign: '-3px' }} />{' '}
@@ -584,7 +587,7 @@ export function ConfigUsers() {
                       </span>
                     )}
                   </td>
-                  <td>
+                  <td className="u-actions" data-label="Actions">
                     <div className="t-actions">
                       <button
                         className="tbl-icon"

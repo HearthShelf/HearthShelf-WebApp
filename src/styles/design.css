@@ -3975,6 +3975,24 @@
   flex: none;
 }
 
+/* Pending-invite row: wraps on its OWN width, not the viewport's. The config
+   body pane can be squeezed narrow while the viewport is still "desktop" (e.g.
+   the two-pane config layout on a small screen), which used to collapse the
+   invite meta to near-zero width and stack the code/URL one letter per line.
+   Letting the row wrap unconditionally keeps the code and link readable and
+   drops the action buttons onto their own line when there isn't room beside. */
+.invite-row {
+  flex-wrap: wrap;
+}
+.invite-row .sr-meta {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.invite-row .invite-actions {
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+}
+
 /* Settings slider */
 .set-slider-wrap {
   display: flex;
@@ -5370,6 +5388,77 @@
 }
 .tbl tbody tr.row-selected:hover td {
   background: color-mix(in srgb, var(--accent) 13%, transparent);
+}
+
+/* Users table: collapse to stacked cards when the table's OWN container is
+   narrow, not just when the viewport is. On a phone-width config body the plain
+   table overflowed and the right-hand Actions column got clipped; the container
+   query restyles each row as a labelled card so every field - including the
+   action buttons - stays on screen without horizontal scrolling. */
+.users-tbl-wrap {
+  container-type: inline-size;
+}
+
+@container (max-width: 640px) {
+  .users-tbl-wrap .users-tbl {
+    min-width: 0;
+  }
+  .users-tbl-wrap thead {
+    display: none;
+  }
+  .users-tbl-wrap tbody,
+  .users-tbl-wrap tr,
+  .users-tbl-wrap td {
+    display: block;
+    width: auto;
+  }
+  .users-tbl-wrap tbody tr {
+    position: relative;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .users-tbl-wrap tbody tr:last-child {
+    border-bottom: none;
+  }
+  .users-tbl-wrap td {
+    border: none;
+    padding: 3px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13.5px;
+  }
+  /* Field label rendered from the cell's data-label. */
+  .users-tbl-wrap td[data-label]::before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    flex: none;
+  }
+  /* Row selection checkbox pins to the card's top-right corner. */
+  .users-tbl-wrap td.u-check {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    width: auto;
+    padding: 0;
+  }
+  /* Username heads the card, left-aligned with room for the pinned checkbox. */
+  .users-tbl-wrap td.u-user {
+    justify-content: flex-start;
+    padding: 0 34px 6px 0;
+  }
+  /* Actions sit on their own line, left-aligned and fully visible. */
+  .users-tbl-wrap td.u-actions {
+    padding-top: 8px;
+  }
+  .users-tbl-wrap td.u-actions .t-actions {
+    justify-content: flex-start;
+  }
 }
 
 .merge-check {
