@@ -59,7 +59,6 @@ const ERROR_COPY: Record<string, string> = {
   // --- Connection secret recovery --------------------------------------------
   server_secret_required: 'Paste the connection secret to continue.',
   bad_server_secret: "That connection secret didn't match. Check it and try again.",
-  reset_secret_failed: "Couldn't reset the connection secret. Try again in a moment.",
 
   // --- Service account credential health -------------------------------------
   no_service_token: 'No service account is set up on this server yet.',
@@ -72,10 +71,8 @@ const ERROR_COPY: Record<string, string> = {
   invalid_email: "That email address doesn't look right.",
   invalid_to: "That email address doesn't look right.",
   invite_not_found: "That invite couldn't be found. It may have been used or expired.",
-  invite_not_valid: "That invite isn't valid anymore.",
   not_linked: "You're not linked to this server.",
   server_unknown: "That server couldn't be found.",
-  server_unreachable: "Couldn't reach that server. Make sure it's running.",
 
   // --- Email relay -----------------------------------------------------------
   quota_exceeded: "You've reached this month's email limit for this server.",
