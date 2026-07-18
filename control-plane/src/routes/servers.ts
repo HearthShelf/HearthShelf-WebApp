@@ -31,9 +31,11 @@ import {
   createLink,
   upsertInvite,
   inviteByToken,
+  revokeInvite,
   pendingInvitesForEmail,
   pendingInvitesForServer,
   markInviteAccepted,
+  bumpInviteAttempts,
   updateServerPublicUrl,
   upsertServerCertPending,
   recordServerCertResult,
@@ -49,10 +51,16 @@ import { getLatestReleaseFresh, toDTO } from '../lib/releases'
 import { mintGrant } from '../lib/signing'
 import { getPlan } from '../lib/admin'
 import { mintCertGrant, hsDirectZone } from '../lib/certBroker'
-import { createClerkInvitation, ClerkApiError } from '../lib/clerkApi'
 import { sendEmail, EmailError } from '../lib/email'
 import { renderInviteEmail } from '../lib/emailTemplates'
-import { uuid, sha256Hex, timingSafeEqual, serverSecret, inviteToken } from '../lib/ids'
+import {
+  uuid,
+  sha256Hex,
+  timingSafeEqual,
+  serverSecret,
+  inviteCode,
+  normalizeInviteCode,
+} from '../lib/ids'
 import { probeServer, validatePublicUrl, type ProbeStatus } from '../lib/reachability'
 
 export const servers = new Hono<{ Bindings: Env }>()
@@ -91,17 +99,27 @@ async function acceptPendingInvites(c: Context<{ Bindings: Env }>, user: ClerkId
   }
 }
 
+/** Failed-guess budget for the short invite code, per account per window. Ten
+ *  wrong codes an hour leaves ~40 bits astronomically out of reach while never
+ *  bothering a real invitee, who typically gets it right the first time. */
+const MAX_INVITE_ATTEMPTS = 10
+const INVITE_ATTEMPT_WINDOW_MS = 60 * 60 * 1000
+
 /**
- * Accept an invite by its token. This is the relay-proof path: the token is a
- * bearer capability delivered only to the invited email, so possession of it
- * (plus an authenticated session) authorizes the link regardless of what email
- * the account carries. This is what makes invites work for Sign in with Apple
- * "Hide My Email" users, whose account email is a @privaterelay address that
- * never matches the invited one.
+ * Accept an invite by its code. This is the relay-proof path: the code is a
+ * bearer capability delivered to the invited email (or read aloud by the
+ * inviter), so possession of it plus an authenticated session authorizes the
+ * link regardless of what email the account carries. This is what makes invites
+ * work for Sign in with Apple "Hide My Email" users, whose account email is a
+ * @privaterelay address that never matches the invited one.
  *
- * Intentionally does NOT require a verified email: the token, not the email, is
- * the proof. The token is single-use (marked accepted) and re-minted on every
- * re-invite, so a claimed or superseded link is inert.
+ * Intentionally does NOT require a verified email: the code, not the email, is
+ * the proof. The code is single-use (marked accepted) and re-minted on every
+ * re-invite, so a claimed or superseded code is inert.
+ *
+ * Because the code is short (~40 bits), two guards are load-bearing here and
+ * must not be removed independently of lengthening it: expiry (enforced in
+ * inviteByToken) and the per-account attempt limit below.
  */
 servers.post('/invite/accept', async (c) => {
   const user = await requireUser(c)
@@ -113,13 +131,22 @@ servers.post('/invite/accept', async (c) => {
   } catch {
     return c.json({ error: 'invalid_body' }, 400)
   }
-  const token = typeof body.token === 'string' ? body.token.trim() : ''
+  const raw = typeof body.token === 'string' ? body.token.trim() : ''
+  if (!raw) return c.json({ error: 'invalid_token' }, 400)
+  // Accept whatever shape the user typed: "4g7k p2wd", "4G7KP2WD", "4G7K-P2WD".
+  const token = normalizeInviteCode(raw)
   if (!token) return c.json({ error: 'invalid_token' }, 400)
 
   const inv = await inviteByToken(c.env, token)
-  // Not found / already accepted / revoked all look the same to the caller so a
-  // token can't be probed for validity beyond "this exact one is live".
-  if (!inv) return c.json({ error: 'invite_not_found' }, 404)
+  // Not found / expired / already accepted / revoked all look the same to the
+  // caller so a code can't be probed for validity beyond "this one is live".
+  if (!inv) {
+    // The code is short, so a wrong guess has to cost something. Count failures
+    // per account and cut them off well before ~40 bits is reachable.
+    const attempts = await bumpInviteAttempts(c.env, user.userId, INVITE_ATTEMPT_WINDOW_MS)
+    if (attempts > MAX_INVITE_ATTEMPTS) return c.json({ error: 'too_many_attempts' }, 429)
+    return c.json({ error: 'invite_not_found' }, 404)
+  }
 
   await createLink(c.env, {
     id: uuid(),
@@ -353,9 +380,12 @@ function normalizeEmail(raw: unknown): string {
 
 /**
  * Invite someone by email to a server. Admin-only (the inviter must have an
- * admin link to the server). Creates a Clerk invitation (emails a sign-up link)
- * and records a pending invite that materializes into a link on the invitee's
- * first sign-in. Re-inviting refreshes the existing pending row.
+ * admin link to the server). Mints a short invite code, emails it as a link, and
+ * returns it so the admin can also read it out. Re-inviting refreshes the
+ * existing row and mints a fresh code, retiring the old one.
+ *
+ * No Clerk invitation is involved: Clerk sign-up is open, so an invitation never
+ * gated anything - this code is what grants library access.
  */
 servers.post('/servers/:id/invite', async (c) => {
   const user = await requireUser(c)
@@ -376,57 +406,37 @@ servers.post('/servers/:id/invite', async (c) => {
   if (!email || !email.includes('@')) return c.json({ error: 'invalid_email' }, 400)
   const role: 'admin' | 'user' = body.role === 'admin' ? 'admin' : 'user'
 
-  // Create the Clerk invitation. If they already have a Clerk account, Clerk may
-  // 422 "duplicate" - that's fine; the pending invite still links them on next
-  // sign-in. We record the invite regardless.
-  let clerkInvitationId: string | null = null
-  try {
-    const inv = await createClerkInvitation(c.env, {
-      email,
-      redirectUrl: `${APP_ORIGIN}/sign-up`,
-      serverId,
-      role,
-    })
-    clerkInvitationId = inv.id
-  } catch (err) {
-    if (!(err instanceof ClerkApiError)) throw err
-    // Non-fatal: log via response detail; still record the pending invite so an
-    // existing user gets linked on next sign-in.
-    clerkInvitationId = null
-  }
-
-  const token = inviteToken()
+  const token = inviteCode()
   await upsertInvite(c.env, {
     id: uuid(),
     email,
     serverId,
     role,
     invitedBy: user.userId,
-    clerkInvitationId,
     token,
   })
 
-  // Branded companion invite via Resend. Clerk's email carries the actual
-  // sign-up link; this one explains HearthShelf and which library they're
-  // joining. Non-fatal: a send failure (or unconfigured key) never blocks the
-  // invite, which already works via the pending_invites row on next sign-in.
-  let branded = false
+  // The invite email via Resend. A send failure no longer strands the invitee -
+  // the admin can read them the code - so it's reported rather than fatal, and
+  // the code comes back either way.
+  let emailed = false
   try {
     const server = await getServer(c.env, serverId)
-    // The token drives acceptance (relay-proof); server is kept only so the
+    // The code drives acceptance (relay-proof); server is kept only so the
     // landing page can show which library before the list loads.
     const { subject, html, text } = renderInviteEmail({
       serverName: server?.name ?? null,
+      code: token,
       acceptUrl: `${APP_ORIGIN}/invite?token=${encodeURIComponent(token)}&server=${encodeURIComponent(serverId)}`,
     })
     await sendEmail(c.env, { to: email, subject, html, text })
-    branded = true
+    emailed = true
   } catch (err) {
     if (!(err instanceof EmailError)) throw err
-    branded = false
+    emailed = false
   }
 
-  return c.json({ ok: true, email, role, emailed: clerkInvitationId !== null, branded })
+  return c.json({ ok: true, email, role, code: token, emailed })
 })
 
 /** List pending invites for a server (admin-only). */
@@ -437,9 +447,60 @@ servers.get('/servers/:id/invites', async (c) => {
   const link = await getLink(c.env, user.userId, serverId)
   if (!link || link.role !== 'admin') return c.json({ error: 'forbidden' }, 403)
   const invites = await pendingInvitesForServer(c.env, serverId)
+  // The code is shown to this server's own admins so they can read it out to an
+  // invitee whose email never arrived - the same people who could re-invite anyway.
   return c.json({
-    invites: invites.map((i) => ({ email: i.email, role: i.role, created_at: i.created_at })),
+    invites: invites.map((i) => ({
+      id: i.id,
+      email: i.email,
+      role: i.role,
+      code: i.token,
+      created_at: i.created_at,
+      expires_at: i.expires_at,
+    })),
   })
+})
+
+/**
+ * Cancel a pending invite (admin-only). The code stops working immediately.
+ * Returns ok even if the invite was already gone so a double-click is harmless.
+ */
+servers.delete('/servers/:id/invites/:inviteId', async (c) => {
+  const user = await requireUser(c)
+  if (!user) return c.json({ error: 'unauthorized' }, 401)
+  const serverId = c.req.param('id')
+  const link = await getLink(c.env, user.userId, serverId)
+  if (!link || link.role !== 'admin') return c.json({ error: 'forbidden' }, 403)
+  await revokeInvite(c.env, serverId, c.req.param('inviteId'))
+  return c.json({ ok: true })
+})
+
+/**
+ * Cancel a pending invite, server-to-server (server_secret authed). The
+ * self-hosted UI's counterpart to the admin endpoint above.
+ */
+servers.post('/servers/revoke-invite', async (c) => {
+  let body: { server_id?: string; server_secret?: string; invite_id?: string }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const serverId = (body.server_id || '').trim()
+  const secret = body.server_secret || ''
+  const inviteId = (body.invite_id || '').trim()
+  if (!serverId || !secret) return c.json({ error: 'server_id and server_secret required' }, 400)
+  if (!inviteId) return c.json({ error: 'invite_id required' }, 400)
+
+  const server = await getServer(c.env, serverId)
+  if (!server) return c.json({ error: 'server_unknown' }, 404)
+  const presented = await sha256Hex(secret)
+  if (!timingSafeEqual(presented, server.server_secret_hash)) {
+    return c.json({ error: 'bad_server_secret' }, 401)
+  }
+
+  await revokeInvite(c.env, serverId, inviteId)
+  return c.json({ ok: true })
 })
 
 /**
@@ -602,8 +663,8 @@ servers.post('/servers/deregister', async (c) => {
 /**
  * Server-initiated invite. A paired HS server (whose own admin authorized this)
  * invites someone, authenticating with its server_secret rather than a Clerk
- * token. Same outcome as the user-facing invite: Clerk invitation + pending
- * link. Lets admins invite from inside their self-hosted HS UI.
+ * token. Same outcome as the user-facing invite. Lets admins invite from inside
+ * their self-hosted HS UI.
  */
 servers.post('/servers/invite-from-server', async (c) => {
   let body: { server_id?: string; server_secret?: string; email?: string; role?: string }
@@ -627,31 +688,33 @@ servers.post('/servers/invite-from-server', async (c) => {
   if (!email || !email.includes('@')) return c.json({ error: 'invalid_email' }, 400)
   const role: 'admin' | 'user' = body.role === 'admin' ? 'admin' : 'user'
 
-  let clerkInvitationId: string | null = null
-  try {
-    const inv = await createClerkInvitation(c.env, {
-      email,
-      redirectUrl: `${APP_ORIGIN}/sign-up`,
-      serverId,
-      role,
-    })
-    clerkInvitationId = inv.id
-  } catch (err) {
-    if (!(err instanceof ClerkApiError)) throw err
-    clerkInvitationId = null
-  }
-
+  const token = inviteCode()
   await upsertInvite(c.env, {
     id: uuid(),
     email,
     serverId,
     role,
     invitedBy: 'server',
-    clerkInvitationId,
-    token: inviteToken(),
+    token,
   })
 
-  return c.json({ ok: true, email, role, emailed: clerkInvitationId !== null })
+  // Report send failure rather than failing the call: the code comes back either
+  // way, so the admin can read it out if the email never lands.
+  let emailed = false
+  try {
+    const { subject, html, text } = renderInviteEmail({
+      serverName: server.name ?? null,
+      code: token,
+      acceptUrl: `${APP_ORIGIN}/invite?token=${encodeURIComponent(token)}&server=${encodeURIComponent(serverId)}`,
+    })
+    await sendEmail(c.env, { to: email, subject, html, text })
+    emailed = true
+  } catch (err) {
+    if (!(err instanceof EmailError)) throw err
+    emailed = false
+  }
+
+  return c.json({ ok: true, email, role, code: token, emailed })
 })
 
 /**
@@ -678,8 +741,17 @@ servers.post('/servers/invites-for-server', async (c) => {
   }
 
   const invites = await pendingInvitesForServer(c.env, serverId)
+  // The code is shown to this server's own admins so they can read it out to an
+  // invitee whose email never arrived - the same people who could re-invite anyway.
   return c.json({
-    invites: invites.map((i) => ({ email: i.email, role: i.role, created_at: i.created_at })),
+    invites: invites.map((i) => ({
+      id: i.id,
+      email: i.email,
+      role: i.role,
+      code: i.token,
+      created_at: i.created_at,
+      expires_at: i.expires_at,
+    })),
   })
 })
 

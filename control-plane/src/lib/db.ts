@@ -417,16 +417,21 @@ export async function updatePairingPublicUrl(
 
 // --- pending invites -------------------------------------------------------
 
+/** How long an invite code stays redeemable. Short-lived on purpose: the code is
+ *  only ~40 bits, so a bounded window is part of what keeps it safe. */
+export const INVITE_TTL_MS = 14 * 24 * 60 * 60 * 1000
+
 export interface InviteRow {
   id: string
   email: string
   server_id: string
   role: 'admin' | 'user'
   invited_by: string | null
-  clerk_invitation_id: string | null
+  /** The XXXX-XXXX invite code. Named `token` for the column's history. */
   token: string | null
   status: 'pending' | 'accepted' | 'revoked'
   created_at: number
+  expires_at: number | null
   accepted_at: number | null
 }
 
@@ -438,23 +443,23 @@ export async function upsertInvite(
     serverId: string
     role: 'admin' | 'user'
     invitedBy: string | null
-    clerkInvitationId: string | null
     token: string
   },
 ): Promise<void> {
   // Re-inviting the same (email, server) refreshes the row AND mints a fresh
-  // token so an older leaked link stops working once a new invite is sent.
+  // code, so an older leaked link stops working once a new invite is sent.
+  const createdAt = now()
   await env.DB.prepare(
     `INSERT INTO pending_invites
-       (id, email, server_id, role, invited_by, clerk_invitation_id, token, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+       (id, email, server_id, role, invited_by, token, status, created_at, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)
      ON CONFLICT (email, server_id) DO UPDATE SET
        role = excluded.role,
        invited_by = excluded.invited_by,
-       clerk_invitation_id = excluded.clerk_invitation_id,
        token = excluded.token,
        status = 'pending',
        created_at = excluded.created_at,
+       expires_at = excluded.expires_at,
        accepted_at = NULL`,
   )
     .bind(
@@ -463,17 +468,65 @@ export async function upsertInvite(
       inv.serverId,
       inv.role,
       inv.invitedBy,
-      inv.clerkInvitationId,
       inv.token,
-      now(),
+      createdAt,
+      createdAt + INVITE_TTL_MS,
     )
     .run()
 }
 
 /**
- * A single pending invite by its opaque token, with server details. This is the
- * relay-proof acceptance path: possession of the token (delivered only to the
- * invited email) authorizes the link, independent of the account's own email.
+ * Count a failed invite-code redemption against an identity (the Clerk user id)
+ * and report the running total inside the current window.
+ *
+ * Durable on purpose: the in-isolate limiter used elsewhere only dampens a
+ * single warm isolate, which is not enough when the secret is a ~40-bit code an
+ * attacker can grind across isolates. Keyed on the authenticated user rather
+ * than IP because /invite/accept already requires a session - that makes the
+ * limit meaningful (an attacker needs a fresh account per bucket) and avoids
+ * punishing everyone behind a shared NAT.
+ */
+export async function bumpInviteAttempts(
+  env: Env,
+  key: string,
+  windowMs: number,
+): Promise<number> {
+  const t = now()
+  const windowStart = t - (t % windowMs)
+  await env.DB.prepare(
+    `INSERT INTO invite_attempts (key, window_start, attempts)
+     VALUES (?, ?, 1)
+     ON CONFLICT (key, window_start) DO UPDATE SET attempts = attempts + 1`,
+  )
+    .bind(key, windowStart)
+    .run()
+  const r = await env.DB.prepare(
+    `SELECT attempts FROM invite_attempts WHERE key = ? AND window_start = ?`,
+  )
+    .bind(key, windowStart)
+    .first<{ attempts: number }>()
+  return r?.attempts ?? 1
+}
+
+/** Revoke a pending invite (admin cancels it). Idempotent; only touches rows for
+ *  the given server so an admin can't revoke another server's invite by id. */
+export async function revokeInvite(env: Env, serverId: string, id: string): Promise<boolean> {
+  const r = await env.DB.prepare(
+    `UPDATE pending_invites SET status = 'revoked'
+      WHERE id = ? AND server_id = ? AND status = 'pending'`,
+  )
+    .bind(id, serverId)
+    .run()
+  return (r.meta?.changes ?? 0) > 0
+}
+
+/**
+ * A single live invite by its code, with server details. This is the relay-proof
+ * acceptance path: possession of the code authorizes the link, independent of
+ * the account's own email.
+ *
+ * Enforces expiry here rather than at the call site so no caller can forget it -
+ * an expired code is indistinguishable from a wrong one.
  */
 export async function inviteByToken(
   env: Env,
@@ -482,9 +535,10 @@ export async function inviteByToken(
   const r = await env.DB.prepare(
     `SELECT i.*, s.public_url, s.name AS server_name
        FROM pending_invites i JOIN servers s ON s.server_id = i.server_id
-      WHERE i.token = ? AND i.status = 'pending'`,
+      WHERE i.token = ? AND i.status = 'pending'
+        AND (i.expires_at IS NULL OR i.expires_at > ?)`,
   )
-    .bind(token)
+    .bind(token, now())
     .first<InviteRow & { public_url: string; server_name: string | null }>()
   return r ?? null
 }
@@ -497,9 +551,10 @@ export async function pendingInvitesForEmail(
   const r = await env.DB.prepare(
     `SELECT i.*, s.public_url, s.name AS server_name
        FROM pending_invites i JOIN servers s ON s.server_id = i.server_id
-      WHERE i.email = ? AND i.status = 'pending'`,
+      WHERE i.email = ? AND i.status = 'pending'
+        AND (i.expires_at IS NULL OR i.expires_at > ?)`,
   )
-    .bind(email.toLowerCase())
+    .bind(email.toLowerCase(), now())
     .all<InviteRow & { public_url: string; server_name: string | null }>()
   return r.results ?? []
 }
@@ -512,12 +567,16 @@ export async function markInviteAccepted(env: Env, id: string): Promise<void> {
     .run()
 }
 
-/** Pending invites an admin can see for a server they manage. */
+/** Live invites an admin can see for a server they manage. Expired rows are
+ *  filtered out so the list matches what a code can actually still redeem. */
 export async function pendingInvitesForServer(env: Env, serverId: string): Promise<InviteRow[]> {
   const r = await env.DB.prepare(
-    `SELECT * FROM pending_invites WHERE server_id = ? AND status = 'pending' ORDER BY created_at DESC`,
+    `SELECT * FROM pending_invites
+      WHERE server_id = ? AND status = 'pending'
+        AND (expires_at IS NULL OR expires_at > ?)
+      ORDER BY created_at DESC`,
   )
-    .bind(serverId)
+    .bind(serverId, now())
     .all<InviteRow>()
   return r.results ?? []
 }

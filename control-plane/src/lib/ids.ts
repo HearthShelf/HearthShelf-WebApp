@@ -30,13 +30,36 @@ export function serverSecret(): string {
 }
 
 /**
- * A long opaque invite token (base64url, ~256 bits). Carried in the invite link
- * as a bearer capability: whoever follows the link and authenticates claims the
- * invite, so it must be unguessable. Delivered only to the invited email.
+ * A human-enterable invite code: XXXX-XXXX from the unambiguous alphabet, same
+ * shape as pairingCode. Short enough to read off a screen and type into a phone,
+ * which is the point - the invite email carries it as a link, but a user who
+ * never got the email can be read the code over the phone instead.
+ *
+ * ~40 bits. That is NOT unguessable the way the old 256-bit token was, so
+ * redemption MUST stay guarded: /invite/accept rate-limits attempts per IP and
+ * codes expire (INVITE_TTL_MS). Do not lengthen the TTL or drop the limiter
+ * without lengthening the code.
  */
-export function inviteToken(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(32))
-  return b64url(bytes)
+export function inviteCode(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(8))
+  let out = ''
+  for (let i = 0; i < 8; i++) {
+    out += ALPHABET[bytes[i] % ALPHABET.length]
+    if (i === 3) out += '-'
+  }
+  return out
+}
+
+/**
+ * Normalize a user-typed invite code for lookup: uppercase, strip everything
+ * outside the alphabet, re-insert the dash. Lets "4g7k p2wd", "4G7KP2WD", and
+ * "4G7K-P2WD" all match the stored form.
+ */
+export function normalizeInviteCode(raw: string): string {
+  const bare = raw.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  if (bare.length !== 8) return ''
+  for (const ch of bare) if (!ALPHABET.includes(ch)) return ''
+  return `${bare.slice(0, 4)}-${bare.slice(4)}`
 }
 
 export function b64url(bytes: Uint8Array): string {
