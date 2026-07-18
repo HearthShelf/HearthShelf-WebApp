@@ -20,6 +20,52 @@ It never stores ABS credentials and is never in the data path. See
 | POST | `/servers/:id/grant` | Clerk | mint a short-TTL grant for one server |
 | DELETE | `/servers/:id` | Clerk | unlink a server |
 
+## Error codes
+
+Failures answer with `{ "error": "<code>" }` (plus an optional `detail` for
+logs) and an HTTP status. The `error` is a stable machine code, never
+user-facing copy - the client (`app.hearthshelf.com`) maps it to a friendly
+message in `src/lib/errorMessages.ts`. **When you add a new code here, add a
+matching line there** so users see plain language instead of the raw token.
+
+| Code | Typical status | Meaning |
+|---|---|---|
+| `unauthorized` | 401 | No valid Clerk session on a call that needs one. |
+| `email_unverified` | 403 | The Clerk identity's email isn't verified yet. |
+| `forbidden` | 403 | Authenticated but not allowed (e.g. not this server's admin, not a platform admin). |
+| `not_linked` | 403 | The signed-in user isn't linked to the target server. |
+| `bad_pin` / `pin_required` | 401 / 403 | Account-switch PIN missing or wrong. |
+| `locked_out` | 410 | Too many wrong PINs; the remembered handle was revoked. |
+| `unknown_handle` | 404 | Account-switch handle is unknown/expired. |
+| `bad_server_secret` | 401 | A server-to-CP call presented a wrong/rotated server secret. |
+| `invalid_token` | 400 | Invite token is malformed or unrecognized. |
+| `invalid_grant` | 401 | A signed grant assertion failed verification. |
+| `server_unknown` / `unknown_server` | 404 | No server with that id. |
+| `invite_not_found` | 404 | Invite id/token doesn't resolve. |
+| `already_paired` | 409 | Pairing start for a server that's already linked. |
+| `invalid_code` | 400 | Pairing code is malformed or unknown. |
+| `code_already_used` | 409 | Pairing code was already redeemed. |
+| `code_expired` | 410 | Pairing code's TTL elapsed. |
+| `rate_limited` | 429 | Too many attempts; back off and retry. |
+| `public_url_invalid` | 400 | Submitted public URL isn't a usable https origin. |
+| `public_url_not_reachable` | 422 | CP couldn't reach the submitted public URL from outside. |
+| `hsdirect_not_configured` | 409 | Server asked for hs.direct work but has no hs.direct record. |
+| `name_too_short` | 400 | Server display name below the minimum length. |
+| `quota_exceeded` | 429 | Server hit its monthly email-relay cap. |
+| `send_failed` | 502 | Email relay couldn't hand off to the mail provider. |
+| `invalid_to` / `invalid_email` | 400 | Recipient address is malformed. |
+| `subject_required` / `body_required` | 400 | Email relay call missing subject/body. |
+| `cannot_remove_self` | 400 | A platform admin tried to remove their own admin row. |
+| `cannot_remove_last_admin` | 400 | Would remove the last platform admin. |
+| `no_version` | 400 | Release-publish call with no version. |
+| `clerk_delete_failed` | 500 | Account data was purged but the Clerk identity delete failed (see the caller's user-facing note). |
+| `collector_unavailable` | 503 | The isolated log collector is unreachable. |
+| `bad_id` | 400 | A path/body id failed validation. |
+| `invalid_body` / `bad_body` / `bad_request` / `invalid_payload` | 400 | Request body failed validation. |
+| `not_found` | 404 | Unknown route or resource. |
+| `not_implemented` | 501 | Endpoint is a stub / not built yet. |
+| `server_error` | 500 | Unhandled failure (the catch-all). |
+
 ## Local development
 
 ```bash
