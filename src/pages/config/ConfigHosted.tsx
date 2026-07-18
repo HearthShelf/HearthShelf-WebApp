@@ -21,6 +21,7 @@ import {
   type PortCheckResult,
 } from '@/api/absHosted'
 import { ServiceAccountHealth } from '@/components/hosted/ServiceAccountHealth'
+import { ConnectivityDiagram } from '@/components/hosted/ConnectivityDiagram'
 import { friendlyError } from '@/lib/errorMessages'
 
 // "12:34" style mm:ss left until the pairing code expires, or null once gone.
@@ -343,6 +344,17 @@ export function ConfigHosted() {
             onChanged={() =>
               qc.invalidateQueries({ queryKey: hostedKeys.status(target.serverId) })
             }
+          />
+        )}
+
+        {/* LAN -> WAN -> Cloud connectivity map, colored from real signals. */}
+        {status.paired && (
+          <ConnectivityDiagram
+            paired={status.paired}
+            reachable={portResult ? portResult.open : null}
+            port={portResult?.port ?? null}
+            certActive={hsDirect?.status === 'active'}
+            serverName={serverName}
           />
         )}
 
