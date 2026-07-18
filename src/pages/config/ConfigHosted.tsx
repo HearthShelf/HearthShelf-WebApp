@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
@@ -16,10 +16,12 @@ import {
   resetServiceCredential,
   overrideServiceCredential,
   hostedKeys,
+  HostedError,
   type PairResult,
   type PortCheckResult,
 } from '@/api/absHosted'
 import { ServiceAccountHealth } from '@/components/hosted/ServiceAccountHealth'
+import { friendlyError } from '@/lib/errorMessages'
 
 // "12:34" style mm:ss left until the pairing code expires, or null once gone.
 function timeLeft(expiresAt: string | number, nowMs: number): string | null {
@@ -97,7 +99,7 @@ export function ConfigHosted() {
       qc.invalidateQueries({ queryKey: hostedKeys.status(target!.serverId) })
       show('Pairing started - enter the code on app.hearthshelf.com')
     },
-    onError: (e: Error) => show(e.message || 'Could not start pairing'),
+    onError: (e: Error) => show(friendlyError(e, 'Could not start connecting')),
   })
 
   const disconnect = useMutation({
@@ -109,7 +111,7 @@ export function ConfigHosted() {
       qc.invalidateQueries({ queryKey: hostedKeys.hsdirect(target!.serverId) })
       show('Disconnected from app.hearthshelf.com')
     },
-    onError: (e: Error) => show(e.message || 'Could not disconnect'),
+    onError: (e: Error) => show(friendlyError(e, 'Could not disconnect')),
   })
 
   // hs.direct provisioning: the assigned *.hs.direct address + cert state.
@@ -123,29 +125,57 @@ export function ConfigHosted() {
   })
 
   // Port reachability via the hs.direct VPS connecting back to this box's IP.
-  // The check is proxied through the hs.direct broker, which can hiccup with a
-  // transient "broker_unreachable" even though the box itself is fine (the
-  // "Connected" status above is the real signal). Toast only for a check the
-  // user explicitly asked for - the background auto-run just retries quietly.
+  // The check is proxied through the hs.direct broker. Two failure modes are very
+  // different and must not be conflated:
+  //   - the box is unreachable (open:false) -> the user needs to forward a port.
+  //   - the BROKER is down (broker_unreachable / probe failed) -> we simply can't
+  //     run the check; this says NOTHING about the box, which is provably
+  //     connected (you're administering it through app.hearthshelf.com). Never
+  //     imply the server is down in this case.
   const [portResult, setPortResult] = useState<PortCheckResult | null>(null)
+  // Set when the broker itself couldn't be reached, so the check is inconclusive.
+  const [checkUnavailable, setCheckUnavailable] = useState(false)
   const testPort = useMutation({
     mutationFn: (_source: 'auto' | 'manual') => checkPort(target!),
-    onSuccess: (r) => setPortResult(r),
-    onError: (_err, source) => {
-      if (source === 'manual') show('Could not run the connection check - try again in a moment')
+    onSuccess: (r) => {
+      setPortResult(r)
+      setCheckUnavailable(false)
+    },
+    onError: (err, source) => {
+      // A broker/infra failure means "check unavailable", not "unreachable".
+      const code = err instanceof HostedError ? err.code : ''
+      const brokerDown =
+        code === 'broker_unreachable' || code === 'probe_failed' || code === 'network'
+      if (brokerDown) setCheckUnavailable(true)
+      if (source === 'manual') {
+        show(
+          brokerDown
+            ? 'The reachability service is offline right now - this doesn’t affect your server.'
+            : 'Could not run the connection check - try again in a moment',
+        )
+      }
     },
   })
 
-  // Auto-run the connection check once the server is paired, retrying quietly
-  // on failure (e.g. a transient broker error) instead of surfacing a toast.
+  // Auto-run the connection check ONCE when paired. On failure, retry at most a
+  // couple of times with backoff, then stop - a dead broker must not be polled
+  // forever (it floods the network log and never succeeds). The manual "Check
+  // connection" button is always available to try again on demand.
+  const AUTO_RETRY_LIMIT = 2
+  const autoAttempts = useRef(0)
   const portChecked = portResult !== null
   useEffect(() => {
     if (!status?.paired) return
     if (portChecked || testPort.isPending) return
     if (testPort.isError) {
-      const retry = setTimeout(() => testPort.mutate('auto'), 10000)
+      if (autoAttempts.current >= AUTO_RETRY_LIMIT) return // give up quietly
+      const retry = setTimeout(() => {
+        autoAttempts.current += 1
+        testPort.mutate('auto')
+      }, 15000)
       return () => clearTimeout(retry)
     }
+    autoAttempts.current += 1
     testPort.mutate('auto')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status?.paired, portChecked, testPort.isPending, testPort.isError])
@@ -183,7 +213,7 @@ export function ConfigHosted() {
       show(r.emailed ? `Invited ${r.email} - email sent` : `Invited ${r.email}`)
       setEmail('')
     },
-    onError: (e: Error) => show(e.message || 'Invite failed'),
+    onError: (e: Error) => show(friendlyError(e, 'Invite failed')),
   })
 
   if (!target || isLoading || !status) {
@@ -355,6 +385,13 @@ export function ConfigHosted() {
                 {portResult && !portResult.open && (
                   <span className="sr-d" style={{ color: 'var(--warn, #d9a45a)' }}>
                     Not reachable - forward port {portResult.port} on your router to this machine.
+                  </span>
+                )}
+                {!portResult && checkUnavailable && (
+                  <span className="sr-d" style={{ color: 'var(--text-muted)' }}>
+                    Can’t run this check right now - the reachability service is offline. Your server
+                    is still connected (you’re managing it here), so this is just the test being
+                    unavailable.
                   </span>
                 )}
               </div>

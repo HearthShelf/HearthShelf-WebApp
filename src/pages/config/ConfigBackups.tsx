@@ -26,6 +26,7 @@ import {
 } from '@/api/absBackups'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
+import { friendlyError } from '@/lib/errorMessages'
 import { Icon } from '@/components/common/Icon'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
@@ -151,7 +152,7 @@ export function ConfigBackups() {
       await fn()
       if (ok) show(ok)
     } catch (e) {
-      show(e instanceof Error ? e.message : 'Something went wrong')
+      show(friendlyError(e, 'Something went wrong'))
     } finally {
       setBusy('')
     }

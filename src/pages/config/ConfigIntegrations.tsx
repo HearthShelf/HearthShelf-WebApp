@@ -12,6 +12,7 @@ import {
 import type { HSAudibleRegion } from '@hearthshelf/core'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
+import { friendlyError } from '@/lib/errorMessages'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 
@@ -131,7 +132,7 @@ function IntegrationsForm({ config }: { config: IntegrationsConfig }) {
       setAudplexusKey('')
       show('Integrations saved')
     },
-    onError: (err) => show(err instanceof Error ? err.message : 'Could not validate ReadMeABook'),
+    onError: (err) => show(friendlyError(err, 'Could not validate ReadMeABook')),
   })
 
   const env = config.env

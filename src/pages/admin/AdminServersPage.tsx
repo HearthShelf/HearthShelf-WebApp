@@ -309,7 +309,7 @@ function ServerDetail({ serverId }: { serverId: string }) {
       setConfirmDeregister(false)
       void qc.invalidateQueries({ queryKey: ['admin-servers'] })
     },
-    onError: (e) => notify.error(e instanceof Error ? e.message : 'Deregister failed'),
+    onError: (e) => notify.error(notify.fromError(e, 'Deregister failed')),
   })
 
   if (isLoading) {

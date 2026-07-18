@@ -1,4 +1,5 @@
 import { toast } from 'sonner'
+import { friendlyError } from './errorMessages'
 
 /**
  * Thin wrapper over Sonner so call sites have one consistent vocabulary and we
@@ -15,8 +16,12 @@ export const notify = {
   info(message: string) {
     toast(message)
   },
-  /** Pull a human message out of an unknown thrown value. */
+  /**
+   * Pull a human message out of an unknown thrown value, mapping known backend
+   * error codes to friendly copy and never surfacing a raw code (see
+   * errorMessages.ts).
+   */
   fromError(err: unknown, fallback = 'Something went wrong'): string {
-    return err instanceof Error && err.message ? err.message : fallback
+    return friendlyError(err, fallback)
   },
 }

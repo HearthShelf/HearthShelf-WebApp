@@ -22,11 +22,11 @@ import {
   inviteFromServer,
   getPendingInvites,
   hostedKeys,
-  HostedError,
 } from '@/api/absHosted'
 import type { UserFormSubmit } from '@/components/config/UserForm'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
+import { friendlyError } from '@/lib/errorMessages'
 import { fmtSessDate } from '@hearthshelf/core'
 import { Icon } from '@/components/common/Icon'
 import { Avatar } from '@/components/common/Avatar'
@@ -92,7 +92,7 @@ export function ConfigUsers() {
       void refetchInvites()
     },
     onError: (e: Error) => {
-      show(e.message || (resendingEmail ? 'Could not resend invite' : 'Invite failed'))
+      show(friendlyError(e, resendingEmail ? 'Could not resend invite' : 'Invite failed'))
       setResendingEmail(null)
     },
   })
@@ -197,12 +197,6 @@ export function ConfigUsers() {
     show(`Deleted ${u.username}`)
   }
 
-  const RECOVER_ERRORS: Record<string, string> = {
-    not_paired: 'This server must be connected to HearthShelf to recover admins.',
-    no_service_token: 'Recovery is unavailable - no service account on file.',
-    forbidden: 'Only a server admin can recover admin access.',
-    invalid_grant: 'Your session could not be verified. Sign in again and retry.',
-  }
   const doRecover = async () => {
     setRecovering(true)
     try {
@@ -214,8 +208,7 @@ export function ConfigUsers() {
           : 'No disabled admins to recover',
       )
     } catch (e) {
-      const code = e instanceof HostedError ? e.code : ''
-      show(RECOVER_ERRORS[code] ?? 'Could not recover admin access.')
+      show(friendlyError(e, 'Could not recover admin access.'))
     } finally {
       setRecovering(false)
       setRecoverOpen(false)
