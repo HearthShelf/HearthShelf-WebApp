@@ -15,6 +15,11 @@ import { now } from './ids'
 /** The GitHub repo the release workflow publishes to. */
 const GITHUB_REPO = 'HearthShelf/HearthShelf'
 const LATEST_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`
+/** The mobile app repo. Its release workflow pushes bare version tags (0.0.8) that
+ *  publish to Play/TestFlight - there is no GitHub Release object - so the mobile
+ *  refresh reads the public tags API instead of the releases API. */
+const MOBILE_REPO = 'HearthShelf/HearthShelf-Mobile'
+const MOBILE_TAGS_URL = `https://api.github.com/repos/${MOBILE_REPO}/tags?per_page=100`
 /** Refresh from GitHub at most this often on a lazy read (the cron runs every 6h
  *  independently; this only backstops a fresh deploy before the first cron). */
 const LAZY_REFRESH_MS = 6 * 60 * 60 * 1000
@@ -78,8 +83,10 @@ function parseSeverity(body: string | null, prerelease: boolean): Severity {
   return prerelease ? 'info' : 'recommended'
 }
 
-export async function getLatestRelease(env: Env): Promise<ReleaseRow | null> {
-  return env.DB.prepare(`SELECT * FROM releases WHERE channel = 'stable'`).first<ReleaseRow>()
+export type Channel = 'stable' | 'mobile'
+
+export async function getLatestRelease(env: Env, channel: Channel = 'stable'): Promise<ReleaseRow | null> {
+  return env.DB.prepare(`SELECT * FROM releases WHERE channel = ?`).bind(channel).first<ReleaseRow>()
 }
 
 /**
@@ -158,6 +165,75 @@ export async function getLatestReleaseFresh(env: Env): Promise<ReleaseRow | null
 }
 
 /**
+ * Fetch the newest HearthShelf-Mobile version and cache it under channel
+ * 'mobile'. The mobile release workflow only pushes a bare tag (0.0.8) - Play and
+ * TestFlight are the publish targets, there is no GitHub Release - so this reads
+ * the tags API and takes the highest stable semver. Pre-release tags (anything
+ * with a '-' label, e.g. 0.1.0-beta.1) are skipped: they ship to testers under a
+ * distinct runtimeVersion and must never advance the fleet-wide "latest".
+ *
+ * Same contract as refreshLatestRelease: best-effort (failures keep the cached
+ * row), and a pinned row keeps its admin-set severity + min_supported.
+ */
+export async function refreshLatestMobileRelease(env: Env): Promise<ReleaseRow | null> {
+  try {
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github+json',
+      'User-Agent': 'hearthshelf-control-plane',
+    }
+    if (env.GITHUB_TOKEN) headers.Authorization = `Bearer ${env.GITHUB_TOKEN}`
+
+    const res = await fetch(MOBILE_TAGS_URL, { headers })
+    if (!res.ok) return getLatestRelease(env, 'mobile')
+    const tags = (await res.json()) as Array<{ name?: string }>
+    let latest = ''
+    for (const t of tags) {
+      const raw = String(t?.name ?? '').trim()
+      // Skip pre-release tags entirely; normalizeVersion would strip the label
+      // and a beta tag would masquerade as its final version.
+      if (!raw || raw.includes('-')) continue
+      const v = normalizeVersion(raw)
+      if (v && (!latest || compareSemver(v, latest) > 0)) latest = v
+    }
+    if (!latest) return getLatestRelease(env, 'mobile')
+
+    const existing = await getLatestRelease(env, 'mobile')
+    const pinned = existing?.pinned === 1
+    // A tag carries no severity convention (no release body to parse); default
+    // to the soft nudge and let the admin override escalate when needed.
+    const severity: Severity = pinned ? existing!.severity : 'recommended'
+    const minSupported = pinned ? existing!.min_supported : null
+
+    await env.DB.prepare(
+      `INSERT INTO releases
+         (channel, version, severity, notes_url, published_at, min_supported, pinned, fetched_at)
+       VALUES ('mobile', ?, ?, ?, NULL, ?, ?, ?)
+       ON CONFLICT (channel) DO UPDATE SET
+         version = excluded.version,
+         severity = excluded.severity,
+         notes_url = excluded.notes_url,
+         min_supported = excluded.min_supported,
+         fetched_at = excluded.fetched_at`,
+    )
+      .bind(latest, severity, 'https://hearthshelf.com/changelog', minSupported, pinned ? 1 : 0, now())
+      .run()
+    return getLatestRelease(env, 'mobile')
+  } catch {
+    return getLatestRelease(env, 'mobile')
+  }
+}
+
+/** Mobile counterpart of getLatestReleaseFresh: lazy-refresh backstop for a
+ *  fresh deploy before the first cron. */
+export async function getLatestMobileReleaseFresh(env: Env): Promise<ReleaseRow | null> {
+  const row = await getLatestRelease(env, 'mobile')
+  if (!row || now() - row.fetched_at > LAZY_REFRESH_MS) {
+    return refreshLatestMobileRelease(env)
+  }
+  return row
+}
+
+/**
  * Admin override. Merges the provided fields onto the cached row (creating it if
  * absent), marks it pinned so the cron won't revert severity/floor, and returns
  * the new row. `version` defaults to whatever is cached (you usually only pin a
@@ -171,8 +247,9 @@ export async function setReleaseOverride(
     minSupported?: string | null
     notesUrl?: string | null
   },
+  channel: Channel = 'stable',
 ): Promise<ReleaseRow | null> {
-  const existing = await getLatestRelease(env)
+  const existing = await getLatestRelease(env, channel)
   const version = patch.version ? normalizeVersion(patch.version) : existing?.version
   if (!version) return null
   const severity: Severity =
@@ -190,7 +267,7 @@ export async function setReleaseOverride(
   await env.DB.prepare(
     `INSERT INTO releases
        (channel, version, severity, notes_url, published_at, min_supported, pinned, fetched_at)
-     VALUES ('stable', ?, ?, ?, ?, ?, 1, ?)
+     VALUES (?, ?, ?, ?, ?, ?, 1, ?)
      ON CONFLICT (channel) DO UPDATE SET
        version = excluded.version,
        severity = excluded.severity,
@@ -199,9 +276,9 @@ export async function setReleaseOverride(
        pinned = 1,
        fetched_at = excluded.fetched_at`,
   )
-    .bind(version, severity, notesUrl, existing?.published_at ?? null, minSupported, now())
+    .bind(channel, version, severity, notesUrl, existing?.published_at ?? null, minSupported, now())
     .run()
-  return getLatestRelease(env)
+  return getLatestRelease(env, channel)
 }
 
 /** The public DTO the SPA consumes. */

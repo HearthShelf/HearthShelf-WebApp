@@ -49,6 +49,12 @@ export interface Env {
    *  to lift the 60/hr unauthenticated rate limit on the Releases API poll. The
    *  release cache works without it; a token just avoids throttling. */
   GITHUB_TOKEN?: string
+
+  /** Where GET /releases/mobile points each platform's "Update" button. The iOS
+   *  URL flips from the TestFlight invite to the App Store page at public launch
+   *  by changing the var - no app update needed. Defaults in routes/releases.ts. */
+  MOBILE_IOS_STORE_URL?: string
+  MOBILE_ANDROID_STORE_URL?: string
 }
 
 /** A server linked to the authenticated user, as returned to the SPA. */

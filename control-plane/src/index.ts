@@ -22,7 +22,7 @@ import { pairing } from './routes/pairing'
 import { servers } from './routes/servers'
 import { releases } from './routes/releases'
 import { telemetry } from './routes/telemetry'
-import { refreshLatestRelease } from './lib/releases'
+import { refreshLatestRelease, refreshLatestMobileRelease } from './lib/releases'
 import { email } from './routes/email'
 import { logs } from './routes/logs'
 import { admin } from './routes/admin'
@@ -86,11 +86,13 @@ app.onError((err, c) => {
   return c.json({ error: 'server_error', detail: String(err).slice(0, 160) }, 500)
 })
 
-// Cron: refresh the cached "latest release" from GitHub on a schedule so the
-// SPA's update prompts stay current without any request having to pay for the
-// GitHub round-trip. Trigger configured in wrangler.toml ([triggers] crons).
+// Cron: refresh the cached "latest release" rows (box from GitHub Releases,
+// mobile from the mobile repo's tags) on a schedule so update prompts stay
+// current without any request having to pay for the GitHub round-trip. Trigger
+// configured in wrangler.toml ([triggers] crons).
 async function scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
   ctx.waitUntil(refreshLatestRelease(env).then(() => undefined))
+  ctx.waitUntil(refreshLatestMobileRelease(env).then(() => undefined))
 }
 
 export default { fetch: app.fetch, scheduled }

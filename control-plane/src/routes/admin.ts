@@ -132,28 +132,45 @@ admin.delete('/admin/servers/:id', async (c) => {
  * without re-cutting the GitHub release. Audited. To hand control back to the
  * automatic poll, POST { severity: 'recommended', min_supported: null } and it
  * re-pins to those values (a future 'unpin' can clear the flag if needed).
+ *
+ * `channel` picks which row: 'stable' (the self-hosted box, default) or 'mobile'
+ * (the phone app - drives the iOS foreground update prompt).
  */
 admin.post('/admin/releases', async (c) => {
   const { user } = c.var.admin
-  let body: { version?: string; severity?: string; min_supported?: string | null; notes_url?: string }
+  let body: {
+    channel?: string
+    version?: string
+    severity?: string
+    min_supported?: string | null
+    notes_url?: string
+  }
   try {
     body = await c.req.json()
   } catch {
     return c.json({ error: 'invalid_body' }, 400)
   }
-  const row = await setReleaseOverride(c.env, {
-    version: body.version,
-    severity: body.severity,
-    minSupported: body.min_supported === undefined ? undefined : body.min_supported,
-    notesUrl: body.notes_url,
-  })
+  const channel = body.channel ?? 'stable'
+  if (channel !== 'stable' && channel !== 'mobile') {
+    return c.json({ error: 'invalid_channel', detail: "channel must be 'stable' or 'mobile'" }, 400)
+  }
+  const row = await setReleaseOverride(
+    c.env,
+    {
+      version: body.version,
+      severity: body.severity,
+      minSupported: body.min_supported === undefined ? undefined : body.min_supported,
+      notesUrl: body.notes_url,
+    },
+    channel,
+  )
   if (!row) return c.json({ error: 'no_version', detail: 'no cached release and none provided' }, 400)
   await writeAudit(c.env, {
     id: uuid(),
     actor: user.userId,
     action: 'set_release',
     target: row.version,
-    detail: { severity: row.severity, min_supported: row.min_supported },
+    detail: { channel, severity: row.severity, min_supported: row.min_supported },
   })
   return c.json({ ok: true, release: toDTO(row) })
 })
