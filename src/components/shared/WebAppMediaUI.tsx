@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { MediaUIProvider, type MediaUI } from '@/components/shared/MediaUIContext'
 import { FinishPromptProvider, useFinishPrompt } from '@/components/shared/FinishPrompt'
+import { ConfirmProvider } from '@/components/shared/ConfirmPrompt'
 import { absMediaUrl } from '@/api/absClient'
 import { getItemDetail, setItemFinished, type AbsTarget } from '@/api/absLibrary'
 import { usePlayer } from '@/player/PlayerProvider'
@@ -28,7 +29,9 @@ export function WebAppMediaUIProvider({
   // capability can open the "when did you finish?" prompt.
   return (
     <FinishPromptProvider>
-      <MediaUIValue target={target}>{children}</MediaUIValue>
+      <ConfirmProvider>
+        <MediaUIValue target={target}>{children}</MediaUIValue>
+      </ConfirmProvider>
     </FinishPromptProvider>
   )
 }

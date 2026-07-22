@@ -12,7 +12,8 @@ import { Icon } from '@/components/common/Icon'
 import { AddToListModal } from '@/components/library/AddToListModal'
 import { BatchEditModal } from '@/components/library/BatchEditModal'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
-import { usePromptedMarkFinished, useMarkFinished } from '@/hooks/useMarkFinished'
+import { usePromptedMarkFinished } from '@/hooks/useMarkFinished'
+import { useConfirm } from '@/components/shared/ConfirmPrompt'
 import { useQueueStore } from '@/store/queueStore'
 import { useDismissalsStore } from '@/store/dismissalsStore'
 import { resetItemProgress } from '@/api/absLibrary'
@@ -86,8 +87,8 @@ export function BookContextMenu({
       return cached?.results.find((s) => s.name === bare || s.name === sn)?.id
     })()
 
-  const { markFinished } = useMarkFinished()
   const { markFinishedPrompted } = usePromptedMarkFinished()
+  const { confirm } = useConfirm()
   const addToQueue = useQueueStore((s) => s.add)
   const adoptQueue = useQueueStore((s) => s.adoptServer)
   const dismiss = useDismissalsStore((s) => s.dismiss)
@@ -125,12 +126,23 @@ export function BookContextMenu({
     }
   }
 
-  // Reset a Continue-Listening book to the start AND hide it from the shelf.
+  // Reset a book to the start. From a Continue-Listening tile it also hides the
+  // book from the shelf (the product decision); elsewhere it just resets.
   const resetProgress = async () => {
+    const hideAfter = source === 'listening'
+    const ok = await confirm({
+      title: 'Reset progress',
+      message: hideAfter
+        ? `Start "${mTitle}" over from the beginning and remove it from Continue Listening?`
+        : `Start "${mTitle}" over from the beginning?`,
+      confirmLabel: 'Reset',
+      danger: true,
+    })
+    if (!ok) return
     try {
       await resetItemProgress(target, item.id)
       onChanged?.()
-      await dismiss(target, 'item', item.id, mTitle ?? 'book')
+      if (hideAfter) await dismiss(target, 'item', item.id, mTitle ?? 'book')
       onToast?.(`Reset "${mTitle}"`)
       repullQueue()
     } catch {
@@ -267,17 +279,10 @@ export function BookContextMenu({
         {finished ? 'Mark as unfinished' : 'Mark as finished'}
       </button>
 
-      {source === 'listening' ? (
-        <button className="mp-item" onClick={act(() => void resetProgress())}>
+      {(source === 'listening' || progress > 0 || finished) && (
+        <button className="mp-item danger" onClick={act(() => void resetProgress())}>
           <Icon name="replay" /> Reset progress
         </button>
-      ) : (
-        progress > 0 &&
-        !finished && (
-          <button className="mp-item" onClick={act(() => void markFinished([item.id], false))}>
-            <Icon name="replay" /> Reset progress
-          </button>
-        )
       )}
 
       {((source === 'series' && resolvedSeriesId) || source === 'listening') && (

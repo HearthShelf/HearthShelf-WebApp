@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
-import { getItemDetail, getMe } from '@/api/absLibrary'
+import { getItemDetail, getMe, resetItemProgress } from '@/api/absLibrary'
 import { getBookDetailFull, itemFileDownloadUrl, itemCoverFullUrl } from '@/api/absBookDetail'
 import { getFinishedBy, getListeningNow, socialKeys } from '@/api/absSocial'
 import { getNotes, notesKeys } from '@/api/absNotes'
@@ -15,6 +15,7 @@ import { usePlayer } from '@/player/PlayerProvider'
 import { useQueueStore } from '@/store/queueStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
+import { useConfirm } from '@/components/shared/ConfirmPrompt'
 import { formatTimestamp, stripHtml } from '@hearthshelf/core'
 import { externalLinks } from '@/lib/externalLinks'
 import { Cover, tintFor } from '@/components/shared/Cover'
@@ -65,6 +66,8 @@ export function ItemDetailPage() {
   const progressById = useMediaProgress()
   const { markFinishedPrompted, isPending: marking } = usePromptedMarkFinished()
   const { toast, show } = useToast()
+  const { confirm } = useConfirm()
+  const qc = useQueryClient()
   const addToQueue = useQueueStore((s) => s.add)
   const extGoodreads = useSettingsStore((s) => s.externalLinkGoodreads)
   const extAudible = useSettingsStore((s) => s.externalLinkAudible)
@@ -210,6 +213,27 @@ export function ItemDetailPage() {
   const pct = progress?.progress ?? 0
   const finished = progress?.isFinished ?? false
   const chaptersLeft = Math.round(chapters.length * (1 - pct))
+
+  // Reset this book to the start (overflow action). Destructive with no undo,
+  // so it confirms first, then reports through a toast.
+  const resetProgress = async () => {
+    const ok = await confirm({
+      title: 'Reset progress',
+      message: `Start "${title}" over from the beginning?`,
+      confirmLabel: 'Reset',
+      danger: true,
+    })
+    if (!ok) return
+    try {
+      if (!target) return
+      await resetItemProgress(target, data.id)
+      qc.invalidateQueries({ queryKey: ['abs-media-progress', target.serverId] })
+      qc.invalidateQueries({ queryKey: ['abs-shelves', target.serverId] })
+      show('Progress reset')
+    } catch {
+      show('Could not reset progress')
+    }
+  }
 
   // Where the listener is right now: live player position when this book is the
   // one playing, otherwise the last saved position for this item.
@@ -445,6 +469,14 @@ export function ItemDetailPage() {
                 label={bookmarks.length ? `Bookmarks (${bookmarks.length})` : 'Bookmarks'}
                 onClick={() => setShowBookmarks(true)}
               />
+              {(pct > 0 || finished) && (
+                <MItem
+                  icon="replay"
+                  label="Reset progress"
+                  danger
+                  onClick={() => void resetProgress()}
+                />
+              )}
             </Dropdown>
           </div>
 
