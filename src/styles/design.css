@@ -2016,6 +2016,190 @@
   }
 }
 
+/* ---- settings search ----
+   .settings-head reuses .page-head-row's flex layout; it exists only to hang the
+   phone-width override below off. */
+.ss-wrap {
+  position: relative;
+  width: 320px;
+  max-width: 100%;
+}
+
+.ss-field {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-row);
+  background: var(--fill);
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.ss-field:focus-within {
+  border-color: var(--accent);
+}
+
+.ss-field .ss-icon {
+  font-size: 19px;
+  color: var(--text-faint);
+  flex: none;
+}
+
+.ss-input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  outline: none;
+}
+
+.ss-input::placeholder {
+  color: var(--text-faint);
+}
+
+/* The type=search native affordance duplicates our own clear button. */
+.ss-input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.ss-clear {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding: 2px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.ss-clear:hover {
+  color: var(--text);
+}
+
+.ss-clear .ms {
+  font-size: 17px;
+}
+
+.ss-results {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 380px;
+  overflow-y: auto;
+  padding: var(--s2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  background: var(--sheet);
+  box-shadow: 0 18px 44px rgb(0 0 0 / 0.45);
+}
+
+.ss-empty {
+  padding: 14px 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.ss-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: var(--r-row);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ss-result.on {
+  background: var(--fill);
+}
+
+.ss-result .ss-r-icon {
+  font-size: 19px;
+  color: var(--text-faint);
+  flex: none;
+}
+
+.ss-r-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.ss-r-t {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.ss-r-d {
+  display: block;
+  margin-top: 1px;
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ss-r-sec {
+  flex: none;
+  color: var(--text-faint);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* The row search sent you to, flashed so the eye finds it. */
+.set-row-lit {
+  animation: ss-flash 1.6s ease-out;
+  border-radius: var(--r-row);
+}
+
+@keyframes ss-flash {
+  0%,
+  55% {
+    background: color-mix(in oklab, var(--accent) 16%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 34%, transparent);
+  }
+  100% {
+    background: transparent;
+    box-shadow: 0 0 0 2px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .set-row-lit {
+    animation-duration: 0.01ms;
+  }
+}
+
+@media (max-width: 760px) {
+  .settings-head {
+    align-items: stretch;
+  }
+  .ss-wrap {
+    width: 100%;
+  }
+  /* Keep the dropdown clear of the mini player / bottom nav on a phone. */
+  .ss-results {
+    max-height: 60vh;
+  }
+}
+
 /* ---- live search dropdown ---- */
 .ab-searchwrap {
   position: relative;

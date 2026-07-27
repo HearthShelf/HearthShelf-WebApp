@@ -24,6 +24,7 @@ import { IntegrationsSettings } from '@/components/settings/IntegrationsSettings
 import { SearchSettings } from '@/components/settings/SearchSettings'
 import { CommunitySettings } from '@/components/settings/CommunitySettings'
 import { AccountSettings } from '@/components/settings/AccountSettings'
+import { SettingsSearch } from '@/components/settings/SettingsSearch'
 
 type Section =
   | 'servers'
@@ -160,9 +161,14 @@ export function AccountPage({ menuMode = false }: { menuMode?: boolean }) {
 
   return (
     <div className="page fade-in settings-shell">
-      <div className="page-head">
-        <div className="eyebrow">Make it yours</div>
-        <h1 className="title-xl">Settings</h1>
+      <div className="page-head-row settings-head">
+        <div>
+          <div className="eyebrow">Make it yours</div>
+          <h1 className="title-xl">Settings</h1>
+        </div>
+        {/* On a phone the search box lives with the section list; picking a
+            result drills into that section on its own. */}
+        <SettingsSearch />
       </div>
 
       <div className={'config-wrap' + wrapMode}>

@@ -1,4 +1,5 @@
 import type { ReactNode, CSSProperties } from 'react'
+import { useSettingHighlight } from '@/hooks/useSettingHighlight'
 
 // Shared settings controls, mirroring the self-hosted Settings shell's small
 // helpers. Used by Playback, Reading, Appearance, and Account sections so the
@@ -19,8 +20,14 @@ export function SetRow({
   stacked?: boolean
   children?: ReactNode
 }) {
+  // Settings search flashes the row it sent you to.
+  const { on: lit, ref } = useSettingHighlight(typeof title === 'string' ? title : undefined)
+
   return (
-    <div className={'set-row' + (stacked ? ' set-row-stack' : '')}>
+    <div
+      ref={ref}
+      className={'set-row' + (stacked ? ' set-row-stack' : '') + (lit ? ' set-row-lit' : '')}
+    >
       <div className="sr-meta">
         <div className="sr-t">{title}</div>
         {desc && <div className="sr-d">{desc}</div>}
