@@ -77,6 +77,120 @@ export function privateIpInSynthesizedHost(host: string): string | null {
   return isPrivate ? o.join('.') : null
 }
 
+export interface LocalUrlValidation {
+  ok: boolean
+  reason?: 'not_absolute' | 'bad_scheme' | 'not_private' | 'bad_host' | 'too_long'
+  origin?: string
+}
+
+/**
+ * Is this hostname a private, link-local, or otherwise non-public target?
+ *
+ * Used in TWO opposite ways, and both matter:
+ *   - validateLocalUrl REQUIRES true (a LAN address must be private)
+ *   - assertNotPrivateTarget REQUIRES false (we must never fetch private space)
+ *
+ * Sharing one implementation means the "what counts as private" definition cannot
+ * drift between the write path and the fetch guard, which is exactly the kind of
+ * gap that turns into an SSRF hole.
+ */
+export function isPrivateHost(rawHost: string): boolean {
+  let host = rawHost.toLowerCase()
+  // Strip IPv6 brackets.
+  if (host.startsWith('[') && host.endsWith(']')) host = host.slice(1, -1)
+
+  if (host === 'localhost' || host.endsWith('.localhost')) return true
+  // mDNS / link-local naming. Cannot be resolved by us and only means anything on
+  // the client's own network.
+  if (host === 'local' || host.endsWith('.local')) return true
+
+  if (IPV4.test(host)) {
+    const o = host.split('.').map(Number)
+    if (o.some((n) => n > 255)) return false
+    const [a, b] = o
+    return (
+      a === 10 || // 10.0.0.0/8
+      (a === 172 && b >= 16 && b <= 31) || // 172.16.0.0/12
+      (a === 192 && b === 168) || // 192.168.0.0/16
+      (a === 100 && b >= 64 && b <= 127) || // 100.64.0.0/10 CGNAT
+      a === 127 || // loopback
+      (a === 169 && b === 254) || // link-local
+      a === 0 ||
+      a >= 224 // multicast / reserved
+    )
+  }
+
+  // IPv6 forms we treat as non-public: loopback, unique-local (fc00::/7),
+  // link-local (fe80::/10), unspecified, and v4-mapped private space.
+  if (host.includes(':')) {
+    if (host === '::' || host === '::1') return true
+    if (/^f[cd][0-9a-f]{2}:/.test(host)) return true // fc00::/7
+    if (/^fe[89ab][0-9a-f]:/.test(host)) return true // fe80::/10
+    // ::ffff:a.b.c.d - recurse on the embedded v4 literal.
+    const m = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(host)
+    if (m) return isPrivateHost(m[1])
+    return false
+  }
+
+  return false
+}
+
+/**
+ * Validate a LAN address reported by a server.
+ *
+ * Deliberately the INVERSE of validatePublicUrl: this one REQUIRES a private
+ * host and permits plain http (a private IP can't carry a CA-valid cert). Kept as
+ * a separate function rather than a flag on validatePublicUrl, because
+ * validatePublicUrl gates /pairing/redeem, /pairing/update-url and
+ * /servers/public-url - loosening it would let a private or http origin become a
+ * server's PUBLIC address, which the hosted SPA would then try to reach from a
+ * public page (mixed content at best, a rebinding target at worst).
+ */
+export function validateLocalUrl(raw: string): LocalUrlValidation {
+  if (typeof raw !== 'string' || raw.length > 300) return { ok: false, reason: 'too_long' }
+  let u: URL
+  try {
+    u = new URL(raw)
+  } catch {
+    return { ok: false, reason: 'not_absolute' }
+  }
+  // http is the expected case; https is allowed for a box with a real cert on a
+  // .local name or an internal CA. Nothing else (no file:, no ws:, no data:).
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return { ok: false, reason: 'bad_scheme' }
+  const host = u.hostname
+  if (!host) return { ok: false, reason: 'bad_host' }
+  // Must be private. A publicly routable address here would (a) duplicate
+  // public_url and (b) become an address clients dial without the reachability
+  // checks the public path enforces.
+  if (!isPrivateHost(host)) return { ok: false, reason: 'not_private' }
+  return { ok: true, origin: u.origin }
+}
+
+/**
+ * Guard for ANY server-side fetch of a server-supplied origin.
+ *
+ * The pre-existing guard (privateIpInSynthesizedHost) only understands hs.direct
+ * names that ENCODE an IP in the hostname. That was sufficient when every stored
+ * URL was required to be public. Now that we store private addresses too - in
+ * their own table, but one bad join away from here - the fetcher itself must
+ * refuse private targets outright rather than trusting callers to pass the right
+ * field. Safe-by-construction beats a convention someone has to remember.
+ *
+ * Returns a refusal reason, or null when the origin is safe to fetch.
+ */
+export function assertNotPrivateTarget(origin: string): string | null {
+  let host: string
+  try {
+    host = new URL(origin).hostname
+  } catch {
+    return 'bad_origin'
+  }
+  if (isPrivateHost(host)) return 'private_host'
+  // hs.direct names resolve to the IP in their label, so check that too.
+  if (privateIpInSynthesizedHost(host)) return 'private_ip'
+  return null
+}
+
 export type ProbeStatus = 'online' | 'offline'
 
 export interface ProbeResult {
@@ -97,19 +211,14 @@ export interface ProbeResult {
  * cert, HTTP-only).
  */
 export async function probeServer(origin: string, timeoutMs = 4000): Promise<ProbeResult> {
-  // SSRF guard: if this is an hs.direct synthesized host encoding a private IP,
-  // refuse without fetching. The Worker's egress can't reach private space anyway,
-  // but failing fast here is explicit and avoids a misleading timeout. A LAN-only
-  // server reads as offline from the internet, which is the correct advisory.
-  let host = ''
-  try {
-    host = new URL(origin).hostname
-  } catch {
-    return { status: 'offline', detail: 'bad_origin' }
-  }
-  const priv = privateIpInSynthesizedHost(host)
-  if (priv) {
-    return { status: 'offline', detail: 'private_ip' }
+  // SSRF guard, enforced at the FETCHER rather than the caller: refuse any
+  // private/link-local/.local target, plus hs.direct names whose label encodes a
+  // private IP (rejected without resolving DNS). Callers cannot opt out, so a
+  // future code path that accidentally passes a LAN address - now that we store
+  // those - cannot steer the Worker into a customer's network.
+  const refusal = assertNotPrivateTarget(origin)
+  if (refusal) {
+    return { status: 'offline', detail: refusal }
   }
 
   const controller = new AbortController()

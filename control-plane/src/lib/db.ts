@@ -154,25 +154,131 @@ export async function sweepOrphanServers(env: Env): Promise<void> {
 
 // --- links -----------------------------------------------------------------
 
-export async function listLinksForUser(
-  env: Env,
-  clerkUserId: string,
-): Promise<
-  Array<LinkRow & { public_url: string; server_name: string | null; cert_hash: string | null }>
-> {
+export type LinkedRow = LinkRow & {
+  public_url: string
+  server_name: string | null
+  cert_hash: string | null
+  /** Private LAN origin, when the server has reported one. NEVER fetched by the
+   *  Worker - forwarded to the client, which reaches it on its own network. */
+  local_url: string | null
+  /** Ed25519 SPKI (base64) the client uses to authenticate a LAN origin before
+   *  presenting a grant. A local_url without this is unusable and must be
+   *  dropped by the caller. */
+  identity_key: string | null
+}
+
+export async function listLinksForUser(env: Env, clerkUserId: string): Promise<LinkedRow[]> {
   // LEFT JOIN server_certs so we know each server's hs.direct hash (when it has
   // provisioned one), to expose the fallback URL alongside the preferred one.
+  // LEFT JOIN server_local_addrs for the optional LAN address + identity key.
   const r = await env.DB.prepare(
-    `SELECT l.*, s.public_url, s.name AS server_name, c.hash AS cert_hash
+    `SELECT l.*, s.public_url, s.name AS server_name, c.hash AS cert_hash,
+            a.local_url AS local_url, a.identity_key AS identity_key
        FROM links l
        JOIN servers s ON s.server_id = l.server_id
        LEFT JOIN server_certs c ON c.server_id = l.server_id AND c.status = 'active'
+       LEFT JOIN server_local_addrs a ON a.server_id = l.server_id
       WHERE l.clerk_user_id = ?
       ORDER BY l.created_at ASC`,
   )
     .bind(clerkUserId)
-    .all<LinkRow & { public_url: string; server_name: string | null; cert_hash: string | null }>()
+    .all<LinkedRow>()
   return r.results ?? []
+}
+
+// --- server local addresses (LAN fallback) ---------------------------------
+
+/**
+ * Record a server's LAN address + identity key.
+ *
+ * Callers MUST have validated `localUrl` with validateLocalUrl() first - this
+ * accessor does not re-check, and a public URL landing here would be handed to
+ * clients as a LAN candidate they'd dial without the reachability checks the
+ * public path enforces.
+ */
+export async function upsertServerLocalAddr(
+  env: Env,
+  serverId: string,
+  localUrl: string,
+  identityKey: string | null,
+): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO server_local_addrs (server_id, local_url, identity_key, reported_at, report_count)
+     VALUES (?, ?, ?, ?, 1)
+     ON CONFLICT (server_id) DO UPDATE SET
+       local_url = excluded.local_url,
+       -- Keep a previously registered identity key when this report omits one, so
+       -- a server re-reporting its address without the key cannot silently
+       -- downgrade itself to an unverifiable LAN endpoint.
+       identity_key = COALESCE(excluded.identity_key, server_local_addrs.identity_key),
+       reported_at = excluded.reported_at,
+       report_count = server_local_addrs.report_count + 1`,
+  )
+    .bind(serverId, localUrl, identityKey, now())
+    .run()
+}
+
+export async function getServerLocalAddr(
+  env: Env,
+  serverId: string,
+): Promise<{
+  local_url: string
+  identity_key: string | null
+  reported_at: number
+  report_count: number
+} | null> {
+  const r = await env.DB.prepare(
+    `SELECT local_url, identity_key, reported_at, report_count
+       FROM server_local_addrs WHERE server_id = ?`,
+  )
+    .bind(serverId)
+    .first<{
+      local_url: string
+      identity_key: string | null
+      reported_at: number
+      report_count: number
+    }>()
+  return r ?? null
+}
+
+export async function deleteServerLocalAddr(env: Env, serverId: string): Promise<void> {
+  await env.DB.prepare('DELETE FROM server_local_addrs WHERE server_id = ?').bind(serverId).run()
+}
+
+/** Append-only audit of local-address writes (accepted and refused alike). */
+export async function auditLocalAddr(
+  env: Env,
+  serverId: string,
+  localUrl: string | null,
+  outcome: 'accepted' | 'rejected' | 'rate_limited',
+  reason?: string,
+): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO server_local_addr_audit (server_id, local_url, outcome, reason, at)
+     VALUES (?, ?, ?, ?, ?)`,
+  )
+    .bind(serverId, localUrl, outcome, reason ?? null, now())
+    .run()
+}
+
+/**
+ * How many local-address writes this server made in the recent window. A
+ * server_secret holder rewriting its LAN address in a loop is either badly
+ * misconfigured or probing for a way to point clients somewhere useful, and
+ * either way we stop honouring it.
+ */
+export async function recentLocalAddrWrites(
+  env: Env,
+  serverId: string,
+  windowMs: number,
+): Promise<number> {
+  const r = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM server_local_addr_audit
+      WHERE server_id = ? AND outcome = 'accepted' AND at > ?`,
+  )
+    .bind(serverId, now() - windowMs)
+    .first<{ n: number }>()
+  return Number(r?.n ?? 0)
 }
 
 export async function getLink(

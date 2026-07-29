@@ -53,6 +53,11 @@ import {
   setServerSecretHash,
   setServerVersion,
   writeAudit,
+  upsertServerLocalAddr,
+  getServerLocalAddr,
+  deleteServerLocalAddr,
+  auditLocalAddr,
+  recentLocalAddrWrites,
 } from '../lib/db'
 import { getLatestReleaseFresh, toDTO } from '../lib/releases'
 import { mintGrant } from '../lib/signing'
@@ -68,7 +73,12 @@ import {
   inviteCode,
   normalizeInviteCode,
 } from '../lib/ids'
-import { probeServer, validatePublicUrl, type ProbeStatus } from '../lib/reachability'
+import {
+  probeServer,
+  validatePublicUrl,
+  validateLocalUrl,
+  type ProbeStatus,
+} from '../lib/reachability'
 
 export const servers = new Hono<{ Bindings: Env }>()
 
@@ -201,11 +211,18 @@ servers.get('/servers', async (c) => {
     // hs.direct host, fallback equals it (harmless). The SPA tries url, then
     // fallback - hs.direct is the always-valid, monitored backup connection.
     const fallback = l.cert_hash ? `https://${l.cert_hash}.${zone}` : undefined
+    // A LAN address is only offered when it comes WITH an identity key. Without
+    // one the client could not tell the real box from any device answering on that
+    // private IP, and it must never present a grant to an unauthenticated origin -
+    // so an unverifiable local_url is dropped here rather than pushed to clients
+    // that might be tempted to use it.
+    const offerLocal = l.local_url && l.identity_key ? l.local_url : undefined
     return {
       id: l.server_id,
       name: l.display_name || l.server_name || l.public_url,
       url: l.public_url,
       ...(fallback ? { fallback_url: fallback } : {}),
+      ...(offerLocal ? { local_url: offerLocal, identity_key: l.identity_key as string } : {}),
       role: l.role,
       ...(l.server_id === defaultId ? { is_default: true } : {}),
     }
@@ -571,7 +588,32 @@ servers.post('/servers/version', async (c) => {
   await setServerVersion(c.env, { serverId, hsVersion, absVersion })
 
   const latest = toDTO(await getLatestReleaseFresh(c.env))
-  return c.json({ ok: true, latest })
+
+  // Piggyback the grant-signing-key revocation signal on this periodic,
+  // server_secret-authed call.
+  //
+  // WHY HERE AND NOT SIGNED: servers pin our JWKS to disk so grant verification
+  // survives an offline cold boot (see jwksCache.js). That pinning means a
+  // COMPROMISED signing key would keep being honoured by any box that had been
+  // offline since. We cannot deliver "key X is revoked" signed by key X - a thief
+  // holding it could forge or withhold that. So revocation rides a channel
+  // authenticated by a DIFFERENT credential (the server_secret), which stealing
+  // the signing key does not yield.
+  //
+  // Boxes treat this monotonically: revoked kids only accumulate, min generation
+  // only rises. Silence never widens trust.
+  const revokedKids = (c.env.CP_REVOKED_KIDS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const minKeyGen = Number(c.env.CP_MIN_KEY_GEN || '0') || 0
+
+  return c.json({
+    ok: true,
+    latest,
+    ...(revokedKids.length ? { revoked_kids: revokedKids } : {}),
+    ...(minKeyGen ? { min_key_gen: minKeyGen } : {}),
+  })
 })
 
 servers.post('/servers/name', async (c) => {
@@ -634,6 +676,98 @@ servers.post('/servers/public-url', async (c) => {
   // No OIDC client to re-pin under HS-owned auth - recording the address is enough
   // (it's what the SPA reaches + what grants are minted for).
   return c.json({ ok: true, public_url: origin })
+})
+
+/** Max accepted local-address writes per server per window, then we stop. */
+const LOCAL_ADDR_MAX_WRITES = 20
+const LOCAL_ADDR_WINDOW_MS = 60 * 60 * 1000
+
+/**
+ * Report a server's LAN address + identity public key (server_secret authed).
+ *
+ * WHY THIS EXISTS: when a server's internet goes down, a phone on the same Wi-Fi
+ * can still reach it - but only if it knows a local address, because the public
+ * URL resolves to the now-unroutable WAN IP.
+ *
+ * WHY IT IS MORE SENSITIVE THAN ITS PUBLIC SIBLING: this endpoint writes the
+ * address clients will dial on their own local network, so it is the input to the
+ * LAN trust path. Three controls, all necessary:
+ *
+ *  1. validateLocalUrl REQUIRES a private host, so this cannot be used to
+ *     register a public address that skips the public path's reachability checks.
+ *  2. An identity public key is REQUIRED. A LAN address with no way to
+ *     authenticate it is worse than none at all: a private IP is spoofable by any
+ *     device on the network, and clients must never present a grant (a bearer
+ *     credential carrying the user's identity) to an unauthenticated origin.
+ *  3. Rate limited + audited, because a secret holder rewriting this in a loop is
+ *     either misconfigured or probing.
+ *
+ * The control plane NEVER fetches this address - it is opaque data forwarded to
+ * authenticated clients, which reach it themselves.
+ */
+servers.post('/servers/local-url', async (c) => {
+  let body: {
+    server_id?: string
+    server_secret?: string
+    local_url?: string
+    identity_key?: string
+  }
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  const serverId = (body.server_id || '').trim()
+  const secret = body.server_secret || ''
+  const localUrl = (body.local_url || '').trim()
+  const identityKey = (body.identity_key || '').trim()
+  if (!serverId || !secret) {
+    return c.json({ error: 'server_id and server_secret required' }, 400)
+  }
+
+  // Authenticate BEFORE validating or auditing, so an unauthenticated caller
+  // cannot write audit rows for a server it doesn't control (log spam / a way to
+  // burn another server's rate-limit budget).
+  const server = await getServer(c.env, serverId)
+  if (!server) return c.json({ error: 'server_unknown' }, 404)
+  const presented = await sha256Hex(secret)
+  if (!timingSafeEqual(presented, server.server_secret_hash)) {
+    return c.json({ error: 'bad_server_secret' }, 401)
+  }
+
+  // An empty local_url is how a server WITHDRAWS its LAN address (moved to a
+  // cloud host, operator opted out). Deleting must stay possible even when rate
+  // limited - removing an address can only ever reduce what clients will dial.
+  if (!localUrl) {
+    await deleteServerLocalAddr(c.env, serverId)
+    await auditLocalAddr(c.env, serverId, null, 'accepted', 'withdrawn')
+    return c.json({ ok: true, local_url: null })
+  }
+
+  const check = validateLocalUrl(localUrl)
+  if (!check.ok) {
+    await auditLocalAddr(c.env, serverId, localUrl, 'rejected', check.reason)
+    return c.json({ error: 'local_url_invalid', reason: check.reason }, 400)
+  }
+
+  // Require the identity key unless one is already on file (a re-report of the
+  // same box). Without it the address cannot be authenticated and is unusable.
+  const existing = await getServerLocalAddr(c.env, serverId)
+  if (!identityKey && !existing?.identity_key) {
+    await auditLocalAddr(c.env, serverId, localUrl, 'rejected', 'identity_key_required')
+    return c.json({ error: 'identity_key_required' }, 400)
+  }
+
+  const writes = await recentLocalAddrWrites(c.env, serverId, LOCAL_ADDR_WINDOW_MS)
+  if (writes >= LOCAL_ADDR_MAX_WRITES) {
+    await auditLocalAddr(c.env, serverId, localUrl, 'rate_limited')
+    return c.json({ error: 'rate_limited' }, 429)
+  }
+
+  const origin = check.origin as string
+  await upsertServerLocalAddr(c.env, serverId, origin, identityKey || null)
+  await auditLocalAddr(c.env, serverId, origin, 'accepted')
+  return c.json({ ok: true, local_url: origin })
 })
 
 /**

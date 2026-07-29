@@ -24,6 +24,17 @@ export interface Env {
   CERT_GRANT_TTL_SECONDS?: string
   /** TTL (seconds) before an unredeemed server registration is swept. Default 7d. */
   ORPHAN_TTL_SECONDS?: string
+  /** Comma-separated grant-signing `kid`s that servers must stop honouring.
+   *
+   *  Servers pin our JWKS to disk so grant verification survives an offline cold
+   *  boot, which means a compromised signing key would otherwise be honoured
+   *  indefinitely by any box that had been offline since. This list is delivered
+   *  over the server_secret-authed version-report channel - deliberately NOT
+   *  signed by the key being revoked. Set this when rotating out a key. */
+  CP_REVOKED_KIDS?: string
+  /** Minimum signing-key generation servers should accept. A blunter companion to
+   *  CP_REVOKED_KIDS for revoking everything below a cutoff at once. */
+  CP_MIN_KEY_GEN?: string
   /** Default From: address for outbound email, e.g. "no-reply@hearthshelf.com". */
   EMAIL_FROM: string
   /** Per-server monthly send cap for the hosted email relay. Defaults to 500. */
@@ -69,6 +80,20 @@ export interface LinkedServerDTO {
    *  is unreachable. Equal to (or the same as) `url` when the server has no own
    *  domain. Absent when the server has never provisioned hs.direct. */
   fallback_url?: string
+  /** A private LAN origin (e.g. http://192.168.1.50:8080) that reaches this server
+   *  without leaving the local network - so it keeps working when the SERVER's own
+   *  internet is down. Only ever present TOGETHER with `identity_key`; a LAN
+   *  address that cannot be authenticated is withheld entirely.
+   *
+   *  Clients MUST verify the server's identity (see `identity_key`) before
+   *  presenting a grant to this origin, and should only try it while on Wi-Fi. */
+  local_url?: string
+  /** Ed25519 public key (base64 SPKI DER) belonging to this server. The client
+   *  challenges a candidate origin with a fresh nonce and checks the signature
+   *  against this key, which it obtained from us over TLS. This is what makes the
+   *  LAN path safe: a private IP is spoofable by any device on the network, but
+   *  only the real server holds the matching private key. */
+  identity_key?: string
   role: 'admin' | 'user'
   /** True for the user's chosen default server - the one a fresh device
    *  auto-connects to. At most one linked server has this set. */
