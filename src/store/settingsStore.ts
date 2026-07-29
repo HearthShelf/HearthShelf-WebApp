@@ -1,10 +1,22 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { QueueMode, AutoRuleId } from '@/store/queueStore'
-import type { SettingScope, SettingValue } from '@hearthshelf/core'
+import type {
+  ReaderAlign,
+  ReaderFont,
+  ReaderLayout,
+  ReaderLh,
+  ReaderTheme,
+  ReaderWidth,
+  SettingChange,
+  SettingScope,
+  SettingValue,
+} from '@hearthshelf/core'
 import {
   SETTINGS_CATALOG,
   settingDefault,
+  validateSetting,
+  READER_DEFAULTS,
   DEFAULT_AUTO_RULES,
   normalizeAutoRules,
 } from '@hearthshelf/core'
@@ -164,8 +176,27 @@ export interface SettingsState {
   // the server and runs on its local values only (see useSettingsSync).
   useSharedSettings: boolean
 
+  // Ebook reader typography (device-scoped, catalogued under
+  // READER_SETTING_KEYS). Held here rather than in a private reader store so it
+  // persists and syncs like every other setting - see readerPrefsStore.ts, which
+  // is now just the reader-shaped view of these fields.
+  readerTheme: ReaderTheme
+  readerFont: ReaderFont
+  readerSize: number
+  readerLh: ReaderLh
+  readerWidth: ReaderWidth
+  readerAlign: ReaderAlign
+  readerBrightness: number
+  readerLayout: ReaderLayout
+
   // Per-key updatedAt (ms) for sync conflict resolution. Not a user setting.
   meta: Record<string, number>
+  // Per-key updatedAt the SERVER has confirmed storing. A key whose `meta`
+  // differs from its `pushed` entry is a local change the server hasn't taken
+  // yet; that difference IS the pending-push queue. Persisted with the rest, so
+  // an edit made offline still pushes after a reload instead of being dropped.
+  // Only a server response (or adopting a server value) may write it.
+  pushed: Record<string, number>
   // Stable per-install id for device-scoped settings. Generated once, persisted.
   deviceId: string
 
@@ -173,9 +204,15 @@ export interface SettingsState {
   // Apply per-key values pulled from the server with their server updatedAt,
   // resolving each against the local value via last-writer-wins.
   applyServerKeys: (rows: Record<string, { value: SettingValue; updatedAt: number }>) => void
+  // Record that the server now holds `updatedAt` for these keys, retiring them
+  // from the pending set.
+  markPushed: (entries: Record<string, number>) => void
 }
 
-type SettingsValues = Omit<SettingsState, 'set' | 'applyServerKeys' | 'meta' | 'deviceId'>
+type SettingsValues = Omit<
+  SettingsState,
+  'set' | 'applyServerKeys' | 'markPushed' | 'meta' | 'pushed' | 'deviceId'
+>
 
 // Keys that sync to the server (present in the catalog). carPlayerRect is
 // local-only window geometry, so it's absent from the catalog and never syncs.
@@ -245,7 +282,17 @@ export const useSettingsStore = create<SettingsState>()(
 
       useSharedSettings: true,
 
+      readerTheme: READER_DEFAULTS.theme,
+      readerFont: READER_DEFAULTS.font,
+      readerSize: READER_DEFAULTS.size,
+      readerLh: READER_DEFAULTS.lh,
+      readerWidth: READER_DEFAULTS.width,
+      readerAlign: READER_DEFAULTS.align,
+      readerBrightness: READER_DEFAULTS.brightness,
+      readerLayout: READER_DEFAULTS.layout,
+
       meta: {},
+      pushed: {},
       deviceId: newDeviceId(),
 
       set: (key, value) =>
@@ -259,9 +306,14 @@ export const useSettingsStore = create<SettingsState>()(
         const state = get()
         const patch: Record<string, unknown> = {}
         const meta = { ...state.meta }
+        const pushed = { ...state.pushed }
         for (const key of Object.keys(rows)) {
           if (!(key in SETTINGS_CATALOG)) continue
           const remote = rows[key]
+          // The server holds this key at this updatedAt whether or not we adopt
+          // it below. Keeping our own newer value leaves meta ahead of pushed,
+          // so the key stays queued for the next push.
+          pushed[key] = remote.updatedAt
           const localAt = state.meta[key] ?? -1
           if (remote.updatedAt >= localAt) {
             // Backfill rules added since the value was stored (e.g. book-club)
@@ -270,8 +322,11 @@ export const useSettingsStore = create<SettingsState>()(
             meta[key] = remote.updatedAt
           }
         }
-        if (Object.keys(patch).length) set({ ...patch, meta } as Partial<SettingsState>)
+        set({ ...patch, meta, pushed } as Partial<SettingsState>)
       },
+
+      markPushed: (entries) =>
+        set((state) => ({ pushed: { ...state.pushed, ...entries } }) as Partial<SettingsState>),
     }),
     {
       name: 'hearthshelf:settings',
@@ -284,6 +339,32 @@ export const useSettingsStore = create<SettingsState>()(
     },
   ),
 )
+
+/**
+ * Every local change the server hasn't confirmed yet, ready to PUT: a catalogued
+ * key the user edited here (`meta` stamped) whose stamp differs from what the
+ * server acknowledged (`pushed`). Both maps are persisted, so this includes
+ * edits made while the backend was unreachable - they push on a later pull
+ * instead of being silently forgotten.
+ *
+ * Values are validated against the catalog first, so a request is never spent on
+ * something the server would only reject.
+ */
+export function pendingSettingChanges(): SettingChange[] {
+  const s = useSettingsStore.getState()
+  const values = s as unknown as Record<string, unknown>
+  const out: SettingChange[] = []
+  for (const key of Object.keys(SETTINGS_CATALOG)) {
+    if (!(key in values)) continue // catalog key this client doesn't render
+    const at = s.meta[key]
+    if (at == null) continue // never edited here - leave it at the catalog default
+    if (s.pushed[key] === at) continue // already stored server-side
+    const check = validateSetting(key, values[key] as SettingValue)
+    if (!check.ok) continue
+    out.push({ scope: SETTINGS_CATALOG[key].scope, key, value: check.value, updatedAt: at })
+  }
+  return out
+}
 
 // The scope of a synced key from the catalog ('account' | 'device').
 export function scopeOf(key: string): SettingScope | null {
