@@ -51,6 +51,7 @@ function MediaUIValue({ target, children }: { target: AbsTarget; children: React
       // the docked mini-player surfaces it). Falls back to opening the page if
       // the fetch fails.
       playItem: async (itemId, opts) => {
+        const autoplay = opts?.autoplay ?? true
         try {
           const d = await getItemDetail(target, itemId)
           player.play({
@@ -66,11 +67,16 @@ function MediaUIValue({ target, children }: { target: AbsTarget; children: React
             totalDurationSec: d.durationSec,
             startAtSec: d.progress?.currentTimeSec ?? 0,
             playSessionId: d.playSessionId,
-            autoplay: true,
+            autoplay,
           })
           if (opts?.openPlayer) navigate('/player')
+          return true
         } catch {
-          navigate(`/book/${itemId}`)
+          // A paused pre-load is a background convenience - bouncing the
+          // listener to the book page would be a surprise. Let the caller
+          // decide (the player screen falls through to its empty state).
+          if (autoplay) navigate(`/book/${itemId}`)
+          return false
         }
       },
       markFinished: (itemId, finished) => {

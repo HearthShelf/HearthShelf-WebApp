@@ -25,9 +25,14 @@ export interface MediaUI {
   /**
    * Start playback of an item. Pass `{ openPlayer: true }` to also surface the
    * full player (e.g. the Resume / Jump-back-in entry points) instead of leaving
-   * the listener on the docked mini-player.
+   * the listener on the docked mini-player. Pass `{ autoplay: false }` to load
+   * the book paused and ready (the player screen's cold-start resume) - it
+   * returns a promise so callers can tell loaded from failed.
    */
-  playItem: (itemId: string, opts?: { openPlayer?: boolean }) => void
+  playItem: (
+    itemId: string,
+    opts?: { openPlayer?: boolean; autoplay?: boolean },
+  ) => void | Promise<boolean>
   /** Optional: href for an author page, or null if the app doesn't have one. */
   authorHref?: (authorId: string) => string | null
   /** Optional: href for a series page, or null. */

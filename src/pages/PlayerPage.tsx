@@ -383,10 +383,14 @@ export function PlayerPage() {
   const navigate = useNavigate()
   const ui = useMediaUI()
   const { target } = useActiveServer()
-  // For the "Nothing playing" empty state's Resume button - the most recent
-  // in-progress book, if any, so there's a one-tap way back in besides
-  // browsing the whole library.
-  const { data: inProgress } = useItemsInProgress(target as AbsTarget, undefined, Boolean(target))
+  // Cold-start resume source: the most recent in-progress book. Landing here
+  // with nothing loaded auto-loads it (paused) rather than asking - see the
+  // resolver effect below.
+  const {
+    data: inProgress,
+    isPending: inProgressPending,
+    isError: inProgressError,
+  } = useItemsInProgress(target as AbsTarget, undefined, Boolean(target))
   const resumeBook = inProgress?.[0]
   const { now, playing, positionSec, togglePlay, seekTo, rate, setRate, volume, setVolume } =
     usePlayer()
@@ -592,6 +596,63 @@ export function PlayerPage() {
     return () => document.removeEventListener('keydown', onKey)
   }, [togglePlay, seekTo, pos, duration, skipBack, skipFwd])
 
+  // Cold-start resolver: landing on the player with nothing loaded shouldn't
+  // dead-end on a "pick something" screen. Load the most recent in-progress
+  // book, else the head of the up-next queue - PAUSED, so arriving here never
+  // makes noise on its own and never opens an ABS play session (which would
+  // leave a phantom 0:00 row in Recent Listens). Browse is only offered when
+  // there is genuinely nothing to resume.
+  const queueHead = useQueueStore((s) => s.items[0] ?? s.manual[0] ?? null)
+  // 'idle' until we know what to load; flips to the item id we asked for so a
+  // re-render (or a resolve that lands on nothing) can't fire a second load.
+  const resolveRef = useRef<string | null>(null)
+  const [resolveFailed, setResolveFailed] = useState(false)
+  const resumeId = resumeBook?.id ?? queueHead?.libraryItemId ?? null
+  // Still deciding: the in-progress query hasn't settled and there's no queue
+  // entry to fall back on yet. Holding the loading state here (rather than
+  // flashing the empty state) is what makes this feel like mobile's Now tab.
+  const resolving =
+    !now && Boolean(target) && !resolveFailed && (resumeId !== null || inProgressPending)
+
+  useEffect(() => {
+    if (now || !target || !resumeId) return
+    if (resolveRef.current === resumeId) return
+    resolveRef.current = resumeId
+    void (async () => {
+      const ok = await ui.playItem(resumeId, { autoplay: false })
+      // Fall through to the empty state rather than spinning forever if the
+      // book can't be fetched (deleted, server down, no permission).
+      if (ok === false) setResolveFailed(true)
+    })()
+  }, [now, target, resumeId, ui])
+
+  // Nothing to resume and nothing left to wait on -> show Browse.
+  useEffect(() => {
+    if (!now && !inProgressPending && !resumeId && !inProgressError) setResolveFailed(true)
+  }, [now, inProgressPending, resumeId, inProgressError])
+
+  if (resolving) {
+    return (
+      <div className="page fade-in cozy-page">
+        <div
+          className="cozy-bg"
+          aria-hidden="true"
+          style={{ backgroundImage: `url("${cozyHearth}")` }}
+        />
+        <div className="cozy-veil" aria-hidden="true" />
+        <div className="cozy-empty">
+          <div className="eyebrow">By the hearth</div>
+          <h1 className="cozy-h">Warming up the hearth</h1>
+          <p className="cozy-sub">
+            {resumeBook?.media.metadata.title ?? queueHead?.title
+              ? `Bringing ${resumeBook?.media.metadata.title ?? queueHead?.title} back to your chair.`
+              : 'Finding where you left off.'}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   if (!now || !libraryItemId) {
     return (
       <div className="page fade-in cozy-page">
@@ -611,23 +672,6 @@ export function PlayerPage() {
             <button className="btn btn-primary" onClick={() => navigate('/library')}>
               <Icon name="auto_stories" fill /> Browse the library
             </button>
-            {resumeBook && (
-              <button
-                className="btn btn-primary btn-resume"
-                onClick={() => ui.playItem(resumeBook.id, { openPlayer: true })}
-              >
-                <Cover
-                  itemId={resumeBook.id}
-                  title={resumeBook.media.metadata.title ?? 'Untitled'}
-                  fs={7}
-                  className="btn-resume-cover"
-                />
-                <span className="btn-resume-text">
-                  Resume
-                  <small>{resumeBook.media.metadata.title ?? 'Untitled'}</small>
-                </span>
-              </button>
-            )}
           </div>
         </div>
       </div>
