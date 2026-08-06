@@ -5,27 +5,28 @@ import { getAllLibraryItemsFull } from '@/api/absLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
-import { useMonthlyShelf, useDiscoverFeedbackQuery, usePopular } from '@/hooks/useDiscover'
-import { useQgConfig } from '@/hooks/useQuestGiver'
+import {
+  useMonthlyShelf,
+  useDiscoverFeedbackQuery,
+  useSetDiscoverFeedback,
+  usePopular,
+} from '@/hooks/useDiscover'
+import { useQgConfig, useQuestGiverEnabled } from '@/hooks/useQuestGiver'
+import { useQuestGiverPicks } from '@/hooks/useQuestGiverPicks'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { SectionHead } from '@/components/common/SectionHead'
 import { BookTile } from '@/components/library/BookTile'
-import { buildDiscoverShelves } from '@hearthshelf/core'
-
-// Heads every section: icon + title (matches the design's section-head markup).
-function SectionHead({ icon, title }: { icon: string; title: string }) {
-  return (
-    <div className="section-head">
-      <Icon name={icon} />
-      <h2>{title}</h2>
-    </div>
-  )
-}
+import { QuestGiverEntry } from '@/components/questgiver/QuestGiverEntry'
+import { DiscoverAiTile } from '@/components/discover/DiscoverAiTile'
+import { DiscoverSearch } from '@/components/discover/DiscoverSearch'
+import { buildDiscoverShelves, rankDiscoverShelves } from '@hearthshelf/core'
 
 export function DiscoverPage() {
   const { target } = useActiveServer()
   const { activeId } = useActiveLibrary()
   const progressById = useMediaProgress()
+  const qgEnabled = useQuestGiverEnabled()
 
   // Route gate: Discover shares QuestGiver's config and is default-enabled. A
   // stale /discover link redirects home only when the backend explicitly disables
@@ -41,7 +42,17 @@ export function DiscoverPage() {
 
   const items = useMemo(() => data?.results ?? [], [data])
   const byId = useMemo(() => new Map(items.map((it) => [it.id, it])), [items])
-  const { shelves } = useMemo(
+  const ownedKeys = useMemo(
+    () =>
+      new Set(
+        items.map((it) => {
+          const m = it.media.metadata
+          return ((m.title ?? '') + '|' + (m.authorName ?? '')).toLowerCase()
+        }),
+      ),
+    [items],
+  )
+  const { shelves: baseShelves, profile } = useMemo(
     () => buildDiscoverShelves(items, progressById),
     [items, progressById],
   )
@@ -50,8 +61,17 @@ export function DiscoverPage() {
   const { data: monthly } = useMonthlyShelf(items, progressById, hasItems)
   const { data: feedback } = useDiscoverFeedbackQuery(hasItems)
   const { data: popular } = usePopular(hasItems)
+  const questGiverPicks = useQuestGiverPicks(hasItems)
+  const setFeedback = useSetDiscoverFeedback()
 
-  const fbMap = feedback ?? {}
+  const fbMap = useMemo(() => feedback ?? {}, [feedback])
+
+  // Apply the shared ranking layer: QuestGiver picks lead, liked/rated items float
+  // up, disliked/not-interested items drop out - the same order Home previews.
+  const shelves = useMemo(
+    () => rankDiscoverShelves(baseShelves, byId, { questGiverPicks, feedback: fbMap }),
+    [baseShelves, byId, questGiverPicks, fbMap],
+  )
 
   // AI-shelf picks resolved to owned items, with not_interested hidden.
   const aiPicks = useMemo(() => {
@@ -77,13 +97,25 @@ export function DiscoverPage() {
   if (!discoverEnabled) return <Navigate to="/" replace />
   if (isLoading) return <LoadingSpinner />
 
+  const onVote = (itemKey: string, vote: 'like' | 'dislike' | 'not_interested' | null) =>
+    setFeedback.mutate({ itemKey, vote })
+  const onRate = (itemKey: string, rating: number | null) => setFeedback.mutate({ itemKey, rating })
+  const onNotInterested = (itemKey: string) =>
+    setFeedback.mutate({ itemKey, vote: 'not_interested' })
+
   return (
     <div className="page fade-in discover-page">
       <div className="page-head">
         <div className="eyebrow">HearthShelf</div>
         <h1 className="title-xl">Discover</h1>
-        <p className="page-sub">Picks tuned to your listening, drawn from your library.</p>
+        <p className="page-sub">
+          Search Audible for any title, or scroll for picks tuned to your listening.
+        </p>
       </div>
+
+      {target && <DiscoverSearch target={target} ownedKeys={ownedKeys} />}
+
+      {qgEnabled && <QuestGiverEntry totalFinished={profile.totalFin} />}
 
       {!hasItems ? (
         <div className="empty-state">
@@ -99,15 +131,20 @@ export function DiscoverPage() {
                 icon="auto_awesome"
                 title={monthly?.intro?.trim() ? monthly.intro : 'Your shelf this month'}
               />
-              <div className="shelf-row">
-                {aiPicks.map(({ item }) => {
+              <div className="disc-ai-row">
+                {aiPicks.map(({ item, reason }) => {
                   const p = progressById.get(item.id)
                   return (
-                    <BookTile
+                    <DiscoverAiTile
                       key={item.id}
                       item={item}
+                      reason={reason}
                       progress={p?.progress ?? 0}
                       finished={p?.isFinished}
+                      feedback={fbMap[item.id]}
+                      onVote={onVote}
+                      onRate={onRate}
+                      onNotInterested={onNotInterested}
                     />
                   )
                 })}
