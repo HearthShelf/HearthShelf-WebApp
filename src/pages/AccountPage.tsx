@@ -21,6 +21,7 @@ import { BookClubSettings } from '@/components/settings/BookClubSettings'
 import { ReadingSettings } from '@/components/settings/ReadingSettings'
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings'
 import { IntegrationsSettings } from '@/components/settings/IntegrationsSettings'
+import { AiConnectionSettings } from '@/components/settings/AiConnectionSettings'
 import { SearchSettings } from '@/components/settings/SearchSettings'
 import { CommunitySettings } from '@/components/settings/CommunitySettings'
 import { AccountSettings } from '@/components/settings/AccountSettings'
@@ -36,6 +37,7 @@ type Section =
   | 'reading'
   | 'appearance'
   | 'integrations'
+  | 'aiApps'
   | 'search'
   | 'community'
   | 'account'
@@ -69,6 +71,7 @@ const NAV: { label: string; items: { id: Section; icon: string; label: string }[
     label: 'Library',
     items: [
       { id: 'integrations', icon: 'hub', label: 'Integrations' },
+      { id: 'aiApps', icon: 'smart_toy', label: 'AI apps' },
       { id: 'search', icon: 'search', label: 'Search' },
     ],
   },
@@ -142,6 +145,8 @@ export function AccountPage({ menuMode = false }: { menuMode?: boolean }) {
         return <ReadingSettings />
       case 'appearance':
         return <AppearanceSettings />
+      case 'aiApps':
+        return <AiConnectionSettings />
       case 'integrations':
         return <IntegrationsSettings />
       case 'search':
@@ -275,9 +280,7 @@ function MyServers() {
         </>
       )}
 
-      {linkOpen && (
-        <LinkServerDialog onClose={() => setLinkOpen(false)} initialCode={dialogCode} />
-      )}
+      {linkOpen && <LinkServerDialog onClose={() => setLinkOpen(false)} initialCode={dialogCode} />}
     </section>
   )
 }

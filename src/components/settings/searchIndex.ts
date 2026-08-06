@@ -392,15 +392,25 @@ export const SETTINGS_INDEX: SettingEntry[] = [
     keywords: 'reader ebook scroll paged pages',
   },
 
-  // ---- Integrations
+  // ---- AI apps
   {
-    section: 'integrations',
-    sectionLabel: 'Integrations',
-    icon: 'hub',
-    title: 'Server integrations',
-    desc: 'Services your server connects to.',
-    keywords: 'connect services server',
+    section: 'aiApps',
+    sectionLabel: 'AI apps',
+    icon: 'smart_toy',
+    title: 'Connect an AI app',
+    desc: 'Talk to Claude or another AI app about your books.',
+    keywords: 'ai claude mcp connector chatgpt assistant recommend chat',
   },
+  {
+    section: 'aiApps',
+    sectionLabel: 'AI apps',
+    icon: 'smart_toy',
+    title: 'Connection address',
+    desc: 'The address you paste into an AI app.',
+    keywords: 'ai mcp url server address copy claude connector',
+  },
+
+  // ---- Integrations
   {
     section: 'integrations',
     sectionLabel: 'Integrations',

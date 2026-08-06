@@ -47,6 +47,7 @@ import { SettingsCarHarness } from '@/pages/dev/SettingsCarHarness'
 import { SettingsSearchHarness } from '@/pages/dev/SettingsSearchHarness'
 import { BulkPermissionsHarness } from '@/pages/dev/BulkPermissionsHarness'
 import { ConnectAiHarness } from '@/pages/dev/ConnectAiHarness'
+import { AiConnectionHarness } from '@/pages/dev/AiConnectionHarness'
 import { RequireAuth } from '@/auth/RequireAuth'
 import { PlayerProvider } from '@/player/PlayerProvider'
 
@@ -88,6 +89,7 @@ export const router = createBrowserRouter([
         { path: '/dev/settings-search/*', element: <SettingsSearchHarness /> },
         { path: '/dev/bulk-perms', element: <BulkPermissionsHarness /> },
         { path: '/dev/connect-ai', element: <ConnectAiHarness /> },
+        { path: '/dev/ai-settings', element: <AiConnectionHarness /> },
       ]
     : []),
 

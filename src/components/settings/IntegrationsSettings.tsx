@@ -25,18 +25,6 @@ export function IntegrationsSettings() {
       </p>
       <HardcoverSettings />
       <GoodreadsImport />
-      <div className="cfg-card" style={{ marginTop: 'var(--s4)' }}>
-        <div className="cfg-line">
-          <Icon name="hub" style={{ color: 'var(--text-muted)' }} />
-          <div className="cl-meta" style={{ flex: 1 }}>
-            <div className="cl-t">Server integrations</div>
-            <div className="cl-d">
-              ReadMeABook and similar integrations are set up by your server admin under Server
-              &rarr; Integrations on the server itself.
-            </div>
-          </div>
-        </div>
-      </div>
       <ExternalBookLinks />
     </section>
   )
@@ -60,10 +48,7 @@ function ExternalBookLinks() {
             <div className="cl-t">Goodreads</div>
             <div className="cl-d">Show a Goodreads search link on each book's detail page.</div>
           </div>
-          <Toggle
-            on={extGoodreads}
-            onChange={(v) => setSetting('externalLinkGoodreads', v)}
-          />
+          <Toggle on={extGoodreads} onChange={(v) => setSetting('externalLinkGoodreads', v)} />
         </div>
         <div className="cfg-line">
           <Icon name="headphones" style={{ color: 'var(--text-muted)' }} />

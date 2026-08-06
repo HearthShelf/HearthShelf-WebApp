@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { useSearchParams } from 'react-router-dom'
 import { Loader2, AlertCircle } from 'lucide-react'
+import { MCP_ORIGIN } from '@/lib/config'
 
 /**
  * The sign-in bounce for the MCP server's OAuth flow:
@@ -26,8 +27,6 @@ import { Loader2, AlertCircle } from 'lucide-react'
  * link harvest a session token.
  */
 const JWT_TEMPLATE = 'hearthshelf'
-
-const MCP_ORIGIN = import.meta.env.VITE_MCP_URL || 'https://mcp.hearthshelf.com'
 
 export function ConnectAiPage() {
   const [params] = useSearchParams()
