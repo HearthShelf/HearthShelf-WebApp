@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQueries, useQuery, type UseQueryOptions } from '@tanstack/react-query'
 import { useUser } from '@clerk/clerk-react'
-import { continueSeriesShelf } from '@hearthshelf/core'
+import { continueSeriesShelf, buildDiscoverShelves, discoverHomePreview } from '@hearthshelf/core'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useHomeShelves, useItemsInProgress } from '@/hooks/useLibrary'
@@ -12,13 +13,22 @@ import { useSettingsStore } from '@/store/settingsStore'
 import { useDismissalsStore } from '@/store/dismissalsStore'
 import { Cover, tintFor } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
+import { SectionHead } from '@/components/common/SectionHead'
 import { BookTile } from '@/components/library/BookTile'
 import { BookContextMenu } from '@/components/library/BookContextMenu'
 import { SeriesCard } from '@/components/library/SeriesCard'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 import { useToast } from '@/hooks/useToast'
-import { getSeries, type AbsLibraryItem, type MediaProgress } from '@/api/absLibrary'
+import { useDiscoverEnabled } from '@/hooks/useQuestGiver'
+import { useMonthlyShelf, useDiscoverFeedbackQuery } from '@/hooks/useDiscover'
+import { useQuestGiverPicks } from '@/hooks/useQuestGiverPicks'
+import {
+  getSeries,
+  getAllLibraryItemsFull,
+  type AbsLibraryItem,
+  type MediaProgress,
+} from '@/api/absLibrary'
 import { getHomeShelves, getItemsInProgress, mergeHomeShelves, type HomeShelf } from '@/api/absHome'
 
 const SHELF_ICONS: Record<string, string> = {
@@ -27,18 +37,19 @@ const SHELF_ICONS: Record<string, string> = {
   'continue-series': 'auto_stories',
   discover: 'explore',
   'continue-listening': 'play_circle',
-  'listen-again': 'replay',
 }
 
-// Shelf display order on Home. "continue-series" is intentionally dropped below.
-// "listen-again" sits after "discover". Any shelf id not listed falls to the end.
-const SHELF_ORDER = [
-  'continue-listening',
-  'recently-added',
-  'recent-series',
-  'discover',
-  'listen-again',
-]
+// Display order for the ABS shelves we keep on Home (progress + library rows).
+// Recommendation shelves are dropped (TAINTED_ABS_SHELVES) and replaced by the
+// taste engine. Any kept shelf id not listed falls to the end in original order.
+const SHELF_ORDER = ['continue-listening', 'continue-series', 'recently-added', 'recent-series']
+
+// ABS personalized shelves we suppress on Home: its recommendation +
+// finished-again rows, which the HearthShelf taste engine replaces ("discover"
+// also mixes in other users' books). The kept rows - continue-listening,
+// continue-series, recently-added - are the user's own progress / library, not
+// cross-user recommendations.
+const TAINTED_ABS_SHELVES = new Set(['discover', 'listen-again', 'read-again'])
 
 function shelfRank(id: string): number {
   const i = SHELF_ORDER.indexOf(id)
@@ -181,6 +192,7 @@ function CalmHero({ book, progress }: HeroProps) {
 
 export function HomePage() {
   const { user } = useUser()
+  const navigate = useNavigate()
   const { target } = useActiveServer()
   const { active, activeId, libraries } = useActiveLibrary()
   const isMobile = useIsMobile()
@@ -265,6 +277,45 @@ export function HomePage() {
     })
   }, [seriesData, progressById, dismissedSeries, dismissedItems])
 
+  // HearthShelf's own taste engine feeds the Home discovery preview - our
+  // recommendations, not ABS's cross-library "discover" feed (which surfaces
+  // other household members' books). Home shows a single lead shelf; the full
+  // set lives on the Discover page.
+  const discoverEnabled = useDiscoverEnabled()
+  const { data: libraryData } = useQuery({
+    queryKey: ['discover', 'all-items', target?.serverId, activeId],
+    queryFn: () => getAllLibraryItemsFull(safeTarget, activeId as string),
+    enabled: Boolean(target) && Boolean(activeId) && discoverEnabled,
+    staleTime: 5 * 60 * 1000,
+  })
+  const libItems = useMemo(() => libraryData?.results ?? [], [libraryData])
+  const libById = useMemo(() => new Map(libItems.map((it) => [it.id, it])), [libItems])
+  const hasLib = libItems.length > 0
+  const questGiverPicks = useQuestGiverPicks(discoverEnabled && hasLib)
+  const { data: feedback } = useDiscoverFeedbackQuery(discoverEnabled && hasLib)
+  const { data: monthly } = useMonthlyShelf(libItems, progressById, discoverEnabled && hasLib)
+
+  const previewShelf = useMemo(() => {
+    if (!discoverEnabled || !hasLib) return null
+    const { shelves } = buildDiscoverShelves(libItems, progressById)
+    return discoverHomePreview(shelves, libById, {
+      questGiverPicks,
+      feedback: feedback ?? {},
+    })
+  }, [discoverEnabled, hasLib, libItems, progressById, libById, questGiverPicks, feedback])
+
+  // The monthly AI shelf resolved to owned items, not-interested filtered out.
+  const aiPreview = useMemo(() => {
+    if (!discoverEnabled || !monthly || monthly.engine === 'none') return null
+    const fb = feedback ?? {}
+    const items = monthly.picks
+      .map((p) => libById.get(p.id))
+      .filter((it): it is AbsLibraryItem => Boolean(it) && fb[it!.id]?.vote !== 'not_interested')
+      .slice(0, 12)
+    if (items.length === 0) return null
+    return { intro: monthly.intro?.trim() || 'Your shelf this month', items }
+  }, [discoverEnabled, monthly, libById, feedback])
+
   if (!target) return null
 
   const name = user?.firstName || user?.username || 'there'
@@ -290,16 +341,27 @@ export function HomePage() {
   const heroPct = heroProgress?.progress ?? 0
 
   // Shelves we render: book + series shelves, in display order, dropping the
-  // empty ones and the continue-series shelf (covered by recent-series).
+  // empty ones, ABS's recommendation rows (our taste engine replaces them), and
+  // ABS's own continue-series (we build our own above, with real series ids).
+  // Applied after the unified merge so both branches are filtered alike.
   const ordered: HomeShelf[] = rawShelves
     .filter(
       (sh) =>
+        !TAINTED_ABS_SHELVES.has(sh.id) &&
         sh.id !== 'continue-series' &&
         (sh.type === 'series' ? sh.series.length > 0 : sh.items.length > 0),
     )
     .sort((a, b) => shelfRank(a.id) - shelfRank(b.id))
 
-  const nothing = !isLoading && !isError && ordered.length === 0 && inProgress.length === 0
+  // The taste-engine rows count as content, so a library with only suppressed
+  // ABS shelves still isn't "quiet".
+  const nothing =
+    !isLoading &&
+    !isError &&
+    ordered.length === 0 &&
+    inProgress.length === 0 &&
+    !previewShelf &&
+    !aiPreview
 
   return (
     <div className={'page fade-in' + (compact ? ' home-compact' : '')}>
@@ -359,6 +421,54 @@ export function HomePage() {
       {hero && !compact && <ResumeHero book={hero} progress={heroProgress} />}
       {hero && compact && <CalmHero book={hero} progress={heroProgress} />}
 
+      {aiPreview && (
+        <div className="section">
+          <SectionHead icon="auto_awesome" title={aiPreview.intro} />
+          <div className="shelf-row">
+            {aiPreview.items.map((item) => {
+              const p = progressById.get(item.id)
+              return (
+                <BookTile
+                  key={item.id}
+                  item={item}
+                  progress={p?.progress ?? 0}
+                  finished={p?.isFinished}
+                  fs={compact ? 12 : 15}
+                  compact={compact}
+                  onToast={show}
+                />
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {previewShelf && (
+        <div className="section">
+          <SectionHead
+            icon={previewShelf.icon}
+            title={previewShelf.label}
+            onMore={() => navigate('/discover')}
+          />
+          <div className="shelf-row">
+            {previewShelf.items.map((item) => {
+              const p = progressById.get(item.id)
+              return (
+                <BookTile
+                  key={item.id}
+                  item={item}
+                  progress={p?.progress ?? 0}
+                  finished={p?.isFinished}
+                  fs={compact ? 12 : 15}
+                  compact={compact}
+                  onToast={show}
+                />
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {isLoading && <LoadingSpinner className="py-12" label="Loading shelves..." />}
       {isError && <ErrorState message="Could not load your shelves." onRetry={refetch} />}
 
@@ -372,10 +482,10 @@ export function HomePage() {
       {/* Continue Series (built from core, real series ids for dismissal). */}
       {continueSeries.length > 0 && (
         <div className="section">
-          <div className="section-head">
-            <Icon name={SHELF_ICONS['continue-series'] ?? 'auto_stories'} />
-            <h2>Continue Series</h2>
-          </div>
+          <SectionHead
+            icon={SHELF_ICONS['continue-series'] ?? 'auto_stories'}
+            title="Continue Series"
+          />
           <div className="shelf-row">
             {continueSeries.map(({ series, nextBook }) => {
               const p = progressById.get(nextBook.id)
@@ -410,10 +520,7 @@ export function HomePage() {
         const isContinueListening = sh.id === 'continue-listening'
         return (
           <div className="section" key={sh.id}>
-            <div className="section-head">
-              <Icon name={SHELF_ICONS[sh.id] ?? 'library_books'} />
-              <h2>{sh.label}</h2>
-            </div>
+            <SectionHead icon={SHELF_ICONS[sh.id] ?? 'library_books'} title={sh.label} />
             {sh.type === 'series' ? (
               <div className="series-grid">
                 {sh.series.map((s) => (
