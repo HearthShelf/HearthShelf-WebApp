@@ -15,7 +15,10 @@ export type AudibleSeriesResponse = HSAudibleSeriesResponse
 
 export const audibleKeys = {
   search: (name: string, page = 1) => ['audible', 'search', name, page] as const,
-  series: (name: string) => ['audible', 'series', name] as const,
+  // Keyed by ABS series id, not name - two distinct series can share a name
+  // (Karevik's "Accidental Champion" vs Herzman's), and a name-only key made
+  // them collide in the cache.
+  series: (seriesId: string, name: string) => ['audible', 'series', seriesId, name] as const,
 }
 
 function origin(t: AbsTarget): string {
@@ -23,19 +26,29 @@ function origin(t: AbsTarget): string {
 }
 
 /**
- * Fetch a series' full Audible roster by name. Returns an unresolved result
+ * Fetch a series' full Audible roster. Returns an unresolved result
  * (`seriesAsin: null, books: []`) on any failure - unreachable server, slim
  * deploy without /hs/audible, missing token, or no confident series match.
+ *
+ * `seriesId` is ABS's own series id and is what identifies the series; the name
+ * rides along because it's the Audible search term. Two distinct series can
+ * share a name, so the id is what keeps their rosters apart.
+ *
+ * Older servers predating the seriesId parameter simply ignore it and fall back
+ * to the name lookup, so this stays compatible with whatever version the user's
+ * box is running.
  */
 export async function fetchAudibleSeries(
   t: AbsTarget,
+  seriesId: string,
   name: string,
 ): Promise<AudibleSeriesResponse> {
   const empty: AudibleSeriesResponse = { name, seriesAsin: null, books: [] }
   const token = getAbsToken(t.serverId)
   if (!token || name.trim().length < 2) return empty
   try {
-    const res = await fetch(`${origin(t)}/hs/audible/series?q=${encodeURIComponent(name)}`, {
+    const params = new URLSearchParams({ q: name, seriesId })
+    const res = await fetch(`${origin(t)}/hs/audible/series?${params.toString()}`, {
       headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
     })
     if (!res.ok) return empty

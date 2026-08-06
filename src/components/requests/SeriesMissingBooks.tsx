@@ -10,6 +10,9 @@ import { RequestConfirmModal } from '@/components/requests/RequestConfirmModal'
 
 interface SeriesMissingBooksProps {
   target: AbsTarget
+  // ABS's series id - what identifies the series when resolving its Audible
+  // roster (two distinct series can share a name).
+  seriesId: string
   seriesName: string
   // Owned books (title + this-series sequence) to match against the Audible
   // roster - see missingSeriesBooks for how the match is made.
@@ -24,6 +27,7 @@ interface SeriesMissingBooksProps {
 // the series can't be resolved or nothing is missing.
 export function SeriesMissingBooks({
   target,
+  seriesId,
   seriesName,
   ownedBooks,
   startSeq,
@@ -32,8 +36,8 @@ export function SeriesMissingBooks({
   const [confirm, setConfirm] = useState<HSAudibleSeriesBook | null>(null)
 
   const { data } = useQuery({
-    queryKey: audibleKeys.series(seriesName),
-    queryFn: () => fetchAudibleSeries(target, seriesName),
+    queryKey: audibleKeys.series(seriesId, seriesName),
+    queryFn: () => fetchAudibleSeries(target, seriesId, seriesName),
     enabled: seriesName.length >= 2,
     staleTime: 30 * 60 * 1000,
     retry: false,
