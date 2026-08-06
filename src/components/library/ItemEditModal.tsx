@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   updateItemMetadata,
+  getLibraryFilterData,
   deleteItemFile,
   reorderItemTracks,
   embedItemMetadata,
@@ -10,11 +11,13 @@ import {
   type BookDetailFull,
   type BookAudioFile,
   type ItemMetadataPatch,
+  type ItemSeriesPatch,
 } from '@/api/absBookDetail'
 import type { AbsTarget } from '@/api/absLibrary'
 import { formatTimestamp } from '@hearthshelf/core'
 import { Modal } from '@/components/common/Modal'
-import { Chips } from '@/components/common/Chips'
+import { SuggestChips } from '@/components/common/SuggestChips'
+import { SeriesEditor } from '@/components/library/SeriesEditor'
 import { Icon } from '@/components/common/Icon'
 import { ItemMatchTab } from '@/components/library/ItemMatchTab'
 import { ItemCoverTab } from '@/components/library/ItemCoverTab'
@@ -50,15 +53,32 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
   const [title, setTitle] = useState(item.title ?? '')
   const [subtitle, setSubtitle] = useState(item.subtitle ?? '')
   const [publishedYear, setPublishedYear] = useState(item.publishedYear ?? '')
+  const [publishedDate, setPublishedDate] = useState(item.publishedDate ?? '')
   const [publisher, setPublisher] = useState(item.publisher ?? '')
   const [isbn, setIsbn] = useState(item.isbn ?? '')
   const [asin, setAsin] = useState(item.asin ?? '')
+  const [language, setLanguage] = useState(item.language ?? '')
   const [genres, setGenres] = useState<string[]>(item.genres ?? [])
   const [tags, setTags] = useState<string[]>(item.tags ?? [])
   const [description, setDescription] = useState(item.description ?? '')
+  const [explicit, setExplicit] = useState(Boolean(item.explicit))
   const [abridged, setAbridged] = useState(Boolean(item.abridged))
+  const [authors, setAuthors] = useState<string[]>(item.allAuthors ?? [])
+  const [narrators, setNarrators] = useState<string[]>(item.allNarrators ?? [])
+  const [series, setSeries] = useState<ItemSeriesPatch[]>(() =>
+    (item.allSeries ?? []).map((s) => ({ name: s.name, sequence: s.sequence })),
+  )
   const [saving, setSaving] = useState(false)
   const [savedNote, setSavedNote] = useState<string | null>(null)
+
+  // Existing library values for type-ahead. Optional - the form works without.
+  const { data: filterData } = useQuery({
+    queryKey: ['abs-filterdata', target.serverId, item.libraryId],
+    queryFn: () => getLibraryFilterData(target, item.libraryId),
+    enabled: Boolean(item.libraryId),
+    staleTime: 30 * 60 * 1000,
+    retry: false,
+  })
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['abs-book-detail', target.serverId, item.id] })
@@ -67,15 +87,24 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
 
   const save = async (thenClose: boolean) => {
     setSaving(true)
+    // Series, authors and narrators are REPLACE on ABS's side - it unlinks
+    // anything absent from these arrays - so always send the complete list the
+    // form is showing, never a delta.
     const patch: ItemMetadataPatch = {
       title,
       subtitle,
       description,
       publishedYear,
+      publishedDate,
       publisher,
+      language,
       isbn,
       asin,
       genres,
+      narrators,
+      series,
+      authors: authors.map((name) => ({ name })),
+      explicit,
       abridged,
     }
     try {
@@ -164,11 +193,42 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
                 onChange={(e) => setSubtitle(e.target.value)}
               />
             </Field>
+            <Field label="Authors" full>
+              <SuggestChips
+                items={authors}
+                onChange={setAuthors}
+                suggestions={(filterData?.authors ?? []).map((a) => a.name)}
+                placeholder="Add author…"
+              />
+            </Field>
+            <Field label="Series" full>
+              <SeriesEditor
+                series={series}
+                onChange={setSeries}
+                suggestions={(filterData?.series ?? []).map((s) => s.name)}
+              />
+            </Field>
+            <Field label="Narrators" full>
+              <SuggestChips
+                items={narrators}
+                onChange={setNarrators}
+                suggestions={filterData?.narrators ?? []}
+                placeholder="Add narrator…"
+              />
+            </Field>
             <Field label="Publish year">
               <input
                 className="fld"
                 value={publishedYear}
                 onChange={(e) => setPublishedYear(e.target.value)}
+              />
+            </Field>
+            <Field label="Publish date">
+              <input
+                className="fld"
+                type="date"
+                value={publishedDate}
+                onChange={(e) => setPublishedDate(e.target.value)}
               />
             </Field>
             <Field label="Publisher">
@@ -178,6 +238,13 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
                 onChange={(e) => setPublisher(e.target.value)}
               />
             </Field>
+            <Field label="Language">
+              <input
+                className="fld"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+              />
+            </Field>
             <Field label="ISBN">
               <input className="fld" value={isbn} onChange={(e) => setIsbn(e.target.value)} />
             </Field>
@@ -185,10 +252,20 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
               <input className="fld" value={asin} onChange={(e) => setAsin(e.target.value)} />
             </Field>
             <Field label="Genres">
-              <Chips items={genres} onChange={setGenres} placeholder="Add genre…" />
+              <SuggestChips
+                items={genres}
+                onChange={setGenres}
+                suggestions={filterData?.genres ?? []}
+                placeholder="Add genre…"
+              />
             </Field>
             <Field label="Tags" full>
-              <Chips items={tags} onChange={setTags} placeholder="Add tag…" />
+              <SuggestChips
+                items={tags}
+                onChange={setTags}
+                suggestions={filterData?.tags ?? []}
+                placeholder="Add tag…"
+              />
             </Field>
             <Field label="Description" full>
               <textarea
@@ -198,6 +275,19 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
                 onChange={(e) => setDescription(e.target.value)}
               />
             </Field>
+            <div className="field-row" style={{ borderTop: 'none' }}>
+              <div className="fr-meta">
+                <div className="fr-t">Explicit</div>
+              </div>
+              <div
+                className={'toggle' + (explicit ? ' on' : '')}
+                role="switch"
+                aria-checked={explicit}
+                onClick={() => setExplicit((v) => !v)}
+              >
+                <i />
+              </div>
+            </div>
             <div className="field-row" style={{ borderTop: 'none' }}>
               <div className="fr-meta">
                 <div className="fr-t">Abridged</div>

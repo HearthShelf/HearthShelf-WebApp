@@ -13,7 +13,14 @@
  */
 import { absGet, absPatch, absPost, absDelete, absMediaUrl } from './absClient'
 import type { AbsTarget } from './absLibrary'
-import type { ABSItemMetadataPatch } from '@hearthshelf/core'
+import {
+  normalizeSeriesPatch,
+  normalizeAuthorsPatch,
+  type ABSItemMetadataPatch,
+  type ABSItemSeriesPatch,
+} from '@hearthshelf/core'
+
+export type ItemSeriesPatch = ABSItemSeriesPatch
 
 export interface BookAudioFile {
   ino: string
@@ -55,7 +62,16 @@ export interface BookDetailFull {
   asin: string | null
   rating: number | null
   abridged: boolean
+  language: string
+  publishedDate: string
+  explicit: boolean
   series: BookSeriesRef | null
+  // The COMPLETE lists, as opposed to the flattened first-only fields above.
+  // Editing needs all of them: ABS replaces these wholesale on save, so a form
+  // that only knew the first author would silently unlink the rest.
+  allSeries: BookSeriesRef[]
+  allAuthors: string[]
+  allNarrators: string[]
   description: string
   durationSec: number
   audioFiles: BookAudioFile[]
@@ -90,6 +106,9 @@ interface RawDetailMetadata {
   publisher?: string
   isbn?: string | null
   asin?: string | null
+  language?: string
+  publishedDate?: string
+  explicit?: boolean
   rating?: number | null
   abridged?: boolean
   series?: Array<{ id: string; name: string; sequence?: string | null }>
@@ -150,9 +169,19 @@ export async function getBookDetailFull(t: AbsTarget, itemId: string): Promise<B
     asin: md.asin ?? null,
     rating: md.rating ?? null,
     abridged: Boolean(md.abridged),
+    language: md.language || '',
+    publishedDate: md.publishedDate || '',
+    explicit: Boolean(md.explicit),
     series: firstSeries
       ? { id: firstSeries.id, name: firstSeries.name, sequence: firstSeries.sequence ?? null }
       : null,
+    allSeries: (md.series ?? []).map((s) => ({
+      id: s.id,
+      name: s.name,
+      sequence: s.sequence ?? null,
+    })),
+    allAuthors: (md.authors ?? []).map((a) => a.name).filter(Boolean),
+    allNarrators: md.narrators ?? [],
     description: md.description || '',
     // media.duration is omitted on the expanded item read, so sum the audio
     // files (the field that IS returned) for the real book length.
@@ -196,9 +225,56 @@ export async function updateItemMetadata(
   metadata: ItemMetadataPatch,
   tags?: string[],
 ): Promise<void> {
-  const body: { metadata: ItemMetadataPatch; tags?: string[] } = { metadata }
+  // Guard the relation fields before they reach ABS - it fails silently on a
+  // malformed entry (see core's lib/itemMetadata.ts).
+  const clean: ItemMetadataPatch = { ...metadata }
+  if (clean.series) clean.series = normalizeSeriesPatch(clean.series)
+  if (clean.authors) clean.authors = normalizeAuthorsPatch(clean.authors)
+  const body: { metadata: ItemMetadataPatch; tags?: string[] } = { metadata: clean }
   if (tags) body.tags = tags
   await absPatch(t, `/api/items/${encodeURIComponent(itemId)}/media`, body)
+}
+
+/**
+ * The library's existing values per metadata field, for edit-form type-ahead so
+ * a user picks the established spelling instead of creating a near-duplicate.
+ * ABS caches this server-side for 30 minutes. Degrades to empty lists on any
+ * failure - suggestions are a convenience, never required.
+ */
+export interface LibraryFilterData {
+  authors: { id: string; name: string }[]
+  series: { id: string; name: string }[]
+  genres: string[]
+  tags: string[]
+  narrators: string[]
+  languages: string[]
+  publishers: string[]
+}
+
+const EMPTY_FILTER_DATA: LibraryFilterData = {
+  authors: [],
+  series: [],
+  genres: [],
+  tags: [],
+  narrators: [],
+  languages: [],
+  publishers: [],
+}
+
+export async function getLibraryFilterData(
+  t: AbsTarget,
+  libraryId: string,
+): Promise<LibraryFilterData> {
+  if (!libraryId) return EMPTY_FILTER_DATA
+  try {
+    const r = await absGet<Partial<LibraryFilterData>>(
+      t,
+      `/api/libraries/${encodeURIComponent(libraryId)}/filterdata`,
+    )
+    return { ...EMPTY_FILTER_DATA, ...r }
+  } catch {
+    return EMPTY_FILTER_DATA
+  }
 }
 
 /** Replace an item's chapter list (POST /api/items/:id/chapters). Admin only. */
