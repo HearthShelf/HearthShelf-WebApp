@@ -1,0 +1,63 @@
+name = "hearthshelf-mcp"
+main = "src/index.ts"
+compatibility_date = "2025-03-10"
+compatibility_flags = ["nodejs_compat"]
+# Reachable only at its custom domain (mcp.hearthshelf.com), not workers.dev.
+# The hostname is attached OUT OF BAND (dashboard / one-time full-permission
+# deploy), same as api.hearthshelf.com and logs.hearthshelf.com - deliberately
+# NOT a [[routes]] block, because the CI deploy token is scoped to Workers
+# Scripts and re-asserting the route each deploy fails with a 10000 auth error.
+workers_dev = false
+
+# The MCP server: a remote Model Context Protocol endpoint that lets any MCP
+# client (Claude desktop/web/mobile, etc.) read a signed-in user's library,
+# reading history and recommendations. The USER'S OWN AI SUBSCRIPTION pays for
+# all inference - this Worker ships structured facts and never calls an LLM.
+# That is the whole economic point: no AI API cost lands on us.
+#
+# Trust model (see ../ARCHITECTURE.md):
+#   - This Worker is an OAuth 2.1 RESOURCE SERVER + authorization server for MCP
+#     clients, with Clerk as the upstream identity provider.
+#   - It reaches a user's box exactly as the SPA does: mint a short-TTL grant
+#     from the control plane, POST it to the box's /hs/hosted/connect, use the
+#     returned per-user ABS token. It stores NO long-lived ABS credential.
+#   - Read-only tool surface. Nothing here can mutate a library.
+
+[durable_objects]
+bindings = [{ name = "MCP_OBJECT", class_name = "HearthShelfMCP" }]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["HearthShelfMCP"]
+
+# OAuth grant/token storage for @cloudflare/workers-oauth-provider. Create with:
+#   wrangler kv namespace create hearthshelf-mcp-oauth
+# then paste the returned id below.
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[vars]
+# Public origin of THIS Worker. Used as the OAuth issuer and as the RFC 8707
+# resource indicator MCP clients must target. Must match the custom domain.
+MCP_ISSUER = "https://mcp.hearthshelf.com"
+# Control-plane base URL - where we list a user's linked servers and mint the
+# short-TTL grants we redeem against a box. Same API the SPA calls.
+CONTROL_PLANE_URL = "https://api.hearthshelf.com"
+# Clerk's JWKS endpoint, for verifying the Clerk session token that authorizes
+# an MCP connection. Host is the Frontend API domain; change per Clerk instance.
+CLERK_JWKS_URL = "https://clerk.hearthshelf.com/.well-known/jwks.json"
+# Clerk Frontend API origin, used to bounce the user through a Clerk sign-in
+# during the OAuth authorize step.
+CLERK_ORIGIN = "https://clerk.hearthshelf.com"
+# The SPA origin - where we send the user to sign in and approve a connection.
+APP_ORIGIN = "https://app.hearthshelf.com"
+# Seconds to cache a redeemed per-user ABS token in the Durable Object. Kept
+# SHORT on purpose: the DO holds nothing a fresh control-plane grant could not
+# re-obtain, which keeps ARCHITECTURE.md principle 5 (minimize secrets at rest)
+# intact even though this is the first server-side component to cache one.
+ABS_TOKEN_TTL_SECONDS = "600"
+
+# Secrets (set via `wrangler secret put <NAME>`), never committed:
+#   COOKIE_ENCRYPTION_KEY - encrypts the approval cookie set during OAuth
+#                           consent (workers-oauth-provider requirement).

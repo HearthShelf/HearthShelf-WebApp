@@ -28,6 +28,7 @@ import { ReaderPage } from '@/pages/ReaderPage'
 import { AccountPage, AccountIndexRedirect } from '@/pages/AccountPage'
 import { InvitePage } from '@/pages/InvitePage'
 import { ConnectBoxPage } from '@/pages/ConnectBoxPage'
+import { ConnectAiPage } from '@/pages/ConnectAiPage'
 import { InfraLogsPage } from '@/pages/InfraLogsPage'
 import { ConfigShell, ConfigIndexRedirect } from '@/pages/config/ConfigShell'
 import { AdminLayout } from '@/pages/admin/AdminLayout'
@@ -45,6 +46,7 @@ import { SharedDevicePromptHarness } from '@/pages/dev/SharedDevicePromptHarness
 import { SettingsCarHarness } from '@/pages/dev/SettingsCarHarness'
 import { SettingsSearchHarness } from '@/pages/dev/SettingsSearchHarness'
 import { BulkPermissionsHarness } from '@/pages/dev/BulkPermissionsHarness'
+import { ConnectAiHarness } from '@/pages/dev/ConnectAiHarness'
 import { RequireAuth } from '@/auth/RequireAuth'
 import { PlayerProvider } from '@/player/PlayerProvider'
 
@@ -85,6 +87,7 @@ export const router = createBrowserRouter([
         { path: '/dev/settings-car', element: <SettingsCarHarness /> },
         { path: '/dev/settings-search/*', element: <SettingsSearchHarness /> },
         { path: '/dev/bulk-perms', element: <BulkPermissionsHarness /> },
+        { path: '/dev/connect-ai', element: <ConnectAiHarness /> },
       ]
     : []),
 
@@ -152,6 +155,9 @@ export const router = createBrowserRouter([
       { path: '/pair', element: <PairRedirect /> },
       { path: '/invite', element: <InvitePage /> },
       { path: '/connect-box', element: <ConnectBoxPage /> },
+      // Sign-in bounce for the MCP server's OAuth flow: hands the MCP Worker a
+      // Clerk session token so an AI client can be connected in one click.
+      { path: '/connect-ai', element: <ConnectAiPage /> },
 
       // Platform-admin area (gated to the platform_admins roster by the CP).
       {
