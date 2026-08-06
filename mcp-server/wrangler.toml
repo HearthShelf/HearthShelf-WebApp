@@ -30,12 +30,14 @@ bindings = [{ name = "MCP_OBJECT", class_name = "HearthShelfMCP" }]
 tag = "v1"
 new_sqlite_classes = ["HearthShelfMCP"]
 
-# OAuth grant/token storage for @cloudflare/workers-oauth-provider. Create with:
+# OAuth grant/token storage for @cloudflare/workers-oauth-provider. Created with:
 #   wrangler kv namespace create hearthshelf-mcp-oauth
-# then paste the returned id below.
+# The binding MUST be OAUTH_KV - the library looks it up by that exact name, not
+# by the namespace title (so ignore the binding name Cloudflare's create snippet
+# suggests, which it derives from the title).
 [[kv_namespaces]]
 binding = "OAUTH_KV"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "fd881e99633d4c549ca51594cd05aaa4"
 
 [vars]
 # Public origin of THIS Worker. Used as the OAuth issuer and as the RFC 8707
