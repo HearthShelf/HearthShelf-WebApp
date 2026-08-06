@@ -29,6 +29,9 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 import { useToast } from '@/hooks/useToast'
 import { HomeSectionsEditor } from '@/components/home/HomeSectionsEditor'
+import { HomeClubShelf } from '@/components/home/HomeClubShelf'
+import { ReleaseCountdownBanner } from '@/components/home/ReleaseCountdownBanner'
+import { DashboardRow } from '@/components/home/DashboardRow'
 import { useDiscoverEnabled } from '@/hooks/useQuestGiver'
 import { useMonthlyShelf, useDiscoverFeedbackQuery } from '@/hooks/useDiscover'
 import { useQuestGiverPicks } from '@/hooks/useQuestGiverPicks'
@@ -394,6 +397,8 @@ export function HomePage() {
     else absBySection.set(section, [sh])
   }
 
+  // The taste-engine rows count as content, so a library with only suppressed
+  // ABS shelves still isn't "quiet".
   const hasAnyContent =
     absBySection.size > 0 ||
     inProgress.length > 0 ||
@@ -401,9 +406,15 @@ export function HomePage() {
     recBySection.size > 0 ||
     Boolean(aiPreview)
 
-  // The taste-engine rows count as content, so a library with only suppressed
-  // ABS shelves still isn't "quiet".
-  const nothing = !isLoading && !isError && !hasAnyContent
+  // Dashboard / countdown / clubs each fetch their own data and self-hide, so
+  // we can't know here whether they'll render. Any of them being switched on is
+  // enough to suppress the "quiet library" line - otherwise a reader with an
+  // empty library but an active club would get told nothing is here, directly
+  // above their club shelf.
+  const selfFetchingOn = homeSections.some(
+    (s) => s.on && (s.id === 'dashboard' || s.id === 'release-countdown' || s.id === 'book-club'),
+  )
+  const nothing = !isLoading && !isError && !hasAnyContent && !selfFetchingOn
   const allSectionsHidden = hasAnyContent && homeSections.every((s) => !s.on)
 
   // A plain taste-engine tile, shared by every recommendation band.
@@ -514,6 +525,15 @@ export function HomePage() {
         homeSections.map((sec) => {
           if (!sec.on) return null
           switch (sec.id) {
+            case 'dashboard':
+              return <DashboardRow key={sec.id} />
+
+            case 'release-countdown':
+              return <ReleaseCountdownBanner key={sec.id} />
+
+            case 'book-club':
+              return <HomeClubShelf key={sec.id} />
+
             // The monthly AI shelf rides with the QuestGiver band - both are the
             // "picked for you by name" flavour of recommendation.
             case 'questgiver':
