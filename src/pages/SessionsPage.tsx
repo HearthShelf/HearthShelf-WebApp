@@ -1,13 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
-import {
-  getListeningSessions,
-  type ListeningSession,
-  type ListeningSessionsPage,
-} from '@/api/absLibrary'
+import { getListeningSessions, type ListeningSessionsPage } from '@/api/absLibrary'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
-import { formatTimestamp, fmtSessDate } from '@hearthshelf/core'
+import { formatTimestamp, fmtSessDate, groupByDay } from '@hearthshelf/core'
 import { DeviceKindIcon } from '@/components/common/DeviceKindIcon'
 import { Cover, tintFor } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
@@ -37,17 +33,9 @@ export function SessionsPage() {
   const uniqueBooks = new Set(sessions.map((s) => s.itemId)).size
   const longest = sessions.reduce((m, s) => Math.max(m, s.timeListeningSec ?? 0), 0)
 
-  // Group sessions by day (array is already newest-first).
-  const groups = useMemo(() => {
-    const out: { day: string; rows: ListeningSession[] }[] = []
-    for (const s of sessions) {
-      const { day } = fmtSessDate(s.startedAt)
-      const last = out[out.length - 1]
-      if (last && last.day === day) last.rows.push(s)
-      else out.push({ day, rows: [s] })
-    }
-    return out
-  }, [sessions])
+  // Group sessions by day (array is already newest-first). Shared with the
+  // self-hosted app and mobile so all three group history identically.
+  const groups = useMemo(() => groupByDay(sessions, (s) => s.startedAt), [sessions])
 
   if (!target) return null
 
@@ -110,10 +98,10 @@ export function SessionsPage() {
 
           <div style={isFetching ? { opacity: 0.6 } : undefined}>
             {groups.map((g) => (
-              <div className="section" key={g.day}>
-                <div className="sh-day">{g.day}</div>
+              <div className="section" key={g.title}>
+                <div className="sh-day">{g.title}</div>
                 <div className="sh-list">
-                  {g.rows.map((s) => {
+                  {g.data.map((s) => {
                     const when = fmtSessDate(s.startedAt)
                     return (
                       <div
