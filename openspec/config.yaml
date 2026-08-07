@@ -1,0 +1,60 @@
+schema: spec-driven
+
+context: |
+  HearthShelf's web SPA. This repo (HearthShelf-WebApp) is the hosted front
+  door at app.hearthshelf.com; C:\code\HearthShelf is the self-hosted SPA that
+  ships inside the AIO image. The two carry heavily drifted copies of the same
+  screens, and a current goal is reducing that drift - a spec here usually
+  applies to both repos, and should say so explicitly when it does.
+
+  Tech stack: TypeScript, React, Vite, TanStack Query, Zustand. Hosted mode
+  authenticates via Clerk and talks to a per-server ABS origin with a bearer
+  token; self-hosted is same-origin with an ambient token. That difference is
+  the main reason the two copies diverge, so specs should be written against
+  behaviour and name the seam rather than assuming one auth model.
+
+  Shared logic lives in @hearthshelf/core, a git submodule at packages/core,
+  consumed by both web apps and the mobile app. Core changes are made in
+  C:\code\HearthShelf-Core and pulled in - never edited in the submodule
+  checkout.
+
+  Endpoints are either ABS-native (/api/*) or the HearthShelf Node backend
+  (/hs/*). Which one matters: /hs/* routes live in C:\code\HearthShelf/server
+  and may need server work in that repo.
+
+  Conventions:
+  - Commit summaries are user-facing via an automated changelog: prefix with
+    new:, improved: or fixes: and write the first line in plain language.
+  - Backend calls degrade rather than throw: a surface hides itself instead of
+    breaking the page.
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     Tech stack: TypeScript, React, Node.js
+#     We use conventional commits
+#     Domain: e-commerce platform
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
