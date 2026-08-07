@@ -37,6 +37,7 @@ export function PlaylistDetailPage() {
   }
 
   const items = data.items
+  const firstBook = items.find((it) => !it.isEpisode)
   const cv = tintFor(items[0]?.title ?? data.name)
 
   return (
@@ -60,11 +61,13 @@ export function PlaylistDetailPage() {
           {items.length} {items.length === 1 ? 'item' : 'items'}
         </span>
         <div className="tb-spacer" />
-        {items[0] && (
+        {/* Play starts the first BOOK - playback addresses a library item, so
+            leading with an episode would start its whole podcast instead. */}
+        {firstBook && (
           <button
             type="button"
             className="btn btn-primary"
-            onClick={() => ui.playItem(items[0].libraryItemId)}
+            onClick={() => ui.playItem(firstBook.libraryItemId)}
           >
             <Icon name="play_arrow" fill /> Play
           </button>
@@ -78,38 +81,50 @@ export function PlaylistDetailPage() {
         </div>
       ) : (
         <div className="pl-list">
-          {items.map((it) => (
+          {items.map((it, i) => (
             <button
               type="button"
               className="pl-row"
-              key={it.libraryItemId}
+              key={(it.episodeId ?? it.libraryItemId) + ':' + i}
               data-cv={tintFor(it.title)}
+              // No episode route exists yet, so an episode row opens its
+              // containing podcast - the honest destination available today.
               onClick={() => navigate(`/book/${it.libraryItemId}`)}
             >
               <Cover itemId={it.libraryItemId} title={it.title} fs={5} />
               <div style={{ minWidth: 0 }}>
                 <div className="ll-title">{it.title}</div>
-                <div className="ll-sub">{it.author}</div>
+                <div className="ll-sub">
+                  {it.isEpisode ? 'Episode · ' : ''}
+                  {it.author}
+                </div>
               </div>
-              <span
-                className="ll-play"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  ui.playItem(it.libraryItemId)
-                }}
-                aria-label="Play"
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
+              {/* Playback addresses a library item, so a single episode gets no
+                  play control until podcast playback exists - one here would
+                  start the whole show. */}
+              {it.isEpisode ? (
+                <span className="ll-play" aria-hidden />
+              ) : (
+                <span
+                  className="ll-play"
+                  onClick={(e) => {
                     e.stopPropagation()
                     ui.playItem(it.libraryItemId)
-                  }
-                }}
-              >
-                <Icon name="play_arrow" fill />
-              </span>
+                  }}
+                  aria-label="Play"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      ui.playItem(it.libraryItemId)
+                    }
+                  }}
+                >
+                  <Icon name="play_arrow" fill />
+                </span>
+              )}
             </button>
           ))}
         </div>

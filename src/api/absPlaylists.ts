@@ -6,13 +6,21 @@
  * grid (cover stack) and detail page (ordered list) render. Over the ambient
  * server's ABS, like every other read.
  */
+import { resolvePlaylistEntry, type ABSPlaylistItem } from '@hearthshelf/core'
 import { absGet, absDelete } from './absClient'
 import type { AbsTarget } from './absLibrary'
 
 export interface PlaylistItemRef {
   libraryItemId: string
   title: string
+  /** The author for a book; the containing podcast's name for an episode. */
   author: string
+  /** True when this entry addresses a single podcast episode. */
+  isEpisode: boolean
+  /** Present only on episode entries - identifies which episode. */
+  episodeId?: string
+  /** Seconds, from the episode when there is one. 0 when ABS gives none. */
+  seconds: number
 }
 
 export interface PlaylistSummary {
@@ -22,12 +30,17 @@ export interface PlaylistSummary {
   items: PlaylistItemRef[]
 }
 
+// ABS emits TWO item shapes (Playlist.toOldJSONExpanded, Playlist.js:347):
+// a book entry has only { libraryItemId, libraryItem }, while an episode entry
+// adds { episodeId, episode } AND minifies libraryItem down to the podcast.
 interface RawPlaylistItem {
   libraryItemId?: string
   libraryItem?: {
     id?: string
-    media?: { metadata?: { title?: string; authorName?: string } }
+    media?: { duration?: number; metadata?: { title?: string; authorName?: string } }
   }
+  episodeId?: string
+  episode?: { title?: string; duration?: number | null }
 }
 
 interface RawPlaylist {
@@ -42,11 +55,20 @@ function mapPlaylist(p: RawPlaylist): PlaylistSummary {
     id: p.id,
     name: p.name || 'Playlist',
     description: p.description || '',
-    items: (p.items ?? []).map((it) => ({
-      libraryItemId: it.libraryItemId || it.libraryItem?.id || '',
-      title: it.libraryItem?.media?.metadata?.title || 'Untitled',
-      author: it.libraryItem?.media?.metadata?.authorName || '',
-    })),
+    // Resolution lives in @hearthshelf/core so all three clients agree on
+    // which shape is which - `episode` is the discriminator, NOT a non-null
+    // episodeId (both keys are absent on a book entry).
+    items: (p.items ?? []).map((it) => {
+      const r = resolvePlaylistEntry(it as unknown as ABSPlaylistItem)
+      return {
+        libraryItemId: r.libraryItemId || it.libraryItem?.id || '',
+        title: r.title,
+        author: r.source,
+        isEpisode: r.isEpisode,
+        episodeId: r.episodeId,
+        seconds: r.seconds,
+      }
+    }),
   }
 }
 

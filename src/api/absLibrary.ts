@@ -313,6 +313,44 @@ export async function getCollection(t: AbsTarget, collectionId: string): Promise
   }
 }
 
+/**
+ * Rename a collection (or edit its description).
+ *
+ * ABS gates this on the caller's `canUpdate` permission
+ * (CollectionController.js:450) - a collection is library-wide, so changing one
+ * changes it for everyone on the server.
+ */
+export async function updateCollection(
+  t: AbsTarget,
+  collectionId: string,
+  patch: { name?: string; description?: string },
+): Promise<void> {
+  await absPatch(t, `/api/collections/${encodeURIComponent(collectionId)}`, patch)
+}
+
+/** Delete a collection. Gated on `canDelete`. The books stay in the library. */
+export async function deleteCollection(t: AbsTarget, collectionId: string): Promise<void> {
+  await absDelete(t, `/api/collections/${encodeURIComponent(collectionId)}`)
+}
+
+/**
+ * Take one book out of a collection. Gated on `canUpdate` - ABS treats removing
+ * a book as an update, not a delete (CollectionController.js:447).
+ *
+ * The path segment is ABS's `:bookId`, but it wants the LIBRARY ITEM id: the
+ * controller looks the library item up and resolves its mediaId itself.
+ */
+export async function removeBookFromCollection(
+  t: AbsTarget,
+  collectionId: string,
+  libraryItemId: string,
+): Promise<void> {
+  await absDelete(
+    t,
+    `/api/collections/${encodeURIComponent(collectionId)}/book/${encodeURIComponent(libraryItemId)}`,
+  )
+}
+
 // --- item detail + playback ------------------------------------------------
 
 /** One audio track in a book, with its cumulative offset from book start. */
