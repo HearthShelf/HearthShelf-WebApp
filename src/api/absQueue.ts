@@ -57,6 +57,19 @@ export function recomputeServerQueue(
   })
 }
 
+/** What the Auto-mode UI needs to explain itself: when this user's queue last
+ *  changed, and when the nightly catch-up next runs (ms epoch, or null if the
+ *  server has no usable schedule). Not admin-gated - every Auto user sees it. */
+export interface QueueStatus {
+  mode: string
+  updatedAt: number
+  nextRebuildAt: number | null
+}
+
+export function getQueueStatus(t: AbsTarget): Promise<QueueStatus> {
+  return queueFetch<QueueStatus>(t, '/hs/queue/status')
+}
+
 /** Push the (Manual) queue. The server LWW-guards on updatedAt and returns the
  *  row that ended up stored plus whether the write applied. */
 export function putServerQueue(

@@ -9,6 +9,7 @@ import { getPlaylistsList } from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
 import { SetRow, Seg } from '@/components/settings/controls'
 import { ManualQueueEditor } from '@/components/player/ManualQueueEditor'
+import { AutoQueueInfo } from '@/components/settings/AutoQueueInfo'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
 
 const QUEUE_MODES: { value: QueueMode; label: string }[] = [
@@ -172,6 +173,7 @@ export function QueueSettings() {
             stacked
           >
             <RuleList rules={s.queueAutoRules} onChange={(r) => set('queueAutoRules', r)} />
+            <AutoQueueInfo />
           </SetRow>
         )}
         {(s.queueMode === 'manual' || s.queueMode === 'auto') && (
