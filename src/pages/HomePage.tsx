@@ -318,6 +318,7 @@ export function HomePage() {
     const ranked = rankDiscoverShelves(shelves, libById, {
       questGiverPicks,
       feedback: feedback ?? {},
+      progressById,
     })
     let generated = 0
     for (const s of ranked) {

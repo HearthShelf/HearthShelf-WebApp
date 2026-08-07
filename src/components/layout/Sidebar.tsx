@@ -45,11 +45,34 @@ function groupForPath(path: string): string {
 }
 
 interface NavItemDef {
-  id: string
   icon: string
   label: string
   to: string
   badge?: number | null
+  active: boolean
+  collapsed: boolean
+  onNavigate: (to: string) => void
+}
+
+// Declared at module scope, NOT inside Sidebar. A component defined in the
+// render body is a new type every render, so React unmounts and remounts every
+// nav button instead of reconciling it - which restarts the CSS background
+// transition and made the hover fill flash once a second while audio played
+// (the player's position tick re-renders this whole shell).
+function Item({ icon, label, to, badge, active, collapsed, onNavigate }: NavItemDef) {
+  return (
+    <button
+      className={'nav-item' + (active ? ' active' : '')}
+      onClick={() => onNavigate(to)}
+      // When collapsed the label is hidden, so expose it as a tooltip.
+      title={collapsed ? label : undefined}
+      aria-label={label}
+    >
+      <Icon name={icon} fill={active} />
+      <span className="ni-label">{label}</span>
+      {badge != null && <span className="ni-badge">{badge}</span>}
+    </button>
+  )
 }
 
 function UserMenu() {
@@ -142,22 +165,9 @@ export function Sidebar() {
 
   const collapsed = useNavCollapsed()
 
-  const Item = ({ id, icon, label, to, badge }: NavItemDef) => {
-    const active = group === id
-    return (
-      <button
-        className={'nav-item' + (active ? ' active' : '')}
-        onClick={() => navigate(to)}
-        // When collapsed the label is hidden, so expose it as a tooltip.
-        title={collapsed ? label : undefined}
-        aria-label={label}
-      >
-        <Icon name={icon} fill={active} />
-        <span className="ni-label">{label}</span>
-        {badge != null && <span className="ni-badge">{badge}</span>}
-      </button>
-    )
-  }
+  // Shared per-render props for every nav item. Spread rather than wrapped in a
+  // component, so the element type stays the module-scope `Item`.
+  const itemProps = { collapsed, onNavigate: navigate }
 
   return (
     <aside className="sidebar">
@@ -185,25 +195,61 @@ export function Sidebar() {
       </button>
 
       <nav className="nav">
-        <Item id="home" icon="home" label="Home" to="/" />
-        <Item id="library" icon="grid_view" label="Library" to="/library" />
+        <Item {...itemProps} active={group === 'home'} icon="home" label="Home" to="/" />
+        <Item
+          {...itemProps}
+          active={group === 'library'}
+          icon="grid_view"
+          label="Library"
+          to="/library"
+        />
 
         {isPodcast ? (
           <>
             <div className="nav-label">Podcasts</div>
-            <Item id="podcasts" icon="podcasts" label="Latest" to="/podcasts/latest" />
+            <Item
+              {...itemProps}
+              active={group === 'podcasts'}
+              icon="podcasts"
+              label="Latest"
+              to="/podcasts/latest"
+            />
             {isServerAdmin && (
               <>
-                <Item id="podcasts" icon="add_circle" label="Add podcast" to="/podcasts/add" />
-                <Item id="podcasts" icon="download" label="Download queue" to="/podcasts/queue" />
+                <Item
+                  {...itemProps}
+                  active={group === 'podcasts'}
+                  icon="add_circle"
+                  label="Add podcast"
+                  to="/podcasts/add"
+                />
+                <Item
+                  {...itemProps}
+                  active={group === 'podcasts'}
+                  icon="download"
+                  label="Download queue"
+                  to="/podcasts/queue"
+                />
               </>
             )}
           </>
         ) : (
           <>
             <div className="nav-label">Shelves</div>
-            <Item id="collections" icon="folder_special" label="Collections" to="/collections" />
-            <Item id="playlists" icon="queue_music" label="Playlists" to="/playlists" />
+            <Item
+              {...itemProps}
+              active={group === 'collections'}
+              icon="folder_special"
+              label="Collections"
+              to="/collections"
+            />
+            <Item
+              {...itemProps}
+              active={group === 'playlists'}
+              icon="queue_music"
+              label="Playlists"
+              to="/playlists"
+            />
           </>
         )}
 
@@ -211,31 +257,81 @@ export function Sidebar() {
           <>
             <div className="nav-label">Find</div>
             {questGiverEnabled && (
-              <Item id="questgiver" icon="favorite" label="QuestGiver" to="/questgiver" />
+              <Item
+                {...itemProps}
+                active={group === 'questgiver'}
+                icon="favorite"
+                label="QuestGiver"
+                to="/questgiver"
+              />
             )}
             {discoverEnabled && (
-              <Item id="discover" icon="explore" label="Discover" to="/discover" />
+              <Item
+                {...itemProps}
+                active={group === 'discover'}
+                icon="explore"
+                label="Discover"
+                to="/discover"
+              />
             )}
             {rmabEnabled && (
-              <Item id="requests" icon="cloud_download" label="Requests" to="/requests" />
+              <Item
+                {...itemProps}
+                active={group === 'requests'}
+                icon="cloud_download"
+                label="Requests"
+                to="/requests"
+              />
             )}
           </>
         )}
 
         {carMode ? (
-          <Item id="player" icon="graphic_eq" label="Now playing" to="/player" />
+          <Item
+            {...itemProps}
+            active={group === 'player'}
+            icon="graphic_eq"
+            label="Now playing"
+            to="/player"
+          />
         ) : (
           <>
             <div className="nav-label">Insights</div>
-            <Item id="stats" icon="insights" label="Stats" to="/stats" />
-            <Item id="sessions" icon="history" label="History" to="/sessions" />
-            <Item id="player" icon="graphic_eq" label="Now playing" to="/player" />
+            <Item
+              {...itemProps}
+              active={group === 'stats'}
+              icon="insights"
+              label="Stats"
+              to="/stats"
+            />
+            <Item
+              {...itemProps}
+              active={group === 'sessions'}
+              icon="history"
+              label="History"
+              to="/sessions"
+            />
+            <Item
+              {...itemProps}
+              active={group === 'player'}
+              icon="graphic_eq"
+              label="Now playing"
+              to="/player"
+            />
           </>
         )}
 
         <div className="nav-sep" />
-        {!carMode && isServerAdmin && <Item id="config" icon="dns" label="Server" to="/config" />}
-        <Item id="settings" icon="settings" label="Settings" to="/account" />
+        {!carMode && isServerAdmin && (
+          <Item {...itemProps} active={group === 'config'} icon="dns" label="Server" to="/config" />
+        )}
+        <Item
+          {...itemProps}
+          active={group === 'settings'}
+          icon="settings"
+          label="Settings"
+          to="/account"
+        />
         {carMode && (
           <button
             className="nav-item"
