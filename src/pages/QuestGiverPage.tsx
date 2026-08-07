@@ -209,11 +209,10 @@ export function QuestGiverPage() {
       count: lookBeyond ? 5 : 4,
     }
 
-    // Library pool always; external pool (catalog search) when looking beyond and
-    // the RMAB catalog is connected.
+    // Library pool always; external pool (catalog search) when looking beyond.
     let candidates: QgCandidate[] = qgLibraryCandidates(books)
     const externalById = new Map<string, QgCandidate>()
-    if (lookBeyond && rmabEnabled) {
+    if (lookBeyond) {
       const terms = qgExternalSearchTerms(profile, books, weights ?? {})
       const hits = await fetchExternalHits(terms)
       const ext = qgExternalCandidates(hits, books)
