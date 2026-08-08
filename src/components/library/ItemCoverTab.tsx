@@ -11,7 +11,7 @@ interface ItemCoverTabProps {
   itemId: string
   defaultTitle: string
   defaultAuthor: string
-  onApplied: (msg: string) => void
+  onApplied: (msg: string) => Promise<void> | void
 }
 
 // Current cover preview + provider cover search; clicking a result sets it.
@@ -29,6 +29,9 @@ export function ItemCoverTab({
   const [searching, setSearching] = useState(false)
   const [applying, setApplying] = useState<string | null>(null)
   const [urlInput, setUrlInput] = useState('')
+  // ABS serves the cover from a stable URL, so remount the preview after a
+  // change or the browser keeps showing the cached image.
+  const [coverNonce, setCoverNonce] = useState(0)
 
   const run = async () => {
     setSearching(true)
@@ -43,9 +46,12 @@ export function ItemCoverTab({
     setApplying(url)
     try {
       await updateItemCover(target, itemId, url)
-      qc.invalidateQueries({ queryKey: ['abs-book-detail', target.serverId, itemId] })
-      qc.invalidateQueries({ queryKey: ['abs-item', target.serverId, itemId] })
-      onApplied('Cover updated')
+      await Promise.all([
+        qc.refetchQueries({ queryKey: ['abs-book-detail', target.serverId, itemId] }),
+        qc.refetchQueries({ queryKey: ['abs-item', target.serverId, itemId] }),
+      ])
+      setCoverNonce((n) => n + 1)
+      await onApplied('Cover updated')
     } finally {
       setApplying(null)
     }
@@ -54,7 +60,13 @@ export function ItemCoverTab({
   return (
     <div className="cover-tab">
       <div className="cur">
-        <Cover itemId={itemId} title={defaultTitle} author={defaultAuthor} width={240} />
+        <Cover
+          key={coverNonce}
+          itemId={itemId}
+          title={defaultTitle}
+          author={defaultAuthor}
+          width={240}
+        />
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>Current</div>
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>

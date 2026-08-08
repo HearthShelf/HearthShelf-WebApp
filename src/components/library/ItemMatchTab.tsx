@@ -15,7 +15,7 @@ interface ItemMatchTabProps {
   itemId: string
   defaultTitle: string
   defaultAuthor: string
-  onApplied: (msg: string) => void
+  onApplied: (msg: string) => Promise<void> | void
 }
 
 // Compact "5h 12m" label from a run length given in minutes (ABS match duration).
@@ -70,9 +70,13 @@ export function ItemMatchTab({
         overrideCover: true,
         overrideDetails: true,
       })
-      qc.invalidateQueries({ queryKey: ['abs-book-detail', target.serverId, itemId] })
-      qc.invalidateQueries({ queryKey: ['abs-item', target.serverId, itemId] })
-      onApplied(`Matched to "${r.title}"`)
+      // Await the refetch so the edit form can reseed from the matched values
+      // rather than asking the user to reopen the modal.
+      await Promise.all([
+        qc.refetchQueries({ queryKey: ['abs-book-detail', target.serverId, itemId] }),
+        qc.refetchQueries({ queryKey: ['abs-item', target.serverId, itemId] }),
+      ])
+      await onApplied(`Matched to "${r.title}"`)
     } finally {
       setApplying(null)
     }

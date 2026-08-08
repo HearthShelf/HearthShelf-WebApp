@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   updateItemMetadata,
+  getBookDetailFull,
   getLibraryFilterData,
   deleteItemFile,
   reorderItemTracks,
@@ -32,6 +33,48 @@ function Field({ label, full, children }: { label: string; full?: boolean; child
   )
 }
 
+interface EditForm {
+  title: string
+  subtitle: string
+  publishedYear: string
+  publishedDate: string
+  publisher: string
+  isbn: string
+  asin: string
+  language: string
+  genres: string[]
+  tags: string[]
+  description: string
+  explicit: boolean
+  abridged: boolean
+  authors: string[]
+  narrators: string[]
+  series: ItemSeriesPatch[]
+}
+
+// Every editable field, straight off the item. Used both to seed the form and to
+// reseed it after a provider match rewrites the item server-side.
+function seedForm(item: BookDetailFull): EditForm {
+  return {
+    title: item.title ?? '',
+    subtitle: item.subtitle ?? '',
+    publishedYear: item.publishedYear ?? '',
+    publishedDate: item.publishedDate ?? '',
+    publisher: item.publisher ?? '',
+    isbn: item.isbn ?? '',
+    asin: item.asin ?? '',
+    language: item.language ?? '',
+    genres: item.genres ?? [],
+    tags: item.tags ?? [],
+    description: item.description ?? '',
+    explicit: Boolean(item.explicit),
+    abridged: Boolean(item.abridged),
+    authors: item.allAuthors ?? [],
+    narrators: item.allNarrators ?? [],
+    series: (item.allSeries ?? []).map((s) => ({ name: s.name, sequence: s.sequence })),
+  }
+}
+
 interface ItemEditModalProps {
   target: AbsTarget
   item: BookDetailFull
@@ -50,26 +93,37 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
   const [tab, setTab] = useState('Details')
   const [editingChapters, setEditingChapters] = useState(false)
   const [appliedNote, setAppliedNote] = useState<string | null>(null)
-  const [title, setTitle] = useState(item.title ?? '')
-  const [subtitle, setSubtitle] = useState(item.subtitle ?? '')
-  const [publishedYear, setPublishedYear] = useState(item.publishedYear ?? '')
-  const [publishedDate, setPublishedDate] = useState(item.publishedDate ?? '')
-  const [publisher, setPublisher] = useState(item.publisher ?? '')
-  const [isbn, setIsbn] = useState(item.isbn ?? '')
-  const [asin, setAsin] = useState(item.asin ?? '')
-  const [language, setLanguage] = useState(item.language ?? '')
-  const [genres, setGenres] = useState<string[]>(item.genres ?? [])
-  const [tags, setTags] = useState<string[]>(item.tags ?? [])
-  const [description, setDescription] = useState(item.description ?? '')
-  const [explicit, setExplicit] = useState(Boolean(item.explicit))
-  const [abridged, setAbridged] = useState(Boolean(item.abridged))
-  const [authors, setAuthors] = useState<string[]>(item.allAuthors ?? [])
-  const [narrators, setNarrators] = useState<string[]>(item.allNarrators ?? [])
-  const [series, setSeries] = useState<ItemSeriesPatch[]>(() =>
-    (item.allSeries ?? []).map((s) => ({ name: s.name, sequence: s.sequence })),
-  )
+  const [form, setForm] = useState<EditForm>(() => seedForm(item))
   const [saving, setSaving] = useState(false)
   const [savedNote, setSavedNote] = useState<string | null>(null)
+
+  const {
+    title,
+    subtitle,
+    publishedYear,
+    publishedDate,
+    publisher,
+    isbn,
+    asin,
+    language,
+    genres,
+    tags,
+    description,
+    explicit,
+    abridged,
+    authors,
+    narrators,
+    series,
+  } = form
+
+  // One setter per field keeps the JSX below unchanged from plain useState.
+  const set = <K extends keyof EditForm>(key: K) => {
+    return (value: EditForm[K] | ((cur: EditForm[K]) => EditForm[K])) =>
+      setForm((cur) => ({
+        ...cur,
+        [key]: typeof value === 'function' ? (value as (c: EditForm[K]) => EditForm[K])(cur[key]) : value,
+      }))
+  }
 
   // Existing library values for type-ahead. Optional - the form works without.
   const { data: filterData } = useQuery({
@@ -134,9 +188,15 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
     </>
   )
 
-  // A provider match/cover was applied. The item query is invalidated, so jump
-  // back to Details and leave a note - reopening the modal shows the fresh fields.
-  const onApplied = (msg: string) => {
+  // A provider match/cover was applied. The tab already awaited the refetch, so
+  // the rewritten item is in cache - reseed the form from it and show Details
+  // with the new values already filled in.
+  const onApplied = async (msg: string) => {
+    const fresh = await qc.fetchQuery({
+      queryKey: ['abs-book-detail', target.serverId, item.id],
+      queryFn: () => getBookDetailFull(target, item.id),
+    })
+    if (fresh) setForm(seedForm(fresh))
     setAppliedNote(msg)
     setTab('Details')
   }
@@ -179,24 +239,24 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
             {appliedNote && (
               <div className="field full">
                 <span style={{ color: '#a7c896', fontSize: 13 }}>
-                  <Icon name="check" /> {appliedNote} - reopen to see updated fields
+                  <Icon name="check" /> {appliedNote}
                 </span>
               </div>
             )}
             <Field label="Title" full>
-              <input className="fld" value={title} onChange={(e) => setTitle(e.target.value)} />
+              <input className="fld" value={title} onChange={(e) => set('title')(e.target.value)} />
             </Field>
             <Field label="Subtitle" full>
               <input
                 className="fld"
                 value={subtitle}
-                onChange={(e) => setSubtitle(e.target.value)}
+                onChange={(e) => set('subtitle')(e.target.value)}
               />
             </Field>
             <Field label="Authors" full>
               <SuggestChips
                 items={authors}
-                onChange={setAuthors}
+                onChange={set('authors')}
                 suggestions={(filterData?.authors ?? []).map((a) => a.name)}
                 placeholder="Add author…"
               />
@@ -204,14 +264,14 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
             <Field label="Series" full>
               <SeriesEditor
                 series={series}
-                onChange={setSeries}
+                onChange={set('series')}
                 suggestions={(filterData?.series ?? []).map((s) => s.name)}
               />
             </Field>
             <Field label="Narrators" full>
               <SuggestChips
                 items={narrators}
-                onChange={setNarrators}
+                onChange={set('narrators')}
                 suggestions={filterData?.narrators ?? []}
                 placeholder="Add narrator…"
               />
@@ -220,7 +280,7 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
               <input
                 className="fld"
                 value={publishedYear}
-                onChange={(e) => setPublishedYear(e.target.value)}
+                onChange={(e) => set('publishedYear')(e.target.value)}
               />
             </Field>
             <Field label="Publish date">
@@ -228,33 +288,33 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
                 className="fld"
                 type="date"
                 value={publishedDate}
-                onChange={(e) => setPublishedDate(e.target.value)}
+                onChange={(e) => set('publishedDate')(e.target.value)}
               />
             </Field>
             <Field label="Publisher">
               <input
                 className="fld"
                 value={publisher}
-                onChange={(e) => setPublisher(e.target.value)}
+                onChange={(e) => set('publisher')(e.target.value)}
               />
             </Field>
             <Field label="Language">
               <input
                 className="fld"
                 value={language}
-                onChange={(e) => setLanguage(e.target.value)}
+                onChange={(e) => set('language')(e.target.value)}
               />
             </Field>
             <Field label="ISBN">
-              <input className="fld" value={isbn} onChange={(e) => setIsbn(e.target.value)} />
+              <input className="fld" value={isbn} onChange={(e) => set('isbn')(e.target.value)} />
             </Field>
             <Field label="ASIN">
-              <input className="fld" value={asin} onChange={(e) => setAsin(e.target.value)} />
+              <input className="fld" value={asin} onChange={(e) => set('asin')(e.target.value)} />
             </Field>
             <Field label="Genres">
               <SuggestChips
                 items={genres}
-                onChange={setGenres}
+                onChange={set('genres')}
                 suggestions={filterData?.genres ?? []}
                 placeholder="Add genre…"
               />
@@ -262,7 +322,7 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
             <Field label="Tags" full>
               <SuggestChips
                 items={tags}
-                onChange={setTags}
+                onChange={set('tags')}
                 suggestions={filterData?.tags ?? []}
                 placeholder="Add tag…"
               />
@@ -272,7 +332,7 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
                 className="fld"
                 rows={5}
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => set('description')(e.target.value)}
               />
             </Field>
             <div className="field-row" style={{ borderTop: 'none' }}>
@@ -283,7 +343,7 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
                 className={'toggle' + (explicit ? ' on' : '')}
                 role="switch"
                 aria-checked={explicit}
-                onClick={() => setExplicit((v) => !v)}
+                onClick={() => set('explicit')((v) => !v)}
               >
                 <i />
               </div>
@@ -296,7 +356,7 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
                 className={'toggle' + (abridged ? ' on' : '')}
                 role="switch"
                 aria-checked={abridged}
-                onClick={() => setAbridged((v) => !v)}
+                onClick={() => set('abridged')((v) => !v)}
               >
                 <i />
               </div>
