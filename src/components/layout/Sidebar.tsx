@@ -37,6 +37,7 @@ function groupForPath(path: string): string {
   if (path.startsWith('/discover')) return 'discover'
   if (path.startsWith('/requests')) return 'requests'
   if (path.startsWith('/stats')) return 'stats'
+  if (path.startsWith('/finished')) return 'finished'
   if (path.startsWith('/sessions')) return 'sessions'
   if (path.startsWith('/player')) return 'player'
   if (path.startsWith('/account')) return 'settings'
@@ -303,6 +304,13 @@ export function Sidebar() {
               icon="insights"
               label="Stats"
               to="/stats"
+            />
+            <Item
+              {...itemProps}
+              active={group === 'finished'}
+              icon="check_circle"
+              label="Finished"
+              to="/finished"
             />
             <Item
               {...itemProps}

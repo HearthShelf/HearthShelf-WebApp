@@ -89,7 +89,7 @@ export async function getDiscoverFeedback(t: AbsTarget): Promise<DiscoverFeedbac
 export async function setDiscoverFeedback(
   t: AbsTarget,
   itemKey: string,
-  fb: { vote?: DiscoverVote | null; rating?: number | null },
+  fb: { vote?: DiscoverVote | null },
 ): Promise<DiscoverFeedbackMap> {
   try {
     const r = await dFetch<{ feedback: DiscoverFeedbackMap }>(t, '/feedback', {

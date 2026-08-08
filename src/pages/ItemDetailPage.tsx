@@ -23,6 +23,8 @@ import { Avatar } from '@/components/common/Avatar'
 import { ImageZoomViewer } from '@/components/common/ImageZoomViewer'
 import { Icon } from '@/components/common/Icon'
 import { Stars } from '@/components/common/Stars'
+import { StarRating } from '@/components/common/StarRating'
+import { useRatings, useSetRating } from '@/hooks/useRatings'
 import { Dropdown, MItem } from '@/components/common/Dropdown'
 import { ItemEditModal } from '@/components/library/ItemEditModal'
 import { ChapterEditorModal, type EditableChapter } from '@/components/library/ChapterEditorModal'
@@ -65,6 +67,8 @@ export function ItemDetailPage() {
   const ui = useMediaUI()
   const progressById = useMediaProgress()
   const { markFinishedPrompted, isPending: marking } = usePromptedMarkFinished()
+  const { data: ratings } = useRatings()
+  const setRating = useSetRating()
   const { toast, show } = useToast()
   const { confirm } = useConfirm()
   const qc = useQueryClient()
@@ -205,6 +209,8 @@ export function ItemDetailPage() {
   }))
   const tracks = data.audioFiles
   const duration = data.durationSec
+  // ABS's scraped community rating, read-only. The user's own rating is separate
+  // (book_ratings) and rendered above it.
   const rating = data.rating
   const hasEbook = !!data.ebookFile || !!data.ebookFormat
   const ebookOnly = hasEbook && tracks.length === 0
@@ -389,9 +395,16 @@ export function ItemDetailPage() {
                 </dd>
               </>
             )}
+            <dt>Your rating</dt>
+            <dd>
+              <StarRating
+                value={ratings?.[data.id] ?? null}
+                onChange={(n) => setRating.mutate({ itemKey: data.id, rating: n })}
+              />
+            </dd>
             {rating != null && rating > 0 && (
               <>
-                <dt>Rating</dt>
+                <dt>Community</dt>
                 <dd style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Stars rating={rating} />
                   <span className="mono" style={{ fontFamily: 'var(--font-mono)' }}>

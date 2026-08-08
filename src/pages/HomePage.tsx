@@ -34,6 +34,7 @@ import { ReleaseCountdownBanner } from '@/components/home/ReleaseCountdownBanner
 import { DashboardRow } from '@/components/home/DashboardRow'
 import { useDiscoverEnabled } from '@/hooks/useQuestGiver'
 import { useMonthlyShelf, useDiscoverFeedbackQuery } from '@/hooks/useDiscover'
+import { useRatings } from '@/hooks/useRatings'
 import { useQuestGiverPicks } from '@/hooks/useQuestGiverPicks'
 import {
   getSeries,
@@ -303,6 +304,7 @@ export function HomePage() {
   const hasLib = libItems.length > 0
   const questGiverPicks = useQuestGiverPicks(discoverEnabled && hasLib)
   const { data: feedback } = useDiscoverFeedbackQuery(discoverEnabled && hasLib)
+  const { data: ratings } = useRatings(discoverEnabled && hasLib)
   const { data: monthly } = useMonthlyShelf(libItems, progressById, discoverEnabled && hasLib)
 
   // Taste-engine rows keyed by the Home section they belong to, so the
@@ -318,6 +320,7 @@ export function HomePage() {
     const ranked = rankDiscoverShelves(shelves, libById, {
       questGiverPicks,
       feedback: feedback ?? {},
+      ratings: ratings ?? {},
       progressById,
     })
     let generated = 0
@@ -340,6 +343,7 @@ export function HomePage() {
     libById,
     questGiverPicks,
     feedback,
+    ratings,
     recShelfCount,
   ])
 

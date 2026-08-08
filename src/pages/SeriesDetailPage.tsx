@@ -11,6 +11,8 @@ import type { OwnedSeriesBook } from '@hearthshelf/core'
 import { SeriesMissingBooks } from '@/components/requests/SeriesMissingBooks'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
 import { usePromptedMarkFinished } from '@/hooks/useMarkFinished'
+import { useRatings, useSetRating } from '@/hooks/useRatings'
+import { StarRating } from '@/components/common/StarRating'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useToast } from '@/hooks/useToast'
@@ -64,6 +66,8 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
   const ui = useMediaUI()
   const progressById = useMediaProgress()
   const { markFinishedPrompted, isPending: marking } = usePromptedMarkFinished()
+  const { data: ratings } = useRatings()
+  const setRating = useSetRating()
   const isMobile = useIsMobile()
   const { toast, show } = useToast()
   const books = orderBooks(series.books ?? [])
@@ -390,7 +394,17 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
                       </div>
                     )}
                   </div>
-                  <div className="sl-rating" />
+                  <div className="sl-rating">
+                    {/* Suppressed in select mode: per-row rating and bulk select
+                        compete for the same click. */}
+                    {!active && (
+                      <StarRating
+                        value={ratings?.[b.id] ?? null}
+                        onChange={(n) => setRating.mutate({ itemKey: b.id, rating: n })}
+                        size={15}
+                      />
+                    )}
+                  </div>
                   <button
                     className="icon-btn sl-play"
                     onClick={(e) => {

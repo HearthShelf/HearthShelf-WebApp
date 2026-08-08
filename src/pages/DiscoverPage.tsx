@@ -19,6 +19,7 @@ import { SectionHead } from '@/components/common/SectionHead'
 import { BookTile } from '@/components/library/BookTile'
 import { QuestGiverEntry } from '@/components/questgiver/QuestGiverEntry'
 import { DiscoverAiTile } from '@/components/discover/DiscoverAiTile'
+import { useRatings, useSetRating } from '@/hooks/useRatings'
 import { DiscoverSearch } from '@/components/discover/DiscoverSearch'
 import { buildDiscoverShelves, rankDiscoverShelves } from '@hearthshelf/core'
 
@@ -63,15 +64,25 @@ export function DiscoverPage() {
   const { data: popular } = usePopular(hasItems)
   const questGiverPicks = useQuestGiverPicks(hasItems)
   const setFeedback = useSetDiscoverFeedback()
+  // Ratings come from /hs/ratings, not Discover feedback - the same map the book
+  // page writes, so a rating set here shows up there.
+  const { data: ratings } = useRatings(hasItems)
+  const setRating = useSetRating()
 
   const fbMap = useMemo(() => feedback ?? {}, [feedback])
+  const ratingMap = useMemo(() => ratings ?? {}, [ratings])
 
   // Apply the shared ranking layer: QuestGiver picks lead, liked/rated items float
   // up, disliked/not-interested items drop out - the same order Home previews.
   const shelves = useMemo(
     () =>
-      rankDiscoverShelves(baseShelves, byId, { questGiverPicks, feedback: fbMap, progressById }),
-    [baseShelves, byId, questGiverPicks, fbMap, progressById],
+      rankDiscoverShelves(baseShelves, byId, {
+        questGiverPicks,
+        feedback: fbMap,
+        ratings: ratingMap,
+        progressById,
+      }),
+    [baseShelves, byId, questGiverPicks, fbMap, ratingMap, progressById],
   )
 
   // AI-shelf picks resolved to owned items, with not_interested hidden.
@@ -100,7 +111,7 @@ export function DiscoverPage() {
 
   const onVote = (itemKey: string, vote: 'like' | 'dislike' | 'not_interested' | null) =>
     setFeedback.mutate({ itemKey, vote })
-  const onRate = (itemKey: string, rating: number | null) => setFeedback.mutate({ itemKey, rating })
+  const onRate = (itemKey: string, rating: number | null) => setRating.mutate({ itemKey, rating })
   const onNotInterested = (itemKey: string) =>
     setFeedback.mutate({ itemKey, vote: 'not_interested' })
 
@@ -143,6 +154,7 @@ export function DiscoverPage() {
                       progress={p?.progress ?? 0}
                       finished={p?.isFinished}
                       feedback={fbMap[item.id]}
+                      rating={ratingMap[item.id]}
                       onVote={onVote}
                       onRate={onRate}
                       onNotInterested={onNotInterested}

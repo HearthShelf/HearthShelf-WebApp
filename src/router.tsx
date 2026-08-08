@@ -21,6 +21,7 @@ import { RequestsPage } from '@/pages/RequestsPage'
 import { DiscoverPage } from '@/pages/DiscoverPage'
 import { QuestGiverPage } from '@/pages/QuestGiverPage'
 import { StatsPage } from '@/pages/StatsPage'
+import { FinishedBooksPage } from '@/pages/FinishedBooksPage'
 import { ClubRoomPage } from '@/pages/ClubRoomPage'
 import { SessionsPage } from '@/pages/SessionsPage'
 import { PlayerPage } from '@/pages/PlayerPage'
@@ -130,6 +131,7 @@ export const router = createBrowserRouter([
       { path: '/requests', element: withShell(<RequestsPage />) },
 
       { path: '/stats', element: withShell(<StatsPage />) },
+      { path: '/finished', element: withShell(<FinishedBooksPage />) },
       { path: '/club/:clubId', element: withShell(<ClubRoomPage />) },
       { path: '/sessions', element: withShell(<SessionsPage />) },
       { path: '/player', element: withShell(<PlayerPage />) },
