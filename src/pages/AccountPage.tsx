@@ -18,6 +18,8 @@ import { ActiveServerMediaUI } from '@/components/shared/ActiveServerMediaUI'
 import { CarModeSettings } from '@/components/settings/CarModeSettings'
 import { SleepTimerSettings } from '@/components/settings/SleepTimerSettings'
 import { BookClubSettings } from '@/components/settings/BookClubSettings'
+import { ConnectionsPage } from '@/pages/ConnectionsPage'
+import { DeveloperPage } from '@/pages/DeveloperPage'
 import { ReadingSettings } from '@/components/settings/ReadingSettings'
 import { AppearanceSettings } from '@/components/settings/AppearanceSettings'
 import { IntegrationsSettings } from '@/components/settings/IntegrationsSettings'
@@ -43,6 +45,8 @@ type Section =
   | 'account'
   | 'plan'
   | 'profile'
+  | 'connections'
+  | 'developer'
 
 const NAV: { label: string; items: { id: Section; icon: string; label: string }[] }[] = [
   {
@@ -80,6 +84,8 @@ const NAV: { label: string; items: { id: Section; icon: string; label: string }[
     items: [
       { id: 'profile', icon: 'manage_accounts', label: 'HearthShelf Account' },
       { id: 'servers', icon: 'dns', label: 'My servers' },
+      { id: 'connections', icon: 'power', label: 'Connected apps' },
+      { id: 'developer', icon: 'code', label: 'Developer' },
       { id: 'plan', icon: 'workspace_premium', label: 'Subscription' },
     ],
   },
@@ -123,6 +129,10 @@ export function AccountPage({ menuMode = false }: { menuMode?: boolean }) {
     switch (section) {
       case 'servers':
         return <MyServers />
+      case 'connections':
+        return <ConnectionsPage />
+      case 'developer':
+        return <DeveloperPage />
       case 'playback':
         return <PlaybackSettings />
       case 'queue':

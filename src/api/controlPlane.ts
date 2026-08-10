@@ -472,3 +472,144 @@ export async function refreshRemembered(handles: string[]): Promise<RememberedSn
   )
   return data.accounts
 }
+
+// --- third-party app connections -------------------------------------------
+
+/** A scope an app can request. Mirrors @hearthshelf/core's AppScope. */
+export type AppScope =
+  | 'library:read'
+  | 'library:write'
+  | 'progress:read'
+  | 'progress:write'
+  | 'admin'
+
+export interface AppSummary {
+  app_id: string
+  name: string
+  kind: 'instance' | 'cloud'
+  family: string | null
+  homepage_url: string | null
+  requested_scopes: AppScope[]
+  listing_status: 'unlisted' | 'pending' | 'listed'
+}
+
+export interface PendingAuthorization {
+  app: AppSummary
+  scopes: AppScope[]
+  /** 'own_instance' = the user's own copy of a self-hosted app; 'store' = a
+   *  reviewed cloud app. Informational framing for the consent screen - the
+   *  actual gate is enforced by the control plane. */
+  relationship: 'own_instance' | 'store'
+  servers: Array<{ id: string; name: string; role: 'admin' | 'user' }>
+}
+
+export interface AppInstallationSummary {
+  id: string
+  app_id: string
+  app_name: string
+  kind: 'instance' | 'cloud'
+  family: string | null
+  scopes: AppScope[]
+  server_ids: string[]
+  created_at: number
+  last_seen_at: number | null
+}
+
+/** What a pending user code is asking for. 403 = not this user's to authorize. */
+export async function fetchPendingAuthorization(userCode: string): Promise<PendingAuthorization> {
+  return request<PendingAuthorization>(`/apps/pending/${encodeURIComponent(userCode)}`)
+}
+
+export async function approveAuthorization(input: {
+  userCode: string
+  serverIds: string[]
+  scopes?: AppScope[]
+}): Promise<void> {
+  await request('/apps/approve', {
+    method: 'POST',
+    body: JSON.stringify({
+      user_code: input.userCode,
+      server_ids: input.serverIds,
+      ...(input.scopes ? { scopes: input.scopes } : {}),
+    }),
+  })
+}
+
+export async function denyAuthorization(userCode: string): Promise<void> {
+  await request('/apps/deny', { method: 'POST', body: JSON.stringify({ user_code: userCode }) })
+}
+
+/** Connected apps. NOTE: this is the control plane's mirror - the server that
+ *  holds the credential is authoritative, so a revoke can fail even though this
+ *  listed the app. Never present a failed revoke as done. */
+export async function fetchAppInstallations(): Promise<AppInstallationSummary[]> {
+  const data = await request<{ installations: AppInstallationSummary[] }>('/apps/installations')
+  return data.installations
+}
+
+/** Revoke an app everywhere. `unreachable` names servers that could NOT be told,
+ *  which means the app still works there - surface it rather than hiding it. */
+export async function revokeAppInstallation(
+  id: string,
+): Promise<{ ok: boolean; unreachable: string[] }> {
+  return request<{ ok: boolean; unreachable: string[] }>(
+    `/apps/installations/${encodeURIComponent(id)}`,
+    { method: 'DELETE' },
+  )
+}
+
+/** Withdraw a single server from an app, leaving its other servers connected. */
+export async function withdrawAppServer(id: string, serverId: string): Promise<void> {
+  await request(
+    `/apps/installations/${encodeURIComponent(id)}/servers/${encodeURIComponent(serverId)}`,
+    { method: 'DELETE' },
+  )
+}
+
+// --- developer console ------------------------------------------------------
+
+export async function fetchMyApps(): Promise<AppSummary[]> {
+  const data = await request<{ apps: AppSummary[] }>('/apps/mine')
+  return data.apps
+}
+
+/** Create an app. The secret is returned ONCE and never again - only rotatable. */
+export async function createMyApp(input: {
+  name: string
+  kind: 'instance' | 'cloud'
+  homepageUrl?: string
+  scopes: AppScope[]
+}): Promise<{ app: AppSummary; client_secret: string }> {
+  return request<{ app: AppSummary; client_secret: string }>('/apps/mine', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: input.name,
+      kind: input.kind,
+      homepage_url: input.homepageUrl,
+      scopes: input.scopes,
+    }),
+  })
+}
+
+export async function rotateMyAppSecret(appId: string): Promise<string> {
+  const data = await request<{ client_secret: string }>(
+    `/apps/mine/${encodeURIComponent(appId)}/secret`,
+    { method: 'POST' },
+  )
+  return data.client_secret
+}
+
+export async function deleteMyApp(appId: string): Promise<void> {
+  await request(`/apps/mine/${encodeURIComponent(appId)}`, { method: 'DELETE' })
+}
+
+/** Submit a cloud app for store review. Self-hosted instance apps are refused -
+ *  each user runs their own, so there is nothing to list. */
+export async function submitMyAppForReview(appId: string): Promise<void> {
+  await request(`/apps/mine/${encodeURIComponent(appId)}/submit`, { method: 'POST' })
+}
+
+export async function fetchStoreApps(): Promise<AppSummary[]> {
+  const data = await request<{ apps: AppSummary[] }>('/apps/store')
+  return data.apps
+}

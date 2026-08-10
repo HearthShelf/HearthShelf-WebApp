@@ -29,6 +29,7 @@ import { ReaderPage } from '@/pages/ReaderPage'
 import { AccountPage, AccountIndexRedirect } from '@/pages/AccountPage'
 import { InvitePage } from '@/pages/InvitePage'
 import { ConnectBoxPage } from '@/pages/ConnectBoxPage'
+import { ConnectAppPage } from '@/pages/ConnectAppPage'
 import { ConnectAiPage } from '@/pages/ConnectAiPage'
 import { InfraLogsPage } from '@/pages/InfraLogsPage'
 import { ConfigShell, ConfigIndexRedirect } from '@/pages/config/ConfigShell'
@@ -159,6 +160,8 @@ export const router = createBrowserRouter([
       { path: '/pair', element: <PairRedirect /> },
       { path: '/invite', element: <InvitePage /> },
       { path: '/connect-box', element: <ConnectBoxPage /> },
+      // Third-party app consent: an app showed the user a code and is polling.
+      { path: '/connect', element: <ConnectAppPage /> },
       // Sign-in bounce for the MCP server's OAuth flow: hands the MCP Worker a
       // Clerk session token so an AI client can be connected in one click.
       { path: '/connect-ai', element: <ConnectAiPage /> },
