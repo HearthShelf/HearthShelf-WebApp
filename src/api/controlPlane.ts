@@ -613,3 +613,30 @@ export async function fetchStoreApps(): Promise<AppSummary[]> {
   const data = await request<{ apps: AppSummary[] }>('/apps/store')
   return data.apps
 }
+
+// --- app store review (platform admin) --------------------------------------
+
+/** Apps waiting on store review. Platform-admin only (403 otherwise). */
+export async function fetchAppReviewQueue(): Promise<AppSummary[]> {
+  const data = await request<{ apps: AppSummary[] }>('/apps/review/queue')
+  return data.apps
+}
+
+/**
+ * Decide a submission, or pull a listed app back out of the store.
+ *
+ * 'approve' lists it; 'reject' returns it to unlisted with a reason the
+ * developer can see; 'unlist' removes an already-listed app from the store
+ * WITHOUT breaking the connections people already granted it - the two are
+ * deliberately separate, so delisting is not a mass revocation.
+ */
+export async function reviewApp(
+  appId: string,
+  action: 'approve' | 'reject' | 'unlist',
+  reason?: string,
+): Promise<void> {
+  await request(`/apps/review/${encodeURIComponent(appId)}`, {
+    method: 'POST',
+    body: JSON.stringify({ action, ...(reason ? { reason } : {}) }),
+  })
+}

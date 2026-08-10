@@ -30,12 +30,14 @@ import { AccountPage, AccountIndexRedirect } from '@/pages/AccountPage'
 import { InvitePage } from '@/pages/InvitePage'
 import { ConnectBoxPage } from '@/pages/ConnectBoxPage'
 import { ConnectAppPage } from '@/pages/ConnectAppPage'
+import { AppStorePage } from '@/pages/AppStorePage'
 import { ConnectAiPage } from '@/pages/ConnectAiPage'
 import { InfraLogsPage } from '@/pages/InfraLogsPage'
 import { ConfigShell, ConfigIndexRedirect } from '@/pages/config/ConfigShell'
 import { AdminLayout } from '@/pages/admin/AdminLayout'
 import { AdminServersPage } from '@/pages/admin/AdminServersPage'
 import { AdminAdminsPage } from '@/pages/admin/AdminAdminsPage'
+import { AdminAppsPage } from '@/pages/admin/AdminAppsPage'
 import { AdminAuditPage } from '@/pages/admin/AdminAuditPage'
 import { SignInPage } from '@/pages/SignInPage'
 import { SignUpPage } from '@/pages/SignUpPage'
@@ -162,6 +164,9 @@ export const router = createBrowserRouter([
       { path: '/connect-box', element: <ConnectBoxPage /> },
       // Third-party app consent: an app showed the user a code and is polling.
       { path: '/connect', element: <ConnectAppPage /> },
+      // The app store. Lists reviewed hosted services only - self-hosted apps
+      // are connected from inside the app itself (see the page for why).
+      { path: '/apps', element: <AppStorePage /> },
       // Sign-in bounce for the MCP server's OAuth flow: hands the MCP Worker a
       // Clerk session token so an AI client can be connected in one click.
       { path: '/connect-ai', element: <ConnectAiPage /> },
@@ -174,6 +179,7 @@ export const router = createBrowserRouter([
           { index: true, element: <AdminServersPage /> },
           { path: 'servers', element: <AdminServersPage /> },
           { path: 'admins', element: <AdminAdminsPage /> },
+          { path: 'apps', element: <AdminAppsPage /> },
           { path: 'audit', element: <AdminAuditPage /> },
           { path: 'logs', element: <InfraLogsPage /> },
         ],

@@ -14,6 +14,7 @@ import { cn } from '@/lib/cn'
 const TABS = [
   { to: '/admin/servers', label: 'Servers' },
   { to: '/admin/admins', label: 'Admins' },
+  { to: '/admin/apps', label: 'Apps' },
   { to: '/admin/audit', label: 'Audit log' },
   { to: '/admin/logs', label: 'Infra logs' },
 ]
