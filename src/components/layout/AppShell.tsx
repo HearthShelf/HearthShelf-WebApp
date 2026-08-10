@@ -31,7 +31,13 @@ export function AppShell() {
   const { pathname } = useLocation()
   // The full-screen player and the ebook reader are immersive: no app bar,
   // no bottom nav.
-  const immersive = pathname === '/player' || pathname.startsWith('/reader/')
+  //
+  // /connect is immersive for a different reason: it is a consent screen an app
+  // sent the user to, usually in a small popup window. Library navigation around
+  // it is noise at best - and at worst it invites the user to wander off
+  // mid-authorization, leaving the app polling a code they never approved.
+  const immersive =
+    pathname === '/player' || pathname.startsWith('/reader/') || pathname === '/connect'
   const isMobile = useIsMobile()
   // Icon-rail toggle - only meaningful on desktop, where the sidebar is shown.
   const navCollapsed = useNavCollapsed()

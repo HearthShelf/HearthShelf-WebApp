@@ -50,6 +50,7 @@ import {
   setListingStatus,
   setRequestedScopes,
   canUserAuthorize,
+  isUnclaimed,
   createDeviceCode,
   getDeviceCode,
   getDeviceCodeByUserCode,
@@ -437,10 +438,21 @@ apps.post('/apps/approve', async (c) => {
   // First approver of an unclaimed instance app becomes its owner. This is what
   // binds a running instance to the person running it, and it is why a second
   // user cannot later approve the same instance.
-  if (app.owner_clerk_user_id.startsWith('unclaimed:')) {
-    await c.env.DB.prepare(`UPDATE apps SET owner_clerk_user_id = ? WHERE app_id = ?`)
+  //
+  // The WHERE clause re-checks the sentinel so the claim is atomic: if two
+  // people race the same code, exactly one UPDATE matches a row and the loser is
+  // refused below rather than silently overwriting the winner's ownership.
+  if (isUnclaimed(app)) {
+    const claim = await c.env.DB.prepare(
+      `UPDATE apps SET owner_clerk_user_id = ?
+       WHERE app_id = ? AND owner_clerk_user_id LIKE 'unclaimed:%'`,
+    )
       .bind(user.userId, app.app_id)
       .run()
+    if (!claim.meta?.changes) {
+      // Someone else claimed it between our read and this write.
+      return c.json({ error: 'not_authorizable' }, 403)
+    }
   }
 
   await approveDeviceCode(c.env, row.device_code, {

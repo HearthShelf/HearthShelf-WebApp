@@ -239,7 +239,25 @@ export async function setRequestedScopes(
 export function canUserAuthorize(app: AppRow, clerkUserId: string): boolean {
   if (app.owner_clerk_user_id === clerkUserId) return true
   if (app.kind === 'cloud') return app.listing_status === 'listed'
+  // An instance app that has never been approved by anyone is UNCLAIMED, and the
+  // first person to approve it becomes its owner (see /apps/approve). Refusing
+  // here would deadlock the whole self-registration path: the app registers
+  // unclaimed, and nobody could ever claim it because claiming happens by
+  // approving. This is the normal first-run flow for Audplexus and every other
+  // self-hosted app.
+  //
+  // It is still narrow. The claim is one-shot - once an account approves it, the
+  // sentinel is replaced with their Clerk id and every later attempt by anyone
+  // else falls through to `return false`. The window is bounded by the device
+  // code's own TTL, and reaching it at all requires possession of a code the app
+  // only ever shows to the person running it.
+  if (isUnclaimed(app)) return true
   return false
+}
+
+/** An instance app registered but not yet claimed by its first approver. */
+export function isUnclaimed(app: AppRow): boolean {
+  return app.kind === 'instance' && app.owner_clerk_user_id.startsWith('unclaimed:')
 }
 
 // --- device flow -----------------------------------------------------------
