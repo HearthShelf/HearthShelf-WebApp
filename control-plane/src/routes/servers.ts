@@ -30,6 +30,7 @@ import {
   getLink,
   deleteLink,
   deleteLinksForEmail,
+  clerkIdsForEmailOnServer,
   revokeInvitesForEmail,
   getServer,
   touchServer,
@@ -59,6 +60,7 @@ import {
   auditLocalAddr,
   recentLocalAddrWrites,
 } from '../lib/db'
+import { removeUserInstallationsForServer } from '../lib/apps'
 import { getLatestReleaseFresh, toDTO } from '../lib/releases'
 import { mintGrant } from '../lib/signing'
 import { getPlan } from '../lib/admin'
@@ -371,6 +373,11 @@ servers.delete('/servers/:id', async (c) => {
   // Forgetting the default server clears the default so a fresh device falls
   // back to the picker rather than pointing at a server the user no longer has.
   await clearDefaultServerIf(c.env, user.userId, serverId)
+  // An app authorization must not outlive the link it was granted through. The
+  // user no longer has this server, so any app they connected to it loses that
+  // server too - otherwise the app keeps an authorization the user can no longer
+  // see or revoke from their own connections page.
+  await removeUserInstallationsForServer(c.env, user.userId, serverId)
   return c.json({ ok: true })
 })
 
@@ -893,8 +900,15 @@ servers.post('/servers/unlink-from-server', async (c) => {
   const email = normalizeEmail(body.email)
   if (!email || !email.includes('@')) return c.json({ error: 'invalid_email' }, 400)
 
+  // Capture WHO before deleting: the delete returns a count, and the app
+  // cascade below is keyed by Clerk id. An app authorization must not survive
+  // the link it was granted through.
+  const affected = await clerkIdsForEmailOnServer(c.env, serverId, email)
   const unlinked = await deleteLinksForEmail(c.env, serverId, email)
   const invitesRevoked = await revokeInvitesForEmail(c.env, serverId, email)
+  for (const clerkUserId of affected) {
+    await removeUserInstallationsForServer(c.env, clerkUserId, serverId)
+  }
 
   // Worth an audit trail: this is the one path where a server removes a user's
   // access to itself without that user acting.

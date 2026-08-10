@@ -22,6 +22,11 @@ export interface Env {
   HSDIRECT_BROKER_URL?: string
   /** TTL (seconds) for cert-broker grant JWTs. Defaults to 300. */
   CERT_GRANT_TTL_SECONDS?: string
+  /** TTL for an app's single-use introduction token. Short: it is spent
+   *  immediately by an app that already holds it. Default 300s. */
+  APP_INTRO_TTL_SECONDS?: string
+  /** TTL for an app device-authorization user code. Default 900s. */
+  APP_DEVICE_CODE_TTL_SECONDS?: string
   /** TTL (seconds) before an unredeemed server registration is swept. Default 7d. */
   ORPHAN_TTL_SECONDS?: string
   /** Comma-separated grant-signing `kid`s that servers must stop honouring.

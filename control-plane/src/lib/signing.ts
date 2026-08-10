@@ -82,6 +82,68 @@ export async function mintGrant(
 }
 
 /**
+ * Mint an INTRODUCTION token: the app's one-time letter of introduction to a
+ * single server, handed over after the user approves a connection.
+ *
+ * This is deliberately NOT a refresh token. The control plane introduces an app
+ * to a box and then gets out of the way - the box issues the credential the app
+ * actually lives on, which is what makes revocation instant and lets an
+ * established connection keep working with the control plane unreachable.
+ *
+ * `aud` stays a SINGLE server id, exactly like a user grant. The box verifies it
+ * with `jwtVerify(..., { audience: serverId })`, a strict single-value check, so
+ * an array here would fail verification outright - and loosening that check
+ * would destroy the property that a token minted for server A cannot be replayed
+ * against server B. An app authorized for three servers therefore gets three
+ * introduction tokens, one per server.
+ *
+ * `typ: 'app_introduction'` is load-bearing: it stops a user grant and an app
+ * introduction being interchangeable at the box. Without it, an app introduction
+ * would verify anywhere a user grant does, and vice versa.
+ */
+export async function mintAppIntroduction(
+  env: Env,
+  params: {
+    appId: string
+    appName: string
+    appKind: 'instance' | 'cloud'
+    family: string | null
+    clerkUserId: string
+    serverId: string
+    serverUrl: string
+    email: string
+    username: string
+    role: 'admin' | 'user'
+    scopes: string[]
+  },
+): Promise<string> {
+  const { privateKey, kid, alg } = await loadSigningKey(env)
+  const ttl = Number(env.APP_INTRO_TTL_SECONDS || '300')
+
+  return new SignJWT({
+    iss: env.CP_ISSUER,
+    sub: params.clerkUserId,
+    aud: params.serverId,
+    typ: 'app_introduction',
+    app_id: params.appId,
+    app_name: params.appName,
+    app_kind: params.appKind,
+    app_family: params.family,
+    scopes: params.scopes,
+    email: params.email,
+    email_verified: true,
+    username: params.username,
+    role: params.role,
+    server_url: params.serverUrl,
+  })
+    .setProtectedHeader({ alg, kid, typ: 'JWT' })
+    .setIssuedAt()
+    .setExpirationTime(`${ttl}s`)
+    .setJti(crypto.randomUUID())
+    .sign(privateKey)
+}
+
+/**
  * Dev helper: generate a fresh Ed25519 keypair as JWK strings. Not called at
  * runtime - run via a one-off script / `wrangler` REPL to produce the value for
  * `wrangler secret put CP_SIGNING_JWK`. Kept here so the keygen recipe lives

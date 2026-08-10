@@ -343,6 +343,25 @@ export async function deleteLinksForEmail(
 }
 
 /**
+ * The Clerk ids linked to an email on one server. Callers that need to clean up
+ * per-user state must read this BEFORE deleting the links, since the delete
+ * returns only a count - notably the app-authorization cascade, which is keyed by
+ * Clerk id and would otherwise have no way to find whose authorizations to drop.
+ */
+export async function clerkIdsForEmailOnServer(
+  env: Env,
+  serverId: string,
+  email: string,
+): Promise<string[]> {
+  const res = await env.DB.prepare(
+    `SELECT clerk_user_id FROM links WHERE server_id = ? AND email = ?`,
+  )
+    .bind(serverId, email.toLowerCase())
+    .all<{ clerk_user_id: string }>()
+  return (res.results ?? []).map((r) => r.clerk_user_id)
+}
+
+/**
  * Revoke every still-pending invite for an email on one server. Paired with
  * deleteLinksForEmail: removing someone must not leave a live code behind that
  * silently re-admits them. Returns the number revoked.

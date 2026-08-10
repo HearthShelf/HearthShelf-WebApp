@@ -28,6 +28,7 @@ import { logs } from './routes/logs'
 import { admin } from './routes/admin'
 import { accounts } from './routes/accounts'
 import { account } from './routes/account'
+import { apps } from './routes/apps'
 import { forwardLog } from './lib/logs'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -69,6 +70,7 @@ app.route('/', accounts)
 app.route('/', account)
 app.route('/', releases)
 app.route('/', telemetry)
+app.route('/', apps)
 
 app.notFound((c) => c.json({ error: 'not_found' }, 404))
 app.onError((err, c) => {
