@@ -443,26 +443,6 @@ export async function removeInstallationServer(
     .run()
 }
 
-/**
- * Every installation touching a server, for the unlink cascade. The FK already
- * removes the join row; callers use this FIRST to learn which boxes to notify,
- * since the box holds the credential that actually needs revoking.
- */
-export async function installationsForServer(
-  env: Env,
-  serverId: string,
-): Promise<Array<{ installation_id: string; app_id: string; clerk_user_id: string }>> {
-  const res = await env.DB.prepare(
-    `SELECT s.installation_id, i.app_id, i.clerk_user_id
-     FROM app_installation_servers s
-     JOIN app_installations i ON i.id = s.installation_id
-     WHERE s.server_id = ?`,
-  )
-    .bind(serverId)
-    .all<{ installation_id: string; app_id: string; clerk_user_id: string }>()
-  return res.results ?? []
-}
-
 /** Drop every app authorization a given user held for one server. */
 export async function removeUserInstallationsForServer(
   env: Env,
