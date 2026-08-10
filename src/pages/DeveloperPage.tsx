@@ -102,9 +102,7 @@ export function DeveloperPage() {
 
       {secret && (
         <div className="rounded-md border border-emerald-900/60 bg-emerald-950/30 p-3">
-          <p className="text-sm text-emerald-200">
-            Copy this secret now - it is not shown again.
-          </p>
+          <p className="text-sm text-emerald-200">Copy this secret now - it is not shown again.</p>
           <div className="mt-2 flex items-center gap-2">
             <code className="flex-1 truncate rounded bg-neutral-900 px-2 py-1.5 font-mono text-xs">
               {secret.value}
@@ -179,13 +177,29 @@ export function DeveloperPage() {
               </label>
             ))}
           </div>
-          <button
-            onClick={() => void create()}
-            disabled={busy || !name.trim() || scopes.length === 0}
-            className="rounded-md bg-neutral-100 px-4 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
-          >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => void create()}
+              disabled={busy || !name.trim() || scopes.length === 0}
+              className="rounded-md bg-neutral-100 px-4 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
+            </button>
+            <button
+              onClick={() => {
+                // Reset, not just hide: reopening the form half-filled with a
+                // previous abandoned attempt is confusing.
+                setCreating(false)
+                setName('')
+                setScopes(['library:read'])
+                setError(null)
+              }}
+              disabled={busy}
+              className="rounded-md border border-neutral-700 px-4 py-2 text-sm disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
@@ -196,7 +210,10 @@ export function DeveloperPage() {
       ) : (
         <ul className="space-y-2">
           {data.map((app) => (
-            <li key={app.app_id} className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
+            <li
+              key={app.app_id}
+              className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4"
+            >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="truncate font-medium">{app.name}</h3>
@@ -209,6 +226,27 @@ export function DeveloperPage() {
                         ? 'Awaiting review'
                         : 'Not listed'}
                   </p>
+                  {/* What the app can ask for. Without this the console showed a
+                      name and a status but not the one thing that actually
+                      matters about a registration. */}
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {app.requested_scopes.length === 0 ? (
+                      <span className="text-xs text-neutral-500">No permissions requested</span>
+                    ) : (
+                      app.requested_scopes.map((s) => (
+                        <span
+                          key={s}
+                          className={`rounded px-1.5 py-0.5 text-xs ${
+                            s === 'admin'
+                              ? 'bg-amber-950/60 text-amber-300'
+                              : 'bg-neutral-800 text-neutral-300'
+                          }`}
+                        >
+                          {SCOPE_TEXT[s] ?? s}
+                        </span>
+                      ))
+                    )}
+                  </div>
                 </div>
                 <div className="flex shrink-0 gap-1.5">
                   <button
