@@ -105,6 +105,10 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
   const now = Date.now()
   const missingReleased = missing.filter((b) => !(b.upcoming ?? isUpcoming(b, now)))
   const upcomingCount = missing.length - missingReleased.length
+  // A series has no cover of its own. Stand it up with the first roster book
+  // that has artwork - an absolute Audible URL, so it still renders in the
+  // Following list without a server or ABS token to resolve it against.
+  const seriesCover = audible?.books.find((b) => b.coverArtUrl)?.coverArtUrl
 
   // Admin gating for the bulk-edit action.
   const { data: me } = useQuery({
@@ -260,6 +264,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
           seriesAsin={audible?.seriesAsin}
           seriesTitle={series.name}
           author={author}
+          coverArtUrl={seriesCover}
         />
       </div>
       {heroProg}
