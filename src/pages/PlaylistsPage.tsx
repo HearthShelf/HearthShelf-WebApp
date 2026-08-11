@@ -44,11 +44,7 @@ export function PlaylistsPage() {
           {playlists.length} {playlists.length === 1 ? 'playlist' : 'playlists'}
         </span>
         <div className="tb-spacer" />
-        <button
-          className="pill"
-          onClick={() => setCreating(true)}
-          disabled={!target || !activeId}
-        >
+        <button className="pill" onClick={() => setCreating(true)} disabled={!target || !activeId}>
           <Icon name="add" /> New playlist
         </button>
       </div>
