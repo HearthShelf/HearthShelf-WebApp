@@ -237,11 +237,16 @@ export interface SeriesSummary {
   name: string
 }
 
-/** List the series in a library (for a series index). */
+/** List the series in a library (for a series index).
+ *
+ *  NOT limit=0: unlike the items endpoint, ABS's series endpoint treats that as
+ *  "return nothing" - it still reports the true `total` but sends an empty
+ *  `results`, so this quietly resolved to [] for every caller. Ask for a page
+ *  big enough to cover a library instead. */
 export async function getSeriesList(t: AbsTarget, libraryId: string): Promise<SeriesSummary[]> {
   const data = await absGet<{ results?: Array<{ id: string; name: string }> }>(
     t,
-    `/api/libraries/${encodeURIComponent(libraryId)}/series?limit=0`,
+    `/api/libraries/${encodeURIComponent(libraryId)}/series?limit=1000&sort=name`,
   )
   return (data.results ?? []).map((s) => ({ id: s.id, name: s.name }))
 }

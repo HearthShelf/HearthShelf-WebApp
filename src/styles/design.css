@@ -2229,6 +2229,55 @@
   font-size: 13px;
 }
 
+/* --- /upcoming/:asin - a book the library doesn't have --- */
+.ud-detail-cover {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lift);
+}
+.udp-release {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 4px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--primary) 38%, transparent);
+  background: color-mix(in oklab, var(--primary) 13%, transparent);
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 650;
+}
+.udp-release.out {
+  border-color: var(--hairline);
+  background: var(--fill);
+  color: var(--text-muted);
+}
+.udp-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 16px 0 0;
+  max-width: 62ch;
+  color: var(--text-faint);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.udp-note .ms {
+  font-size: 16px;
+  flex: none;
+  margin-top: 1px;
+}
+.udp-desc {
+  max-width: 78ch;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
 @media (max-width: 1100px) {
   .up-spotlight {
     grid-template-columns: 160px minmax(0, 1fr) 150px;

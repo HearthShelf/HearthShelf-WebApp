@@ -77,6 +77,23 @@ export function UpcomingDestinationModal({
       </div>
 
       <div className="ud-list">
+        {item.asin && (
+          <button
+            className="ud-row"
+            onClick={() => {
+              onClose()
+              navigate(`/upcoming/${encodeURIComponent(item.asin!)}`)
+            }}
+          >
+            <Icon name="menu_book" />
+            <div className="ud-row-meta">
+              <b>Book details</b>
+              <span>Release date, description, and narrator</span>
+            </div>
+            <Icon name="chevron_right" />
+          </button>
+        )}
+
         {seriesId && (
           <button
             className="ud-row"
@@ -112,7 +129,7 @@ export function UpcomingDestinationModal({
           </a>
         ))}
 
-        {!seriesId && links.length === 0 && (
+        {!item.asin && !seriesId && links.length === 0 && (
           <p className="ud-none">
             No destinations are enabled. Turn on book links in Settings → Library.
           </p>

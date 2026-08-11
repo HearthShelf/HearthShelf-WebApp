@@ -23,6 +23,7 @@ import { QuestGiverPage } from '@/pages/QuestGiverPage'
 import { StatsPage } from '@/pages/StatsPage'
 import { FinishedBooksPage } from '@/pages/FinishedBooksPage'
 import { UpcomingPage } from '@/pages/UpcomingPage'
+import { UpcomingDetailPage } from '@/pages/UpcomingDetailPage'
 import { ClubRoomPage } from '@/pages/ClubRoomPage'
 import { SessionsPage } from '@/pages/SessionsPage'
 import { PlayerPage } from '@/pages/PlayerPage'
@@ -137,6 +138,7 @@ export const router = createBrowserRouter([
       { path: '/stats', element: withShell(<StatsPage />) },
       { path: '/finished', element: withShell(<FinishedBooksPage />) },
       { path: '/upcoming', element: withShell(<UpcomingPage />) },
+      { path: '/upcoming/:asin', element: withShell(<UpcomingDetailPage />) },
       { path: '/club/:clubId', element: withShell(<ClubRoomPage />) },
       { path: '/sessions', element: withShell(<SessionsPage />) },
       { path: '/player', element: withShell(<PlayerPage />) },

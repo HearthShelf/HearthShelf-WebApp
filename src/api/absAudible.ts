@@ -8,7 +8,11 @@
  */
 import { getAbsToken } from '@/lib/absTokens'
 import type { AbsTarget } from './absLibrary'
-import type { HSAudibleSearchResponse, HSAudibleSeriesResponse } from '@hearthshelf/core'
+import type {
+  HSAudibleSearchResponse,
+  HSAudibleSearchResult,
+  HSAudibleSeriesResponse,
+} from '@hearthshelf/core'
 
 export type AudibleSearchResponse = HSAudibleSearchResponse
 export type AudibleSeriesResponse = HSAudibleSeriesResponse
@@ -22,6 +26,7 @@ export const audibleKeys = {
   // Keyed by the Audible series ASIN, for callers that hold only that (a series
   // follow, which stores the ASIN rather than an ABS series id).
   seriesByAsin: (seriesAsin: string) => ['audible', 'series-asin', seriesAsin] as const,
+  product: (asin: string) => ['audible', 'product', asin] as const,
 }
 
 function origin(t: AbsTarget): string {
@@ -87,6 +92,29 @@ export async function fetchAudibleSeriesByAsin(
     return (await res.json()) as AudibleSeriesResponse
   } catch {
     return empty
+  }
+}
+
+/**
+ * One Audible product by ASIN. Backs the upcoming-book page, which has to render
+ * a book the library does not have (so ABS knows nothing about it). null on any
+ * failure or an unknown ASIN, so the page can show a not-found state.
+ */
+export async function fetchAudibleProduct(
+  t: AbsTarget,
+  asin: string,
+): Promise<HSAudibleSearchResult | null> {
+  const token = getAbsToken(t.serverId)
+  if (!token || !asin) return null
+  try {
+    const res = await fetch(
+      `${origin(t)}/hs/audible/product?asin=${encodeURIComponent(asin)}`,
+      { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` } },
+    )
+    if (!res.ok) return null
+    return (await res.json()) as HSAudibleSearchResult
+  } catch {
+    return null
   }
 }
 
