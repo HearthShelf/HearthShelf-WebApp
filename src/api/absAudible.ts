@@ -19,6 +19,9 @@ export const audibleKeys = {
   // (Karevik's "Accidental Champion" vs Herzman's), and a name-only key made
   // them collide in the cache.
   series: (seriesId: string, name: string) => ['audible', 'series', seriesId, name] as const,
+  // Keyed by the Audible series ASIN, for callers that hold only that (a series
+  // follow, which stores the ASIN rather than an ABS series id).
+  seriesByAsin: (seriesAsin: string) => ['audible', 'series-asin', seriesAsin] as const,
 }
 
 function origin(t: AbsTarget): string {
@@ -48,6 +51,35 @@ export async function fetchAudibleSeries(
   if (!token || name.trim().length < 2) return empty
   try {
     const params = new URLSearchParams({ q: name, seriesId })
+    const res = await fetch(`${origin(t)}/hs/audible/series?${params.toString()}`, {
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return empty
+    return (await res.json()) as AudibleSeriesResponse
+  } catch {
+    return empty
+  }
+}
+
+/**
+ * Fetch a series' roster by its Audible series ASIN. What a series follow holds
+ * is the ASIN, not an ABS series id, so this is how a "following" list learns
+ * which book is next in a series being tracked.
+ *
+ * Served from the precomputed roster only (no live Audible resolve), so an
+ * older server - or a series the nightly sweep hasn't reached - returns an
+ * unresolved result and the caller quietly shows the follow without a next-book
+ * line.
+ */
+export async function fetchAudibleSeriesByAsin(
+  t: AbsTarget,
+  seriesAsin: string,
+): Promise<AudibleSeriesResponse> {
+  const empty: AudibleSeriesResponse = { name: '', seriesAsin: null, books: [] }
+  const token = getAbsToken(t.serverId)
+  if (!token || !seriesAsin) return empty
+  try {
+    const params = new URLSearchParams({ seriesAsin })
     const res = await fetch(`${origin(t)}/hs/audible/series?${params.toString()}`, {
       headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
     })
