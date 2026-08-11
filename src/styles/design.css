@@ -2151,6 +2151,84 @@
   color: var(--text);
 }
 
+/* --- "Open in" chooser: a followed book has no page of its own here --- */
+.ud-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 16px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--hairline);
+}
+.ud-cover {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.ud-meta {
+  min-width: 0;
+}
+.ud-title {
+  font-size: 15px;
+  font-weight: 650;
+}
+.ud-sub {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+.ud-series {
+  margin-top: 2px;
+  color: var(--text-faint);
+  font-size: 11.5px;
+}
+.ud-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+}
+.ud-row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.ud-row:hover {
+  background: var(--fill);
+}
+.ud-row > .ms {
+  color: var(--text-faint);
+}
+.ud-row-meta b {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+.ud-row-meta span {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.ud-none {
+  margin: 8px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
 @media (max-width: 1100px) {
   .up-spotlight {
     grid-template-columns: 160px minmax(0, 1fr) 150px;
