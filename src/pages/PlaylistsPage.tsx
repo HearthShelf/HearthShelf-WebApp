@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getPlaylists } from '@/api/absPlaylists'
+import { createPlaylist } from '@/api/absLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
+import { BookPickerModal } from '@/components/library/BookPickerModal'
 import { Cover, tintFor } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
@@ -10,8 +13,10 @@ import { ErrorState } from '@/components/common/ErrorState'
 
 export function PlaylistsPage() {
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const { target } = useActiveServer()
   const { activeId } = useActiveLibrary()
+  const [creating, setCreating] = useState(false)
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['abs-playlists', target?.serverId, activeId],
@@ -34,6 +39,20 @@ export function PlaylistsPage() {
         )}
       </div>
 
+      <div className="toolbar2">
+        <span className="count-badge">
+          {playlists.length} {playlists.length === 1 ? 'playlist' : 'playlists'}
+        </span>
+        <div className="tb-spacer" />
+        <button
+          className="pill"
+          onClick={() => setCreating(true)}
+          disabled={!target || !activeId}
+        >
+          <Icon name="add" /> New playlist
+        </button>
+      </div>
+
       {isLoading && <LoadingSpinner className="py-12" label="Loading playlists..." />}
       {isError && <ErrorState message="Could not load playlists." onRetry={refetch} />}
 
@@ -41,7 +60,7 @@ export function PlaylistsPage() {
         <div className="empty-state">
           <Icon name="queue_music" />
           <h3>No playlists yet</h3>
-          <p>Playlists you build in your library show up here.</p>
+          <p>Line up books to listen to in order. Start one with New playlist.</p>
         </div>
       )}
 
@@ -82,6 +101,26 @@ export function PlaylistsPage() {
             )
           })}
         </div>
+      )}
+
+      {creating && target && activeId && (
+        <BookPickerModal
+          kind="playlist"
+          target={target}
+          libraryId={activeId}
+          mode="create"
+          onSubmit={async (books, name) => {
+            const made = await createPlaylist(
+              target,
+              activeId,
+              name,
+              books.map((libraryItemId) => ({ libraryItemId })),
+            )
+            void qc.invalidateQueries({ queryKey: ['abs-playlists', target.serverId, activeId] })
+            if (made.id) navigate(`/playlists/${made.id}`)
+          }}
+          onClose={() => setCreating(false)}
+        />
       )}
     </div>
   )

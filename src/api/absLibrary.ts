@@ -1216,13 +1216,16 @@ export async function getPlaylistsList(t: AbsTarget, libraryId: string): Promise
   return (data.results ?? []).map((p) => ({ id: p.id, name: p.name ?? 'Playlist' }))
 }
 
+// Returns the created collection so callers can route straight to it. ABS
+// requires at least one book id (validated server-side).
 export async function createCollection(
   t: AbsTarget,
   libraryId: string,
   name: string,
   books: string[],
-): Promise<void> {
-  await absPost(t, '/api/collections', { libraryId, name, books })
+): Promise<{ id: string }> {
+  const made = await absPost<{ id: string }>(t, '/api/collections', { libraryId, name, books })
+  return { id: made?.id ?? '' }
 }
 
 export async function addBookToCollection(
@@ -1245,13 +1248,15 @@ export async function addBooksToCollection(
   })
 }
 
+// Returns the created playlist so callers can route straight to it.
 export async function createPlaylist(
   t: AbsTarget,
   libraryId: string,
   name: string,
   items: { libraryItemId: string; episodeId?: string }[],
-): Promise<void> {
-  await absPost(t, '/api/playlists', { libraryId, name, items })
+): Promise<{ id: string }> {
+  const made = await absPost<{ id: string }>(t, '/api/playlists', { libraryId, name, items })
+  return { id: made?.id ?? '' }
 }
 
 export async function addItemToPlaylist(

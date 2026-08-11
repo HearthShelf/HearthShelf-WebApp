@@ -1,11 +1,17 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useCollections } from '@/hooks/useLibrary'
+import { createCollection } from '@/api/absLibrary'
+import { BookPickerModal } from '@/components/library/BookPickerModal'
 import { Icon } from '@/components/common/Icon'
 
 export function CollectionsPage() {
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const { target, connected, activeId } = useActiveLibrary()
+  const [creating, setCreating] = useState(false)
 
   const { data, isLoading, isError, refetch } = useCollections(
     target ?? { serverId: '', serverUrl: '' },
@@ -33,6 +39,10 @@ export function CollectionsPage() {
         <span className="count-badge">
           {collections.length} {collections.length === 1 ? 'collection' : 'collections'}
         </span>
+        <div className="tb-spacer" />
+        <button className="pill" onClick={() => setCreating(true)} disabled={!activeId}>
+          <Icon name="add" /> New collection
+        </button>
       </div>
 
       {isLoading && <p className="page-sub">Loading collections...</p>}
@@ -54,7 +64,7 @@ export function CollectionsPage() {
         <div className="empty-state">
           <Icon name="folder_special" />
           <h3>No collections yet</h3>
-          <p>Collections you build in AudiobookShelf show up here.</p>
+          <p>Group books into a shelf of your own. Start one with New collection.</p>
         </div>
       )}
 
@@ -76,6 +86,23 @@ export function CollectionsPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {creating && activeId && (
+        <BookPickerModal
+          kind="collection"
+          target={target}
+          libraryId={activeId}
+          mode="create"
+          onSubmit={async (books, name) => {
+            const made = await createCollection(target, activeId, name, books)
+            void qc.invalidateQueries({
+              queryKey: ['abs-collections', target.serverId, activeId],
+            })
+            if (made.id) navigate(`/collections/${made.id}`)
+          }}
+          onClose={() => setCreating(false)}
+        />
       )}
     </div>
   )

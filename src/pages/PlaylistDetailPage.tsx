@@ -1,7 +1,11 @@
+import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getPlaylist } from '@/api/absPlaylists'
+import { addBooksToPlaylist } from '@/api/absLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
+import { useActiveLibrary } from '@/hooks/useActiveLibrary'
+import { BookPickerModal } from '@/components/library/BookPickerModal'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { Cover, tintFor } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
@@ -11,8 +15,11 @@ import { ErrorState } from '@/components/common/ErrorState'
 export function PlaylistDetailPage() {
   const { playlistId } = useParams()
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const { target } = useActiveServer()
+  const { activeId } = useActiveLibrary()
   const ui = useMediaUI()
+  const [adding, setAdding] = useState(false)
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['abs-playlist', target?.serverId, playlistId],
@@ -72,12 +79,22 @@ export function PlaylistDetailPage() {
             <Icon name="play_arrow" fill /> Play
           </button>
         )}
+        <button className="pill" onClick={() => setAdding(true)}>
+          <Icon name="library_add" /> Add books
+        </button>
       </div>
 
       {items.length === 0 ? (
         <div className="empty-state">
           <Icon name="queue_music" />
           <h3>This playlist is empty</h3>
+          <button
+            className="btn-sm btn-ghost"
+            style={{ margin: '0 auto' }}
+            onClick={() => setAdding(true)}
+          >
+            <Icon name="library_add" /> Add books
+          </button>
         </div>
       ) : (
         <div className="pl-list">
@@ -128,6 +145,26 @@ export function PlaylistDetailPage() {
             </button>
           ))}
         </div>
+      )}
+
+      {adding && target && activeId && (
+        <BookPickerModal
+          kind="playlist"
+          target={target}
+          libraryId={activeId}
+          mode="add"
+          listName={data.name}
+          existingIds={items.map((it) => it.libraryItemId)}
+          onSubmit={async (ids) => {
+            await addBooksToPlaylist(target, data.id, ids)
+            void qc.invalidateQueries({ queryKey: ['abs-playlist', target.serverId, data.id] })
+            if (activeId)
+              void qc.invalidateQueries({
+                queryKey: ['abs-playlists', target.serverId, activeId],
+              })
+          }}
+          onClose={() => setAdding(false)}
+        />
       )}
     </div>
   )

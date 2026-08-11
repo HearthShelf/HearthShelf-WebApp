@@ -8,8 +8,10 @@ import {
   deleteCollection,
   removeBookFromCollection,
   updateCollection,
+  addBooksToCollection,
   type AbsListItem,
 } from '@/api/absLibrary'
+import { BookPickerModal } from '@/components/library/BookPickerModal'
 import { ItemGrid } from '@/components/ItemGrid'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Modal } from '@/components/common/Modal'
@@ -36,6 +38,7 @@ export function CollectionDetailPage() {
   const [draftName, setDraftName] = useState('')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [removing, setRemoving] = useState<AbsListItem | null>(null)
+  const [adding, setAdding] = useState(false)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
 
@@ -160,6 +163,9 @@ export function CollectionDetailPage() {
             <Icon name="play_arrow" fill /> Play all
           </button>
         )}
+        <button className="pill" onClick={() => setAdding(true)}>
+          <Icon name="library_add" /> Add books
+        </button>
         <button
           className="pill"
           onClick={() => {
@@ -178,6 +184,13 @@ export function CollectionDetailPage() {
         <div className="empty-state">
           <Icon name="auto_stories" />
           <h3>This collection is empty</h3>
+          <button
+            className="btn-sm btn-ghost"
+            style={{ margin: '0 auto' }}
+            onClick={() => setAdding(true)}
+          >
+            <Icon name="library_add" /> Add books
+          </button>
         </div>
       ) : (
         <>
@@ -208,6 +221,22 @@ export function CollectionDetailPage() {
             </div>
           </details>
         </>
+      )}
+
+      {adding && activeId && (
+        <BookPickerModal
+          kind="collection"
+          target={target}
+          libraryId={activeId}
+          mode="add"
+          listName={data.name}
+          existingIds={books.map((b) => b.id)}
+          onSubmit={async (ids) => {
+            await addBooksToCollection(target, data.id, ids)
+            invalidate()
+          }}
+          onClose={() => setAdding(false)}
+        />
       )}
 
       {renaming && (
