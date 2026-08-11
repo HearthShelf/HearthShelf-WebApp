@@ -6,9 +6,15 @@ import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { getMe, type AbsLibraryItem, type AbsSeries } from '@/api/absLibrary'
 import { getSeriesFull } from '@/api/absBrowse'
 import { fetchAudibleSeries, audibleKeys } from '@/api/absAudible'
-import { missingSeriesBooks, seriesSeqFromName, seriesCompletion } from '@hearthshelf/core'
+import {
+  missingSeriesBooks,
+  seriesSeqFromName,
+  seriesCompletion,
+  isUpcoming,
+} from '@hearthshelf/core'
 import type { OwnedSeriesBook } from '@hearthshelf/core'
 import { SeriesMissingBooks } from '@/components/requests/SeriesMissingBooks'
+import { FollowSeriesButton } from '@/components/requests/FollowSeriesButton'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
 import { usePromptedMarkFinished } from '@/hooks/useMarkFinished'
 import { useRatings, useSetRating } from '@/hooks/useRatings'
@@ -92,6 +98,13 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
     retry: false,
   })
   const missing = audible?.seriesAsin ? missingSeriesBooks(audible.books, ownedBooks) : []
+  // A book that isn't out yet isn't a gap in the collection - nobody could own
+  // it. Counting it as missing would permanently cap a fully-caught-up series
+  // below 100% and mark a phantom segment on the progress track, so completion
+  // measures against released books only.
+  const now = Date.now()
+  const missingReleased = missing.filter((b) => !(b.upcoming ?? isUpcoming(b, now)))
+  const upcomingCount = missing.length - missingReleased.length
 
   // Admin gating for the bulk-edit action.
   const { data: me } = useQuery({
@@ -151,7 +164,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
   const completion = seriesCompletion({
     ownedProgressSum: sum,
     ownedCount: books.length,
-    missingCount: missing.length,
+    missingCount: missingReleased.length,
   })
   const pct = completion.pct
   // Listened hours are an owned-books figure; scale by owned progress, not the
@@ -172,6 +185,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
           {done} of {completion.totalCount} finished · {listenedHours.toFixed(0)}h of{' '}
           {totalHours.toFixed(0)}h
           {completion.missingCount > 0 && ` · ${completion.missingCount} not in library`}
+          {upcomingCount > 0 && ` · ${upcomingCount} coming soon`}
         </span>
       </div>
       <div className="sp-track">
@@ -194,7 +208,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
             </div>
           )
         })}
-        {missing.map((b, i) => (
+        {missingReleased.map((b, i) => (
           <div
             key={b.asin}
             className="sp-seg missing"
@@ -242,6 +256,11 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
           <Icon name={allSeriesFinished ? 'remove_done' : 'done_all'} />{' '}
           {allSeriesFinished ? 'Not finished' : 'Mark finished'}
         </button>
+        <FollowSeriesButton
+          seriesAsin={audible?.seriesAsin}
+          seriesTitle={series.name}
+          author={author}
+        />
       </div>
       {heroProg}
     </div>
@@ -255,6 +274,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
           {author && `${author} · `}
           {books.length} {books.length === 1 ? 'book' : 'books'} · {totalHours.toFixed(0)}h total
           {completion.missingCount > 0 && ` · ${completion.missingCount} not in library`}
+          {upcomingCount > 0 && ` · ${upcomingCount} coming soon`}
         </div>
 
         {progEl}
@@ -269,6 +289,11 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
             <Icon name={allSeriesFinished ? 'remove_done' : 'done_all'} />{' '}
             {allSeriesFinished ? 'Mark series unfinished' : 'Mark series finished'}
           </button>
+          <FollowSeriesButton
+            seriesAsin={audible?.seriesAsin}
+            seriesTitle={series.name}
+            author={author}
+          />
         </div>
       </div>
 
