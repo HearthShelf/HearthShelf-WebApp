@@ -8,6 +8,11 @@ import { getAbsToken } from '@/lib/absTokens'
 import type { AbsTarget } from '@/api/absLibrary'
 import type { Dismissals } from '@hearthshelf/core'
 
+/** 'series' and 'item' are ABS ids; 'roster' is an Audible ASIN for a series
+ *  book the user never expects to own (an ebook-only side story, a print
+ *  edition), which has no ABS id because it is not in the library. */
+export type DismissalKind = 'series' | 'item' | 'roster'
+
 function origin(t: AbsTarget): string {
   return t.serverUrl.replace(/\/$/, '')
 }
@@ -34,7 +39,7 @@ export function getServerDismissals(t: AbsTarget): Promise<Dismissals> {
 
 export function addServerDismissal(
   t: AbsTarget,
-  kind: 'series' | 'item',
+  kind: DismissalKind,
   entityId: string,
 ): Promise<Dismissals> {
   return dismissalsFetch(t, { method: 'POST', body: JSON.stringify({ kind, entityId }) })
@@ -42,7 +47,7 @@ export function addServerDismissal(
 
 export function removeServerDismissal(
   t: AbsTarget,
-  kind: 'series' | 'item',
+  kind: DismissalKind,
   entityId: string,
 ): Promise<Dismissals> {
   return dismissalsFetch(t, { method: 'DELETE', body: JSON.stringify({ kind, entityId }) })

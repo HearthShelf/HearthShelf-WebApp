@@ -15,6 +15,7 @@ import {
 import type { OwnedSeriesBook } from '@hearthshelf/core'
 import { SeriesMissingBooks } from '@/components/requests/SeriesMissingBooks'
 import { FollowSeriesButton } from '@/components/requests/FollowSeriesButton'
+import { useIgnoredAsins } from '@/hooks/useIgnoredBooks'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
 import { usePromptedMarkFinished } from '@/hooks/useMarkFinished'
 import { useRatings, useSetRating } from '@/hooks/useRatings'
@@ -97,7 +98,12 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
     staleTime: 30 * 60 * 1000,
     retry: false,
   })
-  const missing = audible?.seriesAsin ? missingSeriesBooks(audible.books, ownedBooks) : []
+  // Ignored books are not a gap in the series - they drop out of the missing
+  // list, the completion denominator, and the progress track together.
+  const ignoredAsins = useIgnoredAsins()
+  const missing = audible?.seriesAsin
+    ? missingSeriesBooks(audible.books, ownedBooks, ignoredAsins)
+    : []
   // A book that isn't out yet isn't a gap in the collection - nobody could own
   // it. Counting it as missing would permanently cap a fully-caught-up series
   // below 100% and mark a phantom segment on the progress track, so completion

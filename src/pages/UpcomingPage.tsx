@@ -13,6 +13,7 @@ import {
 import { useSubscriptions, useUnfollow } from '@/hooks/useSubscriptions'
 import { fetchAudibleSeriesByAsin, fetchAudibleSeries, audibleKeys } from '@/api/absAudible'
 import { useActiveServer } from '@/hooks/useActiveServer'
+import { useIgnoredAsins, useIgnoreBook } from '@/hooks/useIgnoredBooks'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
@@ -161,6 +162,8 @@ function UpCard({
   when,
   arrived,
   onClick,
+  onIgnore,
+  ignoreBusy,
 }: {
   title: string
   author?: string
@@ -168,6 +171,8 @@ function UpCard({
   when: { top: string; bottom: string }
   arrived?: boolean
   onClick?: () => void
+  onIgnore?: () => void
+  ignoreBusy?: boolean
 }) {
   return (
     <article className={'up-card' + (arrived ? ' arrived' : '')} onClick={onClick}>
@@ -180,6 +185,21 @@ function UpCard({
         <h4>{title}</h4>
         <p>{author || ' '}</p>
       </div>
+      {/* Ebook-only side stories and print editions show up here too; ignoring
+          one drops it from the series count and every upcoming surface. */}
+      {onIgnore && (
+        <button
+          className="sl-ignore-btn"
+          title="Ignore this book - it won't count toward the series"
+          disabled={ignoreBusy}
+          onClick={(e) => {
+            e.stopPropagation()
+            onIgnore()
+          }}
+        >
+          <Icon name="visibility_off" />
+        </button>
+      )}
       <time>
         {when.top}
         <br />
@@ -302,6 +322,8 @@ export function UpcomingPage() {
   const [dest, setDest] = useState<UpcomingTarget | null>(null)
 
   const { target } = useActiveServer()
+  const ignoredAsins = useIgnoredAsins()
+  const { ignore, busy: ignoreBusy } = useIgnoreBook()
   const all = subs ?? []
   const series = all.filter((s) => s.kind === 'series')
   const books = all.filter((s) => s.kind === 'book')
@@ -316,7 +338,7 @@ export function UpcomingPage() {
     const roster = rosters[i]?.data
     return {
       sub,
-      next: roster?.seriesAsin ? nextSeriesBook(roster.books, Date.now()) : null,
+      next: roster?.seriesAsin ? nextSeriesBook(roster.books, Date.now(), ignoredAsins) : null,
       cover: sub.coverArtUrl ?? roster?.books.find((b) => b.coverArtUrl)?.coverArtUrl,
     }
   })
@@ -328,6 +350,7 @@ export function UpcomingPage() {
   const releases: Release[] = [
     ...books
       .filter((s) => !s.available)
+      .filter((s) => !(s.asin && ignoredAsins.some((a) => a.toLowerCase() === s.asin!.toLowerCase())))
       .map((s) => ({
         key: s.id,
         title: s.title,
@@ -438,6 +461,8 @@ export function UpcomingPage() {
                         mon && day ? { top: mon, bottom: day } : { top: 'DATE', bottom: 'TBD' }
                       }
                       onClick={() => setDest(toTarget(r))}
+                      ignoreBusy={ignoreBusy}
+                      onIgnore={r.asin ? () => ignore.mutate(r.asin!) : undefined}
                     />
                   )
                 })}

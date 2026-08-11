@@ -1,17 +1,31 @@
 /**
- * Home countdown banner: "X days until <book>" for followed books whose release
- * is within the reader's countdown window (notifyCountdownWindowDays, default
- * 14). Renders nothing when nothing qualifies, so it's safe to always mount.
+ * Home countdown banner: "X days until <book>" for whatever the reader is
+ * waiting on whose release falls within their countdown window
+ * (notifyCountdownWindowDays, default 14). Renders nothing when nothing
+ * qualifies, so it's safe to always mount.
  *
- * Core does the filtering/sorting (bannerSubscriptions) and the label
- * (countdownLabel), so web, mobile and the notifications job agree on what
+ * Fed from BOTH follow kinds: a book followed directly, and the next book of a
+ * followed series. A series subscription carries no date of its own, so before
+ * this the banner was empty for anyone who only follows series.
+ *
+ * Core does the flattening/windowing (pendingReleases + bannerReleases) and the
+ * label (countdownLabel), so web, mobile and the notifications job agree on what
  * "coming soon" means.
  */
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { bannerSubscriptions, countdownLabel } from '@hearthshelf/core'
+import {
+  pendingReleases,
+  bannerReleases,
+  countdownLabel,
+  nextSeriesBook,
+  type HSAudibleSeriesBook,
+  type HSAudibleSeriesResponse,
+} from '@hearthshelf/core'
 import { getSubscriptions, subscriptionKeys } from '@/api/absSubscriptions'
+import { fetchAudibleSeriesByAsin, fetchAudibleSeries, audibleKeys } from '@/api/absAudible'
 import { useActiveServer } from '@/hooks/useActiveServer'
+import { useIgnoredAsins } from '@/hooks/useIgnoredBooks'
 import { useSettingsStore } from '@/store/settingsStore'
 import { Icon } from '@/components/common/Icon'
 
@@ -19,6 +33,7 @@ export function ReleaseCountdownBanner() {
   const navigate = useNavigate()
   const { target } = useActiveServer()
   const windowDays = useSettingsStore((s) => s.notifyCountdownWindowDays)
+  const ignoredAsins = useIgnoredAsins()
 
   const { data: subscriptions } = useQuery({
     queryKey: subscriptionKeys.list(target?.serverId ?? ''),
@@ -27,16 +42,48 @@ export function ReleaseCountdownBanner() {
     staleTime: 10 * 60 * 1000,
   })
 
-  // Date.now() at render is fine - the banner is not a hot path, and core does
-  // the pure filtering.
-  const upcoming = bannerSubscriptions(subscriptions ?? [], {
-    countdownWindowDays: windowDays,
-  }, Date.now())
+  // Resolve each followed series' roster so its next book can reach the banner.
+  // One useQueries call, so the hook count never depends on the list length.
+  const series = (subscriptions ?? []).filter((s) => s.kind === 'series')
+  const rosters = useQueries({
+    queries: series.map((s) => ({
+      queryKey: audibleKeys.seriesByAsin(s.seriesAsin ?? ''),
+      queryFn: async (): Promise<HSAudibleSeriesResponse> => {
+        const byAsin = await fetchAudibleSeriesByAsin(target!, s.seriesAsin!)
+        if (byAsin.seriesAsin) return byAsin
+        const name = s.seriesTitle ?? s.title
+        if (!name) return byAsin
+        const byName = await fetchAudibleSeries(target!, '', name)
+        return byName.seriesAsin === s.seriesAsin ? byName : byAsin
+      },
+      enabled: Boolean(target) && Boolean(s.seriesAsin),
+      staleTime: 30 * 60 * 1000,
+      retry: false,
+    })),
+  })
+
+  const now = Date.now()
+  const nextBySeries = new Map<string, HSAudibleSeriesBook | null>()
+  series.forEach((s, i) => {
+    const roster = rosters[i]?.data
+    if (s.seriesAsin) {
+      nextBySeries.set(
+        s.seriesAsin,
+        roster?.seriesAsin ? nextSeriesBook(roster.books, now, ignoredAsins) : null,
+      )
+    }
+  })
+
+  const upcoming = bannerReleases(
+    pendingReleases(subscriptions ?? [], nextBySeries, ignoredAsins),
+    { countdownWindowDays: windowDays },
+    now,
+  )
 
   if (upcoming.length === 0) return null
 
   const soonest = upcoming[0]
-  const label = countdownLabel(soonest, Date.now())
+  const label = countdownLabel(soonest, now)
   const extra = upcoming.length - 1
 
   return (

@@ -12,6 +12,7 @@ import { getSeriesList } from '@/api/absLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useFollowLookup, useFollow, useUnfollow } from '@/hooks/useSubscriptions'
+import { useIgnoredAsins, useIgnoreBook } from '@/hooks/useIgnoredBooks'
 import { useSettingsStore } from '@/store/settingsStore'
 import { externalLinks } from '@/lib/externalLinks'
 import { Icon } from '@/components/common/Icon'
@@ -61,6 +62,8 @@ export function UpcomingDetailPage() {
   const follow = useFollow()
   const unfollow = useUnfollow()
   const { data: seriesId } = useLocalSeriesId(data?.series)
+  const ignoredAsins = useIgnoredAsins()
+  const { ignore, unignore, busy: ignoreBusy } = useIgnoreBook()
 
   if (isLoading) return <LoadingSpinner />
   if (isError || !data) {
@@ -107,6 +110,8 @@ export function UpcomingDetailPage() {
       publicationDatetime: data.publicationDatetime,
     })
   }
+
+  const isIgnored = ignoredAsins.some((a) => a.toLowerCase() === data.asin.toLowerCase())
 
   const links = externalLinks({
     title: data.title,
@@ -199,6 +204,22 @@ export function UpcomingDetailPage() {
                 <Icon name="auto_awesome_motion" /> Series page
               </button>
             )}
+            {/* Some series entries are ebook-only side stories or print
+                editions that will never be audiobooks. Ignoring one drops it
+                from the series count, Upcoming, and the Home countdown. */}
+            <button
+              className={'pill' + (isIgnored ? ' on' : '')}
+              disabled={ignoreBusy}
+              title={
+                isIgnored
+                  ? 'Stop ignoring - this book will count toward the series again'
+                  : "Ignore this book - it won't count toward the series"
+              }
+              onClick={() => (isIgnored ? unignore.mutate(data.asin) : ignore.mutate(data.asin))}
+            >
+              <Icon name={isIgnored ? 'visibility' : 'visibility_off'} />{' '}
+              {isIgnored ? 'Ignored' : 'Ignore'}
+            </button>
           </div>
 
           {/* Why the usual actions aren't here. */}

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Icon } from '@/components/common/Icon'
 import { fetchAudibleSeries, audibleKeys } from '@/api/absAudible'
 import { useRmabEnabled } from '@/hooks/useRmab'
+import { useIgnoredAsins, useIgnoreBook } from '@/hooks/useIgnoredBooks'
 import { useFollowLookup, useFollow, useUnfollow } from '@/hooks/useSubscriptions'
 import { missingSeriesBooks, isUpcoming, countdownLabel, releaseMs } from '@hearthshelf/core'
 import type { AbsTarget } from '@/api/absLibrary'
@@ -50,6 +51,7 @@ function MissingRow({
   onRequest: (b: HSAudibleSeriesBook) => void
 }) {
   const upcoming = book.upcoming ?? isUpcoming(book, now)
+  const { ignore, busy: ignoreBusy } = useIgnoreBook()
   const { bookSub } = useFollowLookup()
   const follow = useFollow()
   const unfollow = useUnfollow()
@@ -105,6 +107,20 @@ function MissingRow({
           </div>
         )}
       </div>
+      {/* "Never coming" escape hatch: Audible lists ebook-only side stories and
+          print editions as series books, and they'd otherwise count against the
+          series forever. */}
+      <button
+        className="sl-ignore-btn"
+        title="Ignore this book - it won't count toward the series"
+        disabled={ignoreBusy}
+        onClick={(e) => {
+          e.stopPropagation()
+          if (book.asin) ignore.mutate(book.asin)
+        }}
+      >
+        <Icon name="visibility_off" />
+      </button>
       {upcoming ? (
         <span
           className={`sl-missing-tag sl-follow-tag${following ? ' on' : ''}`}
@@ -136,6 +152,7 @@ export function SeriesMissingBooks({
   startSeq,
 }: SeriesMissingBooksProps) {
   const canRequest = useRmabEnabled()
+  const ignoredAsins = useIgnoredAsins()
   const [confirm, setConfirm] = useState<HSAudibleSeriesBook | null>(null)
 
   const { data } = useQuery({
@@ -147,7 +164,7 @@ export function SeriesMissingBooks({
   })
 
   if (!data?.seriesAsin) return null
-  const missing = missingSeriesBooks(data.books, ownedBooks)
+  const missing = missingSeriesBooks(data.books, ownedBooks, ignoredAsins)
   if (missing.length === 0) return null
   // One `now` for the whole render so every row's countdown agrees.
   const now = Date.now()
