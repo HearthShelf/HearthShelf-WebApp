@@ -148,9 +148,17 @@ function HardcoverSettings() {
               Need Help?
             </summary>
             <div className="cl-d" style={{ marginTop: 'var(--s2)' }}>
-              Create a personal access token in Hardcover, paste it here, then HearthShelf will sync
-              books you mark finished to your Hardcover reading history. Your token is stored on
-              your connected HearthShelf server and is not shown again after it is saved.{' '}
+              Create a personal access token at{' '}
+              <a
+                href="https://hardcover.app/account/api"
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                hardcover.app/account/api
+              </a>{' '}
+              and paste it here, then HearthShelf will sync books you mark finished to your
+              Hardcover reading history. Your token is stored on your connected HearthShelf server
+              and is not shown again after it is saved.{' '}
               <a href={hardcoverDocsUrl} target="_blank" rel="noreferrer noopener">
                 Read the Hardcover integration guide.
               </a>
