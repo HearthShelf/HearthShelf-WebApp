@@ -35,8 +35,12 @@ export function compareSemver(a: string, b: string): number {
 }
 
 export interface UpdateStatus {
-  /** The version the active box is running (null if unknown/undetected). */
+  /** The version the active box is running, without any +build tail. */
   current: string | null
+  /** The raw reported version, including a canary's +canary.<sha> tail. */
+  currentFull: string | null
+  /** True when the box runs a canary (development) build. */
+  isCanary: boolean
   /** The newest release, or null when the cache is empty / still loading. */
   latest: LatestRelease | null
   severity: UpdateSeverity | null
@@ -76,8 +80,16 @@ export function useUpdateStatus(): UpdateStatus {
     current && release?.min_supported && compareSemver(current, release.min_supported) < 0,
   )
 
+  // A canary reports "<version>+canary.<sha>". Build metadata carries no semver
+  // precedence, so the comparisons above already treat a canary cut from the
+  // newest release as current; this just keeps the long hash out of the UI while
+  // still flagging it as a development build.
+  const isCanary = Boolean(current?.includes('+canary'))
+
   return {
-    current,
+    current: current ? current.split('+')[0] : null,
+    currentFull: current,
+    isCanary,
     latest: release,
     severity: release?.severity ?? null,
     updateAvailable,

@@ -26,7 +26,7 @@ function dismissKey(serverId: string, version: string): string {
 }
 
 export function UpdateBanner() {
-  const { current, latest, severity, updateAvailable, belowMinSupported, isAdmin } =
+  const { current, isCanary, latest, severity, updateAvailable, belowMinSupported, isAdmin } =
     useUpdateStatus()
   const { server, servers } = useActiveServer()
   const [dismissed, setDismissed] = useState(false)
@@ -80,7 +80,11 @@ export function UpdateBanner() {
       <Icon name={icon} />
       <span>
         {lead} for {serverName ? <strong>{serverName}</strong> : 'this server'} - it's on{' '}
-        <strong>v{current}</strong>, latest is <strong>v{latest.version}</strong>
+        <strong>
+          v{current}
+          {isCanary ? ' canary' : ''}
+        </strong>
+        , latest is <strong>v{latest.version}</strong>
         {belowMinSupported ? ' (update required to keep this server connected).' : '.'}
       </span>
       <span className="b-actions">

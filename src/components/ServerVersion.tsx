@@ -33,11 +33,23 @@ export function ServerVersion({ serverId, serverUrl }: { serverId: string; serve
   const current = data?.hsVersion ?? null
   if (!current) return null
 
+  // A canary build reports "<version>+canary.<sha>". Semver build metadata does
+  // not affect precedence, so compareSemver already treats a canary cut from the
+  // latest release as up to date - it only reads "behind" when the release it was
+  // cut from is genuinely older. Show the base version plus a canary marker
+  // rather than a long hash, and never tell a canary to "update" when it is level
+  // with (or ahead of) the newest release.
+  const isCanary = current.includes('+canary')
+  const base = current.split('+')[0]
   const behind = Boolean(latest?.version && compareSemver(current, latest.version) < 0)
 
   return (
-    <span className="t-muted shrink-0 text-[12px] tabular-nums">
-      v{current}
+    <span
+      className="t-muted shrink-0 text-[12px] tabular-nums"
+      title={isCanary ? `Development build (${current})` : undefined}
+    >
+      v{base}
+      {isCanary && <span className="ml-1 text-muted-foreground">canary</span>}
       {behind && <span className="ml-1 text-primary">update</span>}
     </span>
   )
