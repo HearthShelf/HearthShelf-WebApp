@@ -43,9 +43,29 @@ const SERVER_PLATFORMS = ['docker', 'windows-service']
 // shipping phone reports one.
 const DEV_MODEL_RE = /simulator|emulator|sdk|generic|virtual|android sdk/i
 
-/** True when a report is from a simulator/emulator rather than a real install. */
-export function isDevInstall(deviceModel: string | null | undefined): boolean {
-  return typeof deviceModel === 'string' && DEV_MODEL_RE.test(deviceModel)
+// CI emulator profiles that report a REAL device name. GitHub Actions' Android
+// runner images boot as a "OnePlus8Pro" on Android 11, so nothing in the model
+// string gives them away - they looked like the single most popular phone in the
+// community until the model+OS pair was checked together. Matched narrowly (both
+// fields), so a person genuinely running that handset on a later Android is
+// still counted; only the frozen CI image pairing is excluded.
+const CI_PROFILES: Array<{ model: string; osVersion: string }> = [
+  { model: 'OnePlus8Pro', osVersion: '11' },
+]
+
+/**
+ * True when a report comes from a build/test environment rather than a real
+ * install: a simulator or emulator by name, or a known CI device profile.
+ */
+export function isDevInstall(
+  deviceModel: string | null | undefined,
+  osVersion?: string | null | undefined,
+): boolean {
+  if (typeof deviceModel !== 'string' || !deviceModel) return false
+  if (DEV_MODEL_RE.test(deviceModel)) return true
+  return CI_PROFILES.some(
+    (p) => p.model.toLowerCase() === deviceModel.toLowerCase() && p.osVersion === osVersion,
+  )
 }
 
 export interface TelemetryInput {
@@ -90,6 +110,7 @@ export async function ingestTelemetry(env: Env, input: TelemetryInput): Promise<
   if (!id || !/^[A-Za-z0-9_-]{8,64}$/.test(id)) return false
 
   const deviceModel = str(input.device_model, 60)
+  const osVersion = str(input.os_version, 30)
 
   await env.DB.prepare(
     `INSERT INTO telemetry_reports
@@ -124,7 +145,7 @@ export async function ingestTelemetry(env: Env, input: TelemetryInput): Promise<
       deviceModel,
       oneOf(input.device_type, DEVICE_TYPES),
       str(input.os_name, 30),
-      str(input.os_version, 30),
+      osVersion,
       str(input.app_version, 40),
       str(input.hs_version),
       str(input.abs_version),
@@ -136,7 +157,7 @@ export async function ingestTelemetry(env: Env, input: TelemetryInput): Promise<
       count(input.books_finished),
       count(input.club_books_finished),
       count(input.clubs_active),
-      isDevInstall(deviceModel) ? 1 : 0,
+      isDevInstall(deviceModel, osVersion) ? 1 : 0,
       now(),
     )
     .run()
