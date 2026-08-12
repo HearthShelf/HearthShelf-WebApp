@@ -28,6 +28,22 @@ const MODES = ['slim', 'aio']
 const PLATFORMS = ['ios', 'android', 'docker', 'windows-service']
 const DEVICE_TYPES = ['phone', 'tablet', 'desktop', 'server']
 
+// Which platforms are servers vs end-user apps. Version stats are reported
+// separately for each: a server admin wants to know how many boxes are behind,
+// which is a different question from how many phones are on an old app build.
+const SERVER_PLATFORMS = ['docker', 'windows-service']
+
+// Simulators and emulators are development artifacts, not community installs.
+// They otherwise dominate the device chart during active development (a CI
+// runner or a rebuilt simulator reports like a real phone). Matched on the
+// device model, which is what those environments report verbatim.
+const DEV_MODEL_RE = /simulator|emulator|sdk[ _]?built|generic|virtual|google_sdk|android sdk/i
+
+/** True when a report is from a simulator/emulator rather than a real install. */
+export function isDevInstall(deviceModel: string | null | undefined): boolean {
+  return typeof deviceModel === 'string' && DEV_MODEL_RE.test(deviceModel)
+}
+
 export interface TelemetryInput {
   telemetry_id?: unknown
   // Unified install fields (mobile + server). See core HSInstallReport.
@@ -69,13 +85,15 @@ export async function ingestTelemetry(env: Env, input: TelemetryInput): Promise<
   const id = str(input.telemetry_id, 64)
   if (!id || !/^[A-Za-z0-9_-]{8,64}$/.test(id)) return false
 
+  const deviceModel = str(input.device_model, 60)
+
   await env.DB.prepare(
     `INSERT INTO telemetry_reports
        (telemetry_id, platform, device_model, device_type, os_name, os_version,
         app_version, hs_version, abs_version, mode, user_bucket, book_bucket,
         quests_given, quests_accepted, books_finished, club_books_finished,
-        clubs_active, reported_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        clubs_active, is_dev, reported_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (telemetry_id) DO UPDATE SET
        platform = excluded.platform,
        device_model = excluded.device_model,
@@ -93,12 +111,13 @@ export async function ingestTelemetry(env: Env, input: TelemetryInput): Promise<
        books_finished = excluded.books_finished,
        club_books_finished = excluded.club_books_finished,
        clubs_active = excluded.clubs_active,
+       is_dev = excluded.is_dev,
        reported_at = excluded.reported_at`,
   )
     .bind(
       id,
       oneOf(input.platform, PLATFORMS),
-      str(input.device_model, 60),
+      deviceModel,
       oneOf(input.device_type, DEVICE_TYPES),
       str(input.os_name, 30),
       str(input.os_version, 30),
@@ -113,6 +132,7 @@ export async function ingestTelemetry(env: Env, input: TelemetryInput): Promise<
       count(input.books_finished),
       count(input.club_books_finished),
       count(input.clubs_active),
+      isDevInstall(deviceModel) ? 1 : 0,
       now(),
     )
     .run()
@@ -135,10 +155,17 @@ export interface TrendPoint {
 export interface PublicStats {
   active_installs: number
   installs_by_platform: Record<string, number>
+  /** Servers and apps pooled. Kept for consumers that render a single list. */
   version_distribution: Record<string, number>
+  /** HearthShelf versions across self-hosted servers only (docker, service). */
+  server_version_distribution: Record<string, number>
+  /** App versions across the mobile apps only. */
+  app_version_distribution: Record<string, number>
   device_model_distribution: Record<string, number>
   installs_over_time: TrendPoint[]
   latest_version: string | null
+  /** Newest version seen across servers - the "are boxes behind" reference. */
+  latest_server_version: string | null
   totals: {
     quests_given: number
     quests_accepted: number
@@ -176,6 +203,9 @@ function newerVersion(a: string, b: string): string {
 export async function getPublicStats(env: Env): Promise<PublicStats> {
   const cutoff = now() - ACTIVE_WINDOW_MS
 
+  // Every query below excludes is_dev rows: simulators and emulators are
+  // development artifacts, and while HearthShelf is young they outnumber real
+  // installs badly enough to make the whole page misleading.
   const totals = await env.DB.prepare(
     `SELECT
         COUNT(*) AS installs,
@@ -183,7 +213,7 @@ export async function getPublicStats(env: Env): Promise<PublicStats> {
         COALESCE(SUM(quests_accepted), 0) AS quests_accepted,
         COALESCE(SUM(books_finished), 0) AS books_finished,
         COALESCE(SUM(club_books_finished), 0) AS club_books_finished
-      FROM telemetry_reports WHERE reported_at >= ?`,
+      FROM telemetry_reports WHERE reported_at >= ? AND is_dev = 0`,
   )
     .bind(cutoff)
     .first<{
@@ -198,7 +228,7 @@ export async function getPublicStats(env: Env): Promise<PublicStats> {
   const byPlatform = await env.DB.prepare(
     `SELECT COALESCE(platform, 'docker') AS platform, COUNT(*) AS n
        FROM telemetry_reports
-      WHERE reported_at >= ?
+      WHERE reported_at >= ? AND is_dev = 0
       GROUP BY COALESCE(platform, 'docker')`,
   )
     .bind(cutoff)
@@ -207,30 +237,63 @@ export async function getPublicStats(env: Env): Promise<PublicStats> {
   const installs_by_platform: Record<string, number> = {}
   for (const row of byPlatform.results ?? []) installs_by_platform[row.platform] = row.n
 
-  // Version distribution on the unified app_version, falling back to hs_version
-  // for any row that predates the backfill and somehow lacks app_version.
-  const dist = await env.DB.prepare(
-    `SELECT COALESCE(app_version, hs_version) AS version, COUNT(*) AS n
+  // Version distribution, split by what the version MEANS. Pooling them answered
+  // no useful question: "v0.2.0 - 5 installs" could not tell a server admin
+  // whether any box was behind, because phone app builds were mixed in. Servers
+  // report hs_version; apps report app_version.
+  const serverList = SERVER_PLATFORMS.map(() => '?').join(',')
+  const serverDist = await env.DB.prepare(
+    `SELECT COALESCE(hs_version, app_version) AS version, COUNT(*) AS n
        FROM telemetry_reports
-      WHERE reported_at >= ? AND COALESCE(app_version, hs_version) IS NOT NULL
+      WHERE reported_at >= ? AND is_dev = 0
+        AND COALESCE(platform, 'docker') IN (${serverList})
+        AND COALESCE(hs_version, app_version) IS NOT NULL
       GROUP BY version
       ORDER BY n DESC`,
   )
-    .bind(cutoff)
+    .bind(cutoff, ...SERVER_PLATFORMS)
     .all<{ version: string; n: number }>()
 
-  const version_distribution: Record<string, number> = {}
+  const appDist = await env.DB.prepare(
+    `SELECT COALESCE(app_version, hs_version) AS version, COUNT(*) AS n
+       FROM telemetry_reports
+      WHERE reported_at >= ? AND is_dev = 0
+        AND COALESCE(platform, 'docker') NOT IN (${serverList})
+        AND COALESCE(app_version, hs_version) IS NOT NULL
+      GROUP BY version
+      ORDER BY n DESC`,
+  )
+    .bind(cutoff, ...SERVER_PLATFORMS)
+    .all<{ version: string; n: number }>()
+
+  const server_version_distribution: Record<string, number> = {}
+  let latest_server_version: string | null = null
+  for (const row of serverDist.results ?? []) {
+    server_version_distribution[row.version] = row.n
+    latest_server_version = latest_server_version
+      ? newerVersion(latest_server_version, row.version)
+      : row.version
+  }
+
+  const app_version_distribution: Record<string, number> = {}
+  for (const row of appDist.results ?? []) app_version_distribution[row.version] = row.n
+
+  // Combined view kept for existing consumers (the marketing page still renders
+  // one list when it has nothing more specific to show).
+  const version_distribution: Record<string, number> = { ...app_version_distribution }
+  for (const [v, n] of Object.entries(server_version_distribution)) {
+    version_distribution[v] = (version_distribution[v] ?? 0) + n
+  }
   let latest_version: string | null = null
-  for (const row of dist.results ?? []) {
-    version_distribution[row.version] = row.n
-    latest_version = latest_version ? newerVersion(latest_version, row.version) : row.version
+  for (const v of Object.keys(version_distribution)) {
+    latest_version = latest_version ? newerVersion(latest_version, v) : v
   }
 
   // Device-model distribution - mobile only (servers report no model).
   const models = await env.DB.prepare(
     `SELECT device_model AS model, COUNT(*) AS n
        FROM telemetry_reports
-      WHERE reported_at >= ? AND device_model IS NOT NULL
+      WHERE reported_at >= ? AND is_dev = 0 AND device_model IS NOT NULL
       GROUP BY device_model
       ORDER BY n DESC`,
   )
@@ -252,7 +315,7 @@ export async function getPublicStats(env: Env): Promise<PublicStats> {
     // Active as of this day = reported within the active window ending that day.
     const row = await env.DB.prepare(
       `SELECT COUNT(*) AS n FROM telemetry_reports
-        WHERE reported_at < ? AND reported_at >= ?`,
+        WHERE reported_at < ? AND reported_at >= ? AND is_dev = 0`,
     )
       .bind(dayEnd, dayEnd - ACTIVE_WINDOW_MS)
       .first<{ n: number }>()
@@ -263,9 +326,12 @@ export async function getPublicStats(env: Env): Promise<PublicStats> {
     active_installs: totals?.installs ?? 0,
     installs_by_platform,
     version_distribution,
+    server_version_distribution,
+    app_version_distribution,
     device_model_distribution,
     installs_over_time,
     latest_version,
+    latest_server_version,
     totals: {
       quests_given: totals?.quests_given ?? 0,
       quests_accepted: totals?.quests_accepted ?? 0,
