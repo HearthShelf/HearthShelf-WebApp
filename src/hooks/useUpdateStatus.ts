@@ -49,7 +49,8 @@ export interface UpdateStatus {
   isLoading: boolean
 }
 
-const latestReleaseKey = ['releases', 'latest'] as const
+/** Shared so the per-server version chips reuse this cache entry, not a copy. */
+export const latestReleaseKey = ['releases', 'latest'] as const
 
 export function useUpdateStatus(): UpdateStatus {
   const { target, server } = useActiveServer()

@@ -4,6 +4,7 @@ import { Server, MoreVertical, ExternalLink, Trash2, Star } from 'lucide-react'
 import { useUnlinkServer, useSetDefaultServer, useClearDefaultServer } from '@/hooks/useServers'
 import { useActiveServerStore } from '@/store/activeServer'
 import { ServerStatusDot } from '@/components/ServerStatusDot'
+import { ServerVersion } from '@/components/ServerVersion'
 import { Menu, MenuItem } from '@/components/ui/Menu'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { notify } from '@/lib/notify'
@@ -105,6 +106,7 @@ export function ServerRow({ server, active }: { server: LinkedServer; active?: b
                   : 'Tap to open this library'}
             </span>
           </span>
+          <ServerVersion serverId={server.id} serverUrl={server.url} />
           <ServerStatusDot serverId={server.id} />
           {/* Spacer so the status dot never sits under the kebab button. */}
           <span className="w-7" aria-hidden />

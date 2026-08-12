@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Icon } from '@/components/common/Icon'
 import { useUpdateStatus } from '@/hooks/useUpdateStatus'
 import { useActiveServer } from '@/hooks/useActiveServer'
@@ -27,8 +28,14 @@ function dismissKey(serverId: string, version: string): string {
 export function UpdateBanner() {
   const { current, latest, severity, updateAvailable, belowMinSupported, isAdmin } =
     useUpdateStatus()
-  const { server } = useActiveServer()
+  const { server, servers } = useActiveServer()
   const [dismissed, setDismissed] = useState(false)
+
+  // The banner is about the ACTIVE server only. With several linked, "you're on
+  // v0.1.0" is ambiguous - name the server, and offer a way to the full list so
+  // the others can be checked too.
+  const multiple = servers.length > 1
+  const serverName = server?.name ?? null
 
   // Nothing to say: up to date, unknown version, or a silent 'info' release.
   if (!updateAvailable || !latest || !current) return null
@@ -52,7 +59,10 @@ export function UpdateBanner() {
     return (
       <div className={`banner ${tone}`}>
         <Icon name="info" />
-        <span>This server is running an older version of HearthShelf ({`v${current}`}).</span>
+        <span>
+          {serverName ? <strong>{serverName}</strong> : 'This server'} is running an older version
+          of HearthShelf ({`v${current}`}).
+        </span>
       </div>
     )
   }
@@ -69,7 +79,8 @@ export function UpdateBanner() {
     <div className={`banner ${tone}`}>
       <Icon name={icon} />
       <span>
-        {lead} - you're on <strong>v{current}</strong>, latest is <strong>v{latest.version}</strong>
+        {lead} for {serverName ? <strong>{serverName}</strong> : 'this server'} - it's on{' '}
+        <strong>v{current}</strong>, latest is <strong>v{latest.version}</strong>
         {belowMinSupported ? ' (update required to keep this server connected).' : '.'}
       </span>
       <span className="b-actions">
@@ -77,6 +88,11 @@ export function UpdateBanner() {
           <a className="b-link" href={latest.notes_url} target="_blank" rel="noreferrer noopener">
             How to update
           </a>
+        )}
+        {multiple && (
+          <Link className="b-link" to="/account/servers">
+            My servers
+          </Link>
         )}
         {!sticky && (
           <span className="b-x" role="button" title="Dismiss" onClick={dismiss}>
