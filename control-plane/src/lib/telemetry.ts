@@ -162,6 +162,8 @@ export interface PublicStats {
   /** App versions across the mobile apps only. */
   app_version_distribution: Record<string, number>
   device_model_distribution: Record<string, number>
+  /** Servers by install shape: 'slim' (bring your own ABS) vs 'aio' (bundled). */
+  server_mode_distribution: Record<string, number>
   installs_over_time: TrendPoint[]
   latest_version: string | null
   /** Newest version seen across servers - the "are boxes behind" reference. */
@@ -303,6 +305,23 @@ export async function getPublicStats(env: Env): Promise<PublicStats> {
   const device_model_distribution: Record<string, number> = {}
   for (const row of models.results ?? []) device_model_distribution[row.model] = row.n
 
+  // Slim vs all-in-one. Servers have reported `mode` since the first telemetry
+  // build, but nothing ever aggregated it - so the one thing that says whether
+  // self-hosters bring their own AudiobookShelf or use the bundled one never
+  // reached the stats page. Servers only: a mobile row has no mode.
+  const modes = await env.DB.prepare(
+    `SELECT mode, COUNT(*) AS n
+       FROM telemetry_reports
+      WHERE reported_at >= ? AND is_dev = 0 AND mode IS NOT NULL
+      GROUP BY mode
+      ORDER BY n DESC`,
+  )
+    .bind(cutoff)
+    .all<{ mode: string; n: number }>()
+
+  const server_mode_distribution: Record<string, number> = {}
+  for (const row of modes.results ?? []) server_mode_distribution[row.mode] = row.n
+
   // Installs-over-time: active install count per UTC day for the last TREND_DAYS.
   // "Active on day D" = last reported at any time up to and including D, so the
   // series shows the live fleet size over time, not just the day a report landed.
@@ -329,6 +348,7 @@ export async function getPublicStats(env: Env): Promise<PublicStats> {
     server_version_distribution,
     app_version_distribution,
     device_model_distribution,
+    server_mode_distribution,
     installs_over_time,
     latest_version,
     latest_server_version,
