@@ -37,7 +37,11 @@ const SERVER_PLATFORMS = ['docker', 'windows-service']
 // They otherwise dominate the device chart during active development (a CI
 // runner or a rebuilt simulator reports like a real phone). Matched on the
 // device model, which is what those environments report verbatim.
-const DEV_MODEL_RE = /simulator|emulator|sdk[ _]?built|generic|virtual|google_sdk|android sdk/i
+// `sdk_gphone*` is what a modern Android Studio emulator reports, and it matches
+// none of the older patterns - it slipped through as a real device until spotted
+// in the live data. Any model containing "sdk" is an emulator image name; no
+// shipping phone reports one.
+const DEV_MODEL_RE = /simulator|emulator|sdk|generic|virtual|android sdk/i
 
 /** True when a report is from a simulator/emulator rather than a real install. */
 export function isDevInstall(deviceModel: string | null | undefined): boolean {
