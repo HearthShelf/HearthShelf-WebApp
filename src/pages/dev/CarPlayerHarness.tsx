@@ -75,6 +75,7 @@ export function CarPlayerHarness() {
             faded={idleFade.faded}
             wake={idleFade.wake}
             tick={idleFade.tick}
+            canReadAlong
           />
         </div>
       </MediaUIProvider>

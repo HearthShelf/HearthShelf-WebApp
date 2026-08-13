@@ -395,6 +395,10 @@ export interface AbsItemDetail {
   /** The open play session's id - sync/close it to accrue listening time + a
    *  session record. Null when no session opened (e.g. a book with no audio). */
   playSessionId: string | null
+  /** Lowercased ebook format ("epub", "pdf", ...) when the item has an ebook
+   *  file, else null. The reader only opens epub, so callers gate on
+   *  `ebookFormat === 'epub'` rather than mere presence. */
+  ebookFormat: string | null
 }
 
 interface RawChapter {
@@ -420,6 +424,10 @@ interface RawItemDetail {
       description?: string
     }
     chapters?: RawChapter[]
+    // Present when the item has an ebook file. The expanded read returns the
+    // full file object; `ebookFormat` is the flat fallback.
+    ebookFormat?: string
+    ebookFile?: { ebookFormat?: string } | null
   }
   userMediaProgress?: { currentTime?: number; isFinished?: boolean } | null
 }
@@ -616,6 +624,7 @@ export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsIt
         ? { currentTimeSec: session.currentTime, isFinished: false }
         : null,
     playSessionId: session?.id ?? null,
+    ebookFormat: (r.media?.ebookFile?.ebookFormat ?? r.media?.ebookFormat)?.toLowerCase() || null,
   }
 }
 

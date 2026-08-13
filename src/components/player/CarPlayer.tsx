@@ -48,6 +48,7 @@ export function CarPlayer({
   faded,
   wake,
   tick,
+  canReadAlong,
 }: {
   libraryItemId: string
   title: string
@@ -73,6 +74,9 @@ export function CarPlayer({
    * background behind the card can also wake the chrome on tap. */
   faded: boolean
   wake: () => void
+  /** Whether this book has an epub the in-browser reader can open. False hides
+   * the "Read along" action, which would otherwise dead-end. */
+  canReadAlong: boolean
   tick: () => void
 }) {
   const navigate = useNavigate()
@@ -350,15 +354,17 @@ export function CarPlayer({
               >
                 <Icon name="info" /> Book details
               </button>
-              <button
-                className="car-more-item"
-                onClick={() => {
-                  setSheet(null)
-                  navigate(`/reader/${libraryItemId}`)
-                }}
-              >
-                <Icon name="menu_book" /> Read along
-              </button>
+              {canReadAlong && (
+                <button
+                  className="car-more-item"
+                  onClick={() => {
+                    setSheet(null)
+                    navigate(`/reader/${libraryItemId}`)
+                  }}
+                >
+                  <Icon name="menu_book" /> Read along
+                </button>
+              )}
               <button className="car-more-item" onClick={onExit}>
                 <Icon name="close_fullscreen" /> Exit car mode
               </button>

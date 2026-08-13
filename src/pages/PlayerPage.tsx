@@ -463,6 +463,17 @@ export function PlayerPage() {
     staleTime: 5 * 60 * 1000,
   })
 
+  // Read along only works for an epub - the in-browser reader can't open a pdf
+  // or any other ebook format ABS may hold, so hide the action entirely rather
+  // than open a panel that dead-ends.
+  const canReadAlong = detail?.ebookFormat === 'epub'
+
+  // Close the read-along panel if the player moves to a book with no epub -
+  // otherwise the panel stays open over a book it can't read.
+  useEffect(() => {
+    if (!canReadAlong) setPanel((p) => (p === 'reader' ? null : p))
+  }, [canReadAlong])
+
   // Public note markers for the full-book scrubber (unlocked notes + locked
   // ahead-stubs, gated server-side by position). Refreshed on the same 30s
   // cadence progress already syncs on - no new timer. Desktop-only surface
@@ -644,7 +655,7 @@ export function PlayerPage() {
           <div className="eyebrow">By the hearth</div>
           <h1 className="cozy-h">Warming up the hearth</h1>
           <p className="cozy-sub">
-            {resumeBook?.media.metadata.title ?? queueHead?.title
+            {(resumeBook?.media.metadata.title ?? queueHead?.title)
               ? `Bringing ${resumeBook?.media.metadata.title ?? queueHead?.title} back to your chair.`
               : 'Finding where you left off.'}
           </p>
@@ -769,6 +780,7 @@ export function PlayerPage() {
           faded={carIdleFade.faded}
           wake={carIdleFade.wake}
           tick={carIdleFade.tick}
+          canReadAlong={canReadAlong}
         />
         {toast && (
           <div className="p-toast">
@@ -1060,12 +1072,14 @@ export function PlayerPage() {
             >
               <Icon name="info" /> Book details
             </button>
-            <button
-              className={'pill' + (panel === 'reader' ? ' on' : '')}
-              onClick={() => togglePanel('reader')}
-            >
-              <Icon name="menu_book" /> Read along
-            </button>
+            {canReadAlong && (
+              <button
+                className={'pill' + (panel === 'reader' ? ' on' : '')}
+                onClick={() => togglePanel('reader')}
+              >
+                <Icon name="menu_book" /> Read along
+              </button>
+            )}
             <button
               className={'pill' + (pop === 'speed' ? ' on' : '')}
               onClick={() => togglePop('speed')}

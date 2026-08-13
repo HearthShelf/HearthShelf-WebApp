@@ -390,10 +390,9 @@ export function MobilePlayer({
       autoRules.map((r) => (r.id === id ? { ...r, on: !r.on } : r)),
     )
 
-  // Reader is deferred in the WebApp, so the read-along action stays hidden. The
-  // detail prop is kept for the genre kicker / future reader wiring.
-  void detail
-  const hasEbook = false
+  // Read along only works for an epub - the reader can't open a pdf or any
+  // other ebook format ABS may hold.
+  const hasEbook = detail?.ebookFormat === 'epub'
   const ACT: Record<ActionKey, { icon: string; label: string; on: () => void }> = {
     chapters: { icon: 'list', label: 'Chapters', on: () => setSheet('chapters') },
     speed: { icon: 'speed', label: speedLabel, on: () => setSheet('speed') },
@@ -405,7 +404,7 @@ export function MobilePlayer({
     readalong: {
       icon: 'menu_book',
       label: 'Read along',
-      on: () => navigate(`/book/${libraryItemId}`),
+      on: () => navigate(`/reader/${libraryItemId}`),
     },
     recent: { icon: 'history', label: 'Recent', on: () => setSheet('recent') },
     details: { icon: 'info', label: 'Details', on: () => navigate(`/book/${libraryItemId}`) },
