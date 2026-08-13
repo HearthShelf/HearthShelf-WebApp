@@ -28,12 +28,11 @@ const CANCELLABLE = [
   'awaiting_release',
 ]
 
-const GROUP_COLOR: Record<RmabGroup, string> = {
+const GROUP_COLOR: Partial<Record<RmabGroup, string>> = {
   active: '#9b6fb8',
   waiting: '#d9a45a',
   completed: '#5a9c52',
   failed: '#d8443a',
-  cancelled: '#8a847a',
 }
 
 type Tab = 'all' | RmabGroup
@@ -147,7 +146,12 @@ export function RequestsPage() {
     },
   })
 
-  const requests = useMemo(() => data?.requests ?? [], [data])
+  // Cancelled requests are hidden everywhere. The backend still returns them
+  // under "all", so drop them here and take them back out of the "all" count.
+  const requests = useMemo(
+    () => (data?.requests ?? []).filter((r) => statusMeta(r.status).group !== 'cancelled'),
+    [data],
+  )
   const counts = data?.counts
   const inflight = (counts?.active ?? 0) + (counts?.waiting ?? 0)
 
@@ -160,7 +164,10 @@ export function RequestsPage() {
     { id: 'all', label: 'All', icon: 'inbox' },
     ...RMAB_GROUPS,
   ]
-  const countFor = (id: Tab): number => (id === 'all' ? (counts?.all ?? 0) : (counts?.[id] ?? 0))
+  const countFor = (id: Tab): number =>
+    id === 'all'
+      ? Math.max(0, (counts?.all ?? 0) - (counts?.cancelled ?? 0))
+      : (counts?.[id] ?? 0)
 
   return (
     <div className="page fade-in">

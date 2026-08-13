@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
@@ -149,30 +149,6 @@ export function ItemDetailPage() {
     staleTime: 30 * 1000,
   })
   const notesEnabled = notesData?.enabled === true
-
-  // Load this book into the GLOBAL player when it opens (paused at the saved
-  // position), unless it's already the now-playing book - so navigating back to
-  // a playing book doesn't restart it.
-  const alreadyPlaying = player.now?.itemId === itemId && player.now?.serverId === target?.serverId
-  useEffect(() => {
-    if (!playable || !target || alreadyPlaying) return
-    player.play({
-      serverId: target.serverId,
-      serverUrl: target.serverUrl,
-      itemId: playable.id,
-      title: playable.title,
-      author: playable.author,
-      narrator: playable.narrator,
-      coverUrl: playable.coverUrl,
-      tracks: playable.tracks,
-      chapters: playable.chapters,
-      totalDurationSec: playable.durationSec,
-      startAtSec: playable.progress?.currentTimeSec ?? 0,
-      playSessionId: playable.playSessionId,
-    })
-    // Only re-run when the loaded book changes, not on every player tick.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playable, target?.serverId, target?.serverUrl])
 
   if (!target) {
     return (

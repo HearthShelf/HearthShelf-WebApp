@@ -42,12 +42,16 @@ export const RMAB_STATUS: Record<string, RmabStatusMeta> = {
   cancelled: { color: '#8a847a', label: 'Cancelled', group: 'cancelled' },
 }
 
+/**
+ * Groups shown in the UI. Cancelled requests are backend-only history: they stay
+ * in the status model so an in-flight row that gets cancelled still renders a
+ * correct badge, but they get no tab, no tile, and are filtered out of the list.
+ */
 export const RMAB_GROUPS: { id: RmabGroup; label: string; icon: string }[] = [
   { id: 'active', label: 'Active', icon: 'downloading' },
   { id: 'waiting', label: 'Waiting', icon: 'hourglass_top' },
   { id: 'completed', label: 'Completed', icon: 'task_alt' },
   { id: 'failed', label: 'Failed', icon: 'error' },
-  { id: 'cancelled', label: 'Cancelled', icon: 'block' },
 ]
 
 export function statusMeta(status: string): RmabStatusMeta {

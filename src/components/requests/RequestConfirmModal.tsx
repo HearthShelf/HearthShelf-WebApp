@@ -60,12 +60,11 @@ function BookHead({ book, note }: { book: HSAudibleSearchResult; note?: string }
 }
 
 // Opens on a "you don't own this book" step with Close / Open Audible / Request
-// (Request only when the backend is connected). Requesting advances to the
-// confirm step, then to a success/awaiting result - all in one modal.
+// (Request only when the backend is connected). Request submits immediately and
+// the modal advances straight to the success/awaiting result.
 export function RequestConfirmModal({ book, canRequest, onClose }: RequestConfirmModalProps) {
   const navigate = useNavigate()
   const submit = useSubmitRequest()
-  const [phase, setPhase] = useState<'intro' | 'confirm'>('intro')
   const [result, setResult] = useState<RmabRequest | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -146,67 +145,37 @@ export function RequestConfirmModal({ book, canRequest, onClose }: RequestConfir
     )
   }
 
-  // Confirm phase: reached only via Request.
-  if (phase === 'confirm') {
-    return (
-      <Modal
-        title="Request audiobook"
-        onClose={onClose}
-        foot={
-          <>
-            <button
-              className="req-btn ghost"
-              onClick={() => setPhase('intro')}
-              disabled={submit.isPending}
-            >
-              Back
-            </button>
-            <button className="req-btn" onClick={confirm} disabled={submit.isPending}>
-              <Icon name="add" /> {submit.isPending ? 'Requesting...' : 'Request'}
-            </button>
-          </>
-        }
-      >
-        <BookHead book={book} note="via ReadMeABook" />
-        <p className="rc-note">
-          ReadMeABook will search for it, download it, and add it to your HearthShelf library
-          automatically. You'll see live status under Requests.
-        </p>
-        {error && (
-          <div className="rr-err" style={{ marginTop: 12 }}>
-            <Icon name="error" fill /> {error}
-          </div>
-        )}
-      </Modal>
-    )
-  }
-
-  // Intro phase: "you don't own this book".
+  // Single step: "you don't own this book", with Request submitting right away.
   return (
     <Modal
       title="You don't own this book"
       onClose={onClose}
       foot={
         <>
-          <button className="req-btn ghost" onClick={onClose}>
+          <button className="req-btn ghost" onClick={onClose} disabled={submit.isPending}>
             Close
           </button>
           {audibleBtn}
           {canRequest && (
-            <button className="req-btn" onClick={() => setPhase('confirm')}>
-              <Icon name="bolt" fill /> Request
+            <button className="req-btn" onClick={confirm} disabled={submit.isPending}>
+              <Icon name="bolt" fill /> {submit.isPending ? 'Requesting...' : 'Request'}
             </button>
           )}
         </>
       }
     >
-      <BookHead book={book} />
+      <BookHead book={book} note={canRequest ? 'via ReadMeABook' : undefined} />
       <p className="rc-note">
         {book.title} isn't in your library yet.
         {canRequest
-          ? ' Request it through ReadMeABook, or open it on Audible.'
+          ? " Request it and ReadMeABook will search for it, download it, and add it to your library automatically. You'll see live status under Requests."
           : ' You can open it on Audible.'}
       </p>
+      {error && (
+        <div className="rr-err" style={{ marginTop: 12 }}>
+          <Icon name="error" fill /> {error}
+        </div>
+      )}
     </Modal>
   )
 }
