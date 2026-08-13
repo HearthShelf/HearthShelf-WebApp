@@ -225,9 +225,9 @@ export const SETTINGS_INDEX: SettingEntry[] = [
     section: 'queue',
     sectionLabel: 'Queue',
     icon: 'queue_music',
-    title: 'Hidden from shelves',
-    desc: 'Books you have hidden from your shelves.',
-    keywords: 'hidden ignored dismissed shelves',
+    title: 'Ignored',
+    desc: 'Series you ignored and books you set aside. Restore to have them suggested again.',
+    keywords: 'ignore ignored hidden dismissed shelves series restore',
   },
 
   // ---- Car mode

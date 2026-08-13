@@ -13,6 +13,7 @@ import { QuestGiverPicker } from '@/components/questgiver/QuestGiverPicker'
 import { QuestGiverSlider } from '@/components/questgiver/QuestGiverSlider'
 import { QuestGiverResultCard } from '@/components/questgiver/QuestGiverResultCard'
 import { useQgConfig, useQuestGiverEnabled } from '@/hooks/useQuestGiver'
+import { useIgnoredItemIds } from '@/hooks/useIgnoredItemIds'
 import { useRmabEnabled, useSubmitRequest } from '@/hooks/useRmab'
 import { searchCatalog } from '@/api/absRequests'
 import {
@@ -68,6 +69,9 @@ export function QuestGiverPage() {
 
   const allItems = useMemo(() => itemsData?.results ?? [], [itemsData])
   const books = useMemo(() => qgBooks(allItems, progressById), [allItems, progressById])
+  // Books in series the listener ignored - kept out of the candidate pool and
+  // out of resolved picks, so a saved run never replays one either.
+  const ignoredIds = useIgnoredItemIds(featureEnabled)
 
   // wizard state
   const [step, setStep] = useState(0)
@@ -212,7 +216,9 @@ export function QuestGiverPage() {
     }
 
     // Library pool always; external pool (catalog search) when looking beyond.
-    let candidates: QgCandidate[] = qgLibraryCandidates(books)
+    // Series the listener ignored are out of the pool - QuestGiver never
+    // suggests from a series they said they have no interest in.
+    let candidates: QgCandidate[] = qgLibraryCandidates(books, ignoredIds)
     const externalById = new Map<string, QgCandidate>()
     if (lookBeyond) {
       const terms = qgExternalSearchTerms(profile, books, weights ?? {})
@@ -233,6 +239,7 @@ export function QuestGiverPage() {
       priorPicks: runs.flatMap((r) => r.picks),
       canRequest: rmabEnabled,
       count: answers.count ?? 4,
+      ignoredIds,
     })
 
     // stamp a label + timestamp and persist the run

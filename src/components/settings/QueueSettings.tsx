@@ -197,14 +197,14 @@ export function QueueSettings() {
             control={<PlaylistPicker />}
           />
         )}
-        <HiddenFromShelves />
+        <IgnoredAndSetAside />
       </div>
     </section>
   )
 }
 
-// The user's "not right now" dismissals, each with a Restore button.
-function HiddenFromShelves() {
+// The user's ignored series and set-aside books, each with a Restore button.
+function IgnoredAndSetAside() {
   const { target } = useActiveLibrary()
   const seriesIds = useDismissalsStore((s) => s.seriesIds)
   const itemIds = useDismissalsStore((s) => s.itemIds)
@@ -224,8 +224,8 @@ function HiddenFromShelves() {
 
   return (
     <SetRow
-      title="Hidden from shelves"
-      desc="Series and books you hid from your Auto queue and Continue shelves. Restore to bring them back."
+      title="Ignored"
+      desc="Series you ignored and books you set aside. They stay in your library - they just stop being suggested. Restore to have them recommended again."
       control={null}
       stacked
     >
@@ -235,7 +235,7 @@ function HiddenFromShelves() {
             <Icon name={r.kind === 'series' ? 'collections_bookmark' : 'menu_book'} />
             <div className="rule-meta" style={{ flex: 1 }}>
               <div className="rule-t">
-                {labels[r.id] ?? (r.kind === 'series' ? 'Hidden series' : 'Hidden book')}
+                {labels[r.id] ?? (r.kind === 'series' ? 'Ignored series' : 'Book set aside')}
               </div>
             </div>
             <button className="btn-ghost" onClick={() => void restore(target, r.kind, r.id)}>

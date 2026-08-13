@@ -4,6 +4,7 @@ import { useQueries, useQuery, type UseQueryOptions } from '@tanstack/react-quer
 import { useUser } from '@clerk/clerk-react'
 import {
   continueSeriesShelf,
+  ignoredItemIds,
   buildDiscoverShelves,
   rankDiscoverShelves,
   isGeneratedRecShelf,
@@ -289,6 +290,15 @@ export function HomePage() {
     })
   }, [seriesData, progressById, dismissedSeries, dismissedItems])
 
+  // Books belonging to an ignored series. The taste engine sees only the
+  // minified item shape (a seriesName string, no series id), so it cannot test
+  // the ignore list itself - resolve it here, off the same /series result
+  // Continue-Series already uses, and hand it down as a flat id set.
+  const ignoredIds = useMemo(
+    () => ignoredItemIds(seriesData?.results ?? [], { seriesIds: dismissedSeries, itemIds: [] }),
+    [seriesData, dismissedSeries],
+  )
+
   // HearthShelf's own taste engine feeds Home's recommendation bands - our
   // recommendations, not ABS's cross-library "discover" feed (which surfaces
   // other household members' books).
@@ -316,12 +326,13 @@ export function HomePage() {
   const recBySection = useMemo(() => {
     const map = new Map<HomeSectionId, DiscoverShelf[]>()
     if (!discoverEnabled || !hasLib) return map
-    const { shelves } = buildDiscoverShelves(libItems, progressById)
+    const { shelves } = buildDiscoverShelves(libItems, progressById, ignoredIds)
     const ranked = rankDiscoverShelves(shelves, libById, {
       questGiverPicks,
       feedback: feedback ?? {},
       ratings: ratings ?? {},
       progressById,
+      ignoredIds,
     })
     let generated = 0
     for (const s of ranked) {
@@ -345,19 +356,25 @@ export function HomePage() {
     feedback,
     ratings,
     recShelfCount,
+    ignoredIds,
   ])
 
   // The monthly AI shelf resolved to owned items, not-interested filtered out.
+  // The shelf is cached per month, so it can still name a book from a series
+  // ignored since it was generated - drop those here too.
   const aiPreview = useMemo(() => {
     if (!discoverEnabled || !monthly || monthly.engine === 'none') return null
     const fb = feedback ?? {}
     const items = monthly.picks
       .map((p) => libById.get(p.id))
-      .filter((it): it is AbsLibraryItem => Boolean(it) && fb[it!.id]?.vote !== 'not_interested')
+      .filter(
+        (it): it is AbsLibraryItem =>
+          Boolean(it) && fb[it!.id]?.vote !== 'not_interested' && !ignoredIds.has(it!.id),
+      )
       .slice(0, 12)
     if (items.length === 0) return null
     return { intro: monthly.intro?.trim() || 'Your shelf this month', items }
-  }, [discoverEnabled, monthly, libById, feedback])
+  }, [discoverEnabled, monthly, libById, feedback, ignoredIds])
 
   if (!target) return null
 

@@ -15,6 +15,7 @@ import {
 import type { OwnedSeriesBook } from '@hearthshelf/core'
 import { SeriesMissingBooks } from '@/components/requests/SeriesMissingBooks'
 import { FollowSeriesButton } from '@/components/requests/FollowSeriesButton'
+import { IgnoreSeriesButton } from '@/components/requests/IgnoreSeriesButton'
 import { useIgnoredAsins } from '@/hooks/useIgnoredBooks'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
 import { usePromptedMarkFinished } from '@/hooks/useMarkFinished'
@@ -269,9 +270,11 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
         <FollowSeriesButton
           seriesAsin={audible?.seriesAsin}
           seriesTitle={series.name}
+          absSeriesId={series.id}
           author={author}
           coverArtUrl={seriesCover}
         />
+        <IgnoreSeriesButton seriesId={series.id} />
       </div>
       {heroProg}
     </div>
@@ -303,8 +306,10 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
           <FollowSeriesButton
             seriesAsin={audible?.seriesAsin}
             seriesTitle={series.name}
+            absSeriesId={series.id}
             author={author}
           />
+          <IgnoreSeriesButton seriesId={series.id} />
         </div>
       </div>
 

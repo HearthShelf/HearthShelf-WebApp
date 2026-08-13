@@ -21,6 +21,7 @@ import {
   type MonthlyShelf,
   type PopularItem,
 } from '@/api/absDiscover'
+import { useIgnoredItemIds } from '@/hooks/useIgnoredItemIds'
 import { buildDiscoverSummary, discoverCandidates } from '@hearthshelf/core'
 import type { AbsLibraryItem, MediaProgress } from '@/api/absLibrary'
 
@@ -36,7 +37,13 @@ export function useMonthlyShelf(
 ) {
   const { target } = useActiveServer()
   const summary = useMemo(() => buildDiscoverSummary(items, progressById), [items, progressById])
-  const candidates = useMemo(() => discoverCandidates(items, progressById), [items, progressById])
+  // Books in ignored series never reach the prompt, so the month's shelf cannot
+  // come back recommending a series the listener has no interest in.
+  const ignoredIds = useIgnoredItemIds(enabled)
+  const candidates = useMemo(
+    () => discoverCandidates(items, progressById, ignoredIds),
+    [items, progressById, ignoredIds],
+  )
   return useQuery<MonthlyShelf>({
     queryKey: ['discover', 'monthly', target?.serverId, summary, candidates.length],
     queryFn: () =>

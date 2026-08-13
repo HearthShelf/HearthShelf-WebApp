@@ -1,4 +1,11 @@
 /**
+ * The user's ignores, in both flavours the UI offers.
+ *
+ * A series ignore ('series' kind, keyed by ABS series id) means "no interest":
+ * the series stops being suggested - Auto queue, Continue Series, Discover,
+ * QuestGiver - but stays fully in the library, in search, and on its own page,
+ * where the eye control is offered again to un-ignore it. Ignore is not hide.
+ *
  * Ignored roster books: Audible lists things in a series that will never be
  * audiobooks - ebook-only side stories, print editions, box sets. Ignoring one
  * drops it from the missing list, the series completion denominator, Upcoming,
@@ -43,6 +50,35 @@ export function useDismissals() {
 export function useIgnoredAsins(): string[] {
   const { data } = useDismissals()
   return data?.rosterAsins ?? []
+}
+
+/** The ignored ABS series ids. */
+export function useIgnoredSeriesIds(): string[] {
+  const { data } = useDismissals()
+  return data?.seriesIds ?? []
+}
+
+/** True when this series is ignored, plus a toggle. Ignoring a series means "no
+ *  interest": it stops being suggested (Auto queue, Continue Series, Discover,
+ *  QuestGiver) but stays in the library, in search, and on this page. */
+export function useIgnoreSeries(seriesId: string | undefined) {
+  const { target } = useActiveServer()
+  const qc = useQueryClient()
+  const ignoredIds = useIgnoredSeriesIds()
+  const ignored = Boolean(seriesId && ignoredIds.includes(seriesId))
+  const invalidate = () => {
+    void qc.invalidateQueries({ queryKey: dismissalKeys(target?.serverId) })
+  }
+  const toggle = useMutation({
+    mutationFn: () => {
+      if (!target || !seriesId) throw new Error('No server connected')
+      return ignored
+        ? removeServerDismissal(target, 'series', seriesId)
+        : addServerDismissal(target, 'series', seriesId)
+    },
+    onSuccess: invalidate,
+  })
+  return { ignored, toggle, busy: toggle.isPending }
 }
 
 export function useIgnoreBook() {
