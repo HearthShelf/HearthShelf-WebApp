@@ -26,6 +26,18 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 import { ReaderSettingsPanel } from '@/components/reader/ReaderSettingsPanel'
 
+// epub.js rejects with a mix of Errors, bare strings and plain objects, so pull
+// out something readable rather than rendering "[object Object]".
+function describeError(err: unknown): string {
+  if (typeof err === 'string' && err.trim()) return err
+  if (err instanceof Error && err.message) return err.message
+  if (err && typeof err === 'object' && 'message' in err) {
+    const m = (err as { message?: unknown }).message
+    if (typeof m === 'string' && m.trim()) return m
+  }
+  return 'The file could not be read as an EPUB.'
+}
+
 interface ReaderPageProps {
   // When set, the reader renders as an inline "read along" panel (e.g. beside
   // the desktop player) instead of the full-screen route: a close (X) button,
@@ -49,7 +61,7 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
   const renditionRef = useRef<Rendition | null>(null)
 
   const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [toc, setToc] = useState<NavItem[]>([])
   const [progress, setProgress] = useState(0)
   const [chapterLabel, setChapterLabel] = useState('')
@@ -95,7 +107,7 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
     let book: Book | null = null
     let rendition: Rendition | null = null
     setLoading(true)
-    setLoadError(false)
+    setLoadError(null)
 
     // Fetch the EPUB as binary first. Passing an ArrayBuffer (rather than a URL)
     // avoids epub.js's URL-extension sniffing and lets us authenticate the
@@ -108,11 +120,24 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
 
     fetch(`${origin}${ABS_ENDPOINTS.itemEbook(itemId)}`, { headers })
       .then((res) => {
-        if (!res.ok) throw new Error(`ebook ${res.status}`)
+        if (!res.ok) throw new Error(`ebook request failed: HTTP ${res.status}`)
         return res.arrayBuffer()
       })
       .then((buf) => {
         if (cancelled) return
+        // ABS serves whatever ebook file the item has - epub, pdf, cbz, mobi.
+        // epub.js only understands epub (a zip), and hands back an opaque
+        // failure for anything else, so name the format in the error instead.
+        const sig = new Uint8Array(buf.slice(0, 4))
+        const isZip = sig[0] === 0x50 && sig[1] === 0x4b
+        if (!isZip) {
+          const isPdf = sig[0] === 0x25 && sig[1] === 0x50 && sig[2] === 0x44 && sig[3] === 0x46
+          throw new Error(
+            isPdf
+              ? 'This is a PDF. The reader can only open EPUB files.'
+              : 'This file is not an EPUB, so the reader cannot open it.',
+          )
+        }
         book = ePub(buf)
         bookRef.current = book
         const flow = prefs.layout === 'paged' ? 'paginated' : 'scrolled'
@@ -131,11 +156,27 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
           .then(() => {
             if (!cancelled) setLoading(false)
           })
-          .catch(() => {
-            if (!cancelled) {
-              setLoadError(true)
-              setLoading(false)
+          .catch((err: unknown) => {
+            if (cancelled) return
+            // A saved position can go stale if the file was replaced - fall
+            // back to opening at the start rather than failing the whole book.
+            if (savedCfi) {
+              localStorage.removeItem(cfiStorageKey(itemId))
+              rendition
+                ?.display()
+                .then(() => {
+                  if (!cancelled) setLoading(false)
+                })
+                .catch((e: unknown) => {
+                  if (!cancelled) {
+                    setLoadError(describeError(e))
+                    setLoading(false)
+                  }
+                })
+              return
             }
+            setLoadError(describeError(err))
+            setLoading(false)
           })
 
         book.ready
@@ -148,9 +189,10 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
 
         rendition.on('relocated', onRelocated)
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (!cancelled) {
-          setLoadError(true)
+          console.error('[reader] could not open ebook', itemId, err)
+          setLoadError(describeError(err))
           setLoading(false)
         }
       })
@@ -351,7 +393,7 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
         {loading && <LoadingSpinner className="reader-loading" label="Opening book..." />}
         {loadError && (
           <div className="reader-loading">
-            <ErrorState message="Could not open this ebook." onRetry={() => navigate(0)} />
+            <ErrorState message={loadError} onRetry={() => navigate(0)} />
           </div>
         )}
         <div ref={viewerRef} className="reader-viewer" />
