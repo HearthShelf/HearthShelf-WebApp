@@ -48,6 +48,7 @@ import { ErrorPage } from '@/pages/ErrorPage'
 import { CarPlayerHarness } from '@/pages/dev/CarPlayerHarness'
 import { RecentListensHarness } from '@/pages/dev/RecentListensHarness'
 import { UserProfileHarness } from '@/pages/dev/UserProfileHarness'
+import { LogViewHarness } from '@/pages/dev/LogViewHarness'
 import { PinEntryHarness } from '@/pages/dev/PinEntryHarness'
 import { SwitcherHarness } from '@/pages/dev/SwitcherHarness'
 import { SharedDevicePromptHarness } from '@/pages/dev/SharedDevicePromptHarness'
@@ -91,6 +92,7 @@ export const router = createBrowserRouter([
         { path: '/dev/car', element: <CarPlayerHarness /> },
         { path: '/dev/recent', element: <RecentListensHarness /> },
         { path: '/dev/profile', element: <UserProfileHarness /> },
+        { path: '/dev/logs', element: <LogViewHarness /> },
         { path: '/dev/pin', element: <PinEntryHarness /> },
         { path: '/dev/switcher', element: <SwitcherHarness /> },
         { path: '/dev/shared-prompt', element: <SharedDevicePromptHarness /> },
