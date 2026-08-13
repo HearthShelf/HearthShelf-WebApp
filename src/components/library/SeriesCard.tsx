@@ -25,13 +25,15 @@ export function SeriesCard({ series, selectionActive = false }: SeriesCardProps)
   const cv = tintFor(books[0]?.media.metadata.title ?? series.name)
 
   // Series overall progress = average of per-book fractions; finished count is
-  // the number of books marked finished.
+  // the number of books marked finished. A finished book counts as a full 1 -
+  // its stored progress can sit below 1.0 (marked finished without playing to
+  // the end), which would otherwise leave a fully-read series short of 100%.
   let done = 0
   let sum = 0
   for (const b of books) {
     const p = progressById.get(b.id)
     if (p?.isFinished) done++
-    sum += p?.progress ?? 0
+    sum += p?.isFinished ? 1 : (p?.progress ?? 0)
   }
   const pct = books.length ? sum / books.length : 0
 

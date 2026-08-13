@@ -7,6 +7,7 @@
  * something appears, and only exist when the request backend is connected. A
  * follow is HearthShelf-owned, always available, and only notifies.
  */
+import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import {
@@ -38,6 +39,21 @@ export function useFollowLookup() {
     seriesSub: (seriesAsin: string | undefined | null) =>
       seriesAsin ? list.find((s) => s.kind === 'series' && s.seriesAsin === seriesAsin) : undefined,
   }
+}
+
+/** ABS series ids the user follows. Only follows made from a library or series
+ *  page carry an id; ones created from an Audible search (or before the field
+ *  existed) are absent, so a library series can look unfollowed until it is
+ *  followed again from a page that knows its ABS id. */
+export function useFollowedAbsSeriesIds(): Set<string> {
+  const { data: subs } = useSubscriptions()
+  return useMemo(() => {
+    const ids = new Set<string>()
+    for (const s of subs ?? []) {
+      if (s.kind === 'series' && s.absSeriesId) ids.add(s.absSeriesId)
+    }
+    return ids
+  }, [subs])
 }
 
 function useInvalidateSubscriptions() {

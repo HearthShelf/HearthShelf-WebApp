@@ -750,6 +750,174 @@
   color: var(--accent);
 }
 
+/* ---- Library two-column shell (left filter rail + content) ---------- */
+/* Sits inside .page, so it inherits whatever width the Boxed/Full-width
+   toggle set there via an inline style. */
+.lib-shell {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: var(--s8);
+  align-items: start;
+}
+.lib-shell.no-rail {
+  grid-template-columns: minmax(0, 1fr);
+}
+.lib-main {
+  min-width: 0;
+}
+
+.lib-rail {
+  position: sticky;
+  top: var(--s6);
+  align-self: start;
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+.lib-rail::-webkit-scrollbar {
+  width: 6px;
+}
+.lib-rail::-webkit-scrollbar-thumb {
+  background: var(--fill-strong);
+  border-radius: 3px;
+}
+
+.rail-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--s4);
+}
+.rail-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.rail-title .ms {
+  font-size: 17px;
+}
+.rail-clear {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 12.5px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+.rail-clear:hover {
+  background: var(--fill);
+}
+
+.rail-sec {
+  margin-bottom: var(--s5);
+}
+.rail-sec-head {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 8px;
+  margin-bottom: 4px;
+}
+.rail-sec-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.rail-sec-toggle:hover {
+  color: var(--text);
+}
+.rail-sec-toggle .ms {
+  font-size: 18px;
+}
+
+.rail-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.14s;
+}
+.rail-row:hover {
+  background: var(--fill);
+}
+.rail-row.on {
+  background: var(--fill-strong);
+  color: var(--accent);
+  font-weight: 600;
+}
+.rail-row-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rail-row-count {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.rail-row-check {
+  font-size: 17px;
+  color: var(--accent);
+}
+.rail-more {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+  padding: 5px 8px;
+  border-radius: 8px;
+}
+.rail-more:hover {
+  color: var(--accent);
+  background: var(--fill);
+}
+.rail-note {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 0 8px;
+  line-height: 1.45;
+}
+
+/* Below this the rail costs more than the space it saves. */
+@media (max-width: 1000px) {
+  .lib-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .lib-rail {
+    display: none;
+  }
+}
+
 /* ---- Library grid + book tiles ------------------------------------- */
 .lib-grid {
   display: grid;
@@ -1394,9 +1562,11 @@
 }
 
 /* ---- Series index cards -------------------------------------------- */
+/* Driven by the library-wide cover-size slider. A series card holds a stack of
+   covers plus its meta block, so it needs roughly twice a book tile's width. */
 .series-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--tile, 168px) * 1.9), 1fr));
   gap: var(--s5);
 }
 .series-card {
@@ -5814,13 +5984,85 @@
 
 .ll-row {
   display: grid;
-  grid-template-columns: 56px 1fr 150px 120px 42px;
+  grid-template-columns: 56px 1fr 150px auto 120px auto 42px;
   align-items: center;
   gap: var(--s5);
   padding: 10px 12px;
   border-radius: var(--r-row);
   cursor: pointer;
   transition: background 0.15s;
+}
+
+/* Series and people rows reuse .ll-row but carry fewer columns. */
+.ll-row.ll-series {
+  grid-template-columns: 56px 1fr 100px 60px;
+}
+.ll-row.ll-person {
+  grid-template-columns: 56px 1fr;
+}
+
+/* Star rating column: hidden on narrow viewports, where the row has no room. */
+.ll-rate {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* Row actions stay out of the way until the row is hovered or focused. Touch
+   has no hover, so they are always shown on coarse pointers. */
+.ll-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.ll-row:hover .ll-actions,
+.ll-row:focus-within .ll-actions {
+  opacity: 1;
+}
+.ll-actions .icon-btn {
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+}
+.ll-actions .icon-btn:hover:not(:disabled) {
+  background: var(--fill-strong);
+  color: var(--text);
+}
+.ll-actions .icon-btn.on {
+  color: var(--accent);
+}
+.ll-actions .icon-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.ll-actions .ms {
+  font-size: 19px;
+}
+
+/* Avatar stand-in for a person row (people have no cover art). */
+.ll-person-av {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--text);
+  background: var(--fill-strong);
+}
+
+@media (max-width: 1100px) {
+  .ll-rate {
+    display: none;
+  }
+  .ll-row {
+    grid-template-columns: 56px 1fr 150px 120px auto 42px;
+  }
 }
 
 .ll-row:hover {
@@ -11112,7 +11354,7 @@ select.fld {
 /* ---- people (authors / narrators) cards ---- */
 .person-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(252px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--tile, 168px) * 1.5), 1fr));
   gap: var(--s5);
 }
 .person-card {

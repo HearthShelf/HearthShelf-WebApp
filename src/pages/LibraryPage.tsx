@@ -43,7 +43,16 @@ import {
   LibrarySortMenu,
   type ProgFilter,
 } from '@/components/library/LibraryFilters'
-import { applyLibraryFilter, type LibrarySort } from '@hearthshelf/core'
+import {
+  LibraryRail,
+  type StatusFilter,
+  type SeriesDoneFilter,
+} from '@/components/library/LibraryRail'
+import { useDismissalsStore } from '@/store/dismissalsStore'
+import { useFollowedAbsSeriesIds } from '@/hooks/useSubscriptions'
+import { useRatings, useSetRating } from '@/hooks/useRatings'
+import { StarRating } from '@/components/common/StarRating'
+import { applyLibraryFilter, ratingKeyForItem, type LibrarySort } from '@hearthshelf/core'
 
 type Tab = 'books' | 'series' | 'authors' | 'narrators'
 type View = 'grid' | 'list'
@@ -112,6 +121,10 @@ export function LibraryPage() {
   })
   const [sort, setSort] = useState<LibrarySort>('Title')
   const [desc, setDesc] = useState(false)
+  // Hidden = dismissed from shelves/queue (ABS ids). Following = a series follow
+  // that recorded its ABS series id. Both stack with the filters above.
+  const [status, setStatus] = useState<StatusFilter>('all')
+  const [seriesDone, setSeriesDone] = useState<SeriesDoneFilter>('all')
   const [view, setView] = useState<View>(() => {
     const v = localStorage.getItem(VIEW_KEY)
     return v === 'list' ? 'list' : 'grid'
@@ -186,6 +199,23 @@ export function LibraryPage() {
   const { toast, show } = useToast()
   const qc = useQueryClient()
 
+  // Hidden-item state. The library never hydrated this before (only Home did),
+  // so a direct load would see an empty set and show nothing as hidden.
+  const dismissedItemIds = useDismissalsStore((s) => s.itemIds)
+  const dismissedSeriesIds = useDismissalsStore((s) => s.seriesIds)
+  const hydrateDismissals = useDismissalsStore((s) => s.hydrate)
+  const dismissItem = useDismissalsStore((s) => s.dismiss)
+  const restoreItem = useDismissalsStore((s) => s.restore)
+  useEffect(() => {
+    if (target) void hydrateDismissals(target)
+  }, [target, hydrateDismissals])
+  const hiddenItems = useMemo(() => new Set(dismissedItemIds), [dismissedItemIds])
+  const hiddenSeries = useMemo(() => new Set(dismissedSeriesIds), [dismissedSeriesIds])
+
+  const followedSeriesIds = useFollowedAbsSeriesIds()
+  const { data: ratings } = useRatings()
+  const setRating = useSetRating()
+
   const allItems = useMemo<AbsLibraryItem[]>(() => data?.results ?? [], [data])
   // All loaded item ids, so reader-avatar stacks on book/series/person cards
   // resolve from one batched finished-by query for the whole library.
@@ -204,6 +234,8 @@ export function LibraryPage() {
         return true
       })
     }
+    if (status === 'hidden') list = list.filter((it) => hiddenItems.has(it.id))
+    else if (status === 'not-hidden') list = list.filter((it) => !hiddenItems.has(it.id))
     list = applyLibraryFilter(list, filter, (id) => progressById.get(id))
 
     const lastName = (n: string) => n.trim().split(/\s+/).pop() ?? n
@@ -237,7 +269,7 @@ export function LibraryPage() {
     }
     if (desc) sorted.reverse()
     return sorted
-  }, [allItems, prog, filter, sort, desc, progressById])
+  }, [allItems, prog, filter, sort, desc, progressById, status, hiddenItems])
 
   // Derive authors / narrators from the full item set.
   const derivePeople = (field: 'authorName' | 'narratorName'): DerivedPerson[] => {
@@ -423,14 +455,27 @@ export function LibraryPage() {
   }
 
   const seriesList = useMemo(() => {
-    const list: AbsSeries[] = [...(seriesData?.results ?? [])]
+    let list: AbsSeries[] = [...(seriesData?.results ?? [])]
+    if (status === 'following') list = list.filter((s) => followedSeriesIds.has(s.id))
+    else if (status === 'hidden') list = list.filter((s) => hiddenSeries.has(s.id))
+    else if (status === 'not-hidden') list = list.filter((s) => !hiddenSeries.has(s.id))
+    if (seriesDone !== 'all') {
+      // "Finished" means every book you own in the series is finished - a
+      // reading state, not a statement about the series being done publishing.
+      list = list.filter((s) => {
+        const owned = s.books ?? []
+        if (owned.length === 0) return seriesDone === 'unfinished'
+        const allDone = owned.every((b) => progressById.get(b.id)?.isFinished)
+        return seriesDone === 'finished' ? allDone : !allDone
+      })
+    }
     list.sort(
       sSort === 'Name'
         ? (a, b) => a.name.localeCompare(b.name)
         : (a, b) => (b.books?.length ?? 0) - (a.books?.length ?? 0),
     )
     return list
-  }, [seriesData, sSort])
+  }, [seriesData, sSort, status, seriesDone, followedSeriesIds, hiddenSeries, progressById])
 
   // Multi-select
   const anySelected = selected.size > 0
@@ -484,10 +529,18 @@ export function LibraryPage() {
     setTab(id)
   }
 
-  // A narrator card click lands the user in the Books grid with filters cleared.
-  const goBooks = () => {
+  const filtersActive =
+    filter !== 'all' || prog !== 'all' || status !== 'all' || seriesDone !== 'all'
+  const clearFilters = () => {
     setFilter('all')
     setProg('all')
+    setStatus('all')
+    setSeriesDone('all')
+  }
+
+  // A narrator card click lands the user in the Books grid with filters cleared.
+  const goBooks = () => {
+    clearFilters()
     setSort('Title')
     setDesc(false)
     setTab('books')
@@ -514,6 +567,69 @@ export function LibraryPage() {
   if (active?.mediaType === 'podcast' && activeId) {
     return <PodcastsGrid libraryId={activeId} />
   }
+
+  // Boxed/full-width, cover size and grid/list are library-wide: the same
+  // toolbar renders on every tab, and each tab's grid reads the same --tile.
+  const displayToolbar = isMobile ? null : (
+    <div className="toolbar2">
+      <div className="tb-spacer" />
+      <button
+        className={'pill' + (fill ? ' on' : '')}
+        onClick={() => setFill(!fill)}
+        title={fill ? 'Full width' : 'Boxed'}
+      >
+        <Icon name={fill ? 'width_full' : 'width_normal'} /> {fill ? 'Full width' : 'Boxed'}
+      </button>
+      {view === 'grid' && (
+        <div className="scale-ctl" title="Cover size">
+          <Icon name="photo_size_select_small" />
+          <div className="scale-track-wrap">
+            <input
+              type="range"
+              min={SCALE_MIN}
+              max={SCALE_MAX}
+              step={4}
+              value={gridScale}
+              onChange={(e) => setScalePersist(Number(e.target.value))}
+              aria-label="Cover size"
+            />
+            <span
+              className="scale-tick"
+              style={{
+                left: ((SCALE_DEFAULT - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100 + '%',
+              }}
+            />
+            <span
+              className="scale-bubble"
+              style={{
+                left: ((gridScale - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100 + '%',
+              }}
+            >
+              {gridScale === SCALE_DEFAULT ? 'Default' : `${gridScale}px`}
+            </span>
+          </div>
+          <Icon name="photo_size_select_large" />
+        </div>
+      )}
+      <div className="seg-view">
+        {(
+          [
+            ['grid', 'grid_view'],
+            ['list', 'view_list'],
+          ] as [View, string][]
+        ).map(([v, ic]) => (
+          <button
+            key={v}
+            className={view === v ? 'on' : ''}
+            onClick={() => setViewPersist(v)}
+            title={v}
+          >
+            <Icon name={ic} />
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 
   const TABS: { id: Tab; icon: string; label: string; n: number }[] = [
     { id: 'books', icon: 'grid_view', label: 'Books', n: data?.total ?? allItems.length },
@@ -552,7 +668,8 @@ export function LibraryPage() {
             </span>
           </h1>
         </div>
-        {tab === 'books' && !anySelected && (
+        {/* Mobile keeps the popover pills; the desktop rail replaces them. */}
+        {tab === 'books' && !anySelected && isMobile && (
           <div className="lib-controls">
             <LibraryFilterMenu
               items={allItems}
@@ -570,10 +687,7 @@ export function LibraryPage() {
             {(filter !== 'all' || prog !== 'all') && (
               <button
                 className="pill pill-sm"
-                onClick={() => {
-                  setFilter('all')
-                  setProg('all')
-                }}
+                onClick={clearFilters}
                 title="Clear all filters"
               >
                 <Icon name="filter_alt_off" />
@@ -602,6 +716,30 @@ export function LibraryPage() {
         </form>
       )}
 
+      <div className={'lib-shell' + (isMobile ? ' no-rail' : '')}>
+        {!isMobile && (
+          <LibraryRail
+            tab={tab}
+            items={allItems}
+            filter={filter}
+            setFilter={setFilter}
+            prog={prog}
+            setProg={setProg}
+            status={status}
+            setStatus={setStatus}
+            seriesDone={seriesDone}
+            setSeriesDone={setSeriesDone}
+            sort={sort}
+            setSort={setSort}
+            desc={desc}
+            toggleDesc={() => setDesc((d) => !d)}
+            altSort={tab === 'series' ? sSort : pSort}
+            setAltSort={tab === 'series' ? setSSort : setPSort}
+            onClear={clearFilters}
+            anyActive={filtersActive}
+          />
+        )}
+        <div className="lib-main">
       <div className="qv-tabs">
         {TABS.map((tb) => (
           <button
@@ -698,65 +836,8 @@ export function LibraryPage() {
                 )}
               </Dropdown>
             </div>
-          ) : isMobile ? null : (
-            <div className="toolbar2">
-              <div className="tb-spacer" />
-              <button
-                className={'pill' + (fill ? ' on' : '')}
-                onClick={() => setFill(!fill)}
-                title={fill ? 'Full width' : 'Boxed'}
-              >
-                <Icon name={fill ? 'width_full' : 'width_normal'} /> {fill ? 'Full width' : 'Boxed'}
-              </button>
-              {view === 'grid' && (
-                <div className="scale-ctl" title="Cover size">
-                  <Icon name="photo_size_select_small" />
-                  <div className="scale-track-wrap">
-                    <input
-                      type="range"
-                      min={SCALE_MIN}
-                      max={SCALE_MAX}
-                      step={4}
-                      value={gridScale}
-                      onChange={(e) => setScalePersist(Number(e.target.value))}
-                      aria-label="Cover size"
-                    />
-                    <span
-                      className="scale-tick"
-                      style={{
-                        left: ((SCALE_DEFAULT - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100 + '%',
-                      }}
-                    />
-                    <span
-                      className="scale-bubble"
-                      style={{
-                        left: ((gridScale - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100 + '%',
-                      }}
-                    >
-                      {gridScale === SCALE_DEFAULT ? 'Default' : `${gridScale}px`}
-                    </span>
-                  </div>
-                  <Icon name="photo_size_select_large" />
-                </div>
-              )}
-              <div className="seg-view">
-                {(
-                  [
-                    ['grid', 'grid_view'],
-                    ['list', 'view_list'],
-                  ] as [View, string][]
-                ).map(([v, ic]) => (
-                  <button
-                    key={v}
-                    className={view === v ? 'on' : ''}
-                    onClick={() => setViewPersist(v)}
-                    title={v}
-                  >
-                    <Icon name={ic} />
-                  </button>
-                ))}
-              </div>
-            </div>
+          ) : (
+            displayToolbar
           )}
 
           {books.length === 0 && (
@@ -821,6 +902,15 @@ export function LibraryPage() {
                       <span className="ll-col">
                         {m.genres[0] ?? ''} {m.publishedYear ? `· ${m.publishedYear}` : ''}
                       </span>
+                      <span className="ll-rate" onClick={(e) => e.stopPropagation()}>
+                        <StarRating
+                          value={ratings?.[ratingKeyForItem(b.id)] ?? null}
+                          onChange={(n) =>
+                            setRating.mutate({ itemKey: ratingKeyForItem(b.id), rating: n })
+                          }
+                          size={14}
+                        />
+                      </span>
                       {p && p.progress > 0 && !p.isFinished ? (
                         <div className="ll-prog">
                           <div className="prog-line">
@@ -833,6 +923,36 @@ export function LibraryPage() {
                           {p?.isFinished ? 'Finished' : `${hours}h`}
                         </span>
                       )}
+                      <div className="ll-actions" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          className={'icon-btn' + (p?.isFinished ? ' on' : '')}
+                          disabled={marking}
+                          title={p?.isFinished ? 'Mark not finished' : 'Mark finished'}
+                          onClick={() => void markFinishedPrompted([b.id], !p?.isFinished)}
+                        >
+                          <Icon name="task_alt" fill={p?.isFinished} />
+                        </button>
+                        <button
+                          className={'icon-btn' + (hiddenItems.has(b.id) ? ' on' : '')}
+                          title={
+                            hiddenItems.has(b.id)
+                              ? 'Unhide - show on shelves again'
+                              : 'Hide from shelves and the queue'
+                          }
+                          onClick={() => {
+                            const hidden = hiddenItems.has(b.id)
+                            const done = hidden
+                              ? restoreItem(target!, 'item', b.id)
+                              : dismissItem(target!, 'item', b.id, m.title ?? 'Untitled')
+                            void done.then(
+                              () => show(hidden ? 'Shown again' : 'Hidden from shelves'),
+                              () => show(hidden ? 'Could not unhide' : 'Could not hide'),
+                            )
+                          }}
+                        >
+                          <Icon name={hiddenItems.has(b.id) ? 'visibility_off' : 'visibility'} />
+                        </button>
+                      </div>
                       <button
                         className="ll-play"
                         onClick={(e) => {
@@ -879,22 +999,58 @@ export function LibraryPage() {
       {/* ---- Series ---- */}
       {tab === 'series' && (
         <>
-          <div className="toolbar2">
-            <div className="tb-spacer" />
-            <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>Sort</span>
-            <div className="seg">
-              {(['Name', 'Books'] as const).map((o) => (
-                <button key={o} className={sSort === o ? 'on' : ''} onClick={() => setSSort(o)}>
-                  {o}
+          {displayToolbar}
+          {seriesList.length === 0 ? (
+            <div className="empty-state">
+              <Icon name="filter_alt_off" />
+              <h3>No series match</h3>
+              <p>Nothing in this library matches the active filter.</p>
+              {filtersActive && (
+                <button
+                  className="btn-sm btn-ghost"
+                  style={{ margin: '0 auto' }}
+                  onClick={clearFilters}
+                >
+                  Clear filter
                 </button>
+              )}
+            </div>
+          ) : view === 'list' ? (
+            <div className="lib-list">
+              {seriesList.map((s) => {
+                const owned = s.books ?? []
+                const done = owned.filter((b) => progressById.get(b.id)?.isFinished).length
+                return (
+                  <div
+                    className="ll-row ll-series"
+                    key={s.id}
+                    data-cv={tintFor(s.name)}
+                    onClick={() => navigate(`/series/${s.id}`)}
+                  >
+                    <Cover itemId={owned[0]?.id ?? ''} title={s.name} fs={5} />
+                    <div style={{ minWidth: 0 }}>
+                      <div className="ll-title">{s.name}</div>
+                      <div className="ll-sub">
+                        {owned.length} book{owned.length === 1 ? '' : 's'} · {done} finished
+                      </div>
+                    </div>
+                    <span className="ll-col">
+                      {followedSeriesIds.has(s.id) ? 'Following' : ''}
+                    </span>
+                    <span className="ll-col mono" style={{ fontFamily: 'var(--font-mono)' }}>
+                      {owned.length ? Math.round((done / owned.length) * 100) : 0}%
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="series-grid" style={{ '--tile': `${gridScale}px` } as CSSProperties}>
+              {seriesList.map((s) => (
+                <SeriesCard key={s.id} series={s} />
               ))}
             </div>
-          </div>
-          <div className="series-grid">
-            {seriesList.map((s) => (
-              <SeriesCard key={s.id} series={s} />
-            ))}
-          </div>
+          )}
         </>
       )}
 
@@ -943,13 +1099,44 @@ export function LibraryPage() {
               ))}
             </div>
           </div>
-          {(() => {
+          {!personAnySelected && displayToolbar}
+          {view === 'list' ? (
+            <div className="lib-list">
+              {personList.map((p) => (
+                <div
+                  className="ll-row ll-person"
+                  key={p.id}
+                  data-cv={tintFor(p.name)}
+                  onClick={() => {
+                    if (tab === 'narrators') {
+                      const href = ui.narratorHref?.(p.name)
+                      if (href) navigate(href)
+                      else goBooks()
+                      return
+                    }
+                    navigate(ui.authorHref?.(p.id) ?? `/author/${p.id}`)
+                  }}
+                >
+                  <div className="ll-person-av">{initialsOf(p.name)}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="ll-title">{p.name}</div>
+                    <div className="ll-sub">
+                      {p.books.length} book{p.books.length === 1 ? '' : 's'}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (() => {
             const list = personList
             const seen = new Set<string>()
             const showRail = isMobile && pSort === 'Name'
             return (
               <div className={'az-wrap' + (showRail ? ' has-rail' : '')}>
-                <div className="person-grid">
+                <div
+                  className="person-grid"
+                  style={{ '--tile': `${gridScale}px` } as CSSProperties}
+                >
                   {list.map((p) => {
                     const letter = letterOf(p.name)
                     let dataLetter: string | undefined
@@ -987,6 +1174,8 @@ export function LibraryPage() {
           })()}
         </>
       )}
+        </div>
+      </div>
 
       {personMerging && (
         <MergeModal

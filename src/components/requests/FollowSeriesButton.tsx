@@ -7,6 +7,10 @@ interface FollowSeriesButtonProps {
   // follow (and no way to learn about its future books).
   seriesAsin: string | null | undefined
   seriesTitle: string
+  // The ABS series being followed, when the follow is made from a library or
+  // series page. Recorded on the subscription so the library can mark the series
+  // as followed by id instead of matching on its name.
+  absSeriesId?: string
   author?: string
   // Artwork to stand for the series in the Following list. A series has no cover
   // of its own, so callers pass a representative book's - without it the row
@@ -19,6 +23,7 @@ interface FollowSeriesButtonProps {
 export function FollowSeriesButton({
   seriesAsin,
   seriesTitle,
+  absSeriesId,
   author,
   coverArtUrl,
 }: FollowSeriesButtonProps) {
@@ -41,6 +46,7 @@ export function FollowSeriesButton({
     follow.mutate({
       kind: 'series',
       seriesAsin,
+      absSeriesId,
       title: seriesTitle,
       seriesTitle,
       author,
