@@ -21,6 +21,7 @@ import { RequestsPage } from '@/pages/RequestsPage'
 import { DiscoverPage } from '@/pages/DiscoverPage'
 import { QuestGiverPage } from '@/pages/QuestGiverPage'
 import { StatsPage } from '@/pages/StatsPage'
+import { UserProfilePage } from '@/pages/UserProfilePage'
 import { FinishedBooksPage } from '@/pages/FinishedBooksPage'
 import { UpcomingPage } from '@/pages/UpcomingPage'
 import { UpcomingDetailPage } from '@/pages/UpcomingDetailPage'
@@ -46,6 +47,7 @@ import { SignUpPage } from '@/pages/SignUpPage'
 import { ErrorPage } from '@/pages/ErrorPage'
 import { CarPlayerHarness } from '@/pages/dev/CarPlayerHarness'
 import { RecentListensHarness } from '@/pages/dev/RecentListensHarness'
+import { UserProfileHarness } from '@/pages/dev/UserProfileHarness'
 import { PinEntryHarness } from '@/pages/dev/PinEntryHarness'
 import { SwitcherHarness } from '@/pages/dev/SwitcherHarness'
 import { SharedDevicePromptHarness } from '@/pages/dev/SharedDevicePromptHarness'
@@ -88,6 +90,7 @@ export const router = createBrowserRouter([
     ? [
         { path: '/dev/car', element: <CarPlayerHarness /> },
         { path: '/dev/recent', element: <RecentListensHarness /> },
+        { path: '/dev/profile', element: <UserProfileHarness /> },
         { path: '/dev/pin', element: <PinEntryHarness /> },
         { path: '/dev/switcher', element: <SwitcherHarness /> },
         { path: '/dev/shared-prompt', element: <SharedDevicePromptHarness /> },
@@ -136,6 +139,7 @@ export const router = createBrowserRouter([
       { path: '/requests', element: withShell(<RequestsPage />) },
 
       { path: '/stats', element: withShell(<StatsPage />) },
+      { path: '/user/:userId', element: withShell(<UserProfilePage />) },
       { path: '/finished', element: withShell(<FinishedBooksPage />) },
       { path: '/upcoming', element: withShell(<UpcomingPage />) },
       { path: '/upcoming/:asin', element: withShell(<UpcomingDetailPage />) },

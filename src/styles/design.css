@@ -7769,6 +7769,97 @@
   cursor: pointer;
 }
 
+/* ---- User profile --------------------------------------------------- */
+/* Leaderboard rows become links into a listener's profile. The chevron only
+   asserts itself on hover/focus so the ranked list stays calm at rest. */
+.ml-row.is-link {
+  grid-template-columns: 22px 46px 1fr auto auto;
+  cursor: pointer;
+}
+.ml-row.is-link:focus-visible {
+  outline: 2px solid var(--p);
+  outline-offset: -2px;
+}
+.ml-go {
+  color: var(--text-faint);
+  opacity: 0;
+  transition: opacity 0.14s;
+}
+.ml-row.is-link:hover .ml-go,
+.ml-row.is-link:focus-visible .ml-go {
+  opacity: 1;
+}
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s5);
+}
+.profile-you {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.profile-hero {
+  margin-bottom: var(--s6);
+}
+.profile-hero-title {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 6px 0 2px;
+  cursor: pointer;
+}
+.profile-hero-title:hover {
+  color: var(--accent);
+}
+.profile-hero-prog {
+  margin-top: var(--s5);
+  max-width: 420px;
+}
+.profile-hero-prog-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+.profile-hero-ago {
+  margin-top: var(--s4);
+}
+
+/* "Listening now" presence marker. The dot pulses to read as live without
+   needing a second of copy. */
+.live-dot-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--p);
+  flex: none;
+  animation: live-pulse 2s ease-in-out infinite;
+}
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-dot {
+    animation: none;
+  }
+}
+
 /* Yearly reading goal card: a progress ring beside the count + pace hint, or an
    invite to set a goal when none exists. */
 .goal-body {
@@ -12450,6 +12541,15 @@ select.fld {
   .series-hero .title-xl {
     font-size: 19px;
     line-height: 1.2;
+  }
+  /* The profile hero's own title scales with the same compact hero treatment. */
+  .profile-hero-title {
+    font-size: 18px;
+    line-height: 1.2;
+    margin: 4px 0 2px;
+  }
+  .profile-hero-prog {
+    margin-top: 10px;
   }
   .series-hero-meta > div:nth-child(2) {
     font-size: 12px;

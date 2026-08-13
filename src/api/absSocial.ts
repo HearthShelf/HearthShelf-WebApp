@@ -27,6 +27,9 @@ import type {
   HSListeningNowBulkResponse,
   HSCompareResponse,
   HSCompareStats,
+  HSProfileResponse,
+  HSProfileListen,
+  HSProfileBook,
 } from '@hearthshelf/core'
 
 // Re-exported under the names this module has always used, so existing
@@ -52,6 +55,7 @@ export const socialKeys = {
   listeningNow: (serverId: string, libraryItemId: string) =>
     ['social', 'listening-now', serverId, libraryItemId] as const,
   compare: (serverId: string, userId: string) => ['social', 'compare', serverId, userId] as const,
+  profile: (serverId: string, userId: string) => ['social', 'profile', serverId, userId] as const,
 }
 
 /**
@@ -415,6 +419,126 @@ function mapCompareStats(r: RawCompareStats | null | undefined): HSCompareStats 
     avgPerActiveDaySec: typeof r?.avgPerActiveDaySec === 'number' ? r.avgPerActiveDaySec : undefined,
     booksThisYear:
       r?.booksThisYear === null ? null : typeof r?.booksThisYear === 'number' ? r.booksThisYear : undefined,
+  }
+}
+
+// --- Profile ---------------------------------------------------------------
+
+interface RawProfileListen {
+  libraryItemId?: string
+  title?: string
+  author?: string
+  narrator?: string
+  durationSec?: number
+  currentTimeSec?: number
+  progress?: number
+  isFinished?: boolean
+  lastListenedAt?: number | null
+  isLive?: boolean
+}
+
+interface RawProfileBook {
+  libraryItemId?: string
+  title?: string
+  finishedAt?: number | null
+  alsoMine?: boolean
+}
+
+interface RawProfile {
+  available?: boolean
+  userId?: string
+  username?: string
+  isMe?: boolean
+  me?: RawCompareStats | null
+  target?: RawCompareStats | null
+  readShared?: boolean
+  listeningShared?: boolean
+  listening?: RawProfileListen | null
+  finished?: RawProfileBook[]
+  sharedCount?: number
+}
+
+/**
+ * Why this doesn't collapse every failure into one value like the calls above:
+ * the profile page has to tell three states apart.
+ *   - 'ok'           - render the profile.
+ *   - 'not-shared'   - the server 403'd; this user isn't on the visibility
+ *                      roster. A real, explainable answer ("this listener keeps
+ *                      their activity private"), not an error.
+ *   - 'unavailable'  - the db isn't mounted / older server / network failure.
+ *                      Hide the feature.
+ * Folding 'not-shared' into 'unavailable' would make a deliberate privacy
+ * choice look like a broken page.
+ */
+export type ProfileResult =
+  | { status: 'ok'; profile: HSProfileResponse }
+  | { status: 'not-shared' }
+  | { status: 'unavailable' }
+
+function mapProfileListen(r: RawProfileListen | null | undefined): HSProfileListen | null {
+  if (!r || !r.libraryItemId) return null
+  return {
+    libraryItemId: r.libraryItemId,
+    title: r.title ?? '',
+    author: r.author ?? '',
+    narrator: r.narrator ?? '',
+    durationSec: r.durationSec ?? 0,
+    currentTimeSec: r.currentTimeSec ?? 0,
+    progress: r.progress ?? 0,
+    isFinished: Boolean(r.isFinished),
+    lastListenedAt: r.lastListenedAt ?? null,
+    isLive: Boolean(r.isLive),
+  }
+}
+
+function mapProfileBook(r: RawProfileBook): HSProfileBook {
+  return {
+    libraryItemId: r.libraryItemId ?? '',
+    title: r.title ?? '',
+    finishedAt: r.finishedAt ?? null,
+    alsoMine: Boolean(r.alsoMine),
+  }
+}
+
+/**
+ * One user's profile: their totals next to the caller's, what they're listening
+ * to (or last listened to), and their finished books - each section already
+ * privacy-gated server-side. Distinguishes "private" from "unavailable"; see
+ * ProfileResult.
+ */
+export async function getProfile(t: AbsTarget, userId: string): Promise<ProfileResult> {
+  const token = getAbsToken(t.serverId)
+  if (!token || !userId) return { status: 'unavailable' }
+  try {
+    const tz = -new Date().getTimezoneOffset()
+    const res = await fetch(
+      `${origin(t)}/hs/social/profile?userId=${encodeURIComponent(userId)}&tz=${tz}`,
+      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
+    )
+    if (res.status === 403) return { status: 'not-shared' }
+    if (!res.ok) return { status: 'unavailable' }
+    const data = (await res.json()) as RawProfile
+    if (!data || data.available !== true || !data.me || !data.target) {
+      return { status: 'unavailable' }
+    }
+    return {
+      status: 'ok',
+      profile: {
+        available: true,
+        userId: data.userId ?? userId,
+        username: data.username ?? '',
+        isMe: Boolean(data.isMe),
+        me: mapCompareStats(data.me),
+        target: mapCompareStats(data.target),
+        readShared: data.readShared !== false,
+        listeningShared: data.listeningShared !== false,
+        listening: mapProfileListen(data.listening),
+        finished: (data.finished ?? []).map(mapProfileBook),
+        sharedCount: data.sharedCount ?? 0,
+      },
+    }
+  } catch {
+    return { status: 'unavailable' }
   }
 }
 

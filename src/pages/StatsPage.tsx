@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useSettingsStore } from '@/store/settingsStore'
@@ -154,6 +155,7 @@ function vmFromFallback(s: ListeningStatsFull): StatsVM {
 
 export function StatsPage() {
   const { target } = useActiveServer()
+  const navigate = useNavigate()
   const [window, setWindow] = useState<LeaderboardWindow>('all')
   const yearlyBookGoal = useSettingsStore((s) => s.yearlyBookGoal)
   const setSetting = useSettingsStore((s) => s.set)
@@ -611,6 +613,7 @@ export function StatsPage() {
           users={lbEntries}
           selectedUserId={compareUserId}
           onSelectUser={setCompareUserId}
+          onOpenProfile={(id) => navigate(`/user/${id}`)}
         />
       )}
 
@@ -634,9 +637,18 @@ export function StatsPage() {
             <div className="ml-list">
               {lbEntries.map((e) => (
                 <div
-                  className={'ml-row' + (e.isMe ? ' hot' : '')}
+                  className={'ml-row is-link' + (e.isMe ? ' hot' : '')}
                   key={e.userId}
                   data-cv={tintFor(e.username)}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => navigate(`/user/${e.userId}`)}
+                  onKeyDown={(ev) => {
+                    if (ev.key === 'Enter' || ev.key === ' ') {
+                      ev.preventDefault()
+                      navigate(`/user/${e.userId}`)
+                    }
+                  }}
                 >
                   <span className="ml-rank">{e.rank}</span>
                   <Avatar name={e.username} target={target} userId={e.userId} size={40} />
@@ -651,6 +663,7 @@ export function StatsPage() {
                     {e.booksFinished}
                     <small>{e.booksFinished === 1 ? 'book' : 'books'}</small>
                   </span>
+                  <Icon name="chevron_right" className="ml-go" />
                 </div>
               ))}
             </div>
@@ -669,11 +682,13 @@ function CompareCard({
   users,
   selectedUserId,
   onSelectUser,
+  onOpenProfile,
 }: {
   compare: HSCompareResponse
   users: { userId: string; username: string; isMe: boolean }[]
   selectedUserId: string
   onSelectUser: (id: string) => void
+  onOpenProfile: (id: string) => void
 }) {
   const others = users.filter((u) => !u.isMe)
   const targetLabel =
@@ -752,6 +767,11 @@ function CompareCard({
               </option>
             ))}
           </select>
+        )}
+        {compare.scope === 'user' && selectedUserId && (
+          <button className="pill" onClick={() => onOpenProfile(selectedUserId)}>
+            View profile
+          </button>
         )}
       </div>
       <div className="chart-card" style={{ marginTop: 0 }}>
