@@ -44,6 +44,9 @@ import {
 type Direction = 'more' | 'switch' | 'new'
 type Length = 'any' | 'short' | 'standard' | 'epic'
 type Basis = 'history' | 'list'
+/** Which pool to draw suggestions from. 'external' skips the library entirely,
+ *  so it is exclusive rather than a superset of 'library'. */
+type QgScope = 'library' | 'both' | 'external'
 
 const STEP_LABELS = ['Basis', 'Direction', 'Weights', 'Fine-tune']
 
@@ -83,10 +86,15 @@ export function QuestGiverPage() {
   const [length, setLength] = useState<Length>('any')
   const [familiarity, setFamiliarity] = useState(4)
   const [narratorAffinity, setNarratorAffinity] = useState(true)
-  // "Look beyond my library" is always available - it surfaces books to buy on
+  // Looking beyond the library is always available - it surfaces books to buy on
   // Audible, or (when RMAB is connected) to request. RMAB only gates the request
   // ACTION, never the recommendation.
-  const [lookBeyond, setLookBeyond] = useState(false)
+  //
+  // 'library' = only what you own, 'both' = yours plus outside, 'external' =
+  // only what you don't own yet. This was a boolean, so it could only ever ADD
+  // outside titles to your own books - there was no way to ask for exclusively
+  // what you don't own.
+  const [scope, setScope] = useState<QgScope>('library')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{
     intro: string
@@ -204,6 +212,7 @@ export function QuestGiverPage() {
     setStep(4)
     setLoading(true)
     setView('flow')
+    const usesExternal = scope !== 'library'
     const answers: QgAnswers = {
       direction,
       mood: mood.trim(),
@@ -211,21 +220,38 @@ export function QuestGiverPage() {
       length,
       familiarity,
       narratorAffinity,
-      includeRequest: lookBeyond,
-      count: lookBeyond ? 5 : 4,
+      includeRequest: usesExternal,
+      count: usesExternal ? 5 : 4,
     }
 
-    // Library pool always; external pool (catalog search) when looking beyond.
-    // Series the listener ignored are out of the pool - QuestGiver never
-    // suggests from a series they said they have no interest in.
-    let candidates: QgCandidate[] = qgLibraryCandidates(books, ignoredIds)
+    // The library pool is skipped entirely in 'external' scope - that is what
+    // makes it exclusive rather than a superset. Series the listener ignored are
+    // out of the pool either way - QuestGiver never suggests from a series they
+    // said they have no interest in.
+    let candidates: QgCandidate[] =
+      scope === 'external' ? [] : qgLibraryCandidates(books, ignoredIds)
     const externalById = new Map<string, QgCandidate>()
-    if (lookBeyond) {
+    if (usesExternal) {
       const terms = qgExternalSearchTerms(profile, books, weights ?? {})
       const hits = await fetchExternalHits(terms)
       const ext = qgExternalCandidates(hits, books)
       ext.forEach((c) => externalById.set(c.id, c))
       candidates = [...candidates, ...ext]
+    }
+
+    // Exclusive mode has no library pool to fall back on, so an external search
+    // that comes back empty would otherwise hand the engine nothing to pick from
+    // and land on a blank result with no explanation.
+    if (candidates.length === 0) {
+      setResult({
+        intro:
+          "I couldn't find anything outside your library to suggest right now. Try a different mood, or search your library too.",
+        engine: 'heuristic',
+        picks: [],
+      })
+      setLoading(false)
+      setStep(5)
+      return
     }
 
     const out = await qgRecommend(target, profile, answers, candidates)
@@ -623,23 +649,36 @@ export function QuestGiverPage() {
               </div>
 
               <div className="qg-tune-block">
-                <label className="qg-toggle-row">
-                  <div>
-                    <div className="qg-wlabel">Look beyond my library</div>
-                    <div className="qg-wsub">
-                      {rmabEnabled
-                        ? 'Suggest titles you can request via ReadMeABook, or buy on Audible.'
-                        : 'Suggest great titles to buy on Audible, not just what you own.'}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className={'qg-switch' + (lookBeyond ? ' on' : '')}
-                    onClick={() => setLookBeyond((v) => !v)}
-                  >
-                    <span />
-                  </button>
-                </label>
+                <div className="qg-wlabel">Where to look</div>
+                <div className="qg-chiprow">
+                  {(
+                    [
+                      ['library', 'Only my library'],
+                      ['both', 'My library and beyond'],
+                      ['external', "Only what I don't own"],
+                    ] as [QgScope, string][]
+                  ).map(([v, l]) => (
+                    <button
+                      key={v}
+                      type="button"
+                      className={'qg-chip' + (scope === v ? ' on' : '')}
+                      onClick={() => setScope(v)}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+                <div className="qg-wsub">
+                  {scope === 'library'
+                    ? 'Only books you already own.'
+                    : scope === 'external'
+                      ? rmabEnabled
+                        ? "Skips your library entirely - only titles you can request via ReadMeABook, or buy on Audible."
+                        : 'Skips your library entirely - only titles to buy on Audible.'
+                      : rmabEnabled
+                        ? 'Your books, plus titles you can request via ReadMeABook or buy on Audible.'
+                        : 'Your books, plus great titles to buy on Audible.'}
+                </div>
               </div>
 
               {exhausted && (
