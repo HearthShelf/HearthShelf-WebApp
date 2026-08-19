@@ -585,6 +585,7 @@ export const adminContentKeys = {
   auth: (serverId: string) => ['admin', serverId, 'auth'] as const,
   customProviders: (serverId: string) => ['admin', serverId, 'custom-providers'] as const,
   serverStats: (serverId: string) => ['admin', serverId, 'server-stats'] as const,
+  serverActivity: (serverId: string) => ['admin', serverId, 'server-activity'] as const,
   libraryStats: (serverId: string, libraryId: string) =>
     ['admin', serverId, 'library-stats', libraryId] as const,
 }
@@ -852,6 +853,43 @@ export async function getServerStats(t: AbsTarget): Promise<ABSServerStats> {
     podcasts: res.podcasts ?? EMPTY_BUCKET,
     total: res.total ?? EMPTY_BUCKET,
   }
+}
+
+export interface HSServerActivity {
+  available: boolean
+  /** All-time listening seconds by local hour, indices 0-23. */
+  byHour: number[]
+  /** All-time listening seconds by local weekday, Sunday first. */
+  byDay: number[]
+}
+
+// Server-computed anonymous all-user activity. Older/plain ABS targets do not
+// have this HearthShelf route, so null means the Server Stats card should hide.
+export async function getServerActivity(t: AbsTarget): Promise<HSServerActivity | null> {
+  const token = getAbsToken(t.serverId)
+  if (!token) return null
+  try {
+    const tz = new Date().getTimezoneOffset()
+    const res = await fetch(`${t.serverUrl.replace(/\/$/, '')}/hs/stats/server-activity?tz=${tz}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    })
+    if (!res.ok) return null
+    const raw = (await res.json()) as Partial<HSServerActivity>
+    return {
+      available: raw.available === true,
+      byHour: normalizeActivityBuckets(raw.byHour, 24),
+      byDay: normalizeActivityBuckets(raw.byDay, 7),
+    }
+  } catch {
+    return null
+  }
+}
+
+function normalizeActivityBuckets(value: number[] | undefined, length: number): number[] {
+  return Array.from({ length }, (_, i) => {
+    const n = Number(value?.[i])
+    return Number.isFinite(n) && n > 0 ? n : 0
+  })
 }
 
 export interface ABSLibraryStatsItem {

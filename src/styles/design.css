@@ -4886,6 +4886,37 @@
   color: var(--text-faint);
 }
 
+/* Admin Server Stats: all-user listening shape. Twenty-four hourly columns need
+   a stable plotting width; narrow screens scroll the chart rather than crushing
+   labels/bars into an unreadable strip. */
+.server-activity-card .toolbar2 {
+  margin-bottom: 0;
+}
+
+.server-activity-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.server-activity-bars {
+  min-width: 720px;
+  gap: 8px;
+}
+
+.server-activity-bars.day {
+  min-width: 420px;
+  gap: var(--s3);
+}
+
+.server-activity-bars .bar-col .bar {
+  min-height: 0;
+}
+
+.server-activity-bars .bar-col .d {
+  white-space: nowrap;
+}
+
 .scrim {
   position: fixed;
   inset: 0;
