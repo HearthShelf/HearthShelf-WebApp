@@ -22,7 +22,8 @@ function origin(t: AbsTarget): string {
 const CLUBS_DISABLED: HSClubsResponse = { enabled: false, mine: [], joinable: [] }
 
 export const clubsKeys = {
-  list: (serverId: string, libraryItemId: string) => ['clubs', serverId, libraryItemId || 'mine'] as const,
+  list: (serverId: string, libraryItemId: string) =>
+    ['clubs', serverId, libraryItemId || 'mine'] as const,
   detail: (serverId: string, clubId: string, bookId: string) =>
     ['clubs', serverId, 'detail', clubId, bookId || 'current'] as const,
 }
@@ -127,7 +128,12 @@ export async function createClub(t: AbsTarget, input: CreateClubInput): Promise<
   return mapClub((await res.json()) as RawClub)
 }
 
-async function clubAction(t: AbsTarget, clubId: string, action: string, body?: unknown): Promise<void> {
+async function clubAction(
+  t: AbsTarget,
+  clubId: string,
+  action: string,
+  body?: unknown,
+): Promise<void> {
   const token = getAbsToken(t.serverId)
   if (!token) throw new Error('no token')
   const res = await fetch(`${origin(t)}/hs/clubs/${encodeURIComponent(clubId)}/${action}`, {
@@ -142,12 +148,40 @@ async function clubAction(t: AbsTarget, clubId: string, action: string, body?: u
   if (!res.ok) throw new Error(`clubs ${action} ${res.status}`)
 }
 
-export const joinClub = (t: AbsTarget, clubId: string): Promise<void> => clubAction(t, clubId, 'join')
-export const leaveClub = (t: AbsTarget, clubId: string): Promise<void> => clubAction(t, clubId, 'leave')
+export const joinClub = (t: AbsTarget, clubId: string): Promise<void> =>
+  clubAction(t, clubId, 'join')
+export const leaveClub = (t: AbsTarget, clubId: string): Promise<void> =>
+  clubAction(t, clubId, 'leave')
 export const kickMember = (t: AbsTarget, clubId: string, userId: string): Promise<void> =>
   clubAction(t, clubId, 'kick', { userId })
-export const advanceClubBook = (t: AbsTarget, clubId: string, libraryItemId: string): Promise<void> =>
-  clubAction(t, clubId, 'books', { libraryItemId })
+export const advanceClubBook = (
+  t: AbsTarget,
+  clubId: string,
+  libraryItemId: string,
+): Promise<void> => clubAction(t, clubId, 'books', { libraryItemId })
+export const enqueueClubBook = (
+  t: AbsTarget,
+  clubId: string,
+  libraryItemId: string,
+): Promise<void> => clubAction(t, clubId, 'queue', { libraryItemId })
+
+/** Owner-only removal of a book that has not been promoted from Up Next yet. */
+export async function removeQueuedClubBook(
+  t: AbsTarget,
+  clubId: string,
+  libraryItemId: string,
+): Promise<void> {
+  const token = getAbsToken(t.serverId)
+  if (!token) throw new Error('no token')
+  const res = await fetch(
+    `${origin(t)}/hs/clubs/${encodeURIComponent(clubId)}/queue/${encodeURIComponent(libraryItemId)}`,
+    {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    },
+  )
+  if (!res.ok) throw new Error(`clubs queue delete ${res.status}`)
+}
 
 /** Owner or admin archives the club. */
 export async function archiveClub(t: AbsTarget, clubId: string): Promise<void> {
@@ -200,7 +234,17 @@ function mapClubMember(m: RawClubMember): HSClubMember {
 
 const CLUB_DETAIL_DISABLED: HSClubDetail = {
   enabled: false,
-  club: { id: '', name: '', createdBy: '', isOpen: true, archived: false, createdAt: 0, memberCount: 0, currentBook: null, recBasis: 'club-history' },
+  club: {
+    id: '',
+    name: '',
+    createdBy: '',
+    isOpen: true,
+    archived: false,
+    createdAt: 0,
+    memberCount: 0,
+    currentBook: null,
+    recBasis: 'club-history',
+  },
   books: [],
   queue: [],
   members: [],
@@ -267,14 +311,18 @@ export async function getClubDetail(
           username: n.username ?? '',
           libraryItemId: n.libraryItemId ?? '',
           clubId: n.clubId ?? '',
-          visibility: n.visibility === 'public' || n.visibility === 'personal' ? n.visibility : 'club',
+          visibility:
+            n.visibility === 'public' || n.visibility === 'personal' ? n.visibility : 'club',
           parentId: n.parentId ?? '',
           timeSec: n.timeSec ?? null,
           safe: Boolean(n.safe),
           body: n.body ?? '',
           createdAt: n.createdAt ?? 0,
         })),
-        locked: (data.notes?.locked ?? []).map((s) => ({ id: s.id ?? '', timeSec: s.timeSec ?? 0 })),
+        locked: (data.notes?.locked ?? []).map((s) => ({
+          id: s.id ?? '',
+          timeSec: s.timeSec ?? 0,
+        })),
         hiddenAhead: data.notes?.hiddenAhead ?? 0,
       },
       unreadCount: data.unreadCount ?? 0,
@@ -285,7 +333,11 @@ export async function getClubDetail(
 }
 
 /** Bump the club's unread cursor. Server applies max(stored, incoming). */
-export async function markClubRead(t: AbsTarget, clubId: string, lastReadAt: number): Promise<void> {
+export async function markClubRead(
+  t: AbsTarget,
+  clubId: string,
+  lastReadAt: number,
+): Promise<void> {
   const token = getAbsToken(t.serverId)
   if (!token) throw new Error('no token')
   const res = await fetch(`${origin(t)}/hs/clubs/${encodeURIComponent(clubId)}/read`, {

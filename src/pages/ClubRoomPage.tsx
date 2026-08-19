@@ -1,334 +1,382 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useActiveServer } from '@/hooks/useActiveServer'
-import { getMe } from '@/api/absLibrary'
-import { getClubDetail, clubsKeys, markClubRead, leaveClub, kickMember, archiveClub, deleteClub } from '@/api/absClubs'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import type { HSClub, HSClubDetail, HSClubMember, HSNote } from '@hearthshelf/core'
+import { fmtSessDate, formatTimestamp, sortMembersByProgress } from '@hearthshelf/core'
+import {
+  advanceClubBook,
+  archiveClub,
+  clubsKeys,
+  createClub,
+  deleteClub,
+  getClubDetail,
+  getClubs,
+  joinClub,
+  kickMember,
+  leaveClub,
+  markClubRead,
+  removeQueuedClubBook,
+} from '@/api/absClubs'
 import { createNote, deleteNote } from '@/api/absNotes'
-import { sortMembersByProgress, formatTimestamp, fmtSessDate } from '@hearthshelf/core'
-import { Icon } from '@/components/common/Icon'
+import { getMe, type AbsTarget } from '@/api/absLibrary'
 import { Avatar } from '@/components/common/Avatar'
-import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
+import { Icon } from '@/components/common/Icon'
+import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { Cover } from '@/components/shared/Cover'
+import { useMediaUI } from '@/components/shared/MediaUIContext'
+import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
+import { usePlayer } from '@/player/PlayerProvider'
 
-/**
- * A club's room: chat thread for the viewed book (defaults to current), member
- * progress race, and the book history. Minimal-viable Phase 5 surface - owner
- * moderation (kick/delete/advance) lives here too. Polls every 15s while open,
- * per docs/social.md's polling cadence (no realtime channel yet).
- */
-export function ClubRoomPage() {
-  const { clubId } = useParams()
-  const navigate = useNavigate()
-  const { target } = useActiveServer()
-  const qc = useQueryClient()
-  const { toast, show } = useToast()
+function progressOf(member: HSClubMember | undefined): number {
+  if (!member) return 0
+  if (member.isFinished) return 1
+  if (member.currentTime == null || member.duration == null || member.duration <= 0) return 0
+  return Math.max(0, Math.min(1, member.currentTime / member.duration))
+}
 
-  const [bookId, setBookId] = useState<string | undefined>(undefined)
-  const [draft, setDraft] = useState('')
-  const [safe, setSafe] = useState(false)
+function pct(value: number): string {
+  return `${Math.round(value * 100)}%`
+}
 
-  const { data: me } = useQuery({
-    queryKey: ['abs-me', target?.serverId],
-    queryFn: () => getMe(target!),
-    enabled: Boolean(target),
-    staleTime: 10 * 60 * 1000,
-  })
+function clubQueryPrefix(serverId: string): readonly unknown[] {
+  return ['clubs', serverId]
+}
 
-  const key = clubsKeys.detail(target?.serverId ?? '', clubId ?? '', bookId ?? '')
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: key,
-    queryFn: () => getClubDetail(target!, clubId as string, { bookId }),
-    enabled: Boolean(target && clubId),
+function ClubMiniCard({
+  club,
+  target,
+  meId,
+  selected,
+  onSelect,
+}: {
+  club: HSClub
+  target: AbsTarget
+  meId: string | undefined
+  selected: boolean
+  onSelect: () => void
+}) {
+  const { data } = useQuery({
+    queryKey: clubsKeys.detail(target.serverId, club.id, ''),
+    queryFn: () => getClubDetail(target, club.id),
     staleTime: 15 * 1000,
-    refetchInterval: 15 * 1000,
+    refetchInterval: 30 * 1000,
   })
-
-  // Mark read once the room is open and notes have loaded.
-  useEffect(() => {
-    if (!target || !clubId || !data?.enabled) return
-    const latest = data.notes.notes.reduce((max, n) => Math.max(max, n.createdAt), 0)
-    if (latest > 0) void markClubRead(target, clubId, latest).catch(() => {})
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target, clubId, data?.notes.notes.length])
-
-  const post = useMutation({
-    mutationFn: (body: string) =>
-      createNote(target!, {
-        libraryItemId: (bookId ?? data?.club.currentBook?.libraryItemId) as string,
-        clubId: clubId as string,
-        safe,
-        body,
-      }),
-    onSuccess: () => {
-      setDraft('')
-      setSafe(false)
-      void qc.invalidateQueries({ queryKey: key })
-    },
-    onError: () => show('Could not post - try again'),
-  })
-
-  const remove = useMutation({
-    mutationFn: (noteId: string) => deleteNote(target!, noteId),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: key }),
-    onError: () => show('Could not delete that note'),
-  })
-
-  const leave = useMutation({
-    mutationFn: () => leaveClub(target!, clubId as string),
-    onSuccess: () => navigate('/library'),
-    onError: () => show('Could not leave the club'),
-  })
-
-  const kick = useMutation({
-    mutationFn: (userId: string) => kickMember(target!, clubId as string, userId),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: key }),
-    onError: () => show('Could not remove that member'),
-  })
-
-  const archive = useMutation({
-    mutationFn: () => archiveClub(target!, clubId as string),
-    onSuccess: () => navigate('/library'),
-    onError: () => show('Could not archive the club'),
-  })
-
-  const removeClub = useMutation({
-    mutationFn: () => deleteClub(target!, clubId as string),
-    onSuccess: () => navigate('/library'),
-    onError: () => show('Could not delete the club'),
-  })
-
-  const sortedMembers = useMemo(
-    () => (data ? sortMembersByProgress(data.members) : []),
-    [data],
-  )
-
-  if (!target) {
-    return (
-      <div className="page">
-        <ErrorState message="No active server." />
-      </div>
-    )
-  }
-  if (isLoading) {
-    return (
-      <div className="page">
-        <LoadingSpinner className="py-12" label="Loading club..." />
-      </div>
-    )
-  }
-  if (isError || !data?.enabled) {
-    return (
-      <div className="page">
-        <ErrorState message="Could not load this club." onRetry={() => void refetch()} />
-      </div>
-    )
-  }
-
-  const { club, books, notes } = data
-  const isOwner = club.createdBy === me?.id
-  const viewedBook =
-    books.find((b) => b.libraryItemId === (bookId ?? club.currentBook?.libraryItemId)) ??
-    club.currentBook
-  const isCurrentBook = viewedBook?.libraryItemId === club.currentBook?.libraryItemId
-  const pastBooks = books.filter((b) => b.finishedAt != null).sort((a, b) => b.startedAt - a.startedAt)
+  const members = data?.members ?? []
+  const mine = members.find((member) => member.userId === meId)
+  const mineProgress = progressOf(mine)
+  const maxProgress = members.reduce((max, member) => Math.max(max, progressOf(member)), 0)
+  const everyoneFinished = members.length > 0 && members.every((member) => member.isFinished)
+  const inLead = !everyoneFinished && mineProgress > 0 && mineProgress >= maxProgress
 
   return (
-    <div className="page fade-in">
-      <div className="page-head">
-        <div className="eyebrow">Book Club</div>
-        <h1 className="title-xl">{club.name}</h1>
-        <p className="page-sub">
-          {club.memberCount} {club.memberCount === 1 ? 'member' : 'members'}
-        </p>
-      </div>
+    <button
+      type="button"
+      className={'book-club-mini' + (selected ? ' selected' : '')}
+      onClick={onSelect}
+      aria-current={selected ? 'page' : undefined}
+    >
+      {club.currentBook ? (
+        <Cover
+          itemId={club.currentBook.libraryItemId}
+          title={club.currentBook.title}
+          author={club.currentBook.author}
+          width={100}
+          fs={7}
+          className="book-club-mini-cover"
+        />
+      ) : (
+        <span className="book-club-mini-empty">
+          <Icon name="menu_book" />
+        </span>
+      )}
+      <span className="book-club-mini-body">
+        <span className="book-club-mini-topline">
+          <strong>{club.name}</strong>
+          {(data?.unreadCount ?? 0) > 0 && <span className="ni-badge">{data?.unreadCount}</span>}
+        </span>
+        <span className="book-club-mini-book">
+          {club.currentBook?.title ?? 'Choose the first book'}
+        </span>
+        <span className="book-club-mini-stats">
+          {everyoneFinished ? (
+            <span className="book-club-stat done">
+              <Icon name="check_circle" fill /> Everyone finished
+            </span>
+          ) : (
+            <>
+              <span>{mine ? `${pct(mineProgress)} read` : `${club.memberCount} members`}</span>
+              {inLead && (
+                <span className="book-club-stat lead">
+                  <Icon name="social_leaderboard" /> In the lead
+                </span>
+              )}
+            </>
+          )}
+        </span>
+        {members.length > 0 && (
+          <span className="book-club-mini-members" aria-label={`${members.length} members`}>
+            {members.slice(0, 4).map((member) => (
+              <Avatar
+                key={member.userId}
+                name={member.username}
+                target={target}
+                userId={member.userId}
+                size={22}
+                className="hs-avatar"
+              />
+            ))}
+            {members.length > 4 && <span>+{members.length - 4}</span>}
+          </span>
+        )}
+      </span>
+      <Icon name="chevron_right" className="book-club-mini-chevron" />
+    </button>
+  )
+}
 
-      <div className="detail-actions" style={{ marginBottom: 'var(--s5)' }}>
-        {!isOwner && (
-          <button className="pill" disabled={leave.isPending} onClick={() => leave.mutate()}>
-            <Icon name="logout" /> Leave club
+function NewClubForm({
+  pending,
+  onCancel,
+  onCreate,
+}: {
+  pending: boolean
+  onCancel?: () => void
+  onCreate: (name: string) => void
+}) {
+  const [name, setName] = useState('')
+  return (
+    <form
+      className="book-club-create"
+      onSubmit={(event) => {
+        event.preventDefault()
+        if (name.trim()) onCreate(name.trim())
+      }}
+    >
+      <div className="book-club-create-icon">
+        <Icon name="groups_3" />
+      </div>
+      <div>
+        <h2>Start a book club</h2>
+        <p>Create the club now, then choose its first book from any book page.</p>
+      </div>
+      <input
+        className="fld"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        placeholder="Club name"
+        maxLength={120}
+        autoFocus
+      />
+      <div className="book-club-create-actions">
+        {onCancel && (
+          <button type="button" className="pill" onClick={onCancel}>
+            Cancel
           </button>
         )}
-        {isOwner && (
-          <>
-            <button
-              className="pill"
-              disabled={archive.isPending}
-              onClick={() => {
-                if (window.confirm('Archive this club? It will be hidden from active club lists.')) archive.mutate()
-              }}
-            >
-              <Icon name="archive" /> Archive club
-            </button>
-            <button
-              className="pill"
-              disabled={removeClub.isPending}
-              onClick={() => {
-                if (window.confirm('Permanently delete this club, including its members, book history, and club notes? This cannot be undone.')) removeClub.mutate()
-              }}
-            >
-              <Icon name="delete" /> Delete club
-            </button>
-          </>
-        )}
+        <button type="submit" className="pill on" disabled={!name.trim() || pending}>
+          <Icon name="add" /> Create club
+        </button>
       </div>
+    </form>
+  )
+}
 
-      {viewedBook && (
-        <div className="cfg-card" style={{ marginBottom: 'var(--s5)' }}>
-          <div className="cfg-line">
-            <Icon name="menu_book" style={{ color: 'var(--accent)' }} />
-            <div className="cl-meta" style={{ flex: 1 }}>
-              <div className="cl-t">{viewedBook.title}</div>
-              <div className="cl-d">
-                by {viewedBook.author} · {isCurrentBook ? 'current book' : 'finished'}
-              </div>
-            </div>
-            {!isCurrentBook && (
-              <button className="pill" onClick={() => setBookId(club.currentBook?.libraryItemId)}>
-                Back to current
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {isCurrentBook && (
-        <>
-          <div className="section-head">
-            <Icon name="social_leaderboard" />
-            <h2>Reading progress</h2>
-          </div>
-          <div className="cfg-card" style={{ marginBottom: 'var(--s5)' }}>
-            {sortedMembers.length === 0 ? (
-              <div className="pop-empty">No members yet.</div>
-            ) : (
-              sortedMembers.map((m) => {
-                const pct =
-                  m.currentTime != null && m.duration != null && m.duration > 0
-                    ? Math.min(1, m.currentTime / m.duration)
-                    : 0
-                return (
-                  <div className="cfg-line" key={m.userId}>
-                    <Avatar
-                      name={m.username}
-                      target={target}
-                      userId={m.userId}
-                      size={28}
-                      className="hs-avatar"
-                    />
-                    <div className="cl-meta" style={{ flex: 1 }}>
-                      <div className="cl-t">
-                        {m.username}
-                        {m.role === 'owner' && (
-                          <span className="badge-pill abridged" style={{ marginLeft: 6 }}>
-                            Owner
-                          </span>
-                        )}
-                        {m.listeningNow && (
-                          <Icon
-                            name="podcasts"
-                            style={{ fontSize: 13, marginLeft: 6, color: '#a7c896', verticalAlign: '-2px' }}
-                          />
-                        )}
-                      </div>
-                      <div className="prog-line" style={{ marginTop: 6, width: '100%' }}>
-                        <i style={{ width: `${pct * 100}%` }} />
-                      </div>
-                    </div>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                      {m.isFinished ? 'Finished' : m.currentTime != null ? `${Math.round(pct * 100)}%` : '—'}
-                    </span>
-                    {isOwner && m.role !== 'owner' && (
-                      <button
-                        className="tbl-icon"
-                        title="Kick"
-                        onClick={() => {
-                          if (window.confirm(`Remove ${m.username} from the club?`)) kick.mutate(m.userId)
-                        }}
-                      >
-                        <Icon name="person_remove" />
-                      </button>
-                    )}
-                  </div>
-                )
-              })
-            )}
-          </div>
-        </>
-      )}
-
-      <div className="section-head">
-        <Icon name="forum" />
-        <h2>Chat</h2>
+function ClubTimeline({
+  members,
+  notes,
+  locked,
+  meId,
+  duration,
+  livePosition,
+  target,
+}: {
+  members: HSClubMember[]
+  notes: HSNote[]
+  locked: { id: string; timeSec: number }[]
+  meId: string | undefined
+  duration: number
+  livePosition?: number
+  target: AbsTarget
+}) {
+  const mine = members.find((member) => member.userId === meId)
+  const myPosition = livePosition ?? mine?.currentTime ?? 0
+  const myFraction = duration > 0 ? Math.max(0, Math.min(1, myPosition / duration)) : 0
+  const readable = notes.filter((note) => !note.parentId && note.timeSec != null)
+  if (duration <= 0)
+    return (
+      <div className="book-club-timeline-unavailable">
+        Timeline appears once listening progress is available.
       </div>
+    )
 
-      {isCurrentBook && (
-        <div className="cfg-card" style={{ marginBottom: 10 }}>
-          <textarea
-            className="fld"
-            rows={2}
-            placeholder="Say something about this book..."
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            maxLength={2000}
-          />
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: 8, gap: 8 }}>
+  return (
+    <div className="book-club-timeline" aria-label="Book timeline">
+      <div className="book-club-timeline-labels">
+        <span>Start</span>
+        <span>{formatTimestamp(duration)}</span>
+      </div>
+      <div className="book-club-timeline-rail">
+        <span className="book-club-timeline-read" style={{ width: pct(myFraction) }} />
+        <span className="book-club-timeline-ahead" style={{ left: pct(myFraction) }} />
+        <span className="book-club-timeline-you" style={{ left: pct(myFraction) }}>
+          <i />
+          <b>You · {pct(myFraction)}</b>
+        </span>
+        {readable.map((note) => {
+          const fraction = Math.max(0, Math.min(1, (note.timeSec ?? 0) / duration))
+          return (
             <button
+              key={note.id}
               type="button"
-              className={'pill' + (safe ? ' on' : '')}
-              onClick={() => setSafe(!safe)}
-              title="Safe - show to everyone now (no spoilers)"
+              className="book-club-comment-marker"
+              style={{ left: pct(fraction) }}
+              title={`Comment at ${formatTimestamp(note.timeSec ?? 0)}`}
+              aria-label={`Go to comment at ${formatTimestamp(note.timeSec ?? 0)}`}
+              onClick={() =>
+                document
+                  .getElementById(`club-note-${note.id}`)
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }
             >
-              <Icon name="shield" /> Safe
+              <Icon name="chat_bubble" fill />
             </button>
-            <button className="pill on" disabled={!draft.trim() || post.isPending} onClick={() => post.mutate(draft.trim())}>
-              <Icon name="send" /> Post
-            </button>
-          </div>
-        </div>
-      )}
+          )
+        })}
+        {locked.map((note) => {
+          const fraction = Math.max(0, Math.min(1, note.timeSec / duration))
+          return (
+            <span
+              key={note.id}
+              className="book-club-comment-marker locked"
+              style={{ left: pct(fraction) }}
+              title={`Comment unlocks at ${formatTimestamp(note.timeSec)}`}
+            >
+              <Icon name="lock" fill />
+            </span>
+          )
+        })}
+      </div>
+      <div className="book-club-member-track">
+        {members.map((member) => {
+          const fraction = progressOf(member)
+          return (
+            <span
+              key={member.userId}
+              className={'book-club-member-pin' + (member.userId === meId ? ' me' : '')}
+              style={{ left: pct(fraction) }}
+              title={`${member.username} · ${member.isFinished ? 'Finished' : pct(fraction)}`}
+            >
+              <Avatar
+                name={member.username}
+                target={target}
+                userId={member.userId}
+                size={30}
+                className="hs-avatar"
+              />
+              {member.listeningNow && <i />}
+            </span>
+          )
+        })}
+      </div>
+      <div className="book-club-timeline-key">
+        <span>
+          <i className="readable" /> Readable discussion
+        </span>
+        <span>
+          <i className="locked" /> Unlocks when you reach it
+        </span>
+        <span className="book-club-spoiler-note">
+          <Icon name="shield" /> Ahead comments stay private
+        </span>
+      </div>
+    </div>
+  )
+}
 
-      {notes.notes.length === 0 ? (
-        <div className="pop-empty">No chat yet for this book.</div>
-      ) : (
-        <div className="bm-list">
-          {[...notes.notes]
-            .sort((a, b) => b.createdAt - a.createdAt)
-            .map((n) => {
-              const { day, time } = fmtSessDate(n.createdAt)
-              const mine = n.userId === me?.id
+function DiscussionNote({
+  note,
+  replies,
+  meId,
+  isOwner,
+  target,
+  activeBook,
+  onDelete,
+  onReply,
+}: {
+  note: HSNote
+  replies: HSNote[]
+  meId: string | undefined
+  isOwner: boolean
+  target: AbsTarget
+  activeBook: boolean
+  onDelete: (id: string) => void
+  onReply: (note: HSNote) => void
+}) {
+  const { day, time } = fmtSessDate(note.createdAt)
+  return (
+    <article className="book-club-note" id={`club-note-${note.id}`}>
+      <Avatar
+        name={note.username}
+        target={target}
+        userId={note.userId}
+        size={34}
+        className="hs-avatar"
+      />
+      <div className="book-club-note-body">
+        <div className="book-club-note-meta">
+          <strong>{note.username}</strong>
+          {note.safe && (
+            <span className="badge-pill abridged">
+              <Icon name="shield" /> Spoiler-free
+            </span>
+          )}
+          <span>
+            {day} · {time}
+          </span>
+        </div>
+        <p>{note.body}</p>
+        <div className="book-club-note-actions">
+          {note.timeSec != null && (
+            <span className="book-club-time-chip">
+              <Icon name="play_arrow" fill /> {formatTimestamp(note.timeSec)}
+            </span>
+          )}
+          {activeBook && (
+            <button type="button" onClick={() => onReply(note)}>
+              Reply
+            </button>
+          )}
+          {(note.userId === meId || isOwner) && (
+            <button type="button" onClick={() => onDelete(note.id)}>
+              Delete
+            </button>
+          )}
+        </div>
+        {replies.length > 0 && (
+          <div className="book-club-replies">
+            {replies.map((reply) => {
+              const replyDate = fmtSessDate(reply.createdAt)
               return (
-                <div className="bm-row" key={n.id} style={{ alignItems: 'flex-start', gap: 10 }}>
+                <div className="book-club-reply" key={reply.id}>
                   <Avatar
-                    name={n.username}
+                    name={reply.username}
                     target={target}
-                    userId={n.userId}
-                    size={28}
+                    userId={reply.userId}
+                    size={26}
                     className="hs-avatar"
                   />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                      <span className="bm-n" style={{ fontWeight: 600 }}>
-                        {n.username}
-                      </span>
-                      {n.safe && (
-                        <span className="badge-pill abridged" title="Marked spoiler-free - shown to everyone early">
-                          Safe
-                        </span>
-                      )}
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        {day} · {time}
-                        {n.timeSec != null && <> · {formatTimestamp(n.timeSec)}</>}
+                  <div>
+                    <div className="book-club-note-meta">
+                      <strong>{reply.username}</strong>
+                      <span>
+                        {replyDate.day} · {replyDate.time}
                       </span>
                     </div>
-                    <div style={{ marginTop: 4, fontSize: 13.5, whiteSpace: 'pre-wrap' }}>{n.body}</div>
-                    {(mine || isOwner) && (
-                      <button
-                        className="read-more"
-                        style={{ fontSize: 12, color: 'var(--primary)', marginTop: 4 }}
-                        onClick={() => remove.mutate(n.id)}
-                      >
+                    <p>{reply.body}</p>
+                    {(reply.userId === meId || isOwner) && (
+                      <button type="button" onClick={() => onDelete(reply.id)}>
                         Delete
                       </button>
                     )}
@@ -336,60 +384,777 @@ export function ClubRoomPage() {
                 </div>
               )
             })}
-        </div>
-      )}
-
-      {notes.hiddenAhead > 0 && (
-        <div className="banner info" style={{ marginTop: 'var(--s3)' }}>
-          <Icon name="visibility_off" />
-          {notes.hiddenAhead} {notes.hiddenAhead === 1 ? 'note is' : 'notes are'} hidden ahead of
-          your position, to avoid spoilers.
-        </div>
-      )}
-
-      <div className="section-head" style={{ marginTop: 'var(--s6)' }}>
-        <Icon name="history" />
-        <h2>Book history</h2>
-      </div>
-      <div className="cfg-card">
-        {club.currentBook && (
-          <div className="cfg-line">
-            <Icon name="menu_book" style={{ color: 'var(--accent)' }} />
-            <div className="cl-meta" style={{ flex: 1 }}>
-              <div className="cl-t">{club.currentBook.title}</div>
-              <div className="cl-d">by {club.currentBook.author} · current book</div>
-            </div>
-            <button className="pill" onClick={() => setBookId(club.currentBook?.libraryItemId)}>
-              View chat
-            </button>
           </div>
         )}
-        {pastBooks.length === 0 && !club.currentBook ? (
-          <div className="pop-empty">No books yet.</div>
-        ) : (
-          pastBooks.map((b) => (
-            <div className="cfg-line" key={b.libraryItemId}>
-              <Icon name="menu_book" style={{ color: 'var(--text-muted)' }} />
-              <div className="cl-meta" style={{ flex: 1 }}>
-                <div className="cl-t">{b.title}</div>
-                <div className="cl-d">by {b.author} · finished</div>
+      </div>
+    </article>
+  )
+}
+
+function ClubRoom({
+  target,
+  meId,
+  data,
+  viewedBookId,
+  onViewBook,
+  onClubRemoved,
+}: {
+  target: AbsTarget
+  meId: string | undefined
+  data: HSClubDetail
+  viewedBookId: string | undefined
+  onViewBook: (id: string | undefined) => void
+  onClubRemoved: () => void
+}) {
+  const navigate = useNavigate()
+  const qc = useQueryClient()
+  const ui = useMediaUI()
+  const player = usePlayer()
+  const { toast, show } = useToast()
+  const [draft, setDraft] = useState('')
+  const [safe, setSafe] = useState(false)
+  const [addTimestamp, setAddTimestamp] = useState(true)
+  const [replyingTo, setReplyingTo] = useState<HSNote | null>(null)
+  const [replyDraft, setReplyDraft] = useState('')
+
+  const { club, books, queue, notes, members } = data
+  const currentBookId = club.currentBook?.libraryItemId
+  const viewedBook =
+    books.find((book) => book.libraryItemId === (viewedBookId ?? currentBookId)) ?? club.currentBook
+  const isCurrentBook = Boolean(viewedBook && viewedBook.libraryItemId === currentBookId)
+  const isOwner = club.createdBy === meId
+  const inPlayer = Boolean(
+    viewedBook &&
+    player.now?.serverId === target.serverId &&
+    player.now.itemId === viewedBook.libraryItemId,
+  )
+  const duration = Math.max(
+    inPlayer ? (player.now?.totalDurationSec ?? 0) : 0,
+    ...members.map((member) => member.duration ?? 0),
+  )
+  const detailKey = clubsKeys.detail(target.serverId, club.id, viewedBookId ?? '')
+  const invalidate = () => qc.invalidateQueries({ queryKey: clubQueryPrefix(target.serverId) })
+
+  const post = useMutation({
+    mutationFn: (input: { body: string; parentId?: string }) =>
+      createNote(target, {
+        libraryItemId: viewedBook!.libraryItemId,
+        clubId: club.id,
+        parentId: input.parentId,
+        timeSec:
+          !input.parentId && addTimestamp && inPlayer
+            ? Math.max(0, Math.floor(player.positionSec))
+            : undefined,
+        safe: input.parentId ? false : safe,
+        body: input.body,
+      }),
+    onSuccess: () => {
+      setDraft('')
+      setReplyDraft('')
+      setReplyingTo(null)
+      setSafe(false)
+      void qc.invalidateQueries({ queryKey: detailKey })
+    },
+    onError: () => show('Could not post. Try again.'),
+  })
+  const removeNote = useMutation({
+    mutationFn: (id: string) => deleteNote(target, id),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: detailKey }),
+    onError: () => show('Could not delete that comment.'),
+  })
+  const leave = useMutation({
+    mutationFn: () => leaveClub(target, club.id),
+    onSuccess: onClubRemoved,
+    onError: () => show('Could not leave the club.'),
+  })
+  const archive = useMutation({
+    mutationFn: () => archiveClub(target, club.id),
+    onSuccess: onClubRemoved,
+    onError: () => show('Could not archive the club.'),
+  })
+  const hardDelete = useMutation({
+    mutationFn: () => deleteClub(target, club.id),
+    onSuccess: onClubRemoved,
+    onError: () => show('Could not delete the club.'),
+  })
+  const kick = useMutation({
+    mutationFn: (userId: string) => kickMember(target, club.id, userId),
+    onSuccess: () => void invalidate(),
+    onError: () => show('Could not remove that member.'),
+  })
+  const promote = useMutation({
+    mutationFn: (libraryItemId: string) => advanceClubBook(target, club.id, libraryItemId),
+    onSuccess: () => {
+      onViewBook(undefined)
+      void invalidate()
+    },
+    onError: () => show('Could not start that book.'),
+  })
+  const removeQueued = useMutation({
+    mutationFn: (libraryItemId: string) => removeQueuedClubBook(target, club.id, libraryItemId),
+    onSuccess: () => void invalidate(),
+    onError: () => show('Could not remove that book.'),
+  })
+
+  const topNotes = useMemo(
+    () => notes.notes.filter((note) => !note.parentId).sort((a, b) => a.createdAt - b.createdAt),
+    [notes.notes],
+  )
+  const repliesByParent = useMemo(() => {
+    const grouped = new Map<string, HSNote[]>()
+    for (const note of notes.notes) {
+      if (!note.parentId) continue
+      const replies = grouped.get(note.parentId) ?? []
+      replies.push(note)
+      grouped.set(note.parentId, replies)
+    }
+    return grouped
+  }, [notes.notes])
+  const sortedMembers = useMemo(() => sortMembersByProgress(members), [members])
+  const pastBooks = books
+    .filter((book) => book.finishedAt != null)
+    .sort((a, b) => b.startedAt - a.startedAt)
+  const myProgress = progressOf(members.find((member) => member.userId === meId))
+
+  const copyInvite = async () => {
+    const url = new URL('/clubs', window.location.origin)
+    url.searchParams.set('join', club.id)
+    try {
+      if (navigator.share)
+        await navigator.share({
+          title: `Join ${club.name}`,
+          text: 'Join my book club on HearthShelf.',
+          url: url.toString(),
+        })
+      else {
+        await navigator.clipboard.writeText(url.toString())
+        show('Invite link copied.')
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      window.prompt('Copy this invite link', url.toString())
+    }
+  }
+
+  if (!viewedBook) {
+    return (
+      <section className="book-club-room book-club-no-book">
+        <div className="book-club-room-head">
+          <div>
+            <span className="eyebrow">Book club</span>
+            <h1>{club.name}</h1>
+            <p>
+              {club.memberCount} {club.memberCount === 1 ? 'member' : 'members'}
+            </p>
+          </div>
+          <button className="pill" onClick={() => void copyInvite()}>
+            <Icon name="person_add" /> Invite readers
+          </button>
+        </div>
+        <div className="book-club-empty-book">
+          <Icon name="menu_book" />
+          <h2>Choose your first read</h2>
+          <p>Open a book from your library and add it to this club.</p>
+          <button className="pill on" onClick={() => navigate('/library')}>
+            <Icon name="grid_view" /> Browse library
+          </button>
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section className="book-club-room">
+      <div className="book-club-room-head">
+        <div>
+          <span className="eyebrow">Book club</span>
+          <h1>{club.name}</h1>
+          <p>
+            {club.memberCount} {club.memberCount === 1 ? 'member' : 'members'} ·{' '}
+            {isCurrentBook ? 'Reading now' : 'Past read'}
+          </p>
+        </div>
+        <div className="book-club-room-actions">
+          <button className="pill" onClick={() => void copyInvite()}>
+            <Icon name="person_add" /> Invite readers
+          </button>
+          {!isOwner ? (
+            <button
+              className="pill"
+              disabled={leave.isPending}
+              onClick={() => window.confirm('Leave this club?') && leave.mutate()}
+            >
+              <Icon name="logout" /> Leave
+            </button>
+          ) : (
+            <details className="book-club-manage">
+              <summary className="pill">
+                <Icon name="more_horiz" /> Manage
+              </summary>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => window.confirm('Archive this club?') && archive.mutate()}
+                >
+                  <Icon name="archive" /> Archive club
+                </button>
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={() =>
+                    window.confirm(
+                      'Permanently delete this club and all of its discussions? This cannot be undone.',
+                    ) && hardDelete.mutate()
+                  }
+                >
+                  <Icon name="delete" /> Delete forever
+                </button>
               </div>
-              <button className="pill" onClick={() => setBookId(b.libraryItemId)}>
-                View chat
-              </button>
-            </div>
-          ))
-        )}
+            </details>
+          )}
+        </div>
       </div>
 
-      {isOwner && club.currentBook && (
-        <div className="banner info" style={{ marginTop: 'var(--s4)' }}>
-          <Icon name="info" />
-          To move this club to a new book, open that book's page and use the Book Club card there
-          - advancing archives the current book's chat (still readable in history).
+      <div className="book-club-hero">
+        <Cover
+          itemId={viewedBook.libraryItemId}
+          title={viewedBook.title}
+          author={viewedBook.author}
+          width={240}
+          fs={11}
+          className="book-club-hero-cover"
+          onClick={() => ui.openItem(viewedBook.libraryItemId)}
+        />
+        <div className="book-club-hero-copy">
+          <span className="book-club-now-label">
+            {isCurrentBook ? 'Currently reading' : 'From the club archive'}
+          </span>
+          <h2>{viewedBook.title}</h2>
+          <p>by {viewedBook.author}</p>
+          {isCurrentBook && (
+            <div className="book-club-hero-progress">
+              <span>
+                <b>{pct(myProgress)}</b> of the book
+              </span>
+              <div className="prog-line">
+                <i style={{ width: pct(myProgress) }} />
+              </div>
+            </div>
+          )}
+          {!isCurrentBook && (
+            <button className="read-more" onClick={() => onViewBook(undefined)}>
+              <Icon name="arrow_back" /> Back to current read
+            </button>
+          )}
+        </div>
+        <div className="book-club-hero-play">
+          {!inPlayer ? (
+            <button
+              className="btn btn-primary"
+              onClick={() => void ui.playItem(viewedBook.libraryItemId)}
+            >
+              <Icon name="play_arrow" fill /> Play
+            </button>
+          ) : (
+            <button className="pill on" onClick={() => navigate('/player')}>
+              <Icon name="graphic_eq" /> In player
+            </button>
+          )}
+          <button className="read-more" onClick={() => ui.openItem(viewedBook.libraryItemId)}>
+            View book
+          </button>
+        </div>
+      </div>
+
+      <section className="book-club-section timeline-section">
+        <div className="book-club-section-head">
+          <div>
+            <span className="eyebrow">Your place in the story</span>
+            <h2>Book timeline</h2>
+          </div>
+          <span>
+            {notes.hiddenAhead > 0
+              ? `${notes.hiddenAhead} ahead ${notes.hiddenAhead === 1 ? 'comment' : 'comments'}`
+              : 'You are caught up'}
+          </span>
+        </div>
+        <ClubTimeline
+          members={members}
+          notes={notes.notes}
+          locked={notes.locked}
+          meId={meId}
+          duration={duration}
+          livePosition={inPlayer ? player.positionSec : undefined}
+          target={target}
+        />
+      </section>
+
+      <div className="book-club-content-grid">
+        <div className="book-club-main-column">
+          <section className="book-club-section">
+            <div className="book-club-section-head">
+              <div>
+                <span className="eyebrow">For this book</span>
+                <h2>Discussion</h2>
+              </div>
+              {data.unreadCount > 0 && (
+                <span className="book-club-unread">
+                  <i /> {data.unreadCount} new
+                </span>
+              )}
+            </div>
+            {isCurrentBook && (
+              <div className="book-club-composer">
+                <textarea
+                  className="fld"
+                  rows={3}
+                  maxLength={2000}
+                  placeholder="Share a thought with the club…"
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                />
+                <div>
+                  <span className="book-club-composer-tools">
+                    {inPlayer && (
+                      <button
+                        type="button"
+                        className={'pill' + (addTimestamp ? ' on' : '')}
+                        onClick={() => setAddTimestamp(!addTimestamp)}
+                      >
+                        <Icon name="schedule" /> {formatTimestamp(player.positionSec)}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className={'pill' + (safe ? ' on' : '')}
+                      onClick={() => setSafe(!safe)}
+                      title="Visible before other members reach this point"
+                    >
+                      <Icon name="shield" /> Spoiler-free
+                    </button>
+                  </span>
+                  <button
+                    className="pill on"
+                    disabled={!draft.trim() || post.isPending}
+                    onClick={() => post.mutate({ body: draft.trim() })}
+                  >
+                    <Icon name="send" /> Post
+                  </button>
+                </div>
+              </div>
+            )}
+            {topNotes.length === 0 ? (
+              <div className="book-club-empty-discussion">
+                <Icon name="forum" />
+                <p>No discussion yet for this book.</p>
+              </div>
+            ) : (
+              <div className="book-club-discussion">
+                {topNotes.map((note) => (
+                  <DiscussionNote
+                    key={note.id}
+                    note={note}
+                    replies={(repliesByParent.get(note.id) ?? []).sort(
+                      (a, b) => a.createdAt - b.createdAt,
+                    )}
+                    meId={meId}
+                    isOwner={isOwner}
+                    target={target}
+                    activeBook={isCurrentBook}
+                    onDelete={(id) => removeNote.mutate(id)}
+                    onReply={setReplyingTo}
+                  />
+                ))}
+              </div>
+            )}
+            {notes.hiddenAhead > 0 && (
+              <div className="book-club-locked-teaser">
+                <Icon name="lock" fill />
+                <div>
+                  <strong>
+                    {notes.hiddenAhead} {notes.hiddenAhead === 1 ? 'discussion' : 'discussions'}{' '}
+                    waiting ahead
+                  </strong>
+                  <span>They unlock as your listening progress reaches them.</span>
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section className="book-club-section">
+            <div className="book-club-section-head">
+              <div>
+                <span className="eyebrow">Club library</span>
+                <h2>Past reads</h2>
+              </div>
+            </div>
+            {pastBooks.length === 0 ? (
+              <div className="book-club-empty-discussion">
+                <Icon name="history" />
+                <p>Finished club books will stay here with their discussions.</p>
+              </div>
+            ) : (
+              <div className="book-club-past-grid">
+                {pastBooks.map((book) => (
+                  <button
+                    key={book.libraryItemId}
+                    type="button"
+                    onClick={() => onViewBook(book.libraryItemId)}
+                  >
+                    <Cover
+                      itemId={book.libraryItemId}
+                      title={book.title}
+                      author={book.author}
+                      width={120}
+                      fs={7}
+                      finished
+                      className="book-club-past-cover"
+                    />
+                    <span>
+                      <strong>{book.title}</strong>
+                      <small>{book.author}</small>
+                      <em>
+                        View discussion <Icon name="arrow_forward" />
+                      </em>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+
+        <aside className="book-club-side-column">
+          <section className="book-club-section">
+            <div className="book-club-section-head compact">
+              <h2>Reading progress</h2>
+              <span>
+                {members.filter((member) => member.isFinished).length}/{members.length} finished
+              </span>
+            </div>
+            <div className="book-club-progress-list">
+              {sortedMembers.map((member, index) => {
+                const progress = progressOf(member)
+                return (
+                  <div className="book-club-progress-row" key={member.userId}>
+                    <span className="book-club-rank">{index + 1}</span>
+                    <Avatar
+                      name={member.username}
+                      target={target}
+                      userId={member.userId}
+                      size={30}
+                      className="hs-avatar"
+                    />
+                    <div>
+                      <strong>{member.userId === meId ? 'You' : member.username}</strong>
+                      <span>{member.isFinished ? 'Finished' : pct(progress)}</span>
+                      <div className="prog-line">
+                        <i style={{ width: pct(progress) }} />
+                      </div>
+                    </div>
+                    {member.listeningNow && <Icon name="graphic_eq" className="book-club-live" />}
+                    {isOwner && member.role !== 'owner' && (
+                      <button
+                        className="tbl-icon"
+                        title={`Remove ${member.username}`}
+                        onClick={() =>
+                          window.confirm(`Remove ${member.username} from the club?`) &&
+                          kick.mutate(member.userId)
+                        }
+                      >
+                        <Icon name="person_remove" />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+
+          <section className="book-club-section">
+            <div className="book-club-section-head compact">
+              <h2>Up next</h2>
+              <span>{queue.length}</span>
+            </div>
+            {queue.length === 0 ? (
+              <div className="book-club-empty-side">
+                <Icon name="playlist_add" />
+                <span>Add a book from its library page.</span>
+              </div>
+            ) : (
+              <div className="book-club-queue">
+                {queue.map((book, index) => (
+                  <div key={book.libraryItemId}>
+                    <span className="book-club-queue-number">{index + 1}</span>
+                    <Cover
+                      itemId={book.libraryItemId}
+                      title={book.title}
+                      author={book.author}
+                      width={80}
+                      fs={6}
+                      className="book-club-queue-cover"
+                    />
+                    <span>
+                      <strong>{book.title}</strong>
+                      <small>{book.author}</small>
+                    </span>
+                    {isOwner && (
+                      <span className="book-club-queue-actions">
+                        {index === 0 && (
+                          <button
+                            className="pill on"
+                            disabled={promote.isPending}
+                            onClick={() =>
+                              window.confirm(
+                                `Start ${book.title} now? The current read will move to Past reads.`,
+                              ) && promote.mutate(book.libraryItemId)
+                            }
+                          >
+                            Start
+                          </button>
+                        )}
+                        <button
+                          className="tbl-icon"
+                          title="Remove from queue"
+                          disabled={removeQueued.isPending}
+                          onClick={() => removeQueued.mutate(book.libraryItemId)}
+                        >
+                          <Icon name="close" />
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        </aside>
+      </div>
+
+      {replyingTo && (
+        <div
+          className="book-club-reply-bar"
+          role="dialog"
+          aria-label={`Reply to ${replyingTo.username}`}
+        >
+          <div>
+            <span>
+              Replying to <strong>{replyingTo.username}</strong>
+            </span>
+            <button type="button" onClick={() => setReplyingTo(null)} aria-label="Cancel reply">
+              <Icon name="close" />
+            </button>
+          </div>
+          <textarea
+            className="fld"
+            rows={2}
+            maxLength={2000}
+            autoFocus
+            value={replyDraft}
+            onChange={(event) => setReplyDraft(event.target.value)}
+            placeholder="Write a reply…"
+          />
+          <button
+            className="pill on"
+            disabled={!replyDraft.trim() || post.isPending}
+            onClick={() => post.mutate({ body: replyDraft.trim(), parentId: replyingTo.id })}
+          >
+            <Icon name="send" /> Reply
+          </button>
         </div>
       )}
+      {toast && (
+        <div className="p-toast">
+          <Icon name="check_circle" fill /> {toast}
+        </div>
+      )}
+    </section>
+  )
+}
 
+/** One club opens directly; multiple clubs use a persistent overview rail. */
+export function ClubRoomPage() {
+  const { clubId } = useParams()
+  const [searchParams] = useSearchParams()
+  const joinId = searchParams.get('join')
+  const navigate = useNavigate()
+  const { target } = useActiveServer()
+  const qc = useQueryClient()
+  const { toast, show } = useToast()
+  const player = usePlayer()
+  const [creating, setCreating] = useState(false)
+  const [viewedBookId, setViewedBookId] = useState<string | undefined>()
+  const processedInvite = useRef<string | null>(null)
+
+  const { data: me } = useQuery({
+    queryKey: ['abs-me', target?.serverId],
+    queryFn: () => getMe(target!),
+    enabled: Boolean(target),
+    staleTime: 10 * 60 * 1000,
+  })
+  const listKey = clubsKeys.list(target?.serverId ?? '', '')
+  const clubsQuery = useQuery({
+    queryKey: listKey,
+    queryFn: () => getClubs(target!),
+    enabled: Boolean(target),
+    staleTime: 15 * 1000,
+  })
+  const clubs = clubsQuery.data?.mine ?? []
+  const selectedId = clubId ?? clubs[0]?.id
+  const selectedSummary = clubs.find((club) => club.id === selectedId)
+  const activeViewedId = viewedBookId ?? selectedSummary?.currentBook?.libraryItemId
+  const nowPlaying = player.now
+  const playerPosition =
+    nowPlaying?.serverId === target?.serverId && nowPlaying?.itemId === activeViewedId
+      ? player.positionSec
+      : undefined
+  const detailQuery = useQuery({
+    queryKey: clubsKeys.detail(target?.serverId ?? '', selectedId ?? '', viewedBookId ?? ''),
+    queryFn: () =>
+      getClubDetail(target!, selectedId!, { bookId: viewedBookId, position: playerPosition }),
+    enabled: Boolean(target && selectedId),
+    staleTime: 15 * 1000,
+    refetchInterval: 15 * 1000,
+  })
+
+  useEffect(() => setViewedBookId(undefined), [selectedId])
+  useEffect(() => {
+    if (!target || !joinId || processedInvite.current === joinId) return
+    processedInvite.current = joinId
+    void joinClub(target, joinId)
+      .then(async () => {
+        await qc.invalidateQueries({ queryKey: listKey })
+        navigate(`/club/${joinId}`, { replace: true })
+        show('You joined the book club.')
+      })
+      .catch(() => {
+        processedInvite.current = null
+        show('That invite is no longer available.')
+      })
+  }, [joinId, listKey, navigate, qc, show, target])
+  useEffect(() => {
+    if (!target || !selectedId || !detailQuery.data?.enabled) return
+    const latest = detailQuery.data.notes.notes.reduce(
+      (max, note) => Math.max(max, note.createdAt),
+      0,
+    )
+    if (latest > 0) void markClubRead(target, selectedId, latest).catch(() => {})
+  }, [detailQuery.data?.enabled, detailQuery.data?.notes.notes, selectedId, target])
+
+  const create = useMutation({
+    mutationFn: (name: string) => createClub(target!, { name }),
+    onSuccess: async (club) => {
+      setCreating(false)
+      await qc.invalidateQueries({ queryKey: listKey })
+      navigate(`/club/${club.id}`)
+    },
+    onError: () => show('Could not create the club.'),
+  })
+  const removed = async () => {
+    await qc.invalidateQueries({ queryKey: listKey })
+    navigate('/clubs', { replace: true })
+  }
+
+  if (!target)
+    return (
+      <div className="page">
+        <ErrorState message="No active server." />
+      </div>
+    )
+  if (clubsQuery.isLoading || (selectedId && detailQuery.isLoading))
+    return (
+      <div className="page">
+        <LoadingSpinner className="py-12" label="Loading book clubs…" />
+      </div>
+    )
+  if (!clubsQuery.data?.enabled)
+    return (
+      <div className="page">
+        <ErrorState
+          message="Book clubs are not enabled on this server."
+          onRetry={() => void clubsQuery.refetch()}
+        />
+      </div>
+    )
+
+  if (clubs.length === 0) {
+    return (
+      <div className="page book-clubs-page fade-in">
+        <div className="book-clubs-page-head">
+          <div>
+            <span className="eyebrow">Community</span>
+            <h1 className="title-xl">Book clubs</h1>
+            <p>Read together without reading ahead.</p>
+          </div>
+        </div>
+        <NewClubForm pending={create.isPending} onCreate={(name) => create.mutate(name)} />
+        {toast && (
+          <div className="p-toast">
+            <Icon name="check_circle" fill /> {toast}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="page book-clubs-page fade-in">
+      <div className="book-clubs-page-head">
+        <div>
+          <span className="eyebrow">Community</span>
+          <h1 className="title-xl">Book clubs</h1>
+          <p>Read together without reading ahead.</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => setCreating(true)}>
+          <Icon name="add" /> New club
+        </button>
+      </div>
+      {creating && (
+        <NewClubForm
+          pending={create.isPending}
+          onCancel={() => setCreating(false)}
+          onCreate={(name) => create.mutate(name)}
+        />
+      )}
+      <div className={'book-clubs-layout' + (clubs.length === 1 ? ' single' : '')}>
+        {clubs.length > 1 && (
+          <aside className="book-clubs-list">
+            <div className="book-clubs-list-head">
+              <strong>Your clubs</strong>
+              <span>{clubs.length}</span>
+            </div>
+            <div>
+              {clubs.map((club) => (
+                <ClubMiniCard
+                  key={club.id}
+                  club={club}
+                  target={target}
+                  meId={me?.id}
+                  selected={club.id === selectedId}
+                  onSelect={() => navigate(`/club/${club.id}`)}
+                />
+              ))}
+            </div>
+          </aside>
+        )}
+        <main className="book-clubs-detail">
+          {detailQuery.isError || !detailQuery.data?.enabled ? (
+            <ErrorState
+              message="Could not load this club."
+              onRetry={() => void detailQuery.refetch()}
+            />
+          ) : (
+            <ClubRoom
+              target={target}
+              meId={me?.id}
+              data={detailQuery.data}
+              viewedBookId={viewedBookId}
+              onViewBook={setViewedBookId}
+              onClubRemoved={() => void removed()}
+            />
+          )}
+        </main>
+      </div>
       {toast && (
         <div className="p-toast">
           <Icon name="check_circle" fill /> {toast}

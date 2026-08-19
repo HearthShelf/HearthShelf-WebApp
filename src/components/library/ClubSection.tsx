@@ -1,7 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getClubs, createClub, joinClub, advanceClubBook, clubsKeys } from '@/api/absClubs'
+import {
+  getClubs,
+  createClub,
+  joinClub,
+  advanceClubBook,
+  enqueueClubBook,
+  clubsKeys,
+} from '@/api/absClubs'
 import { getMe, type AbsTarget } from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
 import { Avatar } from '@/components/common/Avatar'
@@ -51,6 +58,11 @@ export function ClubSection({
     onSuccess: () => void qc.invalidateQueries({ queryKey: key }),
   })
 
+  const enqueue = useMutation({
+    mutationFn: (id: string) => enqueueClubBook(target, id, libraryItemId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['clubs', target.serverId] }),
+  })
+
   const create = useMutation({
     mutationFn: () => createClub(target, { name: name.trim(), libraryItemId }),
     onSuccess: (club) => {
@@ -74,7 +86,12 @@ export function ClubSection({
 
   // Nothing to surface: keep it to a single quiet line so an empty club state
   // doesn't nag readers who aren't in one.
-  if (mineForThisBook.length === 0 && joinable.length === 0 && ownedElsewhere.length === 0 && !creating) {
+  if (
+    mineForThisBook.length === 0 &&
+    joinable.length === 0 &&
+    ownedElsewhere.length === 0 &&
+    !creating
+  ) {
     return (
       <div className="club-inline">
         <Icon name="groups_3" />
@@ -96,7 +113,12 @@ export function ClubSection({
       {mineForThisBook.length > 0 && (
         <div className="cfg-card" style={{ marginBottom: 10 }}>
           {mineForThisBook.map((c) => (
-            <div className="cfg-line" key={c.id} onClick={() => navigate(`/club/${c.id}`)} style={{ cursor: 'pointer' }}>
+            <div
+              className="cfg-line"
+              key={c.id}
+              onClick={() => navigate(`/club/${c.id}`)}
+              style={{ cursor: 'pointer' }}
+            >
               <Icon name="groups_3" style={{ color: 'var(--accent)' }} />
               <div className="cl-meta" style={{ flex: 1 }}>
                 <div className="cl-t">{c.name}</div>
@@ -136,8 +158,7 @@ export function ClubSection({
       {ownedElsewhere.length > 0 && (
         <div className="cfg-card" style={{ marginBottom: 10 }}>
           <div className="cl-d" style={{ marginBottom: 8 }}>
-            Move a club you own onto this book (archives its current book's chat - still
-            readable in history)
+            Add this book to a club's Up Next list, or start it now.
           </div>
           {ownedElsewhere.map((c) => (
             <div className="cfg-line" key={c.id}>
@@ -146,13 +167,24 @@ export function ClubSection({
                 <div className="cl-t">{c.name}</div>
                 <div className="cl-d">currently reading {c.currentBook?.title ?? 'nothing'}</div>
               </div>
-              <button
-                className="pill"
-                disabled={advance.isPending}
-                onClick={() => advance.mutate(c.id)}
+              <div
+                style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}
               >
-                <Icon name="arrow_forward" /> Move here
-              </button>
+                <button
+                  className="pill"
+                  disabled={enqueue.isPending}
+                  onClick={() => enqueue.mutate(c.id)}
+                >
+                  <Icon name="playlist_add" /> Up next
+                </button>
+                <button
+                  className="pill"
+                  disabled={advance.isPending}
+                  onClick={() => advance.mutate(c.id)}
+                >
+                  <Icon name="play_arrow" /> Start now
+                </button>
+              </div>
             </div>
           ))}
         </div>

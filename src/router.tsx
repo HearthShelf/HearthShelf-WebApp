@@ -145,6 +145,7 @@ export const router = createBrowserRouter([
       { path: '/finished', element: withShell(<FinishedBooksPage />) },
       { path: '/upcoming', element: withShell(<UpcomingPage />) },
       { path: '/upcoming/:asin', element: withShell(<UpcomingDetailPage />) },
+      { path: '/clubs', element: withShell(<ClubRoomPage />) },
       { path: '/club/:clubId', element: withShell(<ClubRoomPage />) },
       { path: '/sessions', element: withShell(<SessionsPage />) },
       { path: '/player', element: withShell(<PlayerPage />) },

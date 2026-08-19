@@ -39,6 +39,7 @@ function groupForPath(path: string): string {
   if (path.startsWith('/upcoming')) return 'upcoming'
   if (path.startsWith('/stats')) return 'stats'
   if (path.startsWith('/finished')) return 'finished'
+  if (path.startsWith('/clubs') || path.startsWith('/club/')) return 'clubs'
   if (path.startsWith('/sessions')) return 'sessions'
   if (path.startsWith('/player')) return 'player'
   if (path.startsWith('/account')) return 'settings'
@@ -294,6 +295,19 @@ export function Sidebar() {
                 to="/requests"
               />
             )}
+          </>
+        )}
+
+        {!carMode && (
+          <>
+            <div className="nav-label">Community</div>
+            <Item
+              {...itemProps}
+              active={group === 'clubs'}
+              icon="groups_3"
+              label="Book clubs"
+              to="/clubs"
+            />
           </>
         )}
 

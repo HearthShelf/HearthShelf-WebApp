@@ -19,6 +19,7 @@ import { useSettingsStore } from '@/store/settingsStore'
 function tabForPath(path: string): string {
   if (path === '/') return 'home'
   if (path.startsWith('/player')) return 'player'
+  if (path.startsWith('/clubs') || path.startsWith('/club/')) return 'clubs'
   if (
     path.startsWith('/library') ||
     path.startsWith('/series') ||
@@ -194,6 +195,10 @@ function MobileDrawer({
       ],
     })
   groups.push({
+    sec: 'Community',
+    rows: [{ id: 'clubs', icon: 'groups_3', label: 'Book clubs', to: '/clubs' }],
+  })
+  groups.push({
     sec: 'Insights',
     rows: [
       { id: 'stats', icon: 'insights', label: 'Stats', to: '/stats' },
@@ -215,7 +220,13 @@ function MobileDrawer({
       <aside className={'mdrawer' + (open ? ' open' : '')} role="dialog" aria-label="More">
         <div className="msheet-grab" />
         <div className="msheet-user">
-          <Avatar name={name} target={target} userId={absMe?.id} version={avatarVersion} size={46} />
+          <Avatar
+            name={name}
+            target={target}
+            userId={absMe?.id}
+            version={avatarVersion}
+            size={46}
+          />
           <div className="msheet-umeta">
             <div className="msheet-uname">{name}</div>
             {/* Server NAME, never the Direct URL. */}
