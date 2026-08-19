@@ -3,6 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { respondToClubInvite } from '@/api/absClubs'
 import {
+  deleteAllNotifications,
+  deleteNotification,
+  findOwnedItemByAsin,
   getNotifications,
   markAllNotificationsRead,
   markNotificationRead,
@@ -77,6 +80,14 @@ export function NotificationBell() {
     mutationFn: () => markAllNotificationsRead(target!),
     onSuccess: refresh,
   })
+  const dismiss = useMutation({
+    mutationFn: (id: string) => deleteNotification(target!, id),
+    onSuccess: refresh,
+  })
+  const clearAll = useMutation({
+    mutationFn: () => deleteAllNotifications(target!),
+    onSuccess: refresh,
+  })
 
   const openNotification = (notification: HSNotification) => {
     if (!target) return
@@ -89,6 +100,17 @@ export function NotificationBell() {
     const asin = stringData(notification, 'asin')
     if (notification.kind === 'release' && asin) {
       setOpen(false)
+      // 'available' means the book has LANDED in the library, so open the owned
+      // book; the still-upcoming signals open the upcoming page. Falls back to
+      // upcoming when the owned copy can't be resolved.
+      if (stringData(notification, 'signal') === 'available') {
+        void findOwnedItemByAsin(target, asin).then((itemId) =>
+          navigate(
+            itemId ? `/item/${encodeURIComponent(itemId)}` : `/upcoming/${encodeURIComponent(asin)}`,
+          ),
+        )
+        return
+      }
       navigate(`/upcoming/${encodeURIComponent(asin)}`)
       return
     }
@@ -120,11 +142,15 @@ export function NotificationBell() {
               <span className="eyebrow">Inbox</span>
               <strong>Notifications</strong>
             </div>
-            {unread > 0 && (
+            {unread > 0 ? (
               <button type="button" disabled={markAll.isPending} onClick={() => markAll.mutate()}>
                 Mark all read
               </button>
-            )}
+            ) : notifications.length > 0 ? (
+              <button type="button" disabled={clearAll.isPending} onClick={() => clearAll.mutate()}>
+                Clear all
+              </button>
+            ) : null}
           </div>
           <div className="notification-tray-list">
             {notifications.length === 0 ? (
@@ -195,6 +221,19 @@ export function NotificationBell() {
                         </span>
                       ) : null}
                     </div>
+                    <button
+                      type="button"
+                      className="ab-ico notification-dismiss"
+                      title="Dismiss"
+                      aria-label={`Dismiss ${notification.title}`}
+                      disabled={dismiss.isPending}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        dismiss.mutate(notification.id)
+                      }}
+                    >
+                      <Icon name="close" />
+                    </button>
                   </article>
                 )
               })
