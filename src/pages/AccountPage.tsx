@@ -27,6 +27,7 @@ import { AiConnectionSettings } from '@/components/settings/AiConnectionSettings
 import { SearchSettings } from '@/components/settings/SearchSettings'
 import { CommunitySettings } from '@/components/settings/CommunitySettings'
 import { AccountSettings } from '@/components/settings/AccountSettings'
+import { NotificationSettings } from '@/components/settings/NotificationSettings'
 import { SettingsSearch } from '@/components/settings/SettingsSearch'
 
 type Section =
@@ -38,6 +39,7 @@ type Section =
   | 'bookClub'
   | 'reading'
   | 'appearance'
+  | 'notifications'
   | 'integrations'
   | 'aiApps'
   | 'search'
@@ -54,6 +56,7 @@ const NAV: { label: string; items: { id: Section; icon: string; label: string }[
     items: [
       { id: 'account', icon: 'person', label: 'Account' },
       { id: 'appearance', icon: 'palette', label: 'Appearance' },
+      { id: 'notifications', icon: 'notifications', label: 'Notifications' },
     ],
   },
   {
@@ -155,6 +158,8 @@ export function AccountPage({ menuMode = false }: { menuMode?: boolean }) {
         return <ReadingSettings />
       case 'appearance':
         return <AppearanceSettings />
+      case 'notifications':
+        return <NotificationSettings />
       case 'aiApps':
         return <AiConnectionSettings />
       case 'integrations':

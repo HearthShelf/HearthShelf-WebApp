@@ -3267,6 +3267,149 @@
   font-size: 21px;
 }
 
+/* ---- notification inbox ---- */
+.notification-bell {
+  position: relative;
+}
+.notification-bell-button.on {
+  background: var(--fill);
+  color: var(--text);
+}
+.notification-bell-button > span {
+  position: absolute;
+  top: 1px;
+  right: -1px;
+  display: grid;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  place-items: center;
+  border: 2px solid var(--bg);
+  border-radius: 999px;
+  background: var(--primary);
+  color: white;
+  font-size: 9px;
+  font-weight: 800;
+}
+.notification-tray {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(390px, calc(100vw - 28px));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--sheet);
+  box-shadow: var(--shadow-lift);
+}
+.notification-tray-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.notification-tray-head > div {
+  display: grid;
+  gap: 2px;
+}
+.notification-tray-head > div > strong {
+  font-size: 18px;
+}
+.notification-tray-head button {
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.notification-tray-list {
+  max-height: min(560px, calc(100vh - 100px));
+  overflow-y: auto;
+}
+.notification-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 11px;
+  padding: 15px 17px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.notification-row:last-child {
+  border-bottom: 0;
+}
+.notification-row:hover,
+.notification-row.unread {
+  background: color-mix(in oklab, var(--primary) 7%, var(--sheet));
+}
+.notification-kind {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 11px;
+  background: color-mix(in oklab, var(--primary) 14%, var(--c-low));
+  color: var(--primary);
+}
+.notification-row-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13.5px;
+}
+.notification-row-title time {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+.notification-row p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.notification-actions {
+  display: flex;
+  gap: 7px;
+  margin-top: 11px;
+}
+.notification-actions .pill {
+  min-height: 34px;
+  padding: 6px 13px;
+}
+.notification-status {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.notification-empty {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  align-content: center;
+  gap: 5px;
+  padding: 30px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.notification-empty .ms {
+  margin-bottom: 5px;
+  font-size: 34px;
+}
+.notification-empty strong {
+  color: var(--text);
+}
+.notification-empty span {
+  font-size: 12px;
+}
+
 /* ---- library switcher ---- */
 .lib-switch {
   position: relative;
@@ -14628,6 +14771,119 @@ select.fld {
 
 .book-club-manage > div button.danger {
   color: var(--danger, #ec8c82);
+}
+
+.club-invite-modal {
+  width: min(620px, 100%);
+}
+
+.club-invite-heading {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.club-invite-heading h2 {
+  flex: none;
+}
+
+.club-invite-help {
+  margin: 0 0 15px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.club-invite-list {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+}
+
+.club-invite-reader {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 67px;
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+.club-invite-reader:last-child {
+  border-bottom: 0;
+}
+
+.club-invite-reader > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.club-invite-reader strong,
+.club-invite-reader span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.club-invite-reader span {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.club-invite-check {
+  min-width: 92px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.club-invite-check:has(input:checked) {
+  border-color: color-mix(in oklab, var(--primary) 45%, var(--border));
+  background: color-mix(in oklab, var(--primary) 10%, transparent);
+  color: var(--primary);
+}
+
+.club-invite-check input {
+  accent-color: var(--primary);
+}
+
+.club-invite-selection {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.club-invite-empty {
+  display: grid;
+  min-height: 200px;
+  place-items: center;
+  align-content: center;
+  gap: 5px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.club-invite-empty .ms {
+  margin-bottom: 5px;
+  font-size: 36px;
+}
+
+.club-invite-empty strong {
+  color: var(--text);
+}
+
+.club-invite-empty span {
+  font-size: 12px;
 }
 
 .book-club-hero {

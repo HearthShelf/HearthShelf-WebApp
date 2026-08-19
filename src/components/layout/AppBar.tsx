@@ -7,6 +7,7 @@ import { useActiveServer } from '@/hooks/useActiveServer'
 import { getMe } from '@/api/absLibrary'
 import { isCarBrowser } from '@/hooks/useCarMode'
 import { useSettingsStore } from '@/store/settingsStore'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 
 /**
  * Combined Server + Library switcher.
@@ -215,6 +216,7 @@ export function AppBar() {
       <SearchBox />
       <div className="ab-spacer" />
       <div className="ab-actions">
+        <NotificationBell />
         <UploadButton />
         <CarModeButton />
       </div>

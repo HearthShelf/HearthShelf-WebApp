@@ -111,6 +111,22 @@ export interface CreateClubInput {
   libraryItemId?: string
 }
 
+export interface ClubInvitee {
+  userId: string
+  username: string
+  pendingInviteId: string | null
+}
+
+export interface ClubInviteResult {
+  userId: string
+  inviteId?: string
+  invited: boolean
+  reason?: string
+  emailSent?: boolean
+  emailReason?: string | null
+  pushed?: number
+}
+
 /** Create a club; the caller becomes owner. Throws on failure. */
 export async function createClub(t: AbsTarget, input: CreateClubInput): Promise<HSClub> {
   const token = getAbsToken(t.serverId)
@@ -126,6 +142,68 @@ export async function createClub(t: AbsTarget, input: CreateClubInput): Promise<
   })
   if (!res.ok) throw new Error(`clubs ${res.status}`)
   return mapClub((await res.json()) as RawClub)
+}
+
+export async function getClubInvitees(t: AbsTarget, clubId: string): Promise<ClubInvitee[]> {
+  const token = getAbsToken(t.serverId)
+  if (!token) return []
+  const res = await fetch(`${origin(t)}/hs/clubs/${encodeURIComponent(clubId)}/invitees`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+  })
+  if (!res.ok) throw new Error(`club invitees ${res.status}`)
+  const data = (await res.json()) as { users?: ClubInvitee[] }
+  return Array.isArray(data.users) ? data.users : []
+}
+
+export async function inviteClubUsers(
+  t: AbsTarget,
+  clubId: string,
+  userIds: string[],
+): Promise<ClubInviteResult[]> {
+  const token = getAbsToken(t.serverId)
+  if (!token) throw new Error('no token')
+  const res = await fetch(`${origin(t)}/hs/clubs/${encodeURIComponent(clubId)}/invites`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({ userIds }),
+  })
+  if (!res.ok) throw new Error(`club invites ${res.status}`)
+  const data = (await res.json()) as { results?: ClubInviteResult[] }
+  return Array.isArray(data.results) ? data.results : []
+}
+
+export async function respondToClubInvite(
+  t: AbsTarget,
+  clubId: string,
+  inviteId: string,
+  accept: boolean,
+): Promise<void> {
+  const token = getAbsToken(t.serverId)
+  if (!token) throw new Error('no token')
+  const action = accept ? 'accept' : 'decline'
+  const res = await fetch(
+    `${origin(t)}/hs/clubs/${encodeURIComponent(clubId)}/invites/${encodeURIComponent(inviteId)}/${action}`,
+    { method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
+  )
+  if (!res.ok) throw new Error(`club invite ${action} ${res.status}`)
+}
+
+export async function revokeClubInvite(
+  t: AbsTarget,
+  clubId: string,
+  inviteId: string,
+): Promise<void> {
+  const token = getAbsToken(t.serverId)
+  if (!token) throw new Error('no token')
+  const res = await fetch(
+    `${origin(t)}/hs/clubs/${encodeURIComponent(clubId)}/invites/${encodeURIComponent(inviteId)}`,
+    { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
+  )
+  if (!res.ok) throw new Error(`club invite revoke ${res.status}`)
 }
 
 async function clubAction(

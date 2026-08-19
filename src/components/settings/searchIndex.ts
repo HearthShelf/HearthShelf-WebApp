@@ -122,6 +122,64 @@ export const SETTINGS_INDEX: SettingEntry[] = [
     keywords: 'cards surface shelf',
   },
 
+  // ---- Notifications
+  {
+    section: 'notifications',
+    sectionLabel: 'Notifications',
+    icon: 'notifications',
+    title: 'Release notifications',
+    desc: "Get told when a book you're waiting for is ready.",
+    keywords: 'upcoming followed books series alerts',
+  },
+  {
+    section: 'notifications',
+    sectionLabel: 'Notifications',
+    icon: 'notifications',
+    title: 'In app',
+    desc: 'Show alerts in the HearthShelf notification tray.',
+    keywords: 'inbox bell push phone mobile delivery',
+  },
+  {
+    section: 'notifications',
+    sectionLabel: 'Notifications',
+    icon: 'notifications',
+    title: 'Email',
+    desc: 'Send alerts to the email on your server account.',
+    keywords: 'mail delivery',
+  },
+  {
+    section: 'notifications',
+    sectionLabel: 'Notifications',
+    icon: 'notifications',
+    title: "When it's in your library",
+    desc: 'The moment a followed book is ready to play.',
+    keywords: 'available synced release alert',
+  },
+  {
+    section: 'notifications',
+    sectionLabel: 'Notifications',
+    icon: 'notifications',
+    title: 'On release day',
+    desc: "When the catalog says it's out, even before it syncs in.",
+    keywords: 'upcoming audible date alert',
+  },
+  {
+    section: 'notifications',
+    sectionLabel: 'Notifications',
+    icon: 'notifications',
+    title: 'Early reminder',
+    desc: 'Choose how many days before release to get a heads-up.',
+    keywords: 'upcoming countdown days alert',
+  },
+  {
+    section: 'notifications',
+    sectionLabel: 'Notifications',
+    icon: 'notifications',
+    title: 'Countdown on Home',
+    desc: 'Choose when upcoming releases appear on Home.',
+    keywords: 'upcoming release days window',
+  },
+
   // ---- Playback
   {
     section: 'playback',

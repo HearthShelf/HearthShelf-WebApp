@@ -10,12 +10,16 @@ import {
   createClub,
   deleteClub,
   getClubDetail,
+  getClubInvitees,
   getClubs,
-  joinClub,
+  inviteClubUsers,
   kickMember,
   leaveClub,
   markClubRead,
   removeQueuedClubBook,
+  respondToClubInvite,
+  revokeClubInvite,
+  type ClubInvitee,
 } from '@/api/absClubs'
 import { createNote, deleteNote } from '@/api/absNotes'
 import { getMe, type AbsTarget } from '@/api/absLibrary'
@@ -180,6 +184,163 @@ function NewClubForm({
         </button>
       </div>
     </form>
+  )
+}
+
+function InviteReadersDialog({
+  target,
+  clubId,
+  clubName,
+  onClose,
+}: {
+  target: AbsTarget
+  clubId: string
+  clubName: string
+  onClose: () => void
+}) {
+  const { show } = useToast()
+  const [selected, setSelected] = useState<string[]>([])
+  const invitees = useQuery({
+    queryKey: ['club-invitees', target.serverId, clubId],
+    queryFn: () => getClubInvitees(target, clubId),
+  })
+  const invite = useMutation({
+    mutationFn: () => inviteClubUsers(target, clubId, selected),
+    onSuccess: async (results) => {
+      setSelected([])
+      await invitees.refetch()
+      const sent = results.filter((result) => result.invited).length
+      const withoutEmail = results.filter(
+        (result) => result.invited && result.emailSent === false,
+      ).length
+      show(
+        withoutEmail > 0
+          ? `${sent} ${sent === 1 ? 'invitation' : 'invitations'} sent in-app; ${withoutEmail} could not be emailed.`
+          : `${sent} ${sent === 1 ? 'invitation' : 'invitations'} sent.`,
+      )
+    },
+    onError: () => show('Could not send those invitations.'),
+  })
+  const revoke = useMutation({
+    mutationFn: (invitee: ClubInvitee) =>
+      revokeClubInvite(target, clubId, invitee.pendingInviteId!),
+    onSuccess: () => void invitees.refetch(),
+    onError: () => show('Could not cancel that invitation.'),
+  })
+
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
+    window.addEventListener('keydown', close)
+    return () => window.removeEventListener('keydown', close)
+  }, [onClose])
+
+  const users = invitees.data ?? []
+  return (
+    <div
+      className="modal-scrim open"
+      role="presentation"
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+    >
+      <section
+        className="modal club-invite-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="club-invite-title"
+      >
+        <header className="modal-head">
+          <div className="club-invite-heading">
+            <span className="eyebrow">{clubName}</span>
+            <h2 id="club-invite-title">Invite readers</h2>
+          </div>
+          <button type="button" className="modal-nav-btn" onClick={onClose} aria-label="Close">
+            <Icon name="close" />
+          </button>
+        </header>
+        <div className="modal-body club-invite-body">
+          <p className="club-invite-help">
+            Choose readers from this server. They’ll receive an in-app invitation and an email when
+            an address is available.
+          </p>
+          {invitees.isLoading ? (
+            <LoadingSpinner className="py-12" label="Loading readers…" />
+          ) : invitees.isError ? (
+            <ErrorState
+              message="Could not load readers from this server."
+              onRetry={() => void invitees.refetch()}
+            />
+          ) : users.length === 0 ? (
+            <div className="club-invite-empty">
+              <Icon name="group" />
+              <strong>Everyone is already here</strong>
+              <span>There are no other server readers available to invite.</span>
+            </div>
+          ) : (
+            <div className="club-invite-list">
+              {users.map((user) => {
+                const checked = selected.includes(user.userId)
+                return (
+                  <div className="club-invite-reader" key={user.userId}>
+                    <Avatar
+                      name={user.username}
+                      target={target}
+                      userId={user.userId}
+                      size={40}
+                      className="hs-avatar"
+                    />
+                    <div>
+                      <strong>{user.username}</strong>
+                      <span>{user.pendingInviteId ? 'Invitation pending' : 'On this server'}</span>
+                    </div>
+                    {user.pendingInviteId ? (
+                      <button
+                        type="button"
+                        className="pill"
+                        disabled={revoke.isPending}
+                        onClick={() => revoke.mutate(user)}
+                      >
+                        Cancel invite
+                      </button>
+                    ) : (
+                      <label className="club-invite-check">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            setSelected((value) =>
+                              checked
+                                ? value.filter((id) => id !== user.userId)
+                                : [...value, user.userId],
+                            )
+                          }
+                        />
+                        <span>{checked ? 'Selected' : 'Select'}</span>
+                      </label>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+        <footer className="modal-foot">
+          <span className="club-invite-selection">
+            {selected.length > 0 ? `${selected.length} selected` : 'Select one or more readers'}
+          </span>
+          <span className="spacer" />
+          <button type="button" className="pill" onClick={onClose}>
+            Done
+          </button>
+          <button
+            type="button"
+            className="pill on"
+            disabled={selected.length === 0 || invite.isPending}
+            onClick={() => invite.mutate()}
+          >
+            <Icon name="send" /> {invite.isPending ? 'Sending…' : 'Send invites'}
+          </button>
+        </footer>
+      </section>
+    </div>
   )
 }
 
@@ -416,6 +577,7 @@ function ClubRoom({
   const [addTimestamp, setAddTimestamp] = useState(true)
   const [replyingTo, setReplyingTo] = useState<HSNote | null>(null)
   const [replyDraft, setReplyDraft] = useState('')
+  const [inviting, setInviting] = useState(false)
 
   const { club, books, queue, notes, members } = data
   const currentBookId = club.currentBook?.libraryItemId
@@ -516,26 +678,6 @@ function ClubRoom({
     .sort((a, b) => b.startedAt - a.startedAt)
   const myProgress = progressOf(members.find((member) => member.userId === meId))
 
-  const copyInvite = async () => {
-    const url = new URL('/clubs', window.location.origin)
-    url.searchParams.set('join', club.id)
-    try {
-      if (navigator.share)
-        await navigator.share({
-          title: `Join ${club.name}`,
-          text: 'Join my book club on HearthShelf.',
-          url: url.toString(),
-        })
-      else {
-        await navigator.clipboard.writeText(url.toString())
-        show('Invite link copied.')
-      }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return
-      window.prompt('Copy this invite link', url.toString())
-    }
-  }
-
   if (!viewedBook) {
     return (
       <section className="book-club-room book-club-no-book">
@@ -547,9 +689,11 @@ function ClubRoom({
               {club.memberCount} {club.memberCount === 1 ? 'member' : 'members'}
             </p>
           </div>
-          <button className="pill" onClick={() => void copyInvite()}>
-            <Icon name="person_add" /> Invite readers
-          </button>
+          {isOwner && (
+            <button className="pill" onClick={() => setInviting(true)}>
+              <Icon name="person_add" /> Invite readers
+            </button>
+          )}
         </div>
         <div className="book-club-empty-book">
           <Icon name="menu_book" />
@@ -559,6 +703,14 @@ function ClubRoom({
             <Icon name="grid_view" /> Browse library
           </button>
         </div>
+        {inviting && (
+          <InviteReadersDialog
+            target={target}
+            clubId={club.id}
+            clubName={club.name}
+            onClose={() => setInviting(false)}
+          />
+        )}
       </section>
     )
   }
@@ -575,9 +727,11 @@ function ClubRoom({
           </p>
         </div>
         <div className="book-club-room-actions">
-          <button className="pill" onClick={() => void copyInvite()}>
-            <Icon name="person_add" /> Invite readers
-          </button>
+          {isOwner && (
+            <button className="pill" onClick={() => setInviting(true)}>
+              <Icon name="person_add" /> Invite readers
+            </button>
+          )}
           {!isOwner ? (
             <button
               className="pill"
@@ -968,6 +1122,14 @@ function ClubRoom({
           <Icon name="check_circle" fill /> {toast}
         </div>
       )}
+      {inviting && (
+        <InviteReadersDialog
+          target={target}
+          clubId={club.id}
+          clubName={club.name}
+          onClose={() => setInviting(false)}
+        />
+      )}
     </section>
   )
 }
@@ -976,7 +1138,8 @@ function ClubRoom({
 export function ClubRoomPage() {
   const { clubId } = useParams()
   const [searchParams] = useSearchParams()
-  const joinId = searchParams.get('join')
+  const invitedClubId = searchParams.get('club')
+  const inviteId = searchParams.get('invite')
   const navigate = useNavigate()
   const { target } = useActiveServer()
   const qc = useQueryClient()
@@ -1019,19 +1182,19 @@ export function ClubRoomPage() {
 
   useEffect(() => setViewedBookId(undefined), [selectedId])
   useEffect(() => {
-    if (!target || !joinId || processedInvite.current === joinId) return
-    processedInvite.current = joinId
-    void joinClub(target, joinId)
+    if (!target || !inviteId || !invitedClubId || processedInvite.current === inviteId) return
+    processedInvite.current = inviteId
+    void respondToClubInvite(target, invitedClubId, inviteId, true)
       .then(async () => {
         await qc.invalidateQueries({ queryKey: listKey })
-        navigate(`/club/${joinId}`, { replace: true })
+        navigate(`/club/${invitedClubId}`, { replace: true })
         show('You joined the book club.')
       })
       .catch(() => {
         processedInvite.current = null
         show('That invite is no longer available.')
       })
-  }, [joinId, listKey, navigate, qc, show, target])
+  }, [inviteId, invitedClubId, listKey, navigate, qc, show, target])
   useEffect(() => {
     if (!target || !selectedId || !detailQuery.data?.enabled) return
     const latest = detailQuery.data.notes.notes.reduce(
