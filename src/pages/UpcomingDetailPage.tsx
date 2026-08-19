@@ -1,4 +1,4 @@
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, Link, Navigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   countdownLabel,
@@ -7,7 +7,7 @@ import {
   releaseMs,
   formatDuration,
 } from '@hearthshelf/core'
-import { fetchAudibleProduct, audibleKeys } from '@/api/absAudible'
+import { fetchAudibleProduct, fetchLibraryItemByAsin, audibleKeys } from '@/api/absAudible'
 import { getSeriesList } from '@/api/absLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
@@ -51,10 +51,22 @@ export function UpcomingDetailPage() {
   const audibleOn = useSettingsStore((s) => s.externalLinkAudible)
   const hardcover = useSettingsStore((s) => s.externalLinkHardcover)
 
+  // A durable upcoming link is an ASIN, while the real detail route needs ABS's
+  // library-item id. Resolve that first so a bookmark follows the book into the
+  // library once it is available, rather than stranding the reader on a stale
+  // upcoming page.
+  const libraryItem = useQuery({
+    queryKey: audibleKeys.libraryItem(target?.serverId, asin),
+    queryFn: () => fetchLibraryItemByAsin(target!, asin),
+    enabled: Boolean(target) && Boolean(asin),
+    staleTime: 30 * 1000,
+    retry: false,
+  })
+
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: audibleKeys.product(asin),
     queryFn: () => fetchAudibleProduct(target!, asin),
-    enabled: Boolean(target) && Boolean(asin),
+    enabled: Boolean(target) && Boolean(asin) && libraryItem.isSuccess && !libraryItem.data,
     staleTime: 30 * 60 * 1000,
   })
 
@@ -65,7 +77,11 @@ export function UpcomingDetailPage() {
   const ignoredAsins = useIgnoredAsins()
   const { ignore, unignore, busy: ignoreBusy } = useIgnoreBook()
 
-  if (isLoading) return <LoadingSpinner />
+  if (libraryItem.data) {
+    return <Navigate to={`/book/${encodeURIComponent(libraryItem.data)}`} replace />
+  }
+
+  if (libraryItem.isLoading || isLoading) return <LoadingSpinner />
   if (isError || !data) {
     return (
       <div className="page">

@@ -27,6 +27,10 @@ export const audibleKeys = {
   // follow, which stores the ASIN rather than an ABS series id).
   seriesByAsin: (seriesAsin: string) => ['audible', 'series-asin', seriesAsin] as const,
   product: (asin: string) => ['audible', 'product', asin] as const,
+  // This is library-specific even though its input is an Audible ASIN: the
+  // returned id belongs to the connected server's ABS library.
+  libraryItem: (serverId: string | undefined, asin: string) =>
+    ['audible', 'library-item', serverId, asin] as const,
 }
 
 function origin(t: AbsTarget): string {
@@ -107,12 +111,35 @@ export async function fetchAudibleProduct(
   const token = getAbsToken(t.serverId)
   if (!token || !asin) return null
   try {
+    const res = await fetch(`${origin(t)}/hs/audible/product?asin=${encodeURIComponent(asin)}`, {
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    return (await res.json()) as HSAudibleSearchResult
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Resolve an Audible ASIN to the connected server's library item, if that book
+ * has arrived. This keeps durable /upcoming/:asin links useful after a release:
+ * a saved link opens the real book detail page as soon as ABS indexes the book.
+ *
+ * Older self-hosted servers simply return null (including a 404 for the newer
+ * endpoint), preserving the catalog-backed upcoming page for them.
+ */
+export async function fetchLibraryItemByAsin(t: AbsTarget, asin: string): Promise<string | null> {
+  const token = getAbsToken(t.serverId)
+  if (!token || !asin) return null
+  try {
     const res = await fetch(
-      `${origin(t)}/hs/audible/product?asin=${encodeURIComponent(asin)}`,
+      `${origin(t)}/hs/audible/library-item?asin=${encodeURIComponent(asin)}`,
       { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` } },
     )
     if (!res.ok) return null
-    return (await res.json()) as HSAudibleSearchResult
+    const data = (await res.json()) as { libraryItemId?: unknown }
+    return typeof data.libraryItemId === 'string' && data.libraryItemId ? data.libraryItemId : null
   } catch {
     return null
   }
