@@ -60,6 +60,8 @@ export function ClubSection({
 
   const enqueue = useMutation({
     mutationFn: (id: string) => enqueueClubBook(target, id, libraryItemId),
+    // Invalidate the whole club prefix: the queue lives on the club summary, so
+    // the button's "In queue" state comes from a refetched list.
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['clubs', target.serverId] }),
   })
 
@@ -78,18 +80,17 @@ export function ClubSection({
   const mineForThisBook = data.mine.filter((c) => c.currentBook?.libraryItemId === libraryItemId)
   const joinableIds = new Set(mineForThisBook.map((c) => c.id))
   const joinable = data.joinable.filter((c) => !joinableIds.has(c.id))
-  // Clubs the caller owns that are reading a DIFFERENT book right now - offer
-  // to advance them to this one instead of duplicating a create flow.
-  const ownedElsewhere = data.mine.filter(
-    (c) => me && c.createdBy === me.id && c.currentBook?.libraryItemId !== libraryItemId,
-  )
+  // The caller's clubs that are reading a DIFFERENT book right now. Owners get
+  // the queue/start controls; everyone gets a link into the club, so a member
+  // can always reach their club from a book page.
+  const myOtherClubs = data.mine.filter((c) => c.currentBook?.libraryItemId !== libraryItemId)
 
   // Nothing to surface: keep it to a single quiet line so an empty club state
   // doesn't nag readers who aren't in one.
   if (
     mineForThisBook.length === 0 &&
     joinable.length === 0 &&
-    ownedElsewhere.length === 0 &&
+    myOtherClubs.length === 0 &&
     !creating
   ) {
     return (
@@ -139,14 +140,21 @@ export function ClubSection({
           </div>
           {joinable.map((c) => (
             <div className="cfg-line" key={c.id}>
-              <Icon name="groups_3" style={{ color: 'var(--text-muted)' }} />
-              <div className="cl-meta" style={{ flex: 1 }}>
-                <div className="cl-t">{c.name}</div>
-                <div className="cl-d">
-                  {c.memberCount} {c.memberCount === 1 ? 'member' : 'members'} · members see your
-                  progress in this club's books
+              <button
+                type="button"
+                className="club-row-link"
+                onClick={() => navigate(`/club/${c.id}`)}
+                title={`Open ${c.name}`}
+              >
+                <Icon name="groups_3" style={{ color: 'var(--text-muted)' }} />
+                <div className="cl-meta">
+                  <div className="cl-t">{c.name}</div>
+                  <div className="cl-d">
+                    {c.memberCount} {c.memberCount === 1 ? 'member' : 'members'} · members see your
+                    progress in this club's books
+                  </div>
                 </div>
-              </div>
+              </button>
               <button className="pill" disabled={join.isPending} onClick={() => join.mutate(c.id)}>
                 <Icon name="login" /> Join
               </button>
@@ -155,38 +163,72 @@ export function ClubSection({
         </div>
       )}
 
-      {ownedElsewhere.length > 0 && (
+      {myOtherClubs.length > 0 && (
         <div className="cfg-card" style={{ marginBottom: 10 }}>
           <div className="cl-d" style={{ marginBottom: 8 }}>
-            Add this book to a club's Up Next list, or start it now.
+            Your other clubs. Add this book to a club's queue, or open the club.
           </div>
-          {ownedElsewhere.map((c) => (
-            <div className="cfg-line" key={c.id}>
-              <Icon name="groups_3" style={{ color: 'var(--text-muted)' }} />
-              <div className="cl-meta" style={{ flex: 1 }}>
-                <div className="cl-t">{c.name}</div>
-                <div className="cl-d">currently reading {c.currentBook?.title ?? 'nothing'}</div>
-              </div>
-              <div
-                style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}
-              >
+          {myOtherClubs.map((c) => {
+            const isOwner = Boolean(me && c.createdBy === me.id)
+            const queued = c.queuedItemIds.includes(libraryItemId)
+            const adding = enqueue.isPending && enqueue.variables === c.id
+            return (
+              <div className="cfg-line" key={c.id}>
                 <button
-                  className="pill"
-                  disabled={enqueue.isPending}
-                  onClick={() => enqueue.mutate(c.id)}
+                  type="button"
+                  className="club-row-link"
+                  onClick={() => navigate(`/club/${c.id}`)}
+                  title={`Open ${c.name}`}
                 >
-                  <Icon name="playlist_add" /> Up next
+                  <Icon name="groups_3" style={{ color: 'var(--text-muted)' }} />
+                  <div className="cl-meta">
+                    <div className="cl-t">{c.name}</div>
+                    <div className="cl-d">currently reading {c.currentBook?.title ?? 'nothing'}</div>
+                  </div>
                 </button>
-                <button
-                  className="pill"
-                  disabled={advance.isPending}
-                  onClick={() => advance.mutate(c.id)}
+                <div
+                  style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}
                 >
-                  <Icon name="play_arrow" /> Start now
-                </button>
+                  {!isOwner && queued && (
+                    <span className="club-queued-note">
+                      <Icon name="check" /> In queue
+                    </span>
+                  )}
+                  {isOwner && (
+                  <button
+                    className={queued ? 'pill on' : 'pill'}
+                    disabled={queued || adding}
+                    onClick={() => enqueue.mutate(c.id)}
+                  >
+                    {queued ? (
+                      <>
+                        <Icon name="check" /> In queue
+                      </>
+                    ) : adding ? (
+                      <>
+                        <Icon name="hourglass_top" /> Adding
+                      </>
+                    ) : (
+                      <>
+                        <Icon name="playlist_add" /> Add to queue
+                      </>
+                    )}
+                  </button>
+                  )}
+                  {isOwner && (
+                    <button
+                      className="pill"
+                      disabled={advance.isPending}
+                      onClick={() => advance.mutate(c.id)}
+                    >
+                      <Icon name="play_arrow" /> Start now
+                    </button>
+                  )}
+                  <Icon name="chevron_right" style={{ color: 'var(--text-muted)' }} />
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

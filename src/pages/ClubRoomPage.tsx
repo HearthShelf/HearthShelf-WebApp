@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import type { HSClub, HSClubDetail, HSClubMember, HSNote } from '@hearthshelf/core'
+import type { HSClub, HSClubBook, HSClubDetail, HSClubMember, HSNote } from '@hearthshelf/core'
 import { fmtSessDate, formatTimestamp, sortMembersByProgress } from '@hearthshelf/core'
 import {
   advanceClubBook,
@@ -17,6 +17,8 @@ import {
   leaveClub,
   markClubRead,
   removeQueuedClubBook,
+  reorderClubQueue,
+  requeueClubBook,
   respondToClubInvite,
   revokeClubInvite,
   type ClubInvitee,
@@ -29,6 +31,8 @@ import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { Cover } from '@/components/shared/Cover'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
+import { AddClubBooksDialog } from '@/components/social/AddClubBooksDialog'
+import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
 import { usePlayer } from '@/player/PlayerProvider'
@@ -43,6 +47,10 @@ function progressOf(member: HSClubMember | undefined): number {
 function pct(value: number): string {
   return `${Math.round(value * 100)}%`
 }
+
+// How many queued books the sidebar rail shows before "View all". A club
+// working a long series can have a dozen queued, which would swamp the column.
+const QUEUE_PREVIEW = 4
 
 function clubQueryPrefix(serverId: string): readonly unknown[] {
   return ['clubs', serverId]
@@ -184,6 +192,60 @@ function NewClubForm({
         </button>
       </div>
     </form>
+  )
+}
+
+/**
+ * One book in the club's history - a past read or a book set aside. The owner
+ * can send either back to Up next, which is how a club un-shelves a book (or
+ * corrects one that was marked finished when it never was).
+ */
+function PastBookCard({
+  book,
+  finished,
+  canRequeue,
+  requeuePending,
+  onView,
+  onRequeue,
+}: {
+  book: HSClubBook
+  finished?: boolean
+  canRequeue: boolean
+  requeuePending: boolean
+  onView: () => void
+  onRequeue: () => void
+}) {
+  return (
+    <div className="book-club-past-card">
+      <button type="button" onClick={onView}>
+        <Cover
+          itemId={book.libraryItemId}
+          title={book.title}
+          author={book.author}
+          width={120}
+          fs={7}
+          finished={finished}
+          className="book-club-past-cover"
+        />
+        <span>
+          <strong>{book.title}</strong>
+          <small>{book.author}</small>
+          <em>
+            View discussion <Icon name="arrow_forward" />
+          </em>
+        </span>
+      </button>
+      {canRequeue && (
+        <button
+          type="button"
+          className="pill book-club-requeue"
+          disabled={requeuePending}
+          onClick={onRequeue}
+        >
+          <Icon name="playlist_add" /> Move to Up next
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -578,6 +640,9 @@ function ClubRoom({
   const [replyingTo, setReplyingTo] = useState<HSNote | null>(null)
   const [replyDraft, setReplyDraft] = useState('')
   const [inviting, setInviting] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const [queueExpanded, setQueueExpanded] = useState(false)
+  const { activeId: libraryId } = useActiveLibrary()
 
   const { club, books, queue, notes, members } = data
   const currentBookId = club.currentBook?.libraryItemId
@@ -657,6 +722,61 @@ function ClubRoom({
     onSuccess: () => void invalidate(),
     onError: () => show('Could not remove that book.'),
   })
+  // Start a book while SETTING ASIDE the outgoing one rather than calling it
+  // finished - for a book the club shelved without reading it.
+  const shelveAndStart = useMutation({
+    mutationFn: (libraryItemId: string) => advanceClubBook(target, club.id, libraryItemId, false),
+    onSuccess: () => {
+      onViewBook(undefined)
+      void invalidate()
+    },
+    onError: () => show('Could not start that book.'),
+  })
+  const requeue = useMutation({
+    mutationFn: (libraryItemId: string) => requeueClubBook(target, club.id, libraryItemId),
+    onSuccess: () => {
+      onViewBook(undefined)
+      show('Moved back to Up next.')
+      void invalidate()
+    },
+    onError: () => show('Could not move that book. Start a different book first.'),
+  })
+  const reorder = useMutation({
+    mutationFn: (ids: string[]) => reorderClubQueue(target, club.id, ids),
+    onSuccess: () => void invalidate(),
+    onError: () => show('Could not reorder the queue.'),
+  })
+
+  // Move a queued book one slot up or down and persist the whole new order.
+  const moveQueued = (index: number, delta: number) => {
+    const next = queue.map((b) => b.libraryItemId)
+    const to = index + delta
+    if (to < 0 || to >= next.length) return
+    const [moved] = next.splice(index, 1)
+    next.splice(to, 0, moved)
+    reorder.mutate(next)
+  }
+
+  const visibleQueue = queueExpanded ? queue : queue.slice(0, QUEUE_PREVIEW)
+
+  // Starting a queued book has to settle what happens to the book leaving the
+  // current slot: it either finished, or the club is shelving it unread. Asking
+  // is what keeps an unread book out of Past reads.
+  const onStartQueued = (book: HSClubBook) => {
+    const outgoing = club.currentBook
+    if (!outgoing) {
+      promote.mutate(book.libraryItemId)
+      return
+    }
+    const finished = window.confirm(
+      `Start ${book.title}?
+
+OK: the club FINISHED ${outgoing.title} - move it to Past reads.
+Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available to come back to.`,
+    )
+    if (finished) promote.mutate(book.libraryItemId)
+    else shelveAndStart.mutate(book.libraryItemId)
+  }
 
   const topNotes = useMemo(
     () => notes.notes.filter((note) => !note.parentId).sort((a, b) => a.createdAt - b.createdAt),
@@ -676,6 +796,12 @@ function ClubRoom({
   const pastBooks = books
     .filter((book) => book.finishedAt != null)
     .sort((a, b) => b.startedAt - a.startedAt)
+  // Books the club started and shelved unfinished. Kept apart from past reads
+  // so a set aside book never reads as "we finished this".
+  const setAsideBooks = books
+    .filter((book) => book.abandonedAt != null)
+    .sort((a, b) => (b.abandonedAt ?? 0) - (a.abandonedAt ?? 0))
+  const allClubBooks: HSClubBook[] = [...books, ...queue]
   const myProgress = progressOf(members.find((member) => member.userId === meId))
 
   if (!viewedBook) {
@@ -698,10 +824,17 @@ function ClubRoom({
         <div className="book-club-empty-book">
           <Icon name="menu_book" />
           <h2>Choose your first read</h2>
-          <p>Open a book from your library and add it to this club.</p>
-          <button className="pill on" onClick={() => navigate('/library')}>
-            <Icon name="grid_view" /> Browse library
-          </button>
+          <p>Search your library for a book, or line up a whole series.</p>
+          <div className="book-club-empty-actions">
+            {isOwner && (
+              <button className="pill on" disabled={!libraryId} onClick={() => setAdding(true)}>
+                <Icon name="add" /> Add books
+              </button>
+            )}
+            <button className="pill" onClick={() => navigate('/library')}>
+              <Icon name="grid_view" /> Browse library
+            </button>
+          </div>
         </div>
         {inviting && (
           <InviteReadersDialog
@@ -709,6 +842,17 @@ function ClubRoom({
             clubId={club.id}
             clubName={club.name}
             onClose={() => setInviting(false)}
+          />
+        )}
+        {adding && libraryId && (
+          <AddClubBooksDialog
+            target={target}
+            libraryId={libraryId}
+            clubId={club.id}
+            clubName={club.name}
+            existing={allClubBooks}
+            onClose={() => setAdding(false)}
+            onAdded={() => void invalidate()}
           />
         )}
       </section>
@@ -723,7 +867,11 @@ function ClubRoom({
           <h1>{club.name}</h1>
           <p>
             {club.memberCount} {club.memberCount === 1 ? 'member' : 'members'} ·{' '}
-            {isCurrentBook ? 'Reading now' : 'Past read'}
+            {isCurrentBook
+              ? 'Reading now'
+              : viewedBook?.abandonedAt != null
+                ? 'Set aside'
+                : 'Past read'}
           </p>
         </div>
         <div className="book-club-room-actions">
@@ -950,32 +1098,46 @@ function ClubRoom({
             ) : (
               <div className="book-club-past-grid">
                 {pastBooks.map((book) => (
-                  <button
+                  <PastBookCard
                     key={book.libraryItemId}
-                    type="button"
-                    onClick={() => onViewBook(book.libraryItemId)}
-                  >
-                    <Cover
-                      itemId={book.libraryItemId}
-                      title={book.title}
-                      author={book.author}
-                      width={120}
-                      fs={7}
-                      finished
-                      className="book-club-past-cover"
-                    />
-                    <span>
-                      <strong>{book.title}</strong>
-                      <small>{book.author}</small>
-                      <em>
-                        View discussion <Icon name="arrow_forward" />
-                      </em>
-                    </span>
-                  </button>
+                    book={book}
+                    finished
+                    canRequeue={isOwner}
+                    requeuePending={requeue.isPending}
+                    onView={() => onViewBook(book.libraryItemId)}
+                    onRequeue={() => requeue.mutate(book.libraryItemId)}
+                  />
                 ))}
               </div>
             )}
           </section>
+
+          {setAsideBooks.length > 0 && (
+            <section className="book-club-section">
+              <div className="book-club-section-head">
+                <div>
+                  <span className="eyebrow">Club library</span>
+                  <h2>Set aside</h2>
+                  <p className="book-club-section-note">
+                    Started but not finished. Move one back to Up next whenever the club is ready
+                    for it.
+                  </p>
+                </div>
+              </div>
+              <div className="book-club-past-grid">
+                {setAsideBooks.map((book) => (
+                  <PastBookCard
+                    key={book.libraryItemId}
+                    book={book}
+                    canRequeue={isOwner}
+                    requeuePending={requeue.isPending}
+                    onView={() => onViewBook(book.libraryItemId)}
+                    onRequeue={() => requeue.mutate(book.libraryItemId)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
         </div>
 
         <aside className="book-club-side-column">
@@ -1005,6 +1167,19 @@ function ClubRoom({
                       <div className="prog-line">
                         <i style={{ width: pct(progress) }} />
                       </div>
+                      {member.reach && member.reach.total > 1 && (
+                        <em
+                          className={
+                            member.reach.aheadOfClub
+                              ? 'book-club-reach ahead'
+                              : 'book-club-reach'
+                          }
+                          title={member.reach.title}
+                        >
+                          {member.reach.aheadOfClub && <Icon name="fast_forward" />}
+                          Book {member.reach.index + 1} of {member.reach.total}
+                        </em>
+                      )}
                     </div>
                     {member.listeningNow && <Icon name="graphic_eq" className="book-club-live" />}
                     {isOwner && member.role !== 'owner' && (
@@ -1030,56 +1205,103 @@ function ClubRoom({
               <h2>Up next</h2>
               <span>{queue.length}</span>
             </div>
+            {isOwner && (
+              <button
+                type="button"
+                className="pill book-club-add-btn"
+                disabled={!libraryId}
+                onClick={() => setAdding(true)}
+              >
+                <Icon name="add" /> Add books
+              </button>
+            )}
             {queue.length === 0 ? (
               <div className="book-club-empty-side">
                 <Icon name="playlist_add" />
-                <span>Add a book from its library page.</span>
+                <span>
+                  {isOwner
+                    ? 'Add a book to line up the club’s next read.'
+                    : 'The club owner has not lined up a next read yet.'}
+                </span>
               </div>
             ) : (
-              <div className="book-club-queue">
-                {queue.map((book, index) => (
-                  <div key={book.libraryItemId}>
-                    <span className="book-club-queue-number">{index + 1}</span>
-                    <Cover
-                      itemId={book.libraryItemId}
-                      title={book.title}
-                      author={book.author}
-                      width={80}
-                      fs={6}
-                      className="book-club-queue-cover"
-                    />
-                    <span>
-                      <strong>{book.title}</strong>
-                      <small>{book.author}</small>
-                    </span>
-                    {isOwner && (
-                      <span className="book-club-queue-actions">
-                        {index === 0 && (
+              <>
+                <div className="book-club-queue">
+                  {visibleQueue.map((book, index) => (
+                    <div key={book.libraryItemId}>
+                      <span className="book-club-queue-number">{index + 1}</span>
+                      <Cover
+                        itemId={book.libraryItemId}
+                        title={book.title}
+                        author={book.author}
+                        width={80}
+                        fs={6}
+                        className="book-club-queue-cover"
+                      />
+                      <span>
+                        <strong>{book.title}</strong>
+                        <small>{book.author}</small>
+                      </span>
+                      {isOwner && (
+                        <span className="book-club-queue-actions">
                           <button
                             className="pill on"
-                            disabled={promote.isPending}
-                            onClick={() =>
-                              window.confirm(
-                                `Start ${book.title} now? The current read will move to Past reads.`,
-                              ) && promote.mutate(book.libraryItemId)
-                            }
+                            disabled={promote.isPending || shelveAndStart.isPending}
+                            onClick={() => onStartQueued(book)}
                           >
                             Start
                           </button>
-                        )}
-                        <button
-                          className="tbl-icon"
-                          title="Remove from queue"
-                          disabled={removeQueued.isPending}
-                          onClick={() => removeQueued.mutate(book.libraryItemId)}
-                        >
-                          <Icon name="close" />
-                        </button>
-                      </span>
+                          {queueExpanded && (
+                            <>
+                              <button
+                                className="tbl-icon"
+                                title="Move up"
+                                disabled={index === 0 || reorder.isPending}
+                                onClick={() => moveQueued(index, -1)}
+                              >
+                                <Icon name="arrow_upward" />
+                              </button>
+                              <button
+                                className="tbl-icon"
+                                title="Move down"
+                                disabled={index === queue.length - 1 || reorder.isPending}
+                                onClick={() => moveQueued(index, 1)}
+                              >
+                                <Icon name="arrow_downward" />
+                              </button>
+                            </>
+                          )}
+                          <button
+                            className="tbl-icon"
+                            title="Remove from queue"
+                            disabled={removeQueued.isPending}
+                            onClick={() => removeQueued.mutate(book.libraryItemId)}
+                          >
+                            <Icon name="close" />
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {queue.length > QUEUE_PREVIEW && (
+                  <button
+                    type="button"
+                    className="pill book-club-queue-toggle"
+                    onClick={() => setQueueExpanded((open) => !open)}
+                  >
+                    {queueExpanded ? (
+                      <>
+                        <Icon name="expand_less" /> Show less
+                      </>
+                    ) : (
+                      <>
+                        <Icon name="expand_more" /> View all {queue.length}
+                      </>
                     )}
-                  </div>
-                ))}
-              </div>
+                  </button>
+                )}
+              </>
             )}
           </section>
         </aside>
@@ -1128,6 +1350,17 @@ function ClubRoom({
           clubId={club.id}
           clubName={club.name}
           onClose={() => setInviting(false)}
+        />
+      )}
+      {adding && libraryId && (
+        <AddClubBooksDialog
+          target={target}
+          libraryId={libraryId}
+          clubId={club.id}
+          clubName={club.name}
+          existing={allClubBooks}
+          onClose={() => setAdding(false)}
+          onAdded={() => void invalidate()}
         />
       )}
     </section>

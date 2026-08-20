@@ -15558,7 +15558,7 @@ select.fld {
   gap: 10px;
 }
 
-.book-club-past-grid > button {
+.book-club-past-card > button {
   display: grid;
   grid-template-columns: 50px minmax(0, 1fr);
   gap: 11px;
@@ -15573,7 +15573,7 @@ select.fld {
   cursor: pointer;
 }
 
-.book-club-past-grid > button:hover {
+.book-club-past-card > button:hover {
   border-color: color-mix(in oklab, var(--primary) 45%, var(--border));
 }
 
@@ -15583,7 +15583,7 @@ select.fld {
   border-radius: 6px;
 }
 
-.book-club-past-grid > button > span {
+.book-club-past-card > button > span {
   display: grid;
   min-width: 0;
   gap: 3px;
@@ -15615,6 +15615,250 @@ select.fld {
 }
 
 .book-club-past-grid em .ms {
+  font-size: 12px;
+}
+
+/* The clickable club identity inside a book page's club row - opens the club
+   while the row's own action buttons stay separately clickable. */
+.club-row-link {
+  display: flex;
+  flex: 1;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.club-row-link:hover .cl-t {
+  color: var(--primary);
+}
+
+.club-row-link .cl-meta {
+  min-width: 0;
+}
+
+.club-queued-note {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  color: var(--primary);
+  font-size: 12px;
+}
+
+/* A past read / set-aside card: the view button plus the owner's requeue pill. */
+.book-club-past-card {
+  display: grid;
+  gap: 6px;
+}
+
+.book-club-requeue {
+  justify-self: start;
+  font-size: 11px;
+}
+
+.book-club-section-note {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.book-club-empty-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.book-club-add-btn {
+  justify-self: stretch;
+  margin-bottom: 10px;
+  justify-content: center;
+}
+
+.book-club-queue-toggle {
+  justify-content: center;
+  width: 100%;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+/* "Book 5 of 12" - where a member has reached in a club working a long series.
+   The ahead variant marks a member who has run past the club's own book. */
+.book-club-reach {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-style: normal;
+}
+
+.book-club-reach.ahead {
+  color: var(--primary);
+}
+
+.book-club-reach .ms {
+  font-size: 12px;
+}
+
+/* Add-books dialog: library search, series drill-down, per-row add. */
+.club-add-modal {
+  width: min(640px, calc(100vw - 32px));
+}
+
+.club-add-body {
+  display: grid;
+  gap: 14px;
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+}
+
+.club-add-search {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--c-low);
+}
+
+.club-add-search .ms {
+  color: var(--text-muted);
+}
+
+.club-add-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.club-add-group {
+  display: grid;
+  gap: 8px;
+}
+
+.club-add-group h3 {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.club-add-list {
+  display: grid;
+  gap: 8px;
+}
+
+.club-add-row {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--c-low);
+}
+
+.club-add-row-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+
+.club-add-row-text strong,
+.club-add-row-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.club-add-row-text strong {
+  font-size: 13px;
+}
+
+.club-add-row-text small {
+  color: var(--text-muted);
+}
+
+.club-add-already {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.club-add-series-row {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--c-low);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.club-add-series-row:hover {
+  border-color: color-mix(in oklab, var(--primary) 45%, var(--border));
+}
+
+.club-add-series-row > span {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+
+.club-add-series-row small {
+  color: var(--text-muted);
+}
+
+.club-add-series-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.club-add-series-head > div {
+  display: grid;
+  gap: 2px;
+}
+
+.club-add-series-head span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.club-add-back {
+  justify-self: start;
+}
+
+.club-add-none {
+  margin: 0;
+  color: var(--text-muted);
   font-size: 12px;
 }
 

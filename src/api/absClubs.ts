@@ -36,6 +36,8 @@ interface RawClubBook {
   startedAt?: number
   finishedAt?: number | null
   queuedAt?: number | null
+  abandonedAt?: number | null
+  sortOrder?: number
 }
 
 interface RawClub {
@@ -47,6 +49,7 @@ interface RawClub {
   createdAt?: number
   memberCount?: number
   currentBook?: RawClubBook | null
+  queuedItemIds?: string[]
   recBasis?: ClubRecBasis
 }
 
@@ -59,6 +62,8 @@ function mapClubBook(b: RawClubBook): HSClubBook {
     startedAt: b.startedAt ?? 0,
     finishedAt: b.finishedAt ?? null,
     queuedAt: b.queuedAt ?? null,
+    abandonedAt: b.abandonedAt ?? null,
+    sortOrder: b.sortOrder ?? 0,
   }
 }
 
@@ -72,6 +77,7 @@ function mapClub(c: RawClub): HSClub {
     createdAt: c.createdAt ?? 0,
     memberCount: c.memberCount ?? 0,
     currentBook: c.currentBook ? mapClubBook(c.currentBook) : null,
+    queuedItemIds: Array.isArray(c.queuedItemIds) ? c.queuedItemIds : [],
     recBasis: c.recBasis ?? 'club-history',
   }
 }
@@ -232,16 +238,49 @@ export const leaveClub = (t: AbsTarget, clubId: string): Promise<void> =>
   clubAction(t, clubId, 'leave')
 export const kickMember = (t: AbsTarget, clubId: string, userId: string): Promise<void> =>
   clubAction(t, clubId, 'kick', { userId })
+/**
+ * Make a book the club's current read. The outgoing book becomes a past read
+ * unless `finishPrevious` is false, which sets it aside unfinished instead so it
+ * can come back via requeueClubBook.
+ */
 export const advanceClubBook = (
   t: AbsTarget,
   clubId: string,
   libraryItemId: string,
-): Promise<void> => clubAction(t, clubId, 'books', { libraryItemId })
+  finishPrevious = true,
+): Promise<void> => clubAction(t, clubId, 'books', { libraryItemId, finishPrevious })
 export const enqueueClubBook = (
   t: AbsTarget,
   clubId: string,
   libraryItemId: string,
 ): Promise<void> => clubAction(t, clubId, 'queue', { libraryItemId })
+/** Move a past read or a set aside book back into the up-next queue. */
+export const requeueClubBook = (
+  t: AbsTarget,
+  clubId: string,
+  libraryItemId: string,
+): Promise<void> => clubAction(t, clubId, 'requeue', { libraryItemId })
+
+/** Rewrite the up-next queue order. Omitted queued books keep their relative
+ * order at the back, so a stale list never drops a book. */
+export async function reorderClubQueue(
+  t: AbsTarget,
+  clubId: string,
+  libraryItemIds: string[],
+): Promise<void> {
+  const token = getAbsToken(t.serverId)
+  if (!token) throw new Error('no token')
+  const res = await fetch(`${origin(t)}/hs/clubs/${encodeURIComponent(clubId)}/queue-order`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({ libraryItemIds }),
+  })
+  if (!res.ok) throw new Error(`clubs queue-order ${res.status}`)
+}
 
 /** Owner-only removal of a book that has not been promoted from Up Next yet. */
 export async function removeQueuedClubBook(
@@ -295,6 +334,14 @@ interface RawClubMember {
   duration?: number | null
   isFinished?: boolean | null
   listeningNow?: boolean
+  reach?: {
+    index?: number
+    total?: number
+    libraryItemId?: string
+    title?: string
+    isFinished?: boolean
+    aheadOfClub?: boolean
+  } | null
 }
 
 function mapClubMember(m: RawClubMember): HSClubMember {
@@ -307,6 +354,16 @@ function mapClubMember(m: RawClubMember): HSClubMember {
     duration: m.duration ?? null,
     isFinished: m.isFinished ?? null,
     listeningNow: Boolean(m.listeningNow),
+    reach: m.reach
+      ? {
+          index: m.reach.index ?? 0,
+          total: m.reach.total ?? 0,
+          libraryItemId: m.reach.libraryItemId ?? '',
+          title: m.reach.title ?? '',
+          isFinished: Boolean(m.reach.isFinished),
+          aheadOfClub: Boolean(m.reach.aheadOfClub),
+        }
+      : null,
   }
 }
 
@@ -321,6 +378,7 @@ const CLUB_DETAIL_DISABLED: HSClubDetail = {
     createdAt: 0,
     memberCount: 0,
     currentBook: null,
+    queuedItemIds: [],
     recBasis: 'club-history',
   },
   books: [],
