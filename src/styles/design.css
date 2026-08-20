@@ -15486,16 +15486,19 @@ select.fld {
   font-size: 16px;
 }
 
-.book-club-queue > div {
+/* Each row is wrapped in a display:contents right-click handler, so the row div
+   is a grandchild in markup while still laying out inside this grid. */
+.book-club-queue-row {
   display: grid;
-  grid-template-columns: 18px 36px minmax(0, 1fr) auto;
+  grid-template-columns: 18px 36px minmax(0, 1fr);
   gap: 8px;
   align-items: center;
   padding: 10px 0;
   border-top: 1px solid var(--border);
+  cursor: context-menu;
 }
 
-.book-club-queue > div:first-child {
+.book-club-queue > *:first-child .book-club-queue-row {
   border-top: 0;
 }
 
@@ -15511,7 +15514,7 @@ select.fld {
   border-radius: 5px;
 }
 
-.book-club-queue > div > span:nth-of-type(2) {
+.book-club-queue-row > span:nth-of-type(2) {
   display: grid;
   min-width: 0;
 }
@@ -15530,18 +15533,6 @@ select.fld {
 .book-club-queue small {
   margin-top: 2px;
   color: var(--text-muted);
-  font-size: 10px;
-}
-
-.book-club-queue-actions {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.book-club-queue-actions .pill {
-  min-height: 27px;
-  padding: 3px 8px;
   font-size: 10px;
 }
 
@@ -15651,15 +15642,10 @@ select.fld {
   font-size: 12px;
 }
 
-/* A past read / set-aside card: the view button plus the owner's requeue pill. */
+/* A past read / set-aside card. Its actions live in the right-click menu. */
 .book-club-past-card {
   display: grid;
-  gap: 6px;
-}
-
-.book-club-requeue {
-  justify-self: start;
-  font-size: 11px;
+  cursor: context-menu;
 }
 
 .book-club-section-note {

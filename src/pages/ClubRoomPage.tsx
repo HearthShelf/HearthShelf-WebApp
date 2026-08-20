@@ -32,6 +32,7 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { Cover } from '@/components/shared/Cover'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { AddClubBooksDialog } from '@/components/social/AddClubBooksDialog'
+import { ClubBookMenu } from '@/components/social/ClubBookMenu'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
@@ -196,9 +197,9 @@ function NewClubForm({
 }
 
 /**
- * One book in the club's history - a past read or a book set aside. The owner
- * can send either back to Up next, which is how a club un-shelves a book (or
- * corrects one that was marked finished when it never was).
+ * One book in the club's history - a past read or a book set aside. Right-click
+ * offers "Move to Up next", which is how a club un-shelves a book (or corrects
+ * one that was marked finished when it never was).
  */
 function PastBookCard({
   book,
@@ -216,36 +217,39 @@ function PastBookCard({
   onRequeue: () => void
 }) {
   return (
-    <div className="book-club-past-card">
-      <button type="button" onClick={onView}>
-        <Cover
-          itemId={book.libraryItemId}
-          title={book.title}
-          author={book.author}
-          width={120}
-          fs={7}
-          finished={finished}
-          className="book-club-past-cover"
-        />
-        <span>
-          <strong>{book.title}</strong>
-          <small>{book.author}</small>
-          <em>
-            View discussion <Icon name="arrow_forward" />
-          </em>
-        </span>
-      </button>
-      {canRequeue && (
-        <button
-          type="button"
-          className="pill book-club-requeue"
-          disabled={requeuePending}
-          onClick={onRequeue}
-        >
-          <Icon name="playlist_add" /> Move to Up next
+    <ClubBookMenu
+      book={book}
+      actions={[
+        canRequeue && {
+          label: 'Move to Up next',
+          icon: 'playlist_add',
+          disabled: requeuePending,
+          onSelect: onRequeue,
+        },
+        { label: 'View discussion', icon: 'forum', onSelect: onView },
+      ]}
+    >
+      <div className="book-club-past-card">
+        <button type="button" onClick={onView}>
+          <Cover
+            itemId={book.libraryItemId}
+            title={book.title}
+            author={book.author}
+            width={120}
+            fs={7}
+            finished={finished}
+            className="book-club-past-cover"
+          />
+          <span>
+            <strong>{book.title}</strong>
+            <small>{book.author}</small>
+            <em>
+              View discussion <Icon name="arrow_forward" />
+            </em>
+          </span>
         </button>
-      )}
-    </div>
+      </div>
+    </ClubBookMenu>
   )
 }
 
@@ -1228,60 +1232,62 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
               <>
                 <div className="book-club-queue">
                   {visibleQueue.map((book, index) => (
-                    <div key={book.libraryItemId}>
-                      <span className="book-club-queue-number">{index + 1}</span>
-                      <Cover
-                        itemId={book.libraryItemId}
-                        title={book.title}
-                        author={book.author}
-                        width={80}
-                        fs={6}
-                        className="book-club-queue-cover"
-                      />
-                      <span>
-                        <strong>{book.title}</strong>
-                        <small>{book.author}</small>
-                      </span>
-                      {isOwner && (
-                        <span className="book-club-queue-actions">
-                          <button
-                            className="pill on"
-                            disabled={promote.isPending || shelveAndStart.isPending}
-                            onClick={() => onStartQueued(book)}
-                          >
-                            Start
-                          </button>
-                          {queueExpanded && (
-                            <>
-                              <button
-                                className="tbl-icon"
-                                title="Move up"
-                                disabled={index === 0 || reorder.isPending}
-                                onClick={() => moveQueued(index, -1)}
-                              >
-                                <Icon name="arrow_upward" />
-                              </button>
-                              <button
-                                className="tbl-icon"
-                                title="Move down"
-                                disabled={index === queue.length - 1 || reorder.isPending}
-                                onClick={() => moveQueued(index, 1)}
-                              >
-                                <Icon name="arrow_downward" />
-                              </button>
-                            </>
-                          )}
-                          <button
-                            className="tbl-icon"
-                            title="Remove from queue"
-                            disabled={removeQueued.isPending}
-                            onClick={() => removeQueued.mutate(book.libraryItemId)}
-                          >
-                            <Icon name="close" />
-                          </button>
+                    <ClubBookMenu
+                      key={book.libraryItemId}
+                      book={book}
+                      actions={[
+                        isOwner && {
+                          label: 'Start this book now',
+                          icon: 'play_circle',
+                          disabled: promote.isPending || shelveAndStart.isPending,
+                          onSelect: () => onStartQueued(book),
+                        },
+                        isOwner &&
+                          index > 0 && {
+                            label: 'Move up',
+                            icon: 'arrow_upward',
+                            disabled: reorder.isPending,
+                            onSelect: () => moveQueued(index, -1),
+                          },
+                        isOwner &&
+                          index < queue.length - 1 && {
+                            label: 'Move down',
+                            icon: 'arrow_downward',
+                            disabled: reorder.isPending,
+                            onSelect: () => moveQueued(index, 1),
+                          },
+                        isOwner &&
+                          index > 0 && {
+                            label: 'Move to top',
+                            icon: 'vertical_align_top',
+                            disabled: reorder.isPending,
+                            onSelect: () => moveQueued(index, -index),
+                          },
+                        isOwner && {
+                          label: 'Remove from queue',
+                          icon: 'close',
+                          danger: true,
+                          disabled: removeQueued.isPending,
+                          onSelect: () => removeQueued.mutate(book.libraryItemId),
+                        },
+                      ]}
+                    >
+                      <div className="book-club-queue-row">
+                        <span className="book-club-queue-number">{index + 1}</span>
+                        <Cover
+                          itemId={book.libraryItemId}
+                          title={book.title}
+                          author={book.author}
+                          width={80}
+                          fs={6}
+                          className="book-club-queue-cover"
+                        />
+                        <span>
+                          <strong>{book.title}</strong>
+                          <small>{book.author}</small>
                         </span>
-                      )}
-                    </div>
+                      </div>
+                    </ClubBookMenu>
                   ))}
                 </div>
                 {queue.length > QUEUE_PREVIEW && (
