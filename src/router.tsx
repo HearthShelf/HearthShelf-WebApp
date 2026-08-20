@@ -50,6 +50,7 @@ import { RecentListensHarness } from '@/pages/dev/RecentListensHarness'
 import { UserProfileHarness } from '@/pages/dev/UserProfileHarness'
 import { LogViewHarness } from '@/pages/dev/LogViewHarness'
 import { PinEntryHarness } from '@/pages/dev/PinEntryHarness'
+import { MentionHarness } from '@/pages/dev/MentionHarness'
 import { SwitcherHarness } from '@/pages/dev/SwitcherHarness'
 import { SharedDevicePromptHarness } from '@/pages/dev/SharedDevicePromptHarness'
 import { SettingsCarHarness } from '@/pages/dev/SettingsCarHarness'
@@ -94,6 +95,7 @@ export const router = createBrowserRouter([
         { path: '/dev/profile', element: <UserProfileHarness /> },
         { path: '/dev/logs', element: <LogViewHarness /> },
         { path: '/dev/pin', element: <PinEntryHarness /> },
+        { path: '/dev/mention', element: <MentionHarness /> },
         { path: '/dev/switcher', element: <SwitcherHarness /> },
         { path: '/dev/shared-prompt', element: <SharedDevicePromptHarness /> },
         { path: '/dev/settings-car', element: <SettingsCarHarness /> },

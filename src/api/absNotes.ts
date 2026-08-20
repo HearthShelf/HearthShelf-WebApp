@@ -10,7 +10,13 @@
  */
 import { getAbsToken } from '@/lib/absTokens'
 import type { AbsTarget } from './absLibrary'
-import type { HSNote, HSNoteStub, HSNotesResponse, NoteVisibility } from '@hearthshelf/core'
+import type {
+  HSNote,
+  HSNoteMention,
+  HSNoteStub,
+  HSNotesResponse,
+  NoteVisibility,
+} from '@hearthshelf/core'
 
 function origin(t: AbsTarget): string {
   return t.serverUrl.replace(/\/$/, '')
@@ -35,6 +41,7 @@ interface RawNote {
   safe?: boolean
   body?: string
   createdAt?: number
+  mentions?: Array<{ userId?: string; username?: string }>
 }
 
 interface RawStub {
@@ -56,6 +63,14 @@ function asVisibility(v: string | undefined, clubId: string): NoteVisibility {
   return clubId ? 'club' : 'public'
 }
 
+function mapMentions(raw: RawNote['mentions']): HSNoteMention[] | undefined {
+  if (!Array.isArray(raw) || !raw.length) return undefined
+  const out = raw
+    .map((m) => ({ userId: m?.userId ?? '', username: m?.username ?? '' }))
+    .filter((m) => m.userId)
+  return out.length ? out : undefined
+}
+
 function mapNote(n: RawNote): HSNote {
   const clubId = n.clubId ?? ''
   return {
@@ -70,6 +85,7 @@ function mapNote(n: RawNote): HSNote {
     safe: Boolean(n.safe),
     body: n.body ?? '',
     createdAt: n.createdAt ?? 0,
+    mentions: mapMentions(n.mentions),
   }
 }
 
@@ -129,6 +145,9 @@ export interface CreateNoteInput {
   timeSec?: number
   safe?: boolean
   body: string
+  /** Club member ids the note @mentions. The server re-authorizes every id
+   *  against club membership, so this is a request, never a grant. */
+  mentions?: string[]
 }
 
 /** Post a new note or reply. Throws on failure - caller shows an error toast. */

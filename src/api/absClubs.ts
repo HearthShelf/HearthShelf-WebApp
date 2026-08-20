@@ -427,6 +427,7 @@ export async function getClubDetail(
           safe?: boolean
           body?: string
           createdAt?: number
+          mentions?: Array<{ userId?: string; username?: string }>
         }>
         locked?: Array<{ id?: string; timeSec?: number }>
         hiddenAhead?: number
@@ -454,6 +455,11 @@ export async function getClubDetail(
           safe: Boolean(n.safe),
           body: n.body ?? '',
           createdAt: n.createdAt ?? 0,
+          mentions: Array.isArray(n.mentions)
+            ? n.mentions
+                .map((m) => ({ userId: m?.userId ?? '', username: m?.username ?? '' }))
+                .filter((m) => m.userId)
+            : undefined,
         })),
         locked: (data.notes?.locked ?? []).map((s) => ({
           id: s.id ?? '',

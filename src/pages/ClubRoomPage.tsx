@@ -24,6 +24,8 @@ import {
   type ClubInvitee,
 } from '@/api/absClubs'
 import { createNote, deleteNote } from '@/api/absNotes'
+import { MentionInput } from '@/components/social/MentionInput'
+import type { MentionCandidate } from '@/components/social/MentionInput'
 import { getMe, type AbsTarget } from '@/api/absLibrary'
 import { Avatar } from '@/components/common/Avatar'
 import { ErrorState } from '@/components/common/ErrorState'
@@ -37,6 +39,64 @@ import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
 import { usePlayer } from '@/player/PlayerProvider'
+
+/**
+ * The mentions still present in the text at post time, as user ids.
+ *
+ * Picking a name then deleting the "@name" should un-mention them, so the
+ * selection list is filtered against the final body. Matching is by the exact
+ * "@username" the picker inserted, which is why usernames with spaces still
+ * work here where a token regex would not.
+ */
+function pickedMentions(body: string, picked: MentionCandidate[]): string[] {
+  const text = body.toLowerCase()
+  const ids: string[] = []
+  for (const member of picked) {
+    if (!member.username) continue
+    if (!text.includes(`@${member.username.toLowerCase()}`)) continue
+    if (!ids.includes(member.userId)) ids.push(member.userId)
+  }
+  return ids
+}
+
+/** A note body with its @mentions tinted. Splits on the exact usernames the
+ *  server recorded rather than guessing at "@word", so a name with a space
+ *  highlights as one mention. */
+function NoteBody({ note }: { note: HSNote }) {
+  const mentions = note.mentions ?? []
+  if (!mentions.length) return <p>{note.body}</p>
+  const names = [...new Set(mentions.map((m) => m.username).filter(Boolean))].sort(
+    (a, b) => b.length - a.length,
+  )
+  if (!names.length) return <p>{note.body}</p>
+  const pattern = new RegExp(`@(?:${names.map(escapeRegExp).join('|')})`, 'gi')
+  const parts: Array<string | { mention: string }> = []
+  let last = 0
+  for (const match of note.body.matchAll(pattern)) {
+    const at = match.index ?? 0
+    if (at > last) parts.push(note.body.slice(last, at))
+    parts.push({ mention: match[0] })
+    last = at + match[0].length
+  }
+  if (last < note.body.length) parts.push(note.body.slice(last))
+  return (
+    <p>
+      {parts.map((part, index) =>
+        typeof part === 'string' ? (
+          <span key={index}>{part}</span>
+        ) : (
+          <span className="note-mention" key={index}>
+            {part.mention}
+          </span>
+        ),
+      )}
+    </p>
+  )
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
 
 function progressOf(member: HSClubMember | undefined): number {
   if (!member) return 0
@@ -563,7 +623,7 @@ function DiscussionNote({
             {day} · {time}
           </span>
         </div>
-        <p>{note.body}</p>
+        <NoteBody note={note} />
         <div className="book-club-note-actions">
           {note.timeSec != null && (
             <span className="book-club-time-chip">
@@ -601,7 +661,7 @@ function DiscussionNote({
                         {replyDate.day} · {replyDate.time}
                       </span>
                     </div>
-                    <p>{reply.body}</p>
+                    <NoteBody note={reply} />
                     {(reply.userId === meId || isOwner) && (
                       <button type="button" onClick={() => onDelete(reply.id)}>
                         Delete
@@ -643,6 +703,12 @@ function ClubRoom({
   const [addTimestamp, setAddTimestamp] = useState(true)
   const [replyingTo, setReplyingTo] = useState<HSNote | null>(null)
   const [replyDraft, setReplyDraft] = useState('')
+  // Ids picked from the @ list, per composer. Collected on selection rather than
+  // re-parsed from the text, so a renamed or space-containing username can't be
+  // mis-resolved. Filtered against the final body on post, so deleting the "@name"
+  // drops the mention with it.
+  const [draftMentions, setDraftMentions] = useState<MentionCandidate[]>([])
+  const [replyMentions, setReplyMentions] = useState<MentionCandidate[]>([])
   const [inviting, setInviting] = useState(false)
   const [adding, setAdding] = useState(false)
   const [queueExpanded, setQueueExpanded] = useState(false)
@@ -667,7 +733,7 @@ function ClubRoom({
   const invalidate = () => qc.invalidateQueries({ queryKey: clubQueryPrefix(target.serverId) })
 
   const post = useMutation({
-    mutationFn: (input: { body: string; parentId?: string }) =>
+    mutationFn: (input: { body: string; parentId?: string; mentions?: MentionCandidate[] }) =>
       createNote(target, {
         libraryItemId: viewedBook!.libraryItemId,
         clubId: club.id,
@@ -678,12 +744,15 @@ function ClubRoom({
             : undefined,
         safe: input.parentId ? false : safe,
         body: input.body,
+        mentions: pickedMentions(input.body, input.mentions ?? []),
       }),
     onSuccess: () => {
       setDraft('')
       setReplyDraft('')
       setReplyingTo(null)
       setSafe(false)
+      setDraftMentions([])
+      setReplyMentions([])
       void qc.invalidateQueries({ queryKey: detailKey })
     },
     onError: () => show('Could not post. Try again.'),
@@ -797,6 +866,27 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
     return grouped
   }, [notes.notes])
   const sortedMembers = useMemo(() => sortMembersByProgress(members), [members])
+
+  // A mention notification links to ?note=<id>. Scroll that comment into view
+  // and flash it once the thread has rendered, so the reader lands on what was
+  // actually said rather than the top of the room. Runs per note id, not per
+  // render, or the page would keep yanking itself back while they read.
+  const [noteParams, setNoteParams] = useSearchParams()
+  const deepLinkNote = noteParams.get('note')
+  useEffect(() => {
+    if (!deepLinkNote || !notes.notes.length) return
+    const el = document.getElementById(`club-note-${deepLinkNote}`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('note-flash')
+    const timer = window.setTimeout(() => el.classList.remove('note-flash'), 2400)
+    // Drop the param so a later refresh doesn't re-scroll an old mention.
+    const next = new URLSearchParams(noteParams)
+    next.delete('note')
+    setNoteParams(next, { replace: true })
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkNote, notes.notes.length])
   const pastBooks = books
     .filter((book) => book.finishedAt != null)
     .sort((a, b) => b.startedAt - a.startedAt)
@@ -1011,13 +1101,19 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
             </div>
             {isCurrentBook && (
               <div className="book-club-composer">
-                <textarea
-                  className="fld"
+                <MentionInput
                   rows={3}
-                  maxLength={2000}
-                  placeholder="Share a thought with the club…"
+                  placeholder="Share a thought with the club… use @ to mention someone"
                   value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
+                  onChange={setDraft}
+                  onMention={(member) =>
+                    setDraftMentions((picked) =>
+                      picked.some((p) => p.userId === member.userId) ? picked : [...picked, member],
+                    )
+                  }
+                  members={members}
+                  target={target}
+                  meId={meId}
                 />
                 <div>
                   <span className="book-club-composer-tools">
@@ -1042,7 +1138,9 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                   <button
                     className="pill on"
                     disabled={!draft.trim() || post.isPending}
-                    onClick={() => post.mutate({ body: draft.trim() })}
+                    onClick={() =>
+                      post.mutate({ body: draft.trim(), mentions: draftMentions })
+                    }
                   >
                     <Icon name="send" /> Post
                   </button>
@@ -1327,19 +1425,31 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
               <Icon name="close" />
             </button>
           </div>
-          <textarea
-            className="fld"
+          <MentionInput
             rows={2}
-            maxLength={2000}
             autoFocus
             value={replyDraft}
-            onChange={(event) => setReplyDraft(event.target.value)}
-            placeholder="Write a reply…"
+            onChange={setReplyDraft}
+            onMention={(member) =>
+              setReplyMentions((picked) =>
+                picked.some((p) => p.userId === member.userId) ? picked : [...picked, member],
+              )
+            }
+            members={members}
+            target={target}
+            meId={meId}
+            placeholder="Write a reply… use @ to mention someone"
           />
           <button
             className="pill on"
             disabled={!replyDraft.trim() || post.isPending}
-            onClick={() => post.mutate({ body: replyDraft.trim(), parentId: replyingTo.id })}
+            onClick={() =>
+              post.mutate({
+                body: replyDraft.trim(),
+                parentId: replyingTo.id,
+                mentions: replyMentions,
+              })
+            }
           >
             <Icon name="send" /> Reply
           </button>

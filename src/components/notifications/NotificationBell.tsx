@@ -114,6 +114,14 @@ export function NotificationBell() {
       navigate(`/upcoming/${encodeURIComponent(asin)}`)
       return
     }
+    if (notification.kind === 'mention' && clubId) {
+      setOpen(false)
+      // ?note= scrolls the room to the comment and flashes it, so a mention
+      // lands on the thing that was said rather than the top of the club.
+      const noteId = stringData(notification, 'noteId')
+      navigate(`/club/${clubId}${noteId ? `?note=${encodeURIComponent(noteId)}` : ''}`)
+      return
+    }
     if (notification.kind !== 'club_invite' && clubId) {
       setOpen(false)
       navigate(`/club/${clubId}`)
@@ -176,7 +184,9 @@ export function NotificationBell() {
                             ? 'group_add'
                             : notification.kind === 'release'
                               ? 'new_releases'
-                              : 'notifications'
+                              : notification.kind === 'mention'
+                                ? 'alternate_email'
+                                : 'notifications'
                         }
                       />
                     </span>

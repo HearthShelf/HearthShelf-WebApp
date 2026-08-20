@@ -123,21 +123,23 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   },
 
   // ---- Notifications
-  {
-    section: 'notifications',
-    sectionLabel: 'Notifications',
-    icon: 'notifications',
-    title: 'Release notifications',
-    desc: "Get told when a book you're waiting for is ready.",
-    keywords: 'upcoming followed books series alerts',
-  },
+  // `title` must match the SetRow title exactly - it is the highlight key that
+  // scrolls to and flashes the row (see useSettingHighlight).
   {
     section: 'notifications',
     sectionLabel: 'Notifications',
     icon: 'notifications',
     title: 'In app',
     desc: 'Show alerts in the HearthShelf notification tray.',
-    keywords: 'inbox bell push phone mobile delivery',
+    keywords: 'inbox bell tray delivery channel',
+  },
+  {
+    section: 'notifications',
+    sectionLabel: 'Notifications',
+    icon: 'notifications',
+    title: 'Mobile push',
+    desc: 'Send an alert to the HearthShelf app on your phone.',
+    keywords: 'push phone mobile device delivery channel alert',
   },
   {
     section: 'notifications',
@@ -145,7 +147,23 @@ export const SETTINGS_INDEX: SettingEntry[] = [
     icon: 'notifications',
     title: 'Email',
     desc: 'Send alerts to the email on your server account.',
-    keywords: 'mail delivery',
+    keywords: 'mail delivery channel',
+  },
+  {
+    section: 'notifications',
+    sectionLabel: 'Notifications',
+    icon: 'notifications',
+    title: 'Release alerts',
+    desc: 'Books and series you follow.',
+    keywords: 'upcoming followed books series alerts releases',
+  },
+  {
+    section: 'notifications',
+    sectionLabel: 'Notifications',
+    icon: 'notifications',
+    title: 'Club mentions',
+    desc: 'When someone @mentions you in a book club discussion.',
+    keywords: 'mention mentions at club book discussion comment reply tagged',
   },
   {
     section: 'notifications',

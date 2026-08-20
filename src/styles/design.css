@@ -16100,3 +16100,44 @@ select.fld {
     width: calc(100vw - 24px);
   }
 }
+
+/* --- @mention composer + chips ------------------------------------------- */
+/* The club composer sits at the bottom of the thread, so the suggestion list
+   opens UPWARD - anchored below it would fall off the panel. */
+.mention-wrap .mention-list {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.mention-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mention-item .hs-avatar {
+  flex: 0 0 auto;
+}
+
+/* A mention inside a posted note. Tinted rather than link-styled: it marks who
+   was addressed, it is not somewhere to click. */
+.note-mention {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Flash for a comment opened from a mention notification, so the reader can see
+   which one they were brought here for. */
+.note-flash {
+  animation: note-flash 2.4s ease-out;
+}
+
+@keyframes note-flash {
+  0%,
+  55% {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  100% {
+    background: transparent;
+  }
+}
