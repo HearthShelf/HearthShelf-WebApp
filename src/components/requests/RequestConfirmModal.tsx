@@ -140,6 +140,10 @@ export function RequestConfirmModal({ book, canRequest, onClose }: RequestConfir
               ? `We'll add ${book.title} to your library when it's ready.`
               : `Your request for ${book.title} was sent - an admin needs to approve it before it downloads.`}
           </p>
+          <p className="rc-note" style={{ marginTop: 8 }}>
+            <Icon name="notifications_active" fill /> We'll let you know when it lands in your
+            library.
+          </p>
         </div>
       </Modal>
     )
@@ -168,7 +172,7 @@ export function RequestConfirmModal({ book, canRequest, onClose }: RequestConfir
       <p className="rc-note">
         {book.title} isn't in your library yet.
         {canRequest
-          ? " Request it and ReadMeABook will search for it, download it, and add it to your library automatically. You'll see live status under Requests."
+          ? " Request it and ReadMeABook will search for it, download it, and add it to your library automatically. You'll see live status under Requests, and we'll notify you when it arrives."
           : ' You can open it on Audible.'}
       </p>
       {error && (
