@@ -15169,13 +15169,40 @@ select.fld {
   transform: translateX(-50%);
 }
 
+/* A leader line from the pin up to the rail. Without it a stacked pin reads as
+   floating loose under the timeline rather than marking a point on it. */
+.book-club-member-pin::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  width: 1px;
+  height: var(--pin-lead, 0px);
+  background: linear-gradient(to bottom, transparent, var(--border) 35%);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.book-club-member-pin.me::before {
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--primary) 60%, transparent) 35%
+  );
+}
+
 /* The reader's name under their pin. Constrained and ellipsised so a long
-   username doesn't shove neighbouring pins around. */
-.book-club-member-pin-name {
-  max-width: 72px;
+   username doesn't shove neighbouring pins around.
+   Scoped through .book-club-member-pin so it outweighs .user-link's
+   `font: inherit` - that shorthand resets font-size, and it is defined later in
+   this file, so a bare class here loses and the label renders at body size. */
+.book-club-member-pin .book-club-member-pin-name {
+  display: block;
+  max-width: 76px;
   overflow: hidden;
   color: var(--text-muted);
   font-size: 10.5px;
+  font-weight: 500;
   line-height: 1.2;
   white-space: nowrap;
   text-overflow: ellipsis;

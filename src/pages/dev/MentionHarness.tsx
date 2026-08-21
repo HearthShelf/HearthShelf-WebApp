@@ -86,6 +86,42 @@ export function MentionHarness() {
         </div>
       </section>
       <section>
+        <h2>Timeline member pins (two readers both at 0%)</h2>
+        <div className="book-club-timeline" style={{ maxWidth: 520 }}>
+          <div className="book-club-timeline-rail" />
+          <div className="book-club-member-track" style={{ height: 2 * 46 + 20 }}>
+            {[
+              { id: 'u1', name: 'wutname1', row: 0, me: true },
+              { id: 'u3', name: 'saucey-mcsauce', row: 1, me: false },
+            ].map((m) => (
+              <span
+                key={m.id}
+                className={'book-club-member-pin' + (m.me ? ' me' : '')}
+                style={
+                  {
+                    left: '0%',
+                    top: m.row * 46,
+                    '--pin-lead': `${m.row * 46 + 8}px`,
+                  } as React.CSSProperties
+                }
+              >
+                <span
+                  className="hs-avatar"
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: '50%',
+                    background: '#7a5c3e',
+                    display: 'block',
+                  }}
+                />
+                <span className="book-club-member-pin-name user-link">{m.name}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+      <section>
         <h2>Queue reorder controls</h2>
         <div className="book-club-queue" style={{ maxWidth: 420 }}>
           {['First book', 'Second book', 'Third book'].map((t, i, a) => (

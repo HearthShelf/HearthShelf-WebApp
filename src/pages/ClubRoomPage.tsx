@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import type { HSClub, HSClubBook, HSClubDetail, HSClubMember, HSNote } from '@hearthshelf/core'
@@ -620,7 +621,14 @@ function ClubTimeline({
           <span
             key={member.userId}
             className={'book-club-member-pin' + (member.userId === meId ? ' me' : '')}
-            style={{ left: pct(fraction), top: row * PIN_ROW_H }}
+            style={
+              {
+                left: pct(fraction),
+                top: row * PIN_ROW_H,
+                // Reach back up to the rail: further for each row we stacked down.
+                '--pin-lead': `${row * PIN_ROW_H + 8}px`,
+              } as CSSProperties
+            }
             title={`${member.username} · ${member.isFinished ? 'Finished' : pct(fraction)}`}
           >
             <Avatar
