@@ -98,10 +98,10 @@ export function MentionHarness() {
         <h2>Timeline member pins (two readers both at 0%)</h2>
         <div className="book-club-timeline" style={{ maxWidth: 520 }}>
           <div className="book-club-timeline-rail" />
-          <div className="book-club-member-track" style={{ height: 2 * 46 + 20 }}>
+          <div className="book-club-member-track" style={{ height: 2 * 58 + 20 }}>
             {[
-              { id: 'u1', name: 'wutname1', row: 0, me: true },
-              { id: 'u3', name: 'saucey-mcsauce', row: 1, me: false },
+              { id: 'u1', name: 'wutname1', row: 0, me: true, pctLabel: '7%' },
+              { id: 'u3', name: 'sauceycharms', row: 1, me: false, pctLabel: 'Finished' },
             ].map((m) => (
               <span
                 key={m.id}
@@ -109,8 +109,8 @@ export function MentionHarness() {
                 style={
                   {
                     left: '0%',
-                    top: m.row * 46,
-                    '--pin-lead': `${m.row * 46 + 8}px`,
+                    top: m.row * 58,
+                    '--pin-lead': `${m.row * 58 + 8}px`,
                   } as React.CSSProperties
                 }
               >
@@ -125,6 +125,7 @@ export function MentionHarness() {
                   }}
                 />
                 <span className="book-club-member-pin-name user-link">{m.name}</span>
+                <span className="book-club-member-pin-pct">{m.pctLabel}</span>
               </span>
             ))}
           </div>

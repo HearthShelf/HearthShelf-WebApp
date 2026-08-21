@@ -171,9 +171,9 @@ function pct(value: number): string {
 // working a long series can have a dozen queued, which would swamp the column.
 const QUEUE_PREVIEW = 4
 
-// Member pins on the timeline: how tall a stacked row is, and how much of the
-// bar two pins must be apart before they can share one.
-const PIN_ROW_H = 46
+// Member pins on the timeline: how tall a stacked row is (avatar + name +
+// percentage), and how much of the bar two pins must be apart to share one.
+const PIN_ROW_H = 58
 const PIN_MIN_GAP = 0.12
 
 function clubQueryPrefix(serverId: string): readonly unknown[] {
@@ -653,6 +653,11 @@ function ClubTimeline({
               username={member.username}
               className="book-club-member-pin-name"
             />
+            {/* How far in they are. It was hover-only, so a pin told you WHO
+                without telling you how far - the one thing the track is for. */}
+            <span className="book-club-member-pin-pct">
+              {member.isFinished ? 'Finished' : pct(fraction)}
+            </span>
           </span>
         ))}
       </div>
