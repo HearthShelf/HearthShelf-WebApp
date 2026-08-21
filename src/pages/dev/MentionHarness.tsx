@@ -9,6 +9,7 @@
  */
 import { useState } from 'react'
 import { MentionInput, type MentionCandidate } from '@/components/social/MentionInput'
+import { Icon } from '@/components/common/Icon'
 import { NotificationSettings } from '@/components/settings/NotificationSettings'
 import type { AbsTarget } from '@/api/absLibrary'
 
@@ -46,6 +47,66 @@ export function MentionHarness() {
         <pre data-testid="state" style={{ fontSize: 12, marginTop: 12 }}>
           {JSON.stringify({ text, picked: picked.map((p) => p.username) }, null, 2)}
         </pre>
+      </section>
+      <section>
+        <h2>Notification bell (badge must sit in the corner, not cover the glyph)</h2>
+        <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+          {[0, 3, 128].map((n) => (
+            <div className="notification-bell" key={n}>
+              <button type="button" className="ab-ico notification-bell-button">
+                <Icon name={n ? 'notifications_active' : 'notifications'} fill={n > 0} />
+                {n > 0 && <span className="notification-bell-count">{n > 99 ? '99+' : n}</span>}
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section>
+        <h2>Mention highlight + user links</h2>
+        <div className="book-club-note-body" style={{ maxWidth: 520 }}>
+          <p>
+            plain text then{' '}
+            <button type="button" className="note-mention">
+              @ann marie
+            </button>{' '}
+            and{' '}
+            <button type="button" className="note-mention">
+              @Bob
+            </button>{' '}
+            trailing.
+          </p>
+          <p>
+            header name:{' '}
+            <strong>
+              <button type="button" className="user-link">
+                carol
+              </button>
+            </strong>
+          </p>
+        </div>
+      </section>
+      <section>
+        <h2>Queue reorder controls</h2>
+        <div className="book-club-queue" style={{ maxWidth: 420 }}>
+          {['First book', 'Second book', 'Third book'].map((t, i, a) => (
+            <div className="book-club-queue-row" key={t}>
+              <span className="book-club-queue-number">{i + 1}</span>
+              <span />
+              <span>
+                <strong>{t}</strong>
+                <small>An author</small>
+              </span>
+              <span className="book-club-queue-reorder">
+                <button type="button" className="ab-ico" disabled={i === 0}>
+                  <Icon name="arrow_upward" />
+                </button>
+                <button type="button" className="ab-ico" disabled={i === a.length - 1}>
+                  <Icon name="arrow_downward" />
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
       </section>
       <section>
         <h2>NotificationSettings</h2>

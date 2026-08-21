@@ -59,23 +59,58 @@ function pickedMentions(body: string, picked: MentionCandidate[]): string[] {
   return ids
 }
 
-/** A note body with its @mentions tinted. Splits on the exact usernames the
- *  server recorded rather than guessing at "@word", so a name with a space
- *  highlights as one mention. */
+/** A username that opens that reader's profile. */
+function UserLink({
+  userId,
+  username,
+  className,
+}: {
+  userId: string
+  username: string
+  className?: string
+}) {
+  const navigate = useNavigate()
+  if (!userId) return <>{username}</>
+  return (
+    <button
+      type="button"
+      className={'user-link' + (className ? ' ' + className : '')}
+      title={`View ${username}'s profile`}
+      onClick={(event) => {
+        // These sit inside clickable rows (a note, a progress bar) - don't let
+        // the parent's handler fire too.
+        event.stopPropagation()
+        navigate(`/user/${encodeURIComponent(userId)}`)
+      }}
+    >
+      {username}
+    </button>
+  )
+}
+
+/** A note body with its @mentions highlighted and linked to the reader's
+ *  profile. Splits on the exact usernames the server recorded rather than
+ *  guessing at "@word", so a name with a space highlights as one mention. */
 function NoteBody({ note }: { note: HSNote }) {
+  const navigate = useNavigate()
   const mentions = note.mentions ?? []
   if (!mentions.length) return <p>{note.body}</p>
-  const names = [...new Set(mentions.map((m) => m.username).filter(Boolean))].sort(
-    (a, b) => b.length - a.length,
-  )
-  if (!names.length) return <p>{note.body}</p>
-  const pattern = new RegExp(`@(?:${names.map(escapeRegExp).join('|')})`, 'gi')
-  const parts: Array<string | { mention: string }> = []
+  // Longest first so "@ann marie" wins over "@ann".
+  const ordered = [...mentions]
+    .filter((m) => m.username)
+    .sort((a, b) => b.username.length - a.username.length)
+  if (!ordered.length) return <p>{note.body}</p>
+  const byName = new Map(ordered.map((m) => [m.username.toLowerCase(), m.userId]))
+  const pattern = new RegExp(`@(?:${ordered.map((m) => escapeRegExp(m.username)).join('|')})`, 'gi')
+  const parts: Array<string | { mention: string; userId: string }> = []
   let last = 0
   for (const match of note.body.matchAll(pattern)) {
     const at = match.index ?? 0
     if (at > last) parts.push(note.body.slice(last, at))
-    parts.push({ mention: match[0] })
+    parts.push({
+      mention: match[0],
+      userId: byName.get(match[0].slice(1).toLowerCase()) ?? '',
+    })
     last = at + match[0].length
   }
   if (last < note.body.length) parts.push(note.body.slice(last))
@@ -84,6 +119,19 @@ function NoteBody({ note }: { note: HSNote }) {
       {parts.map((part, index) =>
         typeof part === 'string' ? (
           <span key={index}>{part}</span>
+        ) : part.userId ? (
+          <button
+            type="button"
+            className="note-mention"
+            key={index}
+            title={`View ${part.mention.slice(1)}'s profile`}
+            onClick={(event) => {
+              event.stopPropagation()
+              navigate(`/user/${encodeURIComponent(part.userId)}`)
+            }}
+          >
+            {part.mention}
+          </button>
         ) : (
           <span className="note-mention" key={index}>
             {part.mention}
@@ -112,6 +160,11 @@ function pct(value: number): string {
 // How many queued books the sidebar rail shows before "View all". A club
 // working a long series can have a dozen queued, which would swamp the column.
 const QUEUE_PREVIEW = 4
+
+// Member pins on the timeline: how tall a stacked row is, and how much of the
+// bar two pins must be apart before they can share one.
+const PIN_ROW_H = 46
+const PIN_MIN_GAP = 0.12
 
 function clubQueryPrefix(serverId: string): readonly unknown[] {
   return ['clubs', serverId]
@@ -491,6 +544,23 @@ function ClubTimeline({
   const myPosition = livePosition ?? mine?.currentTime ?? 0
   const myFraction = duration > 0 ? Math.max(0, Math.min(1, myPosition / duration)) : 0
   const readable = notes.filter((note) => !note.parentId && note.timeSec != null)
+  // Stack pins that land close together onto extra rows. Absolutely positioning
+  // every member at their own percentage buries a whole cluster under one avatar
+  // whenever a club reads at the same pace - which is the normal case.
+  const memberPins = useMemo(() => {
+    const sorted = [...members]
+      .map((member) => ({ member, fraction: progressOf(member) }))
+      .sort((a, b) => a.fraction - b.fraction)
+    const rowEnds: number[] = []
+    return sorted.map(({ member, fraction }) => {
+      let row = rowEnds.findIndex((end) => fraction > end)
+      if (row === -1) row = rowEnds.length
+      rowEnds[row] = fraction + PIN_MIN_GAP
+      return { member, fraction, row }
+    })
+  }, [members])
+  const trackHeight = (Math.max(...memberPins.map((p) => p.row), 0) + 1) * PIN_ROW_H + 20
+
   if (duration <= 0)
     return (
       <div className="book-club-timeline-unavailable">
@@ -545,27 +615,29 @@ function ClubTimeline({
           )
         })}
       </div>
-      <div className="book-club-member-track">
-        {members.map((member) => {
-          const fraction = progressOf(member)
-          return (
-            <span
-              key={member.userId}
-              className={'book-club-member-pin' + (member.userId === meId ? ' me' : '')}
-              style={{ left: pct(fraction) }}
-              title={`${member.username} · ${member.isFinished ? 'Finished' : pct(fraction)}`}
-            >
-              <Avatar
-                name={member.username}
-                target={target}
-                userId={member.userId}
-                size={30}
-                className="hs-avatar"
-              />
-              {member.listeningNow && <i />}
-            </span>
-          )
-        })}
+      <div className="book-club-member-track" style={{ height: trackHeight }}>
+        {memberPins.map(({ member, fraction, row }) => (
+          <span
+            key={member.userId}
+            className={'book-club-member-pin' + (member.userId === meId ? ' me' : '')}
+            style={{ left: pct(fraction), top: row * PIN_ROW_H }}
+            title={`${member.username} · ${member.isFinished ? 'Finished' : pct(fraction)}`}
+          >
+            <Avatar
+              name={member.username}
+              target={target}
+              userId={member.userId}
+              size={30}
+              className="hs-avatar"
+            />
+            {member.listeningNow && <i />}
+            <UserLink
+              userId={member.userId}
+              username={member.username}
+              className="book-club-member-pin-name"
+            />
+          </span>
+        ))}
       </div>
       <div className="book-club-timeline-key">
         <span>
@@ -613,7 +685,9 @@ function DiscussionNote({
       />
       <div className="book-club-note-body">
         <div className="book-club-note-meta">
-          <strong>{note.username}</strong>
+          <strong>
+            <UserLink userId={note.userId} username={note.username} />
+          </strong>
           {note.safe && (
             <span className="badge-pill abridged">
               <Icon name="shield" /> Spoiler-free
@@ -656,7 +730,9 @@ function DiscussionNote({
                   />
                   <div>
                     <div className="book-club-note-meta">
-                      <strong>{reply.username}</strong>
+                      <strong>
+                        <UserLink userId={reply.userId} username={reply.username} />
+                      </strong>
                       <span>
                         {replyDate.day} · {replyDate.time}
                       </span>
@@ -1138,9 +1214,7 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                   <button
                     className="pill on"
                     disabled={!draft.trim() || post.isPending}
-                    onClick={() =>
-                      post.mutate({ body: draft.trim(), mentions: draftMentions })
-                    }
+                    onClick={() => post.mutate({ body: draft.trim(), mentions: draftMentions })}
                   >
                     <Icon name="send" /> Post
                   </button>
@@ -1264,7 +1338,13 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                       className="hs-avatar"
                     />
                     <div>
-                      <strong>{member.userId === meId ? 'You' : member.username}</strong>
+                      <strong>
+                        {member.userId === meId ? (
+                          'You'
+                        ) : (
+                          <UserLink userId={member.userId} username={member.username} />
+                        )}
+                      </strong>
                       <span>{member.isFinished ? 'Finished' : pct(progress)}</span>
                       <div className="prog-line">
                         <i style={{ width: pct(progress) }} />
@@ -1272,9 +1352,7 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                       {member.reach && member.reach.total > 1 && (
                         <em
                           className={
-                            member.reach.aheadOfClub
-                              ? 'book-club-reach ahead'
-                              : 'book-club-reach'
+                            member.reach.aheadOfClub ? 'book-club-reach ahead' : 'book-club-reach'
                           }
                           title={member.reach.title}
                         >
@@ -1384,6 +1462,39 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                           <strong>{book.title}</strong>
                           <small>{book.author}</small>
                         </span>
+                        {isOwner && (
+                          // Reordering also lives in the right-click menu, but a
+                          // hidden menu is not a control: without these the queue
+                          // order looks fixed, and touch has no right-click at all.
+                          <span className="book-club-queue-reorder">
+                            <button
+                              type="button"
+                              className="ab-ico"
+                              title="Move up"
+                              aria-label={`Move ${book.title || 'this book'} up`}
+                              disabled={index === 0 || reorder.isPending}
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                moveQueued(index, -1)
+                              }}
+                            >
+                              <Icon name="arrow_upward" />
+                            </button>
+                            <button
+                              type="button"
+                              className="ab-ico"
+                              title="Move down"
+                              aria-label={`Move ${book.title || 'this book'} down`}
+                              disabled={index === queue.length - 1 || reorder.isPending}
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                moveQueued(index, 1)
+                              }}
+                            >
+                              <Icon name="arrow_downward" />
+                            </button>
+                          </span>
+                        )}
                       </div>
                     </ClubBookMenu>
                   ))}

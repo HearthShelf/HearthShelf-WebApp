@@ -106,7 +106,9 @@ export function NotificationBell() {
       if (stringData(notification, 'signal') === 'available') {
         void findOwnedItemByAsin(target, asin).then((itemId) =>
           navigate(
-            itemId ? `/item/${encodeURIComponent(itemId)}` : `/upcoming/${encodeURIComponent(asin)}`,
+            itemId
+              ? `/item/${encodeURIComponent(itemId)}`
+              : `/upcoming/${encodeURIComponent(asin)}`,
           ),
         )
         return
@@ -141,7 +143,9 @@ export function NotificationBell() {
         onClick={() => setOpen((value) => !value)}
       >
         <Icon name={unread ? 'notifications_active' : 'notifications'} fill={unread > 0} />
-        {unread > 0 && <span>{unread > 99 ? '99+' : unread}</span>}
+        {unread > 0 && (
+          <span className="notification-bell-count">{unread > 99 ? '99+' : unread}</span>
+        )}
       </button>
       {open && (
         <div className="notification-tray" role="dialog" aria-label="Notifications">

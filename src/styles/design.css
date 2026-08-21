@@ -3275,7 +3275,10 @@
   background: var(--fill);
   color: var(--text);
 }
-.notification-bell-button > span {
+/* The count badge only. Must NOT be a bare `> span`: Icon renders the glyph as
+   a <span class="ms">, so an unscoped child selector styles the bell itself
+   into a red pill. */
+.notification-bell-count {
   position: absolute;
   top: 4px;
   right: 4px;
@@ -15155,15 +15158,32 @@ select.fld {
 
 .book-club-member-track {
   position: relative;
-  height: 44px;
   margin: 10px 8px 0;
 }
 
 .book-club-member-pin {
   position: absolute;
-  top: 0;
-  display: block;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
   transform: translateX(-50%);
+}
+
+/* The reader's name under their pin. Constrained and ellipsised so a long
+   username doesn't shove neighbouring pins around. */
+.book-club-member-pin-name {
+  max-width: 72px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.book-club-member-pin.me .book-club-member-pin-name {
+  color: var(--primary);
+  font-weight: 600;
 }
 
 .book-club-member-pin .avatar,
@@ -15181,7 +15201,7 @@ select.fld {
 .book-club-member-pin > i {
   position: absolute;
   right: -1px;
-  bottom: 10px;
+  top: 22px;
   width: 8px;
   height: 8px;
   border: 2px solid var(--sheet);
@@ -15490,12 +15510,42 @@ select.fld {
    is a grandchild in markup while still laying out inside this grid. */
 .book-club-queue-row {
   display: grid;
-  grid-template-columns: 18px 36px minmax(0, 1fr);
+  grid-template-columns: 18px 36px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
   padding: 10px 0;
   border-top: 1px solid var(--border);
   cursor: context-menu;
+}
+
+/* Up/down controls on a queued book. Faint until the row is hovered so the
+   queue still reads as a list, but always present for keyboard and touch (which
+   have no right-click to reach the menu with). */
+.book-club-queue-reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  opacity: 0.55;
+  transition: opacity 0.12s ease;
+}
+
+.book-club-queue-row:hover .book-club-queue-reorder,
+.book-club-queue-reorder:focus-within {
+  opacity: 1;
+}
+
+.book-club-queue-reorder .ab-ico {
+  width: 24px;
+  height: 20px;
+}
+
+.book-club-queue-reorder .ab-ico .ms {
+  font-size: 16px;
+}
+
+.book-club-queue-reorder .ab-ico:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 .book-club-queue > *:first-child .book-club-queue-row {
@@ -16119,11 +16169,41 @@ select.fld {
   flex: 0 0 auto;
 }
 
-/* A mention inside a posted note. Tinted rather than link-styled: it marks who
-   was addressed, it is not somewhere to click. */
+/* A mention inside a posted note: tinted and clickable through to that reader's
+   profile. Uses --primary, NOT --accent - `--accent` is a near-white cream in
+   this theme, so an @name tinted with it is indistinguishable from body text. */
 .note-mention {
-  color: var(--accent);
+  display: inline;
+  padding: 0;
+  border: none;
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  border-radius: 4px;
+  color: var(--primary);
+  font: inherit;
   font-weight: 600;
+  cursor: pointer;
+}
+.note-mention:hover,
+.note-mention:focus-visible {
+  background: color-mix(in srgb, var(--primary) 26%, transparent);
+  text-decoration: underline;
+}
+
+/* A username rendered as a link to that reader's profile (note headers, the
+   member progress race). Inherits its surroundings until hovered, so it does not
+   turn every row into a wall of links. */
+.user-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.user-link:hover,
+.user-link:focus-visible {
+  color: var(--primary);
+  text-decoration: underline;
 }
 
 /* Flash for a comment opened from a mention notification, so the reader can see
