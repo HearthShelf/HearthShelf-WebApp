@@ -13,8 +13,10 @@ import type { AbsTarget } from './absLibrary'
 import type {
   HSNote,
   HSNoteMention,
+  HSNoteReaction,
   HSNoteStub,
   HSNotesResponse,
+  NoteReactionKind,
   NoteVisibility,
 } from '@hearthshelf/core'
 
@@ -22,7 +24,13 @@ function origin(t: AbsTarget): string {
   return t.serverUrl.replace(/\/$/, '')
 }
 
-const NOTES_DISABLED: HSNotesResponse = { enabled: false, notes: [], locked: [], hiddenAhead: 0, now: 0 }
+const NOTES_DISABLED: HSNotesResponse = {
+  enabled: false,
+  notes: [],
+  locked: [],
+  hiddenAhead: 0,
+  now: 0,
+}
 
 export const notesKeys = {
   list: (serverId: string, libraryItemId: string, clubId: string) =>
@@ -42,6 +50,7 @@ interface RawNote {
   body?: string
   createdAt?: number
   mentions?: Array<{ userId?: string; username?: string }>
+  reactions?: Array<{ kind?: string; count?: number; mine?: boolean }>
 }
 
 interface RawStub {
@@ -71,6 +80,21 @@ function mapMentions(raw: RawNote['mentions']): HSNoteMention[] | undefined {
   return out.length ? out : undefined
 }
 
+/** Tallies as sent, minus anything malformed. An unrecognised kind is KEPT -
+ *  the server stores any well-formed kind, and dropping it here would hide a
+ *  reaction added by a newer client instead of just showing it plainly. */
+function mapReactions(raw: RawNote['reactions']): HSNoteReaction[] | undefined {
+  if (!Array.isArray(raw) || !raw.length) return undefined
+  const out = raw
+    .map((r) => ({
+      kind: (r?.kind ?? '') as NoteReactionKind,
+      count: Number(r?.count ?? 0),
+      mine: Boolean(r?.mine),
+    }))
+    .filter((r) => r.kind && Number.isFinite(r.count) && r.count > 0)
+  return out.length ? out : undefined
+}
+
 function mapNote(n: RawNote): HSNote {
   const clubId = n.clubId ?? ''
   return {
@@ -86,6 +110,7 @@ function mapNote(n: RawNote): HSNote {
     body: n.body ?? '',
     createdAt: n.createdAt ?? 0,
     mentions: mapMentions(n.mentions),
+    reactions: mapReactions(n.reactions),
   }
 }
 
@@ -165,6 +190,35 @@ export async function createNote(t: AbsTarget, input: CreateNoteInput): Promise<
   })
   if (!res.ok) throw new Error(`notes ${res.status}`)
   return mapNote((await res.json()) as RawNote)
+}
+
+/**
+ * Add or remove one reaction on a note. `on` is explicit rather than a toggle so
+ * a double click converges on the same state instead of flipping twice.
+ *
+ * Returns the note's fresh tallies, for the caller to reconcile against rather
+ * than incrementing a possibly-stale local count.
+ */
+export async function reactToNote(
+  t: AbsTarget,
+  noteId: string,
+  kind: NoteReactionKind,
+  on: boolean,
+): Promise<HSNoteReaction[]> {
+  const token = getAbsToken(t.serverId)
+  if (!token) throw new Error('no token')
+  const res = await fetch(`${origin(t)}/hs/notes/${encodeURIComponent(noteId)}/reactions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({ kind, on }),
+  })
+  if (!res.ok) throw new Error(`notes reactions ${res.status}`)
+  const data = (await res.json()) as { reactions?: HSNoteReaction[] }
+  return Array.isArray(data.reactions) ? data.reactions : []
 }
 
 /** Soft-delete a note (author, club owner in their own club, or admin). */

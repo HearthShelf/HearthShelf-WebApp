@@ -2,7 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import type { HSClub, HSClubBook, HSClubDetail, HSClubMember, HSNote } from '@hearthshelf/core'
+import type {
+  HSClub,
+  HSClubBook,
+  HSClubDetail,
+  HSClubMember,
+  HSNote,
+  NoteReactionKind,
+} from '@hearthshelf/core'
 import { fmtSessDate, formatTimestamp, sortMembersByProgress } from '@hearthshelf/core'
 import {
   advanceClubBook,
@@ -24,7 +31,7 @@ import {
   revokeClubInvite,
   type ClubInvitee,
 } from '@/api/absClubs'
-import { createNote, deleteNote } from '@/api/absNotes'
+import { createNote, deleteNote, reactToNote } from '@/api/absNotes'
 import { MentionInput } from '@/components/social/MentionInput'
 import type { MentionCandidate } from '@/components/social/MentionInput'
 import { getMe, type AbsTarget } from '@/api/absLibrary'
@@ -58,6 +65,18 @@ function pickedMentions(body: string, picked: MentionCandidate[]): string[] {
     if (!ids.includes(member.userId)) ids.push(member.userId)
   }
   return ids
+}
+
+/** Whether the reader has reacted to a note with any kind. The button offers
+ *  thumbs up, but a heart from another client still reads as "you reacted", so
+ *  clicking does not silently add a second reaction on top of it. */
+function likedByMe(note: HSNote): boolean {
+  return (note.reactions ?? []).some((r) => r.mine)
+}
+
+/** Every reaction on a note, across kinds. */
+function reactionTotal(note: HSNote): number {
+  return (note.reactions ?? []).reduce((sum, r) => sum + r.count, 0)
 }
 
 /** A username that opens that reader's profile. */
@@ -685,6 +704,7 @@ function DiscussionNote({
   activeBook,
   onDelete,
   onReply,
+  onReact,
 }: {
   note: HSNote
   replies: HSNote[]
@@ -694,6 +714,7 @@ function DiscussionNote({
   activeBook: boolean
   onDelete: (id: string) => void
   onReply: (note: HSNote) => void
+  onReact: (note: HSNote, kind: NoteReactionKind, on: boolean) => void
 }) {
   const { day, time } = fmtSessDate(note.createdAt)
   return (
@@ -726,6 +747,18 @@ function DiscussionNote({
               <Icon name="play_arrow" fill /> {formatTimestamp(note.timeSec)}
             </span>
           )}
+          {/* Thumbs up is the one kind offered here; the server and the tally
+              below still handle any other kind a different client sends. */}
+          <button
+            type="button"
+            className={'note-react' + (likedByMe(note) ? ' on' : '')}
+            onClick={() => onReact(note, 'up', !likedByMe(note))}
+            aria-pressed={likedByMe(note)}
+            title={likedByMe(note) ? 'Remove your reaction' : 'Like this comment'}
+          >
+            <Icon name="thumb_up" fill={likedByMe(note)} />
+            {reactionTotal(note) > 0 && <span>{reactionTotal(note)}</span>}
+          </button>
           {activeBook && (
             <button type="button" onClick={() => onReply(note)}>
               Reply
@@ -859,6 +892,12 @@ function ClubRoom({
     mutationFn: (id: string) => deleteNote(target, id),
     onSuccess: () => void qc.invalidateQueries({ queryKey: detailKey }),
     onError: () => show('Could not delete that comment.'),
+  })
+  const react = useMutation({
+    mutationFn: ({ note, kind, on }: { note: HSNote; kind: NoteReactionKind; on: boolean }) =>
+      reactToNote(target, note.id, kind, on),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: detailKey }),
+    onError: () => show('Could not save that reaction.'),
   })
   const leave = useMutation({
     mutationFn: () => leaveClub(target, club.id),
@@ -1263,6 +1302,7 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                     activeBook={isCurrentBook}
                     onDelete={(id) => removeNote.mutate(id)}
                     onReply={setReplyingTo}
+                    onReact={(n, kind, on) => react.mutate({ note: n, kind, on })}
                   />
                 ))}
               </div>

@@ -73,9 +73,7 @@ export function NotificationSettings() {
         <SetRow
           title="Release alerts"
           desc="Books and series you follow."
-          control={
-            <Toggle on={release.enabled} onChange={(on) => setTypeEnabled('release', on)} />
-          }
+          control={<Toggle on={release.enabled} onChange={(on) => setTypeEnabled('release', on)} />}
         />
         <SetRow
           title="Club mentions"
@@ -85,6 +83,23 @@ export function NotificationSettings() {
               on={prefs.types.mention.enabled}
               onChange={(on) => setTypeEnabled('mention', on)}
             />
+          }
+        />
+        <SetRow
+          title="Comment reactions"
+          desc="When someone reacts to one of your club comments."
+          control={
+            <Toggle
+              on={prefs.types.reaction.enabled}
+              onChange={(on) => setTypeEnabled('reaction', on)}
+            />
+          }
+        />
+        <SetRow
+          title="Comment replies"
+          desc="When someone replies to one of your club comments."
+          control={
+            <Toggle on={prefs.types.reply.enabled} onChange={(on) => setTypeEnabled('reply', on)} />
           }
         />
       </div>
