@@ -92,7 +92,7 @@ function UserLink({
 /** A note body with its @mentions highlighted and linked to the reader's
  *  profile. Splits on the exact usernames the server recorded rather than
  *  guessing at "@word", so a name with a space highlights as one mention. */
-function NoteBody({ note }: { note: HSNote }) {
+function NoteBody({ note, target }: { note: HSNote; target: AbsTarget }) {
   const navigate = useNavigate()
   const mentions = note.mentions ?? []
   if (!mentions.length) return <p>{note.body}</p>
@@ -131,7 +131,16 @@ function NoteBody({ note }: { note: HSNote }) {
               navigate(`/user/${encodeURIComponent(part.userId)}`)
             }}
           >
-            {part.mention}
+            {/* The photo stands in for the '@'. Avatar falls back to initials,
+                so a reader with no photo still gets a legible marker. */}
+            <Avatar
+              name={part.mention.slice(1)}
+              target={target}
+              userId={part.userId}
+              size={16}
+              className="hs-avatar note-mention-avatar"
+            />
+            {part.mention.slice(1)}
           </button>
         ) : (
           <span className="note-mention" key={index}>
@@ -705,7 +714,7 @@ function DiscussionNote({
             {day} · {time}
           </span>
         </div>
-        <NoteBody note={note} />
+        <NoteBody note={note} target={target} />
         <div className="book-club-note-actions">
           {note.timeSec != null && (
             <span className="book-club-time-chip">
@@ -745,7 +754,7 @@ function DiscussionNote({
                         {replyDate.day} · {replyDate.time}
                       </span>
                     </div>
-                    <NoteBody note={reply} />
+                    <NoteBody note={reply} target={target} />
                     {(reply.userId === meId || isOwner) && (
                       <button type="button" onClick={() => onDelete(reply.id)}>
                         Delete

@@ -16200,15 +16200,30 @@ select.fld {
    profile. Uses --primary, NOT --accent - `--accent` is a near-white cream in
    this theme, so an @name tinted with it is indistinguishable from body text. */
 .note-mention {
-  display: inline;
-  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px 1px 2px;
   border: none;
   background: color-mix(in srgb, var(--primary) 14%, transparent);
-  border-radius: 4px;
+  border-radius: 999px;
   color: var(--primary);
   font: inherit;
   font-weight: 600;
+  line-height: 1.35;
+  /* Sits in a paragraph, so keep it on the text baseline rather than letting
+     the flex box ride high. */
+  vertical-align: -3px;
   cursor: pointer;
+}
+
+/* The photo replaces the '@'. Fixed size so a tall line doesn't stretch it, and
+   never shrunk by the flex row when the name is long. */
+.note-mention-avatar {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  font-size: 8px;
 }
 .note-mention:hover,
 .note-mention:focus-visible {

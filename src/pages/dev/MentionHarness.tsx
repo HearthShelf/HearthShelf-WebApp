@@ -67,13 +67,22 @@ export function MentionHarness() {
           <p>
             plain text then{' '}
             <button type="button" className="note-mention">
-              @ann marie
+              <span
+                className="hs-avatar note-mention-avatar"
+                style={{ background: '#5c7a3e', borderRadius: '50%', display: 'block' }}
+              />
+              ann marie
             </button>{' '}
             and{' '}
             <button type="button" className="note-mention">
-              @Bob
+              <span
+                className="hs-avatar note-mention-avatar"
+                style={{ background: '#3e5c7a', borderRadius: '50%', display: 'block' }}
+              />
+              Bob
             </button>{' '}
-            trailing.
+            trailing text that wraps onto the next line to check the baseline sits right when a
+            mention lands mid-paragraph.
           </p>
           <p>
             header name:{' '}
