@@ -20,10 +20,14 @@ function origin(t: AbsTarget): string {
   return t.serverUrl.replace(/\/$/, '')
 }
 
-async function rFetch<T>(t: AbsTarget, options: RequestInit = {}): Promise<T> {
+async function rFetch<T>(
+  t: AbsTarget,
+  options: RequestInit = {},
+  path = '/hs/ratings',
+): Promise<T> {
   const token = getAbsToken(t.serverId)
   if (!token) throw new Error('no token')
-  const res = await fetch(`${origin(t)}/hs/ratings`, {
+  const res = await fetch(`${origin(t)}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -61,4 +65,24 @@ export async function setRating(
     body: JSON.stringify({ itemKey, rating }),
   })
   return r.ratings ?? {}
+}
+
+/**
+ * Record "Skip rating" for a book so nothing asks about it again.
+ *
+ * Separate from dismissing the notification: the notification row is what the
+ * prompt job dedupes against, so deleting it alone would let the next hourly
+ * pass recreate the prompt. Best-effort - a failed skip costs at most one
+ * repeat prompt, which is not worth blocking the dismissal over.
+ */
+export async function skipRatingPrompt(t: AbsTarget, itemKey: string): Promise<void> {
+  try {
+    await rFetch<{ ok: boolean }>(
+      t,
+      { method: 'POST', body: JSON.stringify({ itemKey }) },
+      '/hs/rating-prompts/skip',
+    )
+  } catch {
+    // Swallowed on purpose; see above.
+  }
 }

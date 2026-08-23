@@ -15,7 +15,7 @@ import {
 import { Icon } from '@/components/common/Icon'
 import { RatingPromptActions } from '@/components/notifications/RatingPromptActions'
 import { RATING_NOTIFICATION_KIND } from '@hearthshelf/core'
-import { setRating } from '@/api/absRatings'
+import { setRating, skipRatingPrompt } from '@/api/absRatings'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useActiveServer } from '@/hooks/useActiveServer'
 
@@ -259,7 +259,15 @@ export function NotificationBell() {
                         <RatingPromptActions
                           bookTitle={stringData(notification, 'title') || 'this book'}
                           onRate={(value) => rateFromTray(notification, value)}
-                          onSkip={() => dismiss.mutate(notification.id)}
+                          onSkip={() => {
+                            // Record the skip BEFORE clearing the row: the row is
+                            // what the prompt job dedupes against, so dismissing
+                            // alone would let the next hourly pass re-ask.
+                            const itemKey =
+                              stringData(notification, 'itemKey') || notification.entityId
+                            if (target && itemKey) void skipRatingPrompt(target, itemKey)
+                            dismiss.mutate(notification.id)
+                          }}
                           onStopAsking={() => stopAskingForRatings(notification)}
                         />
                       ) : pending ? (
