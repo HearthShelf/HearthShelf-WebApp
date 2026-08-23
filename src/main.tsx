@@ -9,7 +9,10 @@ import { ClerkTokenBridge } from '@/auth/ClerkTokenBridge'
 import { clerkAppearance } from '@/auth/clerkAppearance'
 import { notify } from '@/lib/notify'
 import { SessionExpiredError } from '@/api/controlPlane'
+import { initSentry, Sentry } from '@/lib/sentry'
 import './styles/index.css'
+
+initSentry()
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 if (!PUBLISHABLE_KEY) {
@@ -21,6 +24,7 @@ if (!PUBLISHABLE_KEY) {
 function reportQueryError(err: unknown) {
   if (err instanceof SessionExpiredError) return
   notify.error(notify.fromError(err, 'Could not reach HearthShelf'))
+  Sentry.captureException(err)
 }
 
 const queryClient = new QueryClient({
