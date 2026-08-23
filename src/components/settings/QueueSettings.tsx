@@ -1,11 +1,16 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSettingsStore, type AutoRulePref } from '@/store/settingsStore'
 import type { QueueMode, AutoRuleId } from '@/store/queueStore'
 import { useQueueStore } from '@/store/queueStore'
 import { useDismissalsStore } from '@/store/dismissalsStore'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
-import { getPlaylistsList } from '@/api/absLibrary'
+import {
+  getPlaylistsList,
+  getAllLibraryItems,
+  getSeriesList,
+  itemCoverUrl,
+} from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
 import { SetRow, Seg } from '@/components/settings/controls'
 import { ManualQueueEditor } from '@/components/player/ManualQueueEditor'
@@ -204,23 +209,80 @@ export function QueueSettings() {
 }
 
 // The user's ignored series and set-aside books, each with a Restore button.
+// Ids alone are meaningless to a reader, so resolve them to real titles and
+// covers from the library, and page the list instead of dumping every row.
+const IGNORED_PAGE = 8
+
+interface IgnoredRow {
+  kind: 'series' | 'item'
+  id: string
+  title: string
+  sub: string
+  cover: string | null
+}
+
 function IgnoredAndSetAside() {
-  const { target } = useActiveLibrary()
+  const { target, activeId } = useActiveLibrary()
   const seriesIds = useDismissalsStore((s) => s.seriesIds)
   const itemIds = useDismissalsStore((s) => s.itemIds)
   const labels = useDismissalsStore((s) => s.labels)
   const hydrate = useDismissalsStore((s) => s.hydrate)
   const restore = useDismissalsStore((s) => s.restore)
+  const [tab, setTab] = useState<'item' | 'series'>('item')
+  const [page, setPage] = useState(0)
 
   useEffect(() => {
     if (target) void hydrate(target)
   }, [target, hydrate])
 
-  const rows: { kind: 'series' | 'item'; id: string }[] = [
-    ...seriesIds.map((id) => ({ kind: 'series' as const, id })),
-    ...itemIds.map((id) => ({ kind: 'item' as const, id })),
-  ]
-  if (rows.length === 0 || !target) return null
+  const enabled = Boolean(target && activeId)
+  const { data: items = [] } = useQuery({
+    queryKey: ['ignored-items', target?.serverId, activeId],
+    queryFn: () => getAllLibraryItems(target!, activeId!),
+    enabled: enabled && itemIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  })
+  const { data: seriesList = [] } = useQuery({
+    queryKey: ['ignored-series', target?.serverId, activeId],
+    queryFn: () => getSeriesList(target!, activeId!),
+    enabled: enabled && seriesIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const rows: IgnoredRow[] = useMemo(() => {
+    const byItem = new Map(items.map((i) => [i.id, i]))
+    const bySeries = new Map(seriesList.map((s) => [s.id, s]))
+    const books: IgnoredRow[] = itemIds.map((id) => {
+      const it = byItem.get(id)
+      return {
+        kind: 'item',
+        id,
+        title: it?.title ?? labels[id] ?? 'Book no longer in this library',
+        sub: it?.author ?? '',
+        cover: target ? itemCoverUrl(target, id, 96) : null,
+      }
+    })
+    const series: IgnoredRow[] = seriesIds.map((id) => ({
+      kind: 'series',
+      id,
+      title: bySeries.get(id)?.name ?? labels[id] ?? 'Series no longer in this library',
+      sub: '',
+      cover: null,
+    }))
+    const sort = (a: IgnoredRow, b: IgnoredRow) => a.title.localeCompare(b.title)
+    return tab === 'item' ? books.sort(sort) : series.sort(sort)
+  }, [tab, itemIds, seriesIds, items, seriesList, labels, target])
+
+  // Restoring the last row on the final page would strand the user on an empty
+  // page, so clamp whenever the row count shrinks under the current offset.
+  const pageCount = Math.max(1, Math.ceil(rows.length / IGNORED_PAGE))
+  useEffect(() => {
+    if (page > pageCount - 1) setPage(pageCount - 1)
+  }, [page, pageCount])
+
+  if (!target || (seriesIds.length === 0 && itemIds.length === 0)) return null
+
+  const shown = rows.slice(page * IGNORED_PAGE, page * IGNORED_PAGE + IGNORED_PAGE)
 
   return (
     <SetRow
@@ -229,14 +291,42 @@ function IgnoredAndSetAside() {
       control={null}
       stacked
     >
+      {/* SetRow drops `control` when stacked, so the switcher lives in the body. */}
+      <div style={{ marginBottom: 10 }}>
+        <Seg<'item' | 'series'>
+          value={tab}
+          onChange={(v) => {
+            setTab(v)
+            setPage(0)
+          }}
+          options={[
+            { value: 'item', label: `Books (${itemIds.length})` },
+            { value: 'series', label: `Series (${seriesIds.length})` },
+          ]}
+        />
+      </div>
       <div className="rule-list">
-        {rows.map((r) => (
+        {shown.length === 0 && (
+          <div className="cl-d" style={{ padding: '8px 2px' }}>
+            {tab === 'item' ? 'No books set aside.' : 'No series ignored.'}
+          </div>
+        )}
+        {shown.map((r) => (
           <div className="rule-row" key={`${r.kind}:${r.id}`} style={{ cursor: 'default' }}>
-            <Icon name={r.kind === 'series' ? 'collections_bookmark' : 'menu_book'} />
+            {r.cover ? (
+              <img
+                src={r.cover}
+                alt=""
+                width={32}
+                height={32}
+                style={{ borderRadius: 6, objectFit: 'cover', flex: 'none' }}
+              />
+            ) : (
+              <Icon name={r.kind === 'series' ? 'collections_bookmark' : 'menu_book'} />
+            )}
             <div className="rule-meta" style={{ flex: 1 }}>
-              <div className="rule-t">
-                {labels[r.id] ?? (r.kind === 'series' ? 'Ignored series' : 'Book set aside')}
-              </div>
+              <div className="rule-t">{r.title}</div>
+              {r.sub && <div className="rule-d">{r.sub}</div>}
             </div>
             <button className="btn-ghost" onClick={() => void restore(target, r.kind, r.id)}>
               Restore
@@ -244,6 +334,35 @@ function IgnoredAndSetAside() {
           </div>
         ))}
       </div>
+      {pageCount > 1 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 10,
+            marginTop: 10,
+          }}
+        >
+          <button
+            className="btn-ghost"
+            disabled={page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+          >
+            Back
+          </button>
+          <span className="cl-d">
+            Page {page + 1} of {pageCount}
+          </span>
+          <button
+            className="btn-ghost"
+            disabled={page >= pageCount - 1}
+            onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </SetRow>
   )
 }
