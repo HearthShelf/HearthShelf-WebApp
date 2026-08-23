@@ -14800,6 +14800,120 @@ select.fld {
   gap: 8px;
 }
 
+.book-club-join-create {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(520px, 1.5fr);
+  gap: var(--s4);
+  margin-bottom: var(--s5);
+}
+
+.book-club-public-list {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--sheet);
+}
+
+.book-club-public-list h2,
+.book-club-public-list p {
+  margin: 3px 0 0;
+}
+
+.book-club-public-list p {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.book-club-public-grid {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.book-club-public-card {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--c-low);
+}
+
+.book-club-public-card > div,
+.book-club-public-card span,
+.book-club-public-card small {
+  display: block;
+  min-width: 0;
+}
+
+.book-club-public-card span,
+.book-club-public-card small {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.book-club-public-empty {
+  margin-top: 18px !important;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+}
+
+.book-club-visibility {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  grid-column: 2 / -1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.book-club-visibility legend {
+  margin-bottom: 7px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.book-club-visibility label {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.book-club-visibility label.selected {
+  border-color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 8%, var(--sheet));
+}
+
+.book-club-visibility input {
+  position: absolute;
+  opacity: 0;
+}
+
+.book-club-visibility span,
+.book-club-visibility small {
+  display: block;
+}
+
+.book-club-visibility small {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
 .book-club-room {
   min-width: 0;
 }
@@ -16272,6 +16386,9 @@ select.fld {
 }
 
 @media (max-width: 1180px) {
+  .book-club-join-create {
+    grid-template-columns: 1fr;
+  }
   .book-clubs-layout {
     grid-template-columns: 260px minmax(0, 1fr);
     gap: var(--s4);
@@ -16292,6 +16409,7 @@ select.fld {
   }
 
   .book-club-create .fld,
+  .book-club-visibility,
   .book-club-create-actions {
     grid-column: 2;
   }
@@ -16448,6 +16566,7 @@ select.fld {
   }
 
   .book-club-create .fld,
+  .book-club-visibility,
   .book-club-create-actions {
     grid-column: 1 / -1;
   }

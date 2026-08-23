@@ -8,6 +8,7 @@ import {
   advanceClubBook,
   enqueueClubBook,
   clubsKeys,
+  type ClubVisibility,
 } from '@/api/absClubs'
 import { getMe, type AbsTarget } from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
@@ -34,6 +35,7 @@ export function ClubSection({
   const qc = useQueryClient()
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
+  const [visibility, setVisibility] = useState<ClubVisibility>('closed')
 
   const key = clubsKeys.list(target.serverId, libraryItemId)
   const { data, isLoading } = useQuery({
@@ -66,10 +68,11 @@ export function ClubSection({
   })
 
   const create = useMutation({
-    mutationFn: () => createClub(target, { name: name.trim(), libraryItemId }),
+    mutationFn: () => createClub(target, { name: name.trim(), libraryItemId, visibility }),
     onSuccess: (club) => {
       setCreating(false)
       setName('')
+      setVisibility('closed')
       void qc.invalidateQueries({ queryKey: key })
       navigate(`/club/${club.id}`)
     },
@@ -183,7 +186,9 @@ export function ClubSection({
                   <Icon name="groups_3" style={{ color: 'var(--text-muted)' }} />
                   <div className="cl-meta">
                     <div className="cl-t">{c.name}</div>
-                    <div className="cl-d">currently reading {c.currentBook?.title ?? 'nothing'}</div>
+                    <div className="cl-d">
+                      currently reading {c.currentBook?.title ?? 'nothing'}
+                    </div>
                   </div>
                 </button>
                 <div
@@ -195,25 +200,25 @@ export function ClubSection({
                     </span>
                   )}
                   {isOwner && (
-                  <button
-                    className={queued ? 'pill on' : 'pill'}
-                    disabled={queued || adding}
-                    onClick={() => enqueue.mutate(c.id)}
-                  >
-                    {queued ? (
-                      <>
-                        <Icon name="check" /> In queue
-                      </>
-                    ) : adding ? (
-                      <>
-                        <Icon name="hourglass_top" /> Adding
-                      </>
-                    ) : (
-                      <>
-                        <Icon name="playlist_add" /> Add to queue
-                      </>
-                    )}
-                  </button>
+                    <button
+                      className={queued ? 'pill on' : 'pill'}
+                      disabled={queued || adding}
+                      onClick={() => enqueue.mutate(c.id)}
+                    >
+                      {queued ? (
+                        <>
+                          <Icon name="check" /> In queue
+                        </>
+                      ) : adding ? (
+                        <>
+                          <Icon name="hourglass_top" /> Adding
+                        </>
+                      ) : (
+                        <>
+                          <Icon name="playlist_add" /> Add to queue
+                        </>
+                      )}
+                    </button>
                   )}
                   {isOwner && (
                     <button
@@ -248,6 +253,20 @@ export function ClubSection({
             onChange={(e) => setName(e.target.value)}
             maxLength={80}
           />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
+            {(['closed', 'public'] as const).map((choice) => (
+              <button
+                type="button"
+                className={visibility === choice ? 'pill on' : 'pill'}
+                key={choice}
+                onClick={() => setVisibility(choice)}
+                aria-pressed={visibility === choice}
+              >
+                <Icon name={choice === 'closed' ? 'lock' : 'public'} />{' '}
+                {choice === 'closed' ? 'Closed' : 'Public'}
+              </button>
+            ))}
+          </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
             <button
               className="pill on"

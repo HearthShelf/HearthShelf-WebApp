@@ -21,6 +21,14 @@ function origin(t: AbsTarget): string {
 
 const CLUBS_DISABLED: HSClubsResponse = { enabled: false, mine: [], joinable: [] }
 
+export type ClubVisibility = 'closed' | 'public'
+type ClubSummary = HSClub & {
+  visibility: ClubVisibility
+  lastActivityAt: number
+  allowCommentEditing: boolean
+  allowReplies: boolean
+}
+
 export const clubsKeys = {
   list: (serverId: string, libraryItemId: string) =>
     ['clubs', serverId, libraryItemId || 'mine'] as const,
@@ -45,12 +53,16 @@ interface RawClub {
   name?: string
   createdBy?: string
   isOpen?: boolean
+  visibility?: ClubVisibility
   archived?: boolean
   createdAt?: number
+  lastActivityAt?: number
   memberCount?: number
   currentBook?: RawClubBook | null
   queuedItemIds?: string[]
   recBasis?: ClubRecBasis
+  allowCommentEditing?: boolean
+  allowReplies?: boolean
 }
 
 function mapClubBook(b: RawClubBook): HSClubBook {
@@ -67,32 +79,42 @@ function mapClubBook(b: RawClubBook): HSClubBook {
   }
 }
 
-function mapClub(c: RawClub): HSClub {
+function mapClub(c: RawClub): ClubSummary {
   return {
     id: c.id ?? '',
     name: c.name ?? '',
     createdBy: c.createdBy ?? '',
+    visibility: c.visibility ?? (c.isOpen === false ? 'closed' : 'public'),
     isOpen: c.isOpen !== false,
     archived: Boolean(c.archived),
     createdAt: c.createdAt ?? 0,
+    lastActivityAt: c.lastActivityAt ?? c.createdAt ?? 0,
     memberCount: c.memberCount ?? 0,
     currentBook: c.currentBook ? mapClubBook(c.currentBook) : null,
     queuedItemIds: Array.isArray(c.queuedItemIds) ? c.queuedItemIds : [],
     recBasis: c.recBasis ?? 'club-history',
+    allowCommentEditing: c.allowCommentEditing ?? true,
+    allowReplies: c.allowReplies ?? true,
   }
 }
 
 /**
- * The caller's clubs, plus (when libraryItemId is given) open clubs whose
- * CURRENT book is that item, offered as joinable. Without the param, `mine`
- * only. Degrades to { enabled: false } on any failure/older server.
+ * The caller's clubs plus public clubs they can join. A libraryItemId narrows
+ * discovery to clubs currently reading that item.
  */
-export async function getClubs(t: AbsTarget, libraryItemId?: string): Promise<HSClubsResponse> {
+export async function getClubs(
+  t: AbsTarget,
+  libraryItemId?: string,
+  includeDirectory = false,
+): Promise<HSClubsResponse> {
   const token = getAbsToken(t.serverId)
   if (!token) return CLUBS_DISABLED
   try {
-    const qs = libraryItemId ? `?libraryItemId=${encodeURIComponent(libraryItemId)}` : ''
-    const res = await fetch(`${origin(t)}/hs/clubs${qs}`, {
+    const params = new URLSearchParams()
+    if (libraryItemId) params.set('libraryItemId', libraryItemId)
+    if (includeDirectory) params.set('directory', '1')
+    const qs = params.toString()
+    const res = await fetch(`${origin(t)}/hs/clubs${qs ? `?${qs}` : ''}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     })
     if (!res.ok) return CLUBS_DISABLED
@@ -115,6 +137,7 @@ export async function getClubs(t: AbsTarget, libraryItemId?: string): Promise<HS
 export interface CreateClubInput {
   name: string
   libraryItemId?: string
+  visibility?: ClubVisibility
 }
 
 export interface ClubInvitee {
@@ -238,6 +261,25 @@ export const leaveClub = (t: AbsTarget, clubId: string): Promise<void> =>
   clubAction(t, clubId, 'leave')
 export const kickMember = (t: AbsTarget, clubId: string, userId: string): Promise<void> =>
   clubAction(t, clubId, 'kick', { userId })
+
+export async function setClubVisibility(
+  t: AbsTarget,
+  clubId: string,
+  visibility: ClubVisibility,
+): Promise<void> {
+  const token = getAbsToken(t.serverId)
+  if (!token) throw new Error('no token')
+  const res = await fetch(`${origin(t)}/hs/clubs/${encodeURIComponent(clubId)}/visibility`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({ visibility }),
+  })
+  if (!res.ok) throw new Error(`clubs visibility ${res.status}`)
+}
 /**
  * Make a book the club's current read. The outgoing book becomes a past read
  * unless `finishPrevious` is false, which sets it aside unfinished instead so it
@@ -367,20 +409,26 @@ function mapClubMember(m: RawClubMember): HSClubMember {
   }
 }
 
+const EMPTY_CLUB: ClubSummary = {
+  id: '',
+  name: '',
+  createdBy: '',
+  visibility: 'public',
+  isOpen: true,
+  archived: false,
+  createdAt: 0,
+  lastActivityAt: 0,
+  memberCount: 0,
+  currentBook: null,
+  queuedItemIds: [],
+  recBasis: 'club-history',
+  allowCommentEditing: true,
+  allowReplies: true,
+}
+
 const CLUB_DETAIL_DISABLED: HSClubDetail = {
   enabled: false,
-  club: {
-    id: '',
-    name: '',
-    createdBy: '',
-    isOpen: true,
-    archived: false,
-    createdAt: 0,
-    memberCount: 0,
-    currentBook: null,
-    queuedItemIds: [],
-    recBasis: 'club-history',
-  },
+  club: EMPTY_CLUB,
   books: [],
   queue: [],
   members: [],

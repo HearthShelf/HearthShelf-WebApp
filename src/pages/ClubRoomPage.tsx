@@ -21,6 +21,7 @@ import {
   getClubInvitees,
   getClubs,
   inviteClubUsers,
+  joinClub,
   kickMember,
   leaveClub,
   markClubRead,
@@ -29,6 +30,8 @@ import {
   requeueClubBook,
   respondToClubInvite,
   revokeClubInvite,
+  setClubVisibility,
+  type ClubVisibility,
   type ClubInvitee,
 } from '@/api/absClubs'
 import { createNote, deleteNote, reactToNote } from '@/api/absNotes'
@@ -284,46 +287,111 @@ function NewClubForm({
   pending,
   onCancel,
   onCreate,
+  joinable = [],
+  joiningId,
+  onJoin,
 }: {
   pending: boolean
   onCancel?: () => void
-  onCreate: (name: string) => void
+  onCreate: (name: string, visibility: ClubVisibility) => void
+  joinable?: HSClub[]
+  joiningId?: string
+  onJoin?: (club: HSClub) => void
 }) {
   const [name, setName] = useState('')
+  const [visibility, setVisibility] = useState<ClubVisibility>('closed')
   return (
-    <form
-      className="book-club-create"
-      onSubmit={(event) => {
-        event.preventDefault()
-        if (name.trim()) onCreate(name.trim())
-      }}
-    >
-      <div className="book-club-create-icon">
-        <Icon name="groups_3" />
-      </div>
-      <div>
-        <h2>Start a book club</h2>
-        <p>Create the club now, then choose its first book from any book page.</p>
-      </div>
-      <input
-        className="fld"
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        placeholder="Club name"
-        maxLength={120}
-        autoFocus
-      />
-      <div className="book-club-create-actions">
-        {onCancel && (
-          <button type="button" className="pill" onClick={onCancel}>
-            Cancel
-          </button>
+    <div className="book-club-join-create">
+      <section className="book-club-public-list" aria-labelledby="public-clubs-title">
+        <div>
+          <span className="eyebrow">Join</span>
+          <h2 id="public-clubs-title">Public clubs</h2>
+          <p>Find readers on this server and join instantly.</p>
+        </div>
+        {joinable.length ? (
+          <div className="book-club-public-grid">
+            {joinable.map((club) => (
+              <article className="book-club-public-card" key={club.id}>
+                <div>
+                  <strong>{club.name}</strong>
+                  <span>{club.currentBook?.title ?? 'Choosing a first book'}</span>
+                  <small>
+                    {club.memberCount} {club.memberCount === 1 ? 'member' : 'members'}
+                  </small>
+                </div>
+                <button
+                  type="button"
+                  className="pill on"
+                  disabled={!onJoin || joiningId === club.id}
+                  onClick={() => onJoin?.(club)}
+                >
+                  Join
+                </button>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="book-club-public-empty">No public clubs are looking for members yet.</p>
         )}
-        <button type="submit" className="pill on" disabled={!name.trim() || pending}>
-          <Icon name="add" /> Create club
-        </button>
-      </div>
-    </form>
+      </section>
+      <form
+        className="book-club-create"
+        onSubmit={(event) => {
+          event.preventDefault()
+          if (name.trim()) onCreate(name.trim(), visibility)
+        }}
+      >
+        <div className="book-club-create-icon">
+          <Icon name="groups_3" />
+        </div>
+        <div>
+          <span className="eyebrow">Create</span>
+          <h2>Start a book club</h2>
+          <p>Create the club now, then choose its first book from any book page.</p>
+        </div>
+        <input
+          className="fld"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Club name"
+          maxLength={120}
+          autoFocus
+        />
+        <fieldset className="book-club-visibility">
+          <legend>Who can join?</legend>
+          {(['closed', 'public'] as const).map((choice) => (
+            <label className={visibility === choice ? 'selected' : ''} key={choice}>
+              <input
+                type="radio"
+                name="club-visibility"
+                value={choice}
+                checked={visibility === choice}
+                onChange={() => setVisibility(choice)}
+              />
+              <Icon name={choice === 'closed' ? 'lock' : 'public'} />
+              <span>
+                <strong>{choice === 'closed' ? 'Closed' : 'Public'}</strong>
+                <small>
+                  {choice === 'closed'
+                    ? 'Readers join by invitation.'
+                    : 'Anyone on this server can find and join.'}
+                </small>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+        <div className="book-club-create-actions">
+          {onCancel && (
+            <button type="button" className="pill" onClick={onCancel}>
+              Cancel
+            </button>
+          )}
+          <button type="submit" className="pill on" disabled={!name.trim() || pending}>
+            <Icon name="add" /> Create club
+          </button>
+        </div>
+      </form>
+    </div>
   )
 }
 
@@ -903,6 +971,14 @@ function ClubRoom({
     onSuccess: onClubRemoved,
     onError: () => show('Could not delete the club.'),
   })
+  const visibility = useMutation({
+    mutationFn: () => setClubVisibility(target, club.id, club.isOpen ? 'closed' : 'public'),
+    onSuccess: () => {
+      show(club.isOpen ? 'Club is now closed.' : 'Club is now public.')
+      void invalidate()
+    },
+    onError: () => show('Could not change club visibility.'),
+  })
   const kick = useMutation({
     mutationFn: (userId: string) => kickMember(target, club.id, userId),
     onSuccess: () => void invalidate(),
@@ -1114,6 +1190,10 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                 <Icon name="more_horiz" /> Manage
               </summary>
               <div>
+                <button type="button" onClick={() => visibility.mutate()}>
+                  <Icon name={club.isOpen ? 'lock' : 'public'} />{' '}
+                  {club.isOpen ? 'Make club closed' : 'Make club public'}
+                </button>
                 <button
                   type="button"
                   onClick={() => window.confirm('Archive this club?') && archive.mutate()}
@@ -1699,7 +1779,7 @@ export function ClubRoomPage() {
   const listKey = clubsKeys.list(target?.serverId ?? '', '')
   const clubsQuery = useQuery({
     queryKey: listKey,
-    queryFn: () => getClubs(target!),
+    queryFn: () => getClubs(target!, undefined, true),
     enabled: Boolean(target),
     staleTime: 15 * 1000,
   })
@@ -1746,13 +1826,24 @@ export function ClubRoomPage() {
   }, [detailQuery.data?.enabled, detailQuery.data?.notes.notes, selectedId, target])
 
   const create = useMutation({
-    mutationFn: (name: string) => createClub(target!, { name }),
+    mutationFn: ({ name, visibility }: { name: string; visibility: ClubVisibility }) =>
+      createClub(target!, { name, visibility }),
     onSuccess: async (club) => {
       setCreating(false)
       await qc.invalidateQueries({ queryKey: listKey })
       navigate(`/club/${club.id}`)
     },
     onError: () => show('Could not create the club.'),
+  })
+  const join = useMutation({
+    mutationFn: (club: HSClub) => joinClub(target!, club.id).then(() => club),
+    onSuccess: async (club) => {
+      setCreating(false)
+      await qc.invalidateQueries({ queryKey: listKey })
+      navigate(`/club/${club.id}`)
+      show(`Joined ${club.name}.`)
+    },
+    onError: () => show('Could not join the club.'),
   })
   const removed = async () => {
     await qc.invalidateQueries({ queryKey: listKey })
@@ -1791,7 +1882,13 @@ export function ClubRoomPage() {
             <p>Read together without reading ahead.</p>
           </div>
         </div>
-        <NewClubForm pending={create.isPending} onCreate={(name) => create.mutate(name)} />
+        <NewClubForm
+          pending={create.isPending}
+          joinable={clubsQuery.data?.joinable ?? []}
+          joiningId={join.variables?.id}
+          onJoin={(club) => join.mutate(club)}
+          onCreate={(name, visibility) => create.mutate({ name, visibility })}
+        />
         {toast && (
           <div className="p-toast">
             <Icon name="check_circle" fill /> {toast}
@@ -1810,14 +1907,17 @@ export function ClubRoomPage() {
           <p>Read together without reading ahead.</p>
         </div>
         <button className="btn btn-primary" onClick={() => setCreating(true)}>
-          <Icon name="add" /> New club
+          <Icon name="add" /> Join or create
         </button>
       </div>
       {creating && (
         <NewClubForm
           pending={create.isPending}
+          joinable={clubsQuery.data?.joinable ?? []}
+          joiningId={join.variables?.id}
+          onJoin={(club) => join.mutate(club)}
           onCancel={() => setCreating(false)}
-          onCreate={(name) => create.mutate(name)}
+          onCreate={(name, visibility) => create.mutate({ name, visibility })}
         />
       )}
       <div className={'book-clubs-layout' + (clubs.length === 1 ? ' single' : '')}>
