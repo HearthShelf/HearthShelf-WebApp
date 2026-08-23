@@ -13,7 +13,15 @@ import {
   type HSNotification,
 } from '@/api/absNotifications'
 import { Icon } from '@/components/common/Icon'
+import { RatingPromptActions } from '@/components/notifications/RatingPromptActions'
+import { RATING_NOTIFICATION_KIND } from '@hearthshelf/core'
+import { setRating } from '@/api/absRatings'
+import { useSettingsStore } from '@/store/settingsStore'
 import { useActiveServer } from '@/hooks/useActiveServer'
+
+/** How long the "Rated 4 stars" confirmation stays before the row clears. Long
+ *  enough to read, short enough that it never feels stuck. */
+const RATING_DISMISS_MS = 900
 
 function stringData(notification: HSNotification, key: string): string {
   const value = notification.data[key]
@@ -33,6 +41,7 @@ export function NotificationBell() {
   const { target } = useActiveServer()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const settings = useSettingsStore()
   const rootRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
 
@@ -88,6 +97,37 @@ export function NotificationBell() {
     mutationFn: () => deleteAllNotifications(target!),
     onSuccess: refresh,
   })
+
+  // Save a rating from the tray, then clear the row: the question has been
+  // answered, so leaving it behind would just be one more thing to dismiss. The
+  // component shows a brief "Rated 4 stars" first, which is what makes the row
+  // disappearing read as saved rather than lost.
+  const rateFromTray = async (notification: HSNotification, value: number): Promise<boolean> => {
+    const itemKey = stringData(notification, 'itemKey') || notification.entityId
+    if (!target || !itemKey) return false
+    try {
+      await setRating(target, itemKey, value)
+    } catch {
+      // setRating throws rather than swallowing, precisely so the row can stay
+      // put instead of claiming a score the server never stored.
+      return false
+    }
+    await qc.invalidateQueries({ queryKey: ['ratings', target.serverId] })
+    setTimeout(() => dismiss.mutate(notification.id), RATING_DISMISS_MS)
+    return true
+  }
+
+  // "Don't ask again": silence the whole category, then clear this row. Writes
+  // the same notifyPrefs key the Notifications settings panel writes, so the
+  // toggle there reflects it and it syncs across devices.
+  const stopAskingForRatings = (notification: HSNotification) => {
+    const prefs = settings.notifyPrefs
+    settings.set('notifyPrefs', {
+      ...prefs,
+      types: { ...prefs.types, rating: { ...prefs.types.rating, enabled: false } },
+    })
+    dismiss.mutate(notification.id)
+  }
 
   const openNotification = (notification: HSNotification) => {
     if (!target) return
@@ -175,22 +215,37 @@ export function NotificationBell() {
               notifications.map((notification) => {
                 const pending =
                   notification.kind === 'club_invite' && notification.actionStatus === 'pending'
+                // A rating prompt is answered in place, so clicking the row must
+                // not navigate away mid-answer - it only marks the row read.
+                const isRating = notification.kind === RATING_NOTIFICATION_KIND
                 return (
                   <article
                     key={notification.id}
                     className={'notification-row' + (!notification.readAt ? ' unread' : '')}
-                    onClick={() => openNotification(notification)}
+                    onClick={() => {
+                      if (isRating) {
+                        if (target && !notification.readAt) {
+                          void markNotificationRead(target, notification.id)
+                            .then(refresh)
+                            .catch(() => {})
+                        }
+                        return
+                      }
+                      openNotification(notification)
+                    }}
                   >
                     <span className="notification-kind">
                       <Icon
                         name={
-                          notification.kind === 'club_invite'
-                            ? 'group_add'
-                            : notification.kind === 'release'
-                              ? 'new_releases'
-                              : notification.kind === 'mention'
-                                ? 'alternate_email'
-                                : 'notifications'
+                          isRating
+                            ? 'star'
+                            : notification.kind === 'club_invite'
+                              ? 'group_add'
+                              : notification.kind === 'release'
+                                ? 'new_releases'
+                                : notification.kind === 'mention'
+                                  ? 'alternate_email'
+                                  : 'notifications'
                         }
                       />
                     </span>
@@ -200,7 +255,14 @@ export function NotificationBell() {
                         <time>{relativeTime(notification.createdAt)}</time>
                       </div>
                       {notification.body && <p>{notification.body}</p>}
-                      {pending ? (
+                      {isRating ? (
+                        <RatingPromptActions
+                          bookTitle={stringData(notification, 'title') || 'this book'}
+                          onRate={(value) => rateFromTray(notification, value)}
+                          onSkip={() => dismiss.mutate(notification.id)}
+                          onStopAsking={() => stopAskingForRatings(notification)}
+                        />
+                      ) : pending ? (
                         <div className="notification-actions">
                           <button
                             type="button"

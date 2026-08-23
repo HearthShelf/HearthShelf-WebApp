@@ -102,6 +102,16 @@ export function NotificationSettings() {
             <Toggle on={prefs.types.reply.enabled} onChange={(on) => setTypeEnabled('reply', on)} />
           }
         />
+        <SetRow
+          title="Rate a finished book"
+          desc="Ask how it was when you finish a book. Shows in your tray only."
+          control={
+            <Toggle
+              on={prefs.types.rating.enabled}
+              onChange={(on) => setTypeEnabled('rating', on)}
+            />
+          }
+        />
       </div>
 
       {release.enabled && (
