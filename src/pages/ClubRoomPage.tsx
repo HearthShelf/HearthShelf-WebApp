@@ -1263,27 +1263,52 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                 <div>
                   <span className="book-club-composer-tools">
                     {stampSec != null && (
-                      <button
-                        type="button"
-                        className={'pill' + (addTimestamp ? ' on' : '')}
-                        onClick={() => setAddTimestamp(!addTimestamp)}
+                      <label
+                        className="note-stamp-check"
                         title={
                           inPlayer
                             ? 'Mark this comment at your current spot'
                             : 'Mark this comment where you left off'
                         }
                       >
-                        <Icon name="schedule" /> {formatTimestamp(stampSec)}
-                      </button>
+                        <input
+                          type="checkbox"
+                          checked={addTimestamp}
+                          onChange={(e) => setAddTimestamp(e.target.checked)}
+                        />
+                        <Icon name="schedule" /> Leave at {formatTimestamp(stampSec)}
+                      </label>
                     )}
-                    <button
-                      type="button"
-                      className={'pill' + (safe ? ' on' : '')}
-                      onClick={() => setSafe(!safe)}
-                      title="Visible before other members reach this point"
-                    >
-                      <Icon name="shield" /> Spoiler-free
-                    </button>
+                    {/* Who can see this before they reach your spot. This was a
+                        lone "Spoiler-free" pill, which read as pressed whether
+                        or not it was on - a single highlighted control shows its
+                        LABEL, not its state. Matches mobile's SafeSwitch: two
+                        halves, so the selected one is obvious next to the
+                        unselected one, and the labels name the outcome for the
+                        reader rather than the flag. */}
+                    <span className="note-safe-switch">
+                      <span className="note-safe-label">Until they reach this point</span>
+                      <span className="seg" role="group" aria-label="Who can see this comment">
+                        <button
+                          type="button"
+                          className={safe ? '' : 'on'}
+                          aria-pressed={!safe}
+                          onClick={() => setSafe(false)}
+                          title="Hidden until they reach this point in the book"
+                        >
+                          <Icon name="lock" /> Hidden
+                        </button>
+                        <button
+                          type="button"
+                          className={safe ? 'on' : ''}
+                          aria-pressed={safe}
+                          onClick={() => setSafe(true)}
+                          title="Visible to everyone now"
+                        >
+                          <Icon name="visibility" /> Visible
+                        </button>
+                      </span>
+                    </span>
                   </span>
                   <button
                     className="pill on"

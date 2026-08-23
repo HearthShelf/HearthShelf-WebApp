@@ -15398,6 +15398,59 @@ select.fld {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  align-items: center;
+}
+
+/* "Leave at 1:02:05" - an actual checkbox, so its on/off state is legible at a
+   glance instead of having to be inferred from a pill's highlight. */
+.note-stamp-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--r-pill);
+  background: var(--fill);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+
+.note-stamp-check:has(input:checked) {
+  color: var(--text);
+}
+
+.note-stamp-check input {
+  accent-color: var(--accent);
+  margin: 0;
+  cursor: pointer;
+}
+
+.note-stamp-check .ms {
+  font-size: 16px;
+}
+
+.note-safe-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.note-safe-label {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.book-club-composer-tools .seg button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+}
+
+.book-club-composer-tools .seg button .ms {
+  font-size: 15px;
 }
 
 .book-club-discussion {
