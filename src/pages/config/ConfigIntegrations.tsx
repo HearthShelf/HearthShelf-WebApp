@@ -280,12 +280,34 @@ function IntegrationsForm({ config }: { config: IntegrationsConfig }) {
         )}
       </div>
 
-      {/* Audible catalog region */}
+      {/* Audible catalog */}
       <div className="section-head" style={{ marginTop: 'var(--s6)' }}>
         <Icon name="public" />
-        <h2>Audible catalog region</h2>
+        <h2>Audible catalog</h2>
+        <span style={{ marginLeft: 'auto' }}>
+          <StatusPill on={config.audibleEnabled} />
+        </span>
       </div>
       <div className="cfg-card">
+        {/* Saves on change, like the region below. Turning this off stops the
+            server calling Audible entirely: no upcoming books, missing books or
+            release countdowns, and the nightly roster sweep is skipped. */}
+        <div className="field full">
+          <label>Use the Audible catalog{env.audibleEnabled && <EnvLockTag />}</label>
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              checked={config.audibleEnabled}
+              disabled={env.audibleEnabled || save.isPending}
+              onChange={(e) => save.mutate({ audibleEnabled: e.target.checked })}
+            />
+            <span className="text-sm">
+              Look up books and series on Audible to show upcoming releases, books missing from a
+              series, and release countdowns. Turn this off to keep HearthShelf to your own library
+              only.
+            </span>
+          </label>
+        </div>
         <div className="field full">
           <label>Region{env.audibleRegion && <EnvLockTag />}</label>
           <select
