@@ -15523,7 +15523,7 @@ select.fld {
   color: var(--text);
 }
 
-/* The like button carries its own count, so it needs to line its icon and
+/* A reaction chip carries its own count, so it needs to line its glyph and
    number up rather than sit as a bare text button like Reply/Delete. */
 .book-club-note-actions button.note-react {
   display: inline-flex;
@@ -15538,6 +15538,137 @@ select.fld {
 .book-club-note-actions button.note-react.on,
 .book-club-note-actions button.note-react.on:hover {
   color: var(--accent);
+}
+
+/* ---- Reaction picker ---------------------------------------------------- */
+
+.note-reactions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* Emoji chips carry a glyph rather than an icon-font symbol, so they need a
+   readable type size of their own - the surrounding note actions are small
+   muted text. */
+.book-club-note-actions .note-reactions button.note-react {
+  padding: 2px 7px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: var(--fill);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.book-club-note-actions .note-reactions button.note-react > span:first-child {
+  font-size: 15px;
+}
+
+.book-club-note-actions .note-reactions button.note-react.on {
+  border-color: var(--accent);
+}
+
+/* Anchors the popover to the button rather than the page, so it opens beside
+   the comment it belongs to however far down the thread that is. */
+.note-react-picker {
+  position: relative;
+  display: inline-flex;
+}
+
+.note-react-pop {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  max-height: 360px;
+  z-index: 40;
+  width: min(320px, 78vw);
+  padding: 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--sheet);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 28%);
+}
+
+/* Near the right edge the popover would overflow the viewport, so flip it to
+   hang off the button's right instead. */
+@media (max-width: 560px) {
+  .note-react-pop {
+    left: auto;
+    right: 0;
+  }
+}
+
+/* Opened downward, for a comment sitting too near the top of the viewport for
+   the popover to fit above it. */
+.note-react-pop.down {
+  bottom: auto;
+  top: calc(100% + 6px);
+}
+
+.note-react-quick {
+  display: flex;
+  gap: 4px;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.note-react-search {
+  width: 100%;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--fill);
+  color: var(--text);
+  font: inherit;
+}
+
+.note-react-grid-scroll {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.note-react-group {
+  margin: 6px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.note-react-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 2px;
+}
+
+.note-react-empty {
+  margin: 8px 2px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.book-club-note-actions button.note-react-cell,
+.note-react-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.note-react-cell:hover {
+  background: var(--fill);
 }
 
 .book-club-time-chip {

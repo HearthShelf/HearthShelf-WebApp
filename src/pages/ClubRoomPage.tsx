@@ -32,6 +32,7 @@ import {
   type ClubInvitee,
 } from '@/api/absClubs'
 import { createNote, deleteNote, reactToNote } from '@/api/absNotes'
+import { ReactionBar } from '@/components/social/ReactionBar'
 import { MentionInput } from '@/components/social/MentionInput'
 import type { MentionCandidate } from '@/components/social/MentionInput'
 import { getMe, type AbsTarget } from '@/api/absLibrary'
@@ -65,18 +66,6 @@ function pickedMentions(body: string, picked: MentionCandidate[]): string[] {
     if (!ids.includes(member.userId)) ids.push(member.userId)
   }
   return ids
-}
-
-/** Whether the reader has reacted to a note with any kind. The button offers
- *  thumbs up, but a heart from another client still reads as "you reacted", so
- *  clicking does not silently add a second reaction on top of it. */
-function likedByMe(note: HSNote): boolean {
-  return (note.reactions ?? []).some((r) => r.mine)
-}
-
-/** Every reaction on a note, across kinds. */
-function reactionTotal(note: HSNote): number {
-  return (note.reactions ?? []).reduce((sum, r) => sum + r.count, 0)
 }
 
 /** A username that opens that reader's profile. */
@@ -747,18 +736,7 @@ function DiscussionNote({
               <Icon name="play_arrow" fill /> {formatTimestamp(note.timeSec)}
             </span>
           )}
-          {/* Thumbs up is the one kind offered here; the server and the tally
-              below still handle any other kind a different client sends. */}
-          <button
-            type="button"
-            className={'note-react' + (likedByMe(note) ? ' on' : '')}
-            onClick={() => onReact(note, 'up', !likedByMe(note))}
-            aria-pressed={likedByMe(note)}
-            title={likedByMe(note) ? 'Remove your reaction' : 'Like this comment'}
-          >
-            <Icon name="thumb_up" fill={likedByMe(note)} />
-            {reactionTotal(note) > 0 && <span>{reactionTotal(note)}</span>}
-          </button>
+          <ReactionBar note={note} onReact={onReact} />
           {activeBook && (
             <button type="button" onClick={() => onReply(note)}>
               Reply
@@ -793,11 +771,14 @@ function DiscussionNote({
                       </span>
                     </div>
                     <NoteBody note={reply} target={target} />
-                    {(reply.userId === meId || isOwner) && (
-                      <button type="button" onClick={() => onDelete(reply.id)}>
-                        Delete
-                      </button>
-                    )}
+                    <div className="book-club-note-actions">
+                      <ReactionBar note={reply} onReact={onReact} />
+                      {(reply.userId === meId || isOwner) && (
+                        <button type="button" onClick={() => onDelete(reply.id)}>
+                          Delete
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )
