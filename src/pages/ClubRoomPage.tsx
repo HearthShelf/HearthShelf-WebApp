@@ -860,6 +860,17 @@ function ClubRoom({
     inPlayer ? (player.now?.totalDurationSec ?? 0) : 0,
     ...members.map((member) => member.duration ?? 0),
   )
+  // Where to stamp a new comment. The live player wins when this tab is playing
+  // the book, but on the web that is the exception - `now` is per-tab and empty
+  // after any reload, so most club visits have no player session at all. Fall
+  // back to our saved progress (already loaded for the timeline) so a comment
+  // still lands at the right spot instead of silently posting unstamped.
+  const myCurrentTime = members.find((member) => member.userId === meId)?.currentTime ?? null
+  const stampSec = inPlayer
+    ? Math.max(0, Math.floor(player.positionSec))
+    : myCurrentTime != null && myCurrentTime > 0
+      ? Math.floor(myCurrentTime)
+      : null
   const detailKey = clubsKeys.detail(target.serverId, club.id, viewedBookId ?? '')
   const invalidate = () => qc.invalidateQueries({ queryKey: clubQueryPrefix(target.serverId) })
 
@@ -869,10 +880,7 @@ function ClubRoom({
         libraryItemId: viewedBook!.libraryItemId,
         clubId: club.id,
         parentId: input.parentId,
-        timeSec:
-          !input.parentId && addTimestamp && inPlayer
-            ? Math.max(0, Math.floor(player.positionSec))
-            : undefined,
+        timeSec: !input.parentId && addTimestamp && stampSec != null ? stampSec : undefined,
         safe: input.parentId ? false : safe,
         body: input.body,
         mentions: pickedMentions(input.body, input.mentions ?? []),
@@ -1254,13 +1262,18 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                 />
                 <div>
                   <span className="book-club-composer-tools">
-                    {inPlayer && (
+                    {stampSec != null && (
                       <button
                         type="button"
                         className={'pill' + (addTimestamp ? ' on' : '')}
                         onClick={() => setAddTimestamp(!addTimestamp)}
+                        title={
+                          inPlayer
+                            ? 'Mark this comment at your current spot'
+                            : 'Mark this comment where you left off'
+                        }
                       >
-                        <Icon name="schedule" /> {formatTimestamp(player.positionSec)}
+                        <Icon name="schedule" /> {formatTimestamp(stampSec)}
                       </button>
                     )}
                     <button
