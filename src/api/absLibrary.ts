@@ -683,9 +683,19 @@ export async function setItemFinished(
 }
 
 /** Reset an item to never-started by deleting its media-progress row. Writing
- * zeroes would retain a real row and make detail surfaces show a bogus 0%. */
+ * zeroes would retain a real row and make detail surfaces show a bogus 0%.
+ * DELETE expects the progress row ID, not the library item ID. This current-user
+ * route does not require the library-delete permission. */
 export async function resetItemProgress(t: AbsTarget, itemId: string): Promise<void> {
-  await absDelete(t, `/api/me/progress/${encodeURIComponent(itemId)}`)
+  let progress: { id?: string }
+  try {
+    progress = await absGet<{ id?: string }>(t, `/api/me/progress/${encodeURIComponent(itemId)}`)
+  } catch (e) {
+    if (e instanceof AbsError && e.status === 404) return
+    throw e
+  }
+  if (!progress.id) throw new Error('media_progress_id_missing')
+  await absDelete(t, `/api/me/progress/${encodeURIComponent(progress.id)}`)
 }
 
 // --- bulk media progress (/api/me -> mediaProgress[]) -----------------------
