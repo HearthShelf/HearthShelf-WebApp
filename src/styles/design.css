@@ -15795,10 +15795,62 @@ select.fld {
   color: var(--primary);
   font-family: var(--font-mono);
   font-size: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.book-club-time-chip::-webkit-details-marker {
+  display: none;
 }
 
 .book-club-time-chip .ms {
   font-size: 12px;
+}
+
+.book-club-time-menu {
+  position: relative;
+}
+
+.book-club-time-actions {
+  position: absolute;
+  z-index: 35;
+  top: calc(100% + 6px);
+  left: 0;
+  display: grid;
+  width: max-content;
+  min-width: 190px;
+  padding: 5px;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+}
+
+.book-club-note-actions .book-club-time-actions button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+}
+
+.book-club-note-actions .book-club-time-actions button:hover {
+  background: var(--fill);
+}
+
+@media (max-width: 720px) {
+  .book-club-time-chip {
+    min-height: 44px;
+    padding-inline: 10px;
+  }
+
+  .book-club-note-actions .book-club-time-actions button {
+    min-height: 44px;
+  }
 }
 
 .book-club-replies {

@@ -762,6 +762,7 @@ function DiscussionNote({
   onDelete,
   onReply,
   onReact,
+  onPlayTimestamp,
 }: {
   note: HSNote
   replies: HSNote[]
@@ -772,6 +773,7 @@ function DiscussionNote({
   onDelete: (id: string) => void
   onReply: (note: HSNote) => void
   onReact: (note: HSNote, kind: NoteReactionKind, on: boolean) => void
+  onPlayTimestamp: (note: HSNote, rewindSec: number) => void
 }) {
   const { day, time } = fmtSessDate(note.createdAt)
   return (
@@ -800,9 +802,34 @@ function DiscussionNote({
         <NoteBody note={note} target={target} />
         <div className="book-club-note-actions">
           {note.timeSec != null && (
-            <span className="book-club-time-chip">
-              <Icon name="play_arrow" fill /> {formatTimestamp(note.timeSec)}
-            </span>
+            <details className="book-club-time-menu">
+              <summary
+                className="book-club-time-chip"
+                aria-label={`Playback options for ${formatTimestamp(note.timeSec)}`}
+              >
+                <Icon name="play_arrow" fill /> {formatTimestamp(note.timeSec)}
+              </summary>
+              <div className="book-club-time-actions">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.currentTarget.closest('details')?.removeAttribute('open')
+                    onPlayTimestamp(note, 0)
+                  }}
+                >
+                  <Icon name="play_arrow" fill /> Play from here
+                </button>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.currentTarget.closest('details')?.removeAttribute('open')
+                    onPlayTimestamp(note, 60)
+                  }}
+                >
+                  <Icon name="replay_60" /> Play one minute before
+                </button>
+              </div>
+            </details>
           )}
           <ReactionBar note={note} onReact={onReact} />
           {activeBook && (
@@ -922,6 +949,18 @@ function ClubRoom({
       : null
   const detailKey = clubsKeys.detail(target.serverId, club.id, viewedBookId ?? '')
   const invalidate = () => qc.invalidateQueries({ queryKey: clubQueryPrefix(target.serverId) })
+
+  const playFromNote = async (note: HSNote, rewindSec: number) => {
+    if (note.timeSec == null || !note.libraryItemId) return
+    const startAtSec = Math.max(0, note.timeSec - rewindSec)
+    if (player.now?.serverId === target.serverId && player.now.itemId === note.libraryItemId) {
+      player.seekTo(startAtSec)
+      if (!player.playing) player.togglePlay()
+      return
+    }
+    const loaded = await ui.playItem(note.libraryItemId, { autoplay: true, startAtSec })
+    if (loaded === false) show('Could not play from that comment.')
+  }
 
   const post = useMutation({
     mutationFn: (input: { body: string; parentId?: string; mentions?: MentionCandidate[] }) =>
@@ -1402,6 +1441,7 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                     onDelete={(id) => removeNote.mutate(id)}
                     onReply={setReplyingTo}
                     onReact={(n, kind, on) => react.mutate({ note: n, kind, on })}
+                    onPlayTimestamp={(n, rewindSec) => void playFromNote(n, rewindSec)}
                   />
                 ))}
               </div>
