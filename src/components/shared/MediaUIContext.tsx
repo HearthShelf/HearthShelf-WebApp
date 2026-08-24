@@ -27,11 +27,12 @@ export interface MediaUI {
    * full player (e.g. the Resume / Jump-back-in entry points) instead of leaving
    * the listener on the docked mini-player. Pass `{ autoplay: false }` to load
    * the book paused and ready (the player screen's cold-start resume) - it
-   * returns a promise so callers can tell loaded from failed.
+   * returns a promise so callers can tell loaded from failed. `startAtSec`
+   * overrides saved progress when the caller is opening a known bookmark.
    */
   playItem: (
     itemId: string,
-    opts?: { openPlayer?: boolean; autoplay?: boolean },
+    opts?: { openPlayer?: boolean; autoplay?: boolean; startAtSec?: number },
   ) => void | Promise<boolean>
   /** Optional: href for an author page, or null if the app doesn't have one. */
   authorHref?: (authorId: string) => string | null

@@ -65,7 +65,7 @@ function MediaUIValue({ target, children }: { target: AbsTarget; children: React
             tracks: d.tracks,
             chapters: d.chapters,
             totalDurationSec: d.durationSec,
-            startAtSec: d.progress?.currentTimeSec ?? 0,
+            startAtSec: Math.max(0, opts?.startAtSec ?? d.progress?.currentTimeSec ?? 0),
             playSessionId: d.playSessionId,
             autoplay,
           })
