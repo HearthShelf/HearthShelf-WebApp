@@ -15,7 +15,7 @@
 import { Hono } from 'hono'
 import type { Env } from '../types'
 import { getServer, emailSentThisWindow, incrementEmailSent } from '../lib/db'
-import { sendEmail, EmailError } from '../lib/email'
+import { sendEmail, EmailError, type EmailAttachment } from '../lib/email'
 import { sha256Hex, timingSafeEqual } from '../lib/ids'
 
 export const email = new Hono<{ Bindings: Env }>()
@@ -32,6 +32,26 @@ function normalizeRecipient(raw: unknown): string {
   return typeof raw === 'string' ? raw.trim() : ''
 }
 
+/** The paired server only needs tiny inline brand assets. Bound the relay input
+ * so attachments cannot turn this transactional endpoint into a file service. */
+function normalizeAttachments(raw: unknown): EmailAttachment[] | null {
+  if (raw == null) return []
+  if (!Array.isArray(raw) || raw.length > 4) return null
+  const normalized: EmailAttachment[] = []
+  for (const value of raw) {
+    if (!value || typeof value !== 'object') return null
+    const row = value as Record<string, unknown>
+    const filename = typeof row.filename === 'string' ? row.filename.trim() : ''
+    const content = typeof row.content === 'string' ? row.content : ''
+    const contentId = typeof row.content_id === 'string' ? row.content_id.trim() : ''
+    if (!filename || filename.length > 128 || /[\\/]/.test(filename)) return null
+    if (!content || content.length > 100_000) return null
+    if (contentId && (contentId.length >= 128 || !/^[A-Za-z0-9._-]+$/.test(contentId))) return null
+    normalized.push({ filename, content, ...(contentId ? { contentId } : {}) })
+  }
+  return normalized
+}
+
 email.post('/email/send', async (c) => {
   let body: {
     server_id?: string
@@ -41,6 +61,7 @@ email.post('/email/send', async (c) => {
     html?: string
     text?: string
     reply_to?: string
+    attachments?: unknown
   }
   try {
     body = await c.req.json()
@@ -67,6 +88,8 @@ email.post('/email/send', async (c) => {
   if (!subject) return c.json({ error: 'subject_required' }, 400)
   // Need a body in at least one format; ABS sends HTML for ereader, text for tests.
   if (!html && !text) return c.json({ error: 'body_required' }, 400)
+  const attachments = normalizeAttachments(body.attachments)
+  if (attachments === null) return c.json({ error: 'invalid_attachments' }, 400)
 
   // Soft cap: count first, refuse before spending Resend quota. A paying tier
   // later raises the cap per server rather than changing this gate.
@@ -84,6 +107,7 @@ email.post('/email/send', async (c) => {
       html: html || (text as string),
       ...(text ? { text } : {}),
       ...(body.reply_to ? { replyTo: body.reply_to } : {}),
+      ...(attachments.length ? { attachments } : {}),
     })
     await incrementEmailSent(c.env, serverId)
     return c.json({ ok: true, id: sent.id, used: used + 1, cap })

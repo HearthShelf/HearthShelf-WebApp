@@ -15,6 +15,14 @@ export interface SentEmail {
   id: string
 }
 
+export interface EmailAttachment {
+  filename: string
+  /** Base64-encoded bytes, matching Resend's HTTP API contract. */
+  content: string
+  /** Referenced as cid:<contentId> by an inline image in the HTML body. */
+  contentId?: string
+}
+
 export interface SendEmailParams {
   to: string
   subject: string
@@ -24,6 +32,7 @@ export interface SendEmailParams {
   /** Overrides EMAIL_FROM for this message (e.g. "no-reply@hearthshelf.com"). */
   from?: string
   replyTo?: string
+  attachments?: EmailAttachment[]
 }
 
 /**
@@ -52,6 +61,15 @@ export async function sendEmail(env: Env, params: SendEmailParams): Promise<Sent
       html: params.html,
       ...(params.text ? { text: params.text } : {}),
       ...(params.replyTo ? { reply_to: params.replyTo } : {}),
+      ...(params.attachments?.length
+        ? {
+            attachments: params.attachments.map((attachment) => ({
+              filename: attachment.filename,
+              content: attachment.content,
+              ...(attachment.contentId ? { content_id: attachment.contentId } : {}),
+            })),
+          }
+        : {}),
     }),
   })
 
