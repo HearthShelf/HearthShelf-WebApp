@@ -682,14 +682,10 @@ export async function setItemFinished(
   await absPatch(t, `/api/me/progress/${encodeURIComponent(itemId)}`, body)
 }
 
-/** Reset an item's progress to the start (currentTime/progress 0, not finished).
- *  Used by the Continue-Listening "Reset progress" action. */
+/** Reset an item to never-started by deleting its media-progress row. Writing
+ * zeroes would retain a real row and make detail surfaces show a bogus 0%. */
 export async function resetItemProgress(t: AbsTarget, itemId: string): Promise<void> {
-  await absPatch(t, `/api/me/progress/${encodeURIComponent(itemId)}`, {
-    currentTime: 0,
-    progress: 0,
-    isFinished: false,
-  })
+  await absDelete(t, `/api/me/progress/${encodeURIComponent(itemId)}`)
 }
 
 // --- bulk media progress (/api/me -> mediaProgress[]) -----------------------
