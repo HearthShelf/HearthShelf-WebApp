@@ -40,6 +40,7 @@ import { MentionInput } from '@/components/social/MentionInput'
 import type { MentionCandidate } from '@/components/social/MentionInput'
 import { getMe, type AbsTarget } from '@/api/absLibrary'
 import { Avatar } from '@/components/common/Avatar'
+import { AvatarStack, type StackUser } from '@/components/common/AvatarStack'
 import { ErrorState } from '@/components/common/ErrorState'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
@@ -97,6 +98,28 @@ function UserLink({
     >
       {username}
     </button>
+  )
+}
+
+function AheadReaderAvatars({
+  users,
+  target,
+  bookTitle,
+}: {
+  users: StackUser[]
+  target: AbsTarget
+  bookTitle: string
+}) {
+  if (!users.length) return null
+  const names = users.map((member) => member.username).join(', ')
+  return (
+    <span
+      className="book-club-queue-readers"
+      role="img"
+      aria-label={`${names} ${users.length === 1 ? 'has' : 'have'} read ahead to ${bookTitle}`}
+    >
+      <AvatarStack users={users} target={target} max={3} size={22} ring="var(--sheet)" />
+    </span>
   )
 }
 
@@ -1107,6 +1130,20 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
     return grouped
   }, [notes.notes])
   const sortedMembers = useMemo(() => sortMembersByProgress(members), [members])
+  const aheadMembersByBook = useMemo(() => {
+    const byBook = new Map<string, StackUser[]>()
+    for (const member of members) {
+      if (!member.reach?.aheadOfClub || !member.reach.libraryItemId) continue
+      const readers = byBook.get(member.reach.libraryItemId) ?? []
+      readers.push({
+        userId: member.userId,
+        username: member.username,
+        status: member.reach.isFinished ? 'finished' : 'reading',
+      })
+      byBook.set(member.reach.libraryItemId, readers)
+    }
+    return byBook
+  }, [members])
 
   // A mention notification links to ?note=<id>. Scroll that comment into view
   // and flash it once the thread has rendered, so the reader lands on what was
@@ -1663,37 +1700,46 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                           <strong>{book.title}</strong>
                           <small>{book.author}</small>
                         </span>
-                        {isOwner && (
-                          // Reordering also lives in the right-click menu, but a
-                          // hidden menu is not a control: without these the queue
-                          // order looks fixed, and touch has no right-click at all.
-                          <span className="book-club-queue-reorder">
-                            <button
-                              type="button"
-                              className="ab-ico"
-                              title="Move up"
-                              aria-label={`Move ${book.title || 'this book'} up`}
-                              disabled={index === 0 || reorder.isPending}
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                moveQueued(index, -1)
-                              }}
-                            >
-                              <Icon name="arrow_upward" />
-                            </button>
-                            <button
-                              type="button"
-                              className="ab-ico"
-                              title="Move down"
-                              aria-label={`Move ${book.title || 'this book'} down`}
-                              disabled={index === queue.length - 1 || reorder.isPending}
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                moveQueued(index, 1)
-                              }}
-                            >
-                              <Icon name="arrow_downward" />
-                            </button>
+                        {(aheadMembersByBook.has(book.libraryItemId) || isOwner) && (
+                          <span className="book-club-queue-trailing">
+                            <AheadReaderAvatars
+                              users={aheadMembersByBook.get(book.libraryItemId) ?? []}
+                              target={target}
+                              bookTitle={book.title}
+                            />
+                            {isOwner && (
+                              // Reordering also lives in the right-click menu, but a
+                              // hidden menu is not a control: without these the queue
+                              // order looks fixed, and touch has no right-click at all.
+                              <span className="book-club-queue-reorder">
+                                <button
+                                  type="button"
+                                  className="ab-ico"
+                                  title="Move up"
+                                  aria-label={`Move ${book.title || 'this book'} up`}
+                                  disabled={index === 0 || reorder.isPending}
+                                  onClick={(event) => {
+                                    event.stopPropagation()
+                                    moveQueued(index, -1)
+                                  }}
+                                >
+                                  <Icon name="arrow_upward" />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="ab-ico"
+                                  title="Move down"
+                                  aria-label={`Move ${book.title || 'this book'} down`}
+                                  disabled={index === queue.length - 1 || reorder.isPending}
+                                  onClick={(event) => {
+                                    event.stopPropagation()
+                                    moveQueued(index, 1)
+                                  }}
+                                >
+                                  <Icon name="arrow_downward" />
+                                </button>
+                              </span>
+                            )}
                           </span>
                         )}
                       </div>

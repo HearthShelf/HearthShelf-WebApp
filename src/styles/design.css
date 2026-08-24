@@ -16047,6 +16047,17 @@ select.fld {
   min-width: 0;
 }
 
+.book-club-queue-trailing {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.book-club-queue-readers {
+  display: flex;
+  align-items: center;
+}
+
 .book-club-queue strong,
 .book-club-queue small {
   overflow: hidden;
