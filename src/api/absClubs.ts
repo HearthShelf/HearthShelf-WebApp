@@ -28,6 +28,7 @@ type ClubSummary = HSClub & {
   lastActivityAt: number
   allowCommentEditing: boolean
   allowReplies: boolean
+  autoAdvanceOnAllFinished: boolean
 }
 
 export const clubsKeys = {
@@ -64,6 +65,7 @@ interface RawClub {
   recBasis?: ClubRecBasis
   allowCommentEditing?: boolean
   allowReplies?: boolean
+  autoAdvanceOnAllFinished?: boolean
 }
 
 function mapClubBook(b: RawClubBook): HSClubBook {
@@ -96,6 +98,7 @@ function mapClub(c: RawClub): ClubSummary {
     recBasis: c.recBasis ?? 'club-history',
     allowCommentEditing: c.allowCommentEditing ?? true,
     allowReplies: c.allowReplies ?? true,
+    autoAdvanceOnAllFinished: c.autoAdvanceOnAllFinished ?? false,
   }
 }
 
@@ -425,6 +428,7 @@ const EMPTY_CLUB: ClubSummary = {
   recBasis: 'club-history',
   allowCommentEditing: true,
   allowReplies: true,
+  autoAdvanceOnAllFinished: false,
 }
 
 const CLUB_DETAIL_DISABLED: HSClubDetail = {
