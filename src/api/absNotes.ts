@@ -37,7 +37,7 @@ export const notesKeys = {
     ['notes', serverId, libraryItemId, clubId || 'public'] as const,
 }
 
-interface RawNote {
+export interface RawNote {
   id?: string
   userId?: string
   username?: string
@@ -47,8 +47,10 @@ interface RawNote {
   parentId?: string
   timeSec?: number | null
   safe?: boolean
+  spoiler?: boolean
   body?: string
   createdAt?: number
+  updatedAt?: number | null
   mentions?: Array<{ userId?: string; username?: string }>
   reactions?: Array<{ kind?: string; count?: number; mine?: boolean }>
 }
@@ -95,7 +97,7 @@ function mapReactions(raw: RawNote['reactions']): HSNoteReaction[] | undefined {
   return out.length ? out : undefined
 }
 
-function mapNote(n: RawNote): HSNote {
+export function mapNote(n: RawNote): HSNote {
   const clubId = n.clubId ?? ''
   return {
     id: n.id ?? '',
@@ -107,8 +109,10 @@ function mapNote(n: RawNote): HSNote {
     parentId: n.parentId ?? '',
     timeSec: n.timeSec ?? null,
     safe: Boolean(n.safe),
+    spoiler: Boolean(n.spoiler),
     body: n.body ?? '',
     createdAt: n.createdAt ?? 0,
+    updatedAt: n.updatedAt ?? null,
     mentions: mapMentions(n.mentions),
     reactions: mapReactions(n.reactions),
   }
