@@ -19,9 +19,6 @@ import { Icon } from '@/components/common/Icon'
 export function AutoQueueInfo() {
   const { target } = useActiveServer()
   const [open, setOpen] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const qc = useQueryClient()
-  const adoptServer = useQueueStore((s) => s.adoptServer)
 
   const { data, refetch } = useQuery({
     queryKey: ['queue-status', target?.serverId],
@@ -33,23 +30,6 @@ export function AutoQueueInfo() {
 
   const updated = formatQueueUpdated(data?.updatedAt ?? null)
   const next = formatNextRebuild(data?.nextRebuildAt ?? null)
-
-  const refreshNow = async () => {
-    if (!target || busy) return
-    setBusy(true)
-    try {
-      const q = await recomputeServerQueue(target)
-      adoptServer(q.items, q.manual, q.playlistId, q.updatedAt)
-      await refetch()
-      // The queue drives other surfaces (up-next lists, the player); let them re-read.
-      void qc.invalidateQueries({ queryKey: ['queue'] })
-    } catch {
-      // Best-effort: offline or the server is unreachable. The panel keeps
-      // showing the last known state rather than surfacing a dead-end error.
-    } finally {
-      setBusy(false)
-    }
-  }
 
   return (
     <div className="cfg-card" style={{ marginBottom: 0 }}>
@@ -89,12 +69,46 @@ export function AutoQueueInfo() {
               </>
             )}
           </div>
-
-          <button type="button" className="btn-ghost" onClick={() => void refreshNow()} disabled={busy}>
-            <Icon name="refresh" /> {busy ? 'Refreshing...' : 'Refresh now'}
-          </button>
         </div>
       )}
+
+      <RecomputeQueueButton onRecomputed={() => void refetch()} />
     </div>
+  )
+}
+
+export function RecomputeQueueButton({ onRecomputed }: { onRecomputed?: () => void }) {
+  const { target } = useActiveServer()
+  const [busy, setBusy] = useState(false)
+  const qc = useQueryClient()
+  const adoptServer = useQueueStore((s) => s.adoptServer)
+
+  const recompute = async () => {
+    if (!target || busy) return
+    setBusy(true)
+    try {
+      const q = await recomputeServerQueue(target)
+      adoptServer(q.items, q.manual, q.playlistId, q.updatedAt)
+      onRecomputed?.()
+      // The queue drives other surfaces (up-next lists, the player); let them re-read.
+      void qc.invalidateQueries({ queryKey: ['queue'] })
+    } catch {
+      // Best-effort: offline or the server is unreachable. The panel keeps
+      // showing the last known state rather than surfacing a dead-end error.
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className="btn-ghost"
+      onClick={() => void recompute()}
+      disabled={!target || busy}
+      style={{ marginTop: 12 }}
+    >
+      <Icon name="refresh" /> {busy ? 'Recomputing...' : 'Recompute Auto Queue'}
+    </button>
   )
 }
