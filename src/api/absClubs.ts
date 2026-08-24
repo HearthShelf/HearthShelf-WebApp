@@ -6,6 +6,7 @@
  */
 import { getAbsToken } from '@/lib/absTokens'
 import type { AbsTarget } from './absLibrary'
+import { mapNote, type RawNote } from './absNotes'
 import type {
   HSClub,
   HSClubBook,
@@ -463,20 +464,7 @@ export async function getClubDetail(
       queue?: RawClubBook[]
       members?: RawClubMember[]
       notes?: {
-        notes?: Array<{
-          id?: string
-          userId?: string
-          username?: string
-          libraryItemId?: string
-          clubId?: string
-          visibility?: string
-          parentId?: string
-          timeSec?: number | null
-          safe?: boolean
-          body?: string
-          createdAt?: number
-          mentions?: Array<{ userId?: string; username?: string }>
-        }>
+        notes?: RawNote[]
         locked?: Array<{ id?: string; timeSec?: number }>
         hiddenAhead?: number
       }
@@ -490,25 +478,7 @@ export async function getClubDetail(
       queue: (data.queue ?? []).map(mapClubBook),
       members: (data.members ?? []).map(mapClubMember),
       notes: {
-        notes: (data.notes?.notes ?? []).map((n) => ({
-          id: n.id ?? '',
-          userId: n.userId ?? '',
-          username: n.username ?? '',
-          libraryItemId: n.libraryItemId ?? '',
-          clubId: n.clubId ?? '',
-          visibility:
-            n.visibility === 'public' || n.visibility === 'personal' ? n.visibility : 'club',
-          parentId: n.parentId ?? '',
-          timeSec: n.timeSec ?? null,
-          safe: Boolean(n.safe),
-          body: n.body ?? '',
-          createdAt: n.createdAt ?? 0,
-          mentions: Array.isArray(n.mentions)
-            ? n.mentions
-                .map((m) => ({ userId: m?.userId ?? '', username: m?.username ?? '' }))
-                .filter((m) => m.userId)
-            : undefined,
-        })),
+        notes: (data.notes?.notes ?? []).map(mapNote),
         locked: (data.notes?.locked ?? []).map((s) => ({
           id: s.id ?? '',
           timeSec: s.timeSec ?? 0,
