@@ -1,9 +1,10 @@
 import type { TimelineMarker } from '@hearthshelf/core'
 import { formatTimestamp } from '@hearthshelf/core'
+import { Icon } from '@/components/common/Icon'
 
 /**
- * Note markers overlaid on the full-book scrubber: small avatar-less dots for
- * unlocked notes you've passed, thin anonymous ticks for locked ahead-notes.
+ * Note markers overlaid on the full-book scrubber: compact comment glyphs for
+ * both readable and locked-ahead notes, with color preserving their state.
  * Purely visual + click-to-open; the scrubber underneath still handles drag/
  * seek since this sits in a non-interactive absolutely positioned layer,
  * except the marker dots themselves which stop propagation to seek instead.
@@ -33,7 +34,9 @@ export function TimelineMarkers({
           <button
             key={i}
             type="button"
-            className={'timeline-marker' + (isStub ? ' locked' : '') + (m.kind === 'mixed' ? ' mixed' : '')}
+            className={
+              'timeline-marker' + (isStub ? ' locked' : '') + (m.kind === 'mixed' ? ' mixed' : '')
+            }
             style={{ left: `${m.fraction * 100}%` }}
             title={label}
             onClick={(e) => {
@@ -42,6 +45,7 @@ export function TimelineMarkers({
               else onOpenNote?.(m.items[0]?.id ?? '')
             }}
           >
+            <Icon name="chat_bubble" fill />
             {m.count > 1 && <span className="timeline-marker-count">{m.count}</span>}
           </button>
         )

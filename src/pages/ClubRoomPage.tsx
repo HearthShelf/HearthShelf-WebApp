@@ -719,7 +719,7 @@ function ClubTimeline({
               style={{ left: pct(fraction) }}
               title={`Comment unlocks at ${formatTimestamp(note.timeSec)}`}
             >
-              <Icon name="lock" fill />
+              <Icon name="chat_bubble" fill />
             </span>
           )
         })}

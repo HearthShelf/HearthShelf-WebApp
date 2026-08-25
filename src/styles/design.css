@@ -1328,36 +1328,52 @@
 }
 .timeline-marker {
   position: absolute;
-  top: 0;
-  transform: translateX(-50%);
-  width: 6px;
-  height: 6px;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: var(--accent);
-  border: 1px solid color-mix(in oklab, var(--accent) 60%, #000);
+  border: 2px solid color-mix(in oklab, var(--c-high) 88%, transparent);
   padding: 0;
   cursor: pointer;
   pointer-events: auto;
   display: grid;
   place-items: center;
+  color: var(--on-accent);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.38);
+}
+.timeline-marker .ms {
+  font-size: 10px;
 }
 .timeline-marker.locked {
-  width: 2px;
-  height: 8px;
-  border-radius: 1px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
   background: var(--text-muted);
-  border: none;
-  opacity: 0.6;
+  border: 2px solid color-mix(in oklab, var(--c-high) 72%, transparent);
+  color: var(--c-lowest);
+  opacity: 0.72;
 }
 .timeline-marker.mixed {
   background: var(--accent);
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--text-muted) 50%, transparent);
 }
 .timeline-marker-count {
+  position: absolute;
+  top: -7px;
+  right: -8px;
+  min-width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  padding: 0 3px;
+  border: 1px solid var(--c-high);
+  border-radius: 99px;
+  background: var(--text);
   font-size: 8px;
   font-weight: 700;
-  color: #fff;
-  transform: scale(0.9);
+  color: var(--scaffold);
 }
 .scrub-labels {
   position: absolute;
