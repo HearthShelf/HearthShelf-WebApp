@@ -195,30 +195,6 @@ export function CarPlayer({
           <div className="car-title">{title}</div>
         </div>
 
-        {clubDetail?.enabled && (
-          <button
-            className={'car-club-pulse' + (sheet === 'club' ? ' on' : '')}
-            onClick={() => toggleSheet('club')}
-          >
-            <span className="car-club-avatars">
-              {clubDetail.members.slice(0, 3).map((member) => (
-                <Avatar
-                  key={member.userId}
-                  name={member.username || 'Reader'}
-                  target={target}
-                  userId={member.userId}
-                  size={28}
-                />
-              ))}
-            </span>
-            <span>
-              <small>Reading together</small>
-              <strong>{clubDetail.club.name}</strong>
-            </span>
-            <Icon name="chevron_right" />
-          </button>
-        )}
-
         {/* Big scrubber - chapter or whole book, per the scrubber setting. The
             chapter label lives on the bar (UI standard), not above it. */}
         <Scrubber
@@ -421,6 +397,11 @@ export function CarPlayer({
           )}
           {sheet === 'more' && (
             <div className="car-more">
+              {clubDetail?.enabled && (
+                <button className="car-more-item" onClick={() => setSheet('club')}>
+                  <Icon name="groups" /> Book club progress
+                </button>
+              )}
               <button className="car-more-item" onClick={() => setSheet('sleep')}>
                 <Icon name="bedtime" />{' '}
                 {sleepCtl.sleeping ? `Sleep · ${formatTimestamp(sleepCtl.left)}` : 'Sleep timer'}

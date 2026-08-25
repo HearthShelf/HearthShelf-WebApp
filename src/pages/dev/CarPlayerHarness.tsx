@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { PlayerProvider } from '@/player/PlayerProvider'
 import { MediaUIProvider, type MediaUI } from '@/components/shared/MediaUIContext'
 import { CarPlayer } from '@/components/player/CarPlayer'
+import { CarBookProgress } from '@/components/player/CarBookProgress'
 import { useIdleFade } from '@/hooks/useIdleFade'
 import { useVisualViewportSize } from '@/hooks/useVisualViewportSize'
 import cozyHearth from '@/assets/img/SittingInTheHearth.webp'
@@ -114,6 +115,13 @@ export function CarPlayerHarness() {
               ...(vv.width ? { width: vv.width, height: vv.height } : {}),
             }}
             onPointerDown={idleFade.wake}
+          />
+          <CarBookProgress
+            position={pos}
+            duration={duration}
+            chapterIndex={ci}
+            chapterCount={CHAPTERS.length}
+            members={CLUB.members}
           />
           <CarPlayer
             libraryItemId="dev-stub"

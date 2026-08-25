@@ -4389,7 +4389,7 @@
   width: 100%;
   display: grid;
   grid-template-columns: var(--player-art) minmax(0, 1fr);
-  gap: clamp(26px, 3vw, 38px);
+  gap: clamp(30px, 3.4vw, 44px);
   align-items: center;
 }
 
@@ -4411,10 +4411,6 @@
 
 .p-control-column {
   min-width: 0;
-}
-
-.p-book-identity {
-  margin-bottom: 22px;
 }
 
 .p-head-title {
@@ -4453,44 +4449,52 @@
   }
 }
 
-.p-book-identity > p {
-  margin: 0 0 14px;
-  color: var(--text-muted);
-  font-size: 14px;
-}
-
-.p-current-chapter {
+.p-chapter-title {
   width: 100%;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 2px 10px;
+  display: flex;
+  justify-content: center;
   align-items: center;
-  padding: 12px 14px;
-  border: 1px solid var(--hairline);
-  border-radius: 14px;
-  background: color-mix(in oklab, var(--c-high) 78%, transparent);
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
   color: var(--text);
-  text-align: left;
   cursor: pointer;
 }
 
-.p-current-chapter span {
-  color: var(--text-muted);
-  font-size: 11px;
-}
-
-.p-current-chapter strong {
+.p-chapter-title span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 15px;
+  font-weight: 700;
 }
 
-.p-current-chapter .ms {
-  grid-column: 2;
-  grid-row: 1 / span 2;
+.p-chapter-title .ms {
+  flex: none;
+  font-size: 18px;
   color: var(--text-muted);
+}
+
+.p-chapter-title:hover,
+.p-chapter-title:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.p-book-progress {
+  width: 100%;
+  margin: -2px 0 30px;
+}
+
+.p-book-progress .p-prog-row {
+  margin: 0 0 7px;
+}
+
+.p-book-progress .p-times {
+  margin-top: 7px;
 }
 
 .player-col-redesign .p-prog-row {
@@ -4503,7 +4507,7 @@
 
 .player-col-redesign .p-transport {
   gap: clamp(10px, 2vw, 22px);
-  margin-bottom: 0;
+  margin: 25px 0 0;
 }
 
 .player-col-redesign .p-play {
@@ -4561,6 +4565,77 @@
   border: 1px solid var(--c-high);
   border-radius: 50%;
   background: #52c47b;
+}
+
+/* This rail belongs to the Car Mode screen, not the movable player card. It
+   stays visible while the card fades, moves, or resizes. */
+.car-book-progress {
+  position: fixed;
+  z-index: 7;
+  top: max(14px, env(safe-area-inset-top));
+  left: clamp(18px, 3vw, 42px);
+  right: clamp(18px, 3vw, 42px);
+  min-height: 64px;
+  padding: 9px 15px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 15px;
+  background: rgba(13, 11, 10, 0.78);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+}
+
+.car-book-progress-head,
+.car-book-progress-times {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.car-book-progress-head {
+  margin-bottom: 6px;
+}
+
+.car-book-progress-head strong {
+  font-size: clamp(17px, 2.2vw, 22px);
+  line-height: 1;
+}
+
+.car-book-progress-head span,
+.car-book-progress-times {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: clamp(10px, 1.35vw, 13px);
+}
+
+.car-book-progress-track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.17);
+}
+
+.car-book-progress-track > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.car-book-progress-track .club-progress-markers {
+  left: 12px;
+  right: 12px;
+}
+
+.car-book-progress-track .club-progress-markers > span > span {
+  box-shadow:
+    0 0 0 2px rgba(13, 11, 10, 0.94),
+    0 3px 9px rgba(0, 0, 0, 0.5);
+}
+
+.car-book-progress-times {
+  margin-top: 6px;
 }
 
 .p-club-pulse {
@@ -5673,54 +5748,6 @@
   background: rgba(255, 255, 255, 0.07);
 }
 
-.car-club-pulse {
-  width: min(82cqw, 620px);
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 14px;
-  margin: 1.5cqh auto 2cqh;
-  padding: 11px 15px;
-  border: 1px solid color-mix(in oklab, var(--accent) 42%, rgba(255, 255, 255, 0.12));
-  border-radius: 16px;
-  background: color-mix(in oklab, var(--accent) 11%, rgba(255, 255, 255, 0.06));
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-}
-
-.car-club-pulse.on {
-  background: color-mix(in oklab, var(--accent) 20%, rgba(255, 255, 255, 0.08));
-}
-
-.car-club-avatars {
-  display: flex;
-  padding-left: 10px;
-}
-
-.car-club-avatars > span {
-  margin-left: -10px;
-  box-shadow: 0 0 0 2px rgba(16, 13, 11, 0.92);
-}
-
-.car-club-pulse small,
-.car-club-pulse strong {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.car-club-pulse small {
-  color: var(--text-muted);
-  font-size: clamp(10px, 2.1cqw, 13px);
-}
-
-.car-club-pulse strong {
-  margin-top: 2px;
-  font-size: clamp(12px, 2.6cqw, 16px);
-}
-
 .car-club-sheet {
   display: flex;
   flex-direction: column;
@@ -5792,9 +5819,6 @@
     --player-art: 172px;
     grid-template-columns: var(--player-art) minmax(0, 1fr);
     gap: 24px;
-  }
-  .player.with-panel .p-current-chapter {
-    padding: 10px 12px;
   }
   .player.with-panel .p-transport {
     gap: 8px;
@@ -12190,6 +12214,19 @@ select.fld {
 }
 
 /* ---- player sync-status pill ---- */
+.sync-pill.compact {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.sync-pill.compact .ms {
+  margin: 0;
+}
+
 .sync-pill.ok {
   color: #7fbd6f;
   border-color: color-mix(in oklab, #5a9c52 42%, var(--hairline));

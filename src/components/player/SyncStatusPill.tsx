@@ -62,7 +62,7 @@ function relativeTime(from: number, now: number): string {
 
 type Feedback = 'idle' | 'syncing' | 'ok' | 'fail'
 
-export function SyncStatusPill() {
+export function SyncStatusPill({ compact = false }: { compact?: boolean } = {}) {
   const sync = useSyncExternalStore(subscribeSyncState, getSyncState)
   const [open, setOpen] = useState(false)
 
@@ -74,11 +74,12 @@ export function SyncStatusPill() {
   return (
     <>
       <button
-        className={`pill sync-pill ${look.cls}`}
+        className={`pill sync-pill ${look.cls}${compact ? ' compact' : ''}`}
         onClick={() => setOpen(true)}
-        title="Sync status"
+        title={look.label}
+        aria-label={`Sync status: ${look.label}`}
       >
-        <Icon name={look.icon} /> {look.label}
+        <Icon name={look.icon} /> {!compact && look.label}
       </button>
       {open && <SyncStatusDialog onClose={() => setOpen(false)} />}
     </>
