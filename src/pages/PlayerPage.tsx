@@ -720,12 +720,17 @@ export function PlayerPage() {
   // re-render (or a resolve that lands on nothing) can't fire a second load.
   const resolveRef = useRef<string | null>(null)
   const [resolveFailed, setResolveFailed] = useState(false)
-  const resumeId = resumeBook?.id ?? queueHead?.libraryItemId ?? null
-  // Still deciding: the in-progress query hasn't settled and there's no queue
-  // entry to fall back on yet. Holding the loading state here (rather than
-  // flashing the empty state) is what makes this feel like mobile's Now tab.
+  // The queue is only a fallback AFTER the server has answered which book was
+  // most recently in progress. The queue store hydrates locally first, so using
+  // its head while this query is pending races the resume request and loads the
+  // first queued book on a hard refresh.
+  const resumeId = inProgressPending
+    ? null
+    : (resumeBook?.id ?? queueHead?.libraryItemId ?? null)
+  // Hold the loading state while the in-progress query settles. This keeps a
+  // hydrated queue entry from briefly becoming (and then remaining) Now Playing.
   const resolving =
-    !now && Boolean(target) && !resolveFailed && (resumeId !== null || inProgressPending)
+    !now && Boolean(target) && !resolveFailed && (inProgressPending || resumeId !== null)
 
   useEffect(() => {
     if (now || !target || !resumeId) return
