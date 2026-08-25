@@ -437,7 +437,7 @@ export function ItemDetailPage() {
                   icon="reorder"
                   label="Add to queue"
                   onClick={() => {
-                    addToQueue({ libraryItemId: data.id, title, author })
+                    addToQueue({ libraryItemId: data.id, title, author, duration: duration || undefined })
                     show(`Added "${title}" to queue`)
                   }}
                 />
