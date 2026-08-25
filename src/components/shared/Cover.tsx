@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { Icon } from '@/components/common/Icon'
 
@@ -61,6 +61,11 @@ export function Cover({
   const ui = useMediaUI()
   const src = ui.coverUrl(itemId, width)
   const [imgOk, setImgOk] = useState(Boolean(src))
+
+  // The active server/media seam often resolves after the player first
+  // renders. Re-arm the image whenever its URL changes instead of leaving a
+  // cover that mounted during that brief null state stuck on the fallback.
+  useEffect(() => setImgOk(Boolean(src)), [src])
 
   const tint = tintFor(title)
   const initial = (title || '?').trim()[0]

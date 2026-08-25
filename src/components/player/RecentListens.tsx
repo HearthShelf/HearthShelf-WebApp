@@ -35,8 +35,8 @@ interface RecentRow {
   deviceInfo?: ABSDeviceInfo
 }
 
-// Recent listening sessions for the book that is playing now. Tapping a row
-// jumps the player back to where that session started. Shared by the mobile
+// Recent listening sessions for the book that is playing now. Each row offers
+// the session's start and end explicitly. Shared by the mobile
 // player sheet and the desktop player popover. The pinned "Now" row (live) and
 // any offline-banked rows read as in-flight syncs (cloud glyph + ember/red),
 // while confirmed server rows show the device that recorded them.
@@ -157,18 +157,9 @@ export function RecentListens({
         const live = r.kind === 'live'
         // Ember for the live/in-flight accent, red when offline-banked, green
         // once the server has it (server rows keep the muted device tint).
-        const accent = r.synced
-          ? 'var(--primary)'
-          : r.offline
-            ? '#e0846f'
-            : 'var(--primary)'
+        const accent = r.synced ? 'var(--primary)' : r.offline ? '#e0846f' : 'var(--primary)'
         return (
-          <button
-            key={r.key}
-            className={'recent-row' + (live ? ' recent-row-live' : '')}
-            onClick={() => onSeek(r.currentTime)}
-            title="Play from where this session left off"
-          >
+          <div key={r.key} className={'recent-row' + (live ? ' recent-row-live' : '')}>
             {r.kind === 'server' ? (
               <DeviceKindIcon
                 deviceInfo={r.deviceInfo}
@@ -213,8 +204,23 @@ export function RecentListens({
                 </div>
               )}
             </div>
-            <Icon name="replay" style={{ color: 'var(--text-muted)', fontSize: 20 }} />
-          </button>
+            <span className="recent-jumps">
+              <button
+                type="button"
+                onClick={() => onSeek(r.startTime)}
+                title={`Jump to session start at ${formatTimestamp(r.startTime)}`}
+              >
+                <Icon name="first_page" /> Start
+              </button>
+              <button
+                type="button"
+                onClick={() => onSeek(r.currentTime)}
+                title={`Jump to session end at ${formatTimestamp(r.currentTime)}`}
+              >
+                End <Icon name="last_page" />
+              </button>
+            </span>
+          </div>
         )
       })}
     </div>

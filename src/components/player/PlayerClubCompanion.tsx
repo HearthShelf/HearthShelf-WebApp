@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { HSClubDetail, HSNote, NoteReactionKind } from '@hearthshelf/core'
 import { formatTimestamp } from '@hearthshelf/core'
 import { clubsKeys } from '@/api/absClubs'
-import { createNote, reactToNote } from '@/api/absNotes'
-import type { AbsTarget } from '@/api/absLibrary'
+import { createNote, deleteNote, reactToNote, updateNote } from '@/api/absNotes'
+import { getMe, type AbsTarget } from '@/api/absLibrary'
 import { Avatar } from '@/components/common/Avatar'
 import { Icon } from '@/components/common/Icon'
 import { MentionInput, type MentionCandidate } from '@/components/social/MentionInput'
@@ -29,6 +29,8 @@ export function PlayerClubCompanion({
   detail,
   libraryItemId,
   position,
+  focusNoteId,
+  onSeek,
   onClose,
   onOpenClub,
   onToast,
@@ -37,6 +39,8 @@ export function PlayerClubCompanion({
   detail: HSClubDetail
   libraryItemId: string
   position: number
+  focusNoteId: string | null
+  onSeek: (position: number) => void
   onClose: () => void
   onOpenClub: () => void
   onToast: (message: string) => void
@@ -45,10 +49,25 @@ export function PlayerClubCompanion({
   const [draft, setDraft] = useState('')
   const [mentions, setMentions] = useState<MentionCandidate[]>([])
   const [safe, setSafe] = useState(true)
+  const [replyingTo, setReplyingTo] = useState<HSNote | null>(null)
+  const [replyDraft, setReplyDraft] = useState('')
+  const [replyMentions, setReplyMentions] = useState<MentionCandidate[]>([])
+  const [editing, setEditing] = useState<HSNote | null>(null)
+  const [editDraft, setEditDraft] = useState('')
+  const [editSpoiler, setEditSpoiler] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const detailKey = clubsKeys.detail(target.serverId, detail.club.id, libraryItemId)
   const members = detail.members.map(({ userId, username }) => ({ userId, username }))
 
-  const notes = useMemo(
+  const { data: me } = useQuery({
+    queryKey: ['abs-me', target.serverId],
+    queryFn: () => getMe(target),
+    staleTime: 10 * 60 * 1000,
+  })
+  const meId = me?.id
+  const isOwner = detail.club.createdBy === meId
+
+  const topNotes = useMemo(
     () =>
       detail.notes.notes
         .filter((note) => !note.parentId && note.timeSec != null)
@@ -57,59 +76,273 @@ export function PlayerClubCompanion({
         ),
     [detail.notes.notes, position],
   )
-  const nearby = notes[0]
-  const discussion = notes.slice(1, 4)
+  const repliesByParent = useMemo(() => {
+    const grouped = new Map<string, HSNote[]>()
+    for (const note of detail.notes.notes) {
+      if (!note.parentId) continue
+      const replies = grouped.get(note.parentId) ?? []
+      replies.push(note)
+      grouped.set(note.parentId, replies)
+    }
+    return grouped
+  }, [detail.notes.notes])
+  const focused = focusNoteId
+    ? detail.notes.notes.find((note) => note.id === focusNoteId)
+    : undefined
+  const focusedTopId = focused?.parentId || focused?.id
+  const nearby = topNotes.find((note) => note.id === focusedTopId) ?? topNotes[0]
+  const discussion = topNotes.filter((note) => note.id !== nearby?.id)
   const nextLocked = detail.notes.locked
     .filter((stub) => stub.timeSec > position)
     .sort((a, b) => a.timeSec - b.timeSec)[0]
 
+  useEffect(() => {
+    if (!focusNoteId) return
+    const timer = window.setTimeout(() => {
+      document
+        .getElementById(`player-club-note-${focusNoteId}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 80)
+    return () => window.clearTimeout(timer)
+  }, [focusNoteId, detail.notes.notes.length])
+
+  const refresh = () => void qc.invalidateQueries({ queryKey: detailKey })
   const post = useMutation({
-    mutationFn: () =>
+    mutationFn: (input: { body: string; parentId?: string; picked: MentionCandidate[] }) =>
       createNote(target, {
         libraryItemId,
         clubId: detail.club.id,
         visibility: 'club',
-        timeSec: Math.max(0, Math.floor(position)),
-        safe,
-        body: draft.trim(),
-        mentions: pickedMentions(draft, mentions),
+        parentId: input.parentId,
+        timeSec: input.parentId ? undefined : Math.max(0, Math.floor(position)),
+        safe: input.parentId ? false : safe,
+        body: input.body,
+        mentions: pickedMentions(input.body, input.picked),
       }),
-    onSuccess: () => {
-      setDraft('')
-      setMentions([])
-      void qc.invalidateQueries({ queryKey: detailKey })
-      onToast('Comment added at your current spot')
+    onSuccess: (_, input) => {
+      if (input.parentId) {
+        setReplyingTo(null)
+        setReplyDraft('')
+        setReplyMentions([])
+        onToast('Reply added')
+      } else {
+        setDraft('')
+        setMentions([])
+        onToast('Comment added at your current spot')
+      }
+      refresh()
     },
     onError: () => onToast('Could not post that comment. Try again.'),
   })
   const react = useMutation({
     mutationFn: ({ note, kind, on }: { note: HSNote; kind: NoteReactionKind; on: boolean }) =>
       reactToNote(target, note.id, kind, on),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: detailKey }),
+    onSuccess: refresh,
     onError: () => onToast('Could not save that reaction.'),
   })
+  const edit = useMutation({
+    mutationFn: ({ note, body, spoiler }: { note: HSNote; body: string; spoiler: boolean }) =>
+      updateNote(target, note.id, { body, spoiler, timeSec: note.timeSec }),
+    onSuccess: () => {
+      setEditing(null)
+      setEditDraft('')
+      refresh()
+      onToast('Comment updated')
+    },
+    onError: () => onToast('Could not update that comment.'),
+  })
+  const remove = useMutation({
+    mutationFn: (id: string) => deleteNote(target, id),
+    onSuccess: () => {
+      setConfirmDeleteId(null)
+      refresh()
+      onToast('Comment deleted')
+    },
+    onError: () => onToast('Could not delete that comment.'),
+  })
 
-  const renderNote = (note: HSNote, featured = false) => (
-    <article className={'pc-note' + (featured ? ' featured' : '')} key={note.id}>
-      <Avatar
-        name={note.username || 'Reader'}
-        target={target}
-        userId={note.userId}
-        size={featured ? 34 : 28}
-      />
-      <div className="pc-note-body">
-        <div className="pc-note-meta">
-          <strong>{note.username || 'Reader'}</strong>
-          {note.timeSec != null && <span>{formatTimestamp(note.timeSec)}</span>}
-        </div>
-        <p>{note.body}</p>
-        <ReactionBar
-          note={note}
-          onReact={(item, kind, on) => react.mutate({ note: item, kind, on })}
+  const beginEdit = (note: HSNote) => {
+    setEditing(note)
+    setEditDraft(note.body)
+    setEditSpoiler(note.spoiler)
+    setReplyingTo(null)
+  }
+  const jumpTo = (note: HSNote, rewind: number) => {
+    if (note.timeSec == null) return
+    onSeek(Math.max(0, note.timeSec - rewind))
+    onToast(rewind ? 'Jumped to one minute before the comment' : 'Jumped to the comment')
+  }
+
+  const renderNote = (note: HSNote, featured = false, reply = false) => {
+    const canEdit = note.userId === meId && (isOwner || detail.club.allowCommentEditing)
+    const canDelete = note.userId === meId || isOwner
+    const replies = reply ? [] : (repliesByParent.get(note.id) ?? [])
+    return (
+      <article
+        className={
+          'pc-note' +
+          (featured ? ' featured' : '') +
+          (reply ? ' reply' : '') +
+          (focusNoteId === note.id ? ' focused' : '')
+        }
+        id={`player-club-note-${note.id}`}
+        key={note.id}
+      >
+        <Avatar
+          name={note.username || 'Reader'}
+          target={target}
+          userId={note.userId}
+          size={featured ? 34 : reply ? 24 : 28}
         />
-      </div>
-    </article>
-  )
+        <div className="pc-note-body">
+          <div className="pc-note-meta">
+            <strong>{note.username || 'Reader'}</strong>
+            {note.updatedAt && <span>Edited</span>}
+          </div>
+
+          {editing?.id === note.id ? (
+            <div className="pc-edit-form">
+              <textarea
+                className="fld"
+                rows={3}
+                value={editDraft}
+                onChange={(event) => setEditDraft(event.target.value)}
+                autoFocus
+              />
+              <div className="pc-inline-actions">
+                <label className="pc-safe">
+                  <input
+                    type="checkbox"
+                    checked={editSpoiler}
+                    onChange={(event) => setEditSpoiler(event.target.checked)}
+                  />{' '}
+                  Spoiler
+                </label>
+                <button type="button" onClick={() => setEditing(null)}>
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  type="button"
+                  disabled={!editDraft.trim() || edit.isPending}
+                  onClick={() =>
+                    edit.mutate({ note, body: editDraft.trim(), spoiler: editSpoiler })
+                  }
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className={note.spoiler ? 'spoiler' : ''}>{note.body}</p>
+              <div className="pc-note-actions">
+                {note.timeSec != null && (
+                  <details className="pc-time-menu">
+                    <summary>
+                      <Icon name="play_arrow" fill /> {formatTimestamp(note.timeSec)}
+                    </summary>
+                    <div>
+                      <button type="button" onClick={() => jumpTo(note, 0)}>
+                        <Icon name="play_arrow" fill /> Play from here
+                      </button>
+                      <button type="button" onClick={() => jumpTo(note, 60)}>
+                        <Icon name="replay_60" /> One minute before
+                      </button>
+                    </div>
+                  </details>
+                )}
+                <ReactionBar
+                  note={note}
+                  onReact={(item, kind, on) => react.mutate({ note: item, kind, on })}
+                />
+                {!reply && detail.club.allowReplies && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReplyingTo(note)
+                      setEditing(null)
+                    }}
+                  >
+                    Reply
+                  </button>
+                )}
+                {canEdit && (
+                  <button type="button" onClick={() => beginEdit(note)}>
+                    Edit
+                  </button>
+                )}
+                {canDelete &&
+                  (confirmDeleteId === note.id ? (
+                    <span className="pc-delete-confirm">
+                      <button type="button" onClick={() => remove.mutate(note.id)}>
+                        Delete?
+                      </button>
+                      <button type="button" onClick={() => setConfirmDeleteId(null)}>
+                        Cancel
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="danger"
+                      onClick={() => setConfirmDeleteId(note.id)}
+                    >
+                      Delete
+                    </button>
+                  ))}
+              </div>
+            </>
+          )}
+
+          {replies.length > 0 && (
+            <div className="pc-replies">{replies.map((item) => renderNote(item, false, true))}</div>
+          )}
+          {replyingTo?.id === note.id && (
+            <form
+              className="pc-reply-form"
+              onSubmit={(event) => {
+                event.preventDefault()
+                if (replyDraft.trim())
+                  post.mutate({ body: replyDraft.trim(), parentId: note.id, picked: replyMentions })
+              }}
+            >
+              <div className="pc-reply-label">Reply to {note.username}</div>
+              <MentionInput
+                value={replyDraft}
+                onChange={setReplyDraft}
+                onMention={(member) =>
+                  setReplyMentions((current) =>
+                    current.some((item) => item.userId === member.userId)
+                      ? current
+                      : [...current, member],
+                  )
+                }
+                members={members}
+                target={target}
+                meId={meId}
+                placeholder="Write a reply…"
+                rows={2}
+                autoFocus
+              />
+              <div className="pc-inline-actions">
+                <button type="button" onClick={() => setReplyingTo(null)}>
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  type="submit"
+                  disabled={!replyDraft.trim() || post.isPending}
+                >
+                  Reply
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </article>
+    )
+  }
 
   return (
     <div className="pp-inner player-club-companion">
@@ -158,10 +391,11 @@ export function PlayerClubCompanion({
         {nearby ? (
           <section>
             <div className="pc-section-label">
-              <span>Nearby comment</span>
+              <span>{focusedTopId ? 'Selected comment' : 'Nearby comment'}</span>
               <span>
-                {nearby.timeSec != null ? formatTimestamp(Math.abs(nearby.timeSec - position)) : ''}{' '}
-                away
+                {nearby.timeSec != null
+                  ? `${formatTimestamp(Math.abs(nearby.timeSec - position))} away`
+                  : ''}
               </span>
             </div>
             {renderNote(nearby, true)}
@@ -199,7 +433,7 @@ export function PlayerClubCompanion({
         className="pc-composer"
         onSubmit={(event) => {
           event.preventDefault()
-          if (draft.trim()) post.mutate()
+          if (draft.trim()) post.mutate({ body: draft.trim(), picked: mentions })
         }}
       >
         <MentionInput
@@ -214,6 +448,7 @@ export function PlayerClubCompanion({
           }
           members={members}
           target={target}
+          meId={meId}
           placeholder={`Share a thought at ${formatTimestamp(position)}…`}
           rows={2}
         />

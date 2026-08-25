@@ -196,6 +196,34 @@ export async function createNote(t: AbsTarget, input: CreateNoteInput): Promise<
   return mapNote((await res.json()) as RawNote)
 }
 
+export interface UpdateNoteInput {
+  body: string
+  spoiler: boolean
+  timeSec: number | null
+}
+
+/** Edit a note authored by the caller. Club editing policy is enforced by the
+ * server; callers should still hide the control when the club disables it. */
+export async function updateNote(
+  t: AbsTarget,
+  noteId: string,
+  input: UpdateNoteInput,
+): Promise<HSNote> {
+  const token = getAbsToken(t.serverId)
+  if (!token) throw new Error('no token')
+  const res = await fetch(`${origin(t)}/hs/notes/${encodeURIComponent(noteId)}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(input),
+  })
+  if (!res.ok) throw new Error(`notes update ${res.status}`)
+  return mapNote((await res.json()) as RawNote)
+}
+
 /**
  * Add or remove one reaction on a note. `on` is explicit rather than a toggle so
  * a double click converges on the same state instead of flipping twice.

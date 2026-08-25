@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { usePlayer } from '@/player/PlayerProvider'
@@ -31,8 +32,10 @@ import { getNotes, notesKeys } from '@/api/absNotes'
 import { getClubs, getClubDetail, clubsKeys } from '@/api/absClubs'
 import { formatTimestamp, stripHtml, clusterTimelineMarkers } from '@hearthshelf/core'
 import { Cover } from '@/components/shared/Cover'
+import { Avatar } from '@/components/common/Avatar'
 import { Icon } from '@/components/common/Icon'
 import cozyHearth from '@/assets/img/SittingInTheHearth.webp'
+import type { HSClubMember } from '@hearthshelf/core'
 
 // A chapter normalized to start/end seconds for the player's local math.
 interface Chap {
@@ -44,6 +47,66 @@ interface Chap {
 
 type Panel = 'club' | 'chapters' | 'details' | 'queue' | 'reader' | null
 type Pop = 'speed' | 'sleep' | 'bookmark' | 'recent' | 'volume' | null
+
+function OverflowTitle({ children }: { children: string }) {
+  const frame = useRef<HTMLDivElement>(null)
+  const text = useRef<HTMLSpanElement>(null)
+  const [travel, setTravel] = useState(0)
+
+  useEffect(() => {
+    const measure = () => {
+      const frameWidth = frame.current?.clientWidth ?? 0
+      const textWidth = text.current?.scrollWidth ?? 0
+      setTravel(Math.max(0, textWidth - frameWidth))
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    if (frame.current) observer.observe(frame.current)
+    if (text.current) observer.observe(text.current)
+    return () => observer.disconnect()
+  }, [children])
+
+  return (
+    <div
+      ref={frame}
+      className={'p-title-scroll' + (travel > 0 ? ' overflowing' : '')}
+      style={{ '--p-title-travel': `-${travel}px` } as CSSProperties}
+      title={children}
+    >
+      <span ref={text}>{children}</span>
+    </div>
+  )
+}
+
+function ClubProgressMarkers({ members, target }: { members: HSClubMember[]; target: AbsTarget }) {
+  if (members.length === 0) return null
+  return (
+    <div className="club-progress-markers" aria-label="Book Club reader progress">
+      {members.map((member) => {
+        const ratio = member.isFinished
+          ? 1
+          : member.currentTime != null && member.duration != null && member.duration > 0
+            ? Math.max(0, Math.min(1, member.currentTime / member.duration))
+            : 0
+        return (
+          <span
+            key={member.userId}
+            className={member.listeningNow ? 'listening' : ''}
+            style={{ left: `${ratio * 100}%` }}
+            title={`${member.username} · ${Math.round(ratio * 100)}%`}
+          >
+            <Avatar
+              name={member.username || 'Reader'}
+              target={target}
+              userId={member.userId}
+              size={18}
+            />
+          </span>
+        )
+      })}
+    </div>
+  )
+}
 
 function PanelHead({
   icon,
@@ -474,6 +537,7 @@ export function PlayerPage() {
   const sleepCtl = useSleepTimer()
 
   const [panel, setPanel] = useState<Panel>(null)
+  const [focusedClubNoteId, setFocusedClubNoteId] = useState<string | null>(null)
   const [pop, setPop] = useState<Pop>(null)
   // Live scrubber drag target (0-1, null when not dragging) so the time
   // labels preview where you're scrubbing to.
@@ -604,6 +668,7 @@ export function PlayerPage() {
     }
     setPanel(null)
     setPop(null)
+    setFocusedClubNoteId(null)
   }, [libraryItemId])
 
   // Derived chapter position
@@ -864,10 +929,7 @@ export function PlayerPage() {
             <Icon name="keyboard_arrow_down" />
           </button>
           <div className="p-head-title">
-            <div className="eyebrow">HearthShelf</div>
-            <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}>
-              Listening
-            </h1>
+            <OverflowTitle>{title}</OverflowTitle>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <SyncStatusPill />
@@ -903,13 +965,10 @@ export function PlayerPage() {
                 <i style={{ width: bookRatio * 100 + '%' }} />
               </div>
             </div>
-            <div className="p-artwork-progress">{Math.round(bookRatio * 100)}% listened</div>
           </div>
 
           <div className="p-control-column">
             <div className="p-book-identity">
-              <div className="eyebrow">Now playing</div>
-              <h2>{title}</h2>
               <p>{author}</p>
               <button className="p-current-chapter" onClick={() => togglePanel('chapters')}>
                 <span>
@@ -946,12 +1005,27 @@ export function PlayerPage() {
               </>
             ) : (
               <>
-                <Scrubber
-                  className="prog-line"
-                  knob={false}
-                  ratio={bookRatio}
-                  onSeek={(r) => seekClamp(r * duration)}
-                />
+                <div className="p-overall-progress">
+                  <Scrubber
+                    className="prog-line"
+                    knob={false}
+                    ratio={bookRatio}
+                    onSeek={(r) => seekClamp(r * duration)}
+                  />
+                  {clubDetail?.enabled && target && (
+                    <ClubProgressMarkers members={clubDetail.members} target={target} />
+                  )}
+                  <TimelineMarkers
+                    markers={timelineMarkers}
+                    onOpenNote={(id) => {
+                      setFocusedClubNoteId(id)
+                      activeClubId ? setPanel('club') : navigate(`/book/${libraryItemId}`)
+                    }}
+                    onOpenTeaser={(timeSec) =>
+                      setToast(`A note awaits at ${formatTimestamp(timeSec)}`)
+                    }
+                  />
+                </div>
                 <div className="p-times">
                   <span>{formatTimestamp(previewPos)} elapsed</span>
                   <span>{formatTimestamp(duration - previewPos)} left</span>
@@ -966,24 +1040,30 @@ export function PlayerPage() {
               </div>
               {scrubber === 'book' ? (
                 <>
-                  <Scrubber
-                    className="scrub"
-                    ratio={bookRatio}
-                    onDrag={setDragRatio}
-                    onSeek={(r) => seekClamp(r * duration)}
-                    elapsed={formatTimestamp(previewPos)}
-                    chapter={cur.title}
-                    remain={'-' + formatTimestamp(duration - previewPos)}
-                  />
-                  <TimelineMarkers
-                    markers={timelineMarkers}
-                    onOpenNote={() =>
-                      activeClubId ? setPanel('club') : navigate(`/book/${libraryItemId}`)
-                    }
-                    onOpenTeaser={(timeSec) =>
-                      setToast(`A note awaits at ${formatTimestamp(timeSec)}`)
-                    }
-                  />
+                  <div className="p-overall-progress">
+                    <Scrubber
+                      className="scrub"
+                      ratio={bookRatio}
+                      onDrag={setDragRatio}
+                      onSeek={(r) => seekClamp(r * duration)}
+                      elapsed={formatTimestamp(previewPos)}
+                      chapter={cur.title}
+                      remain={'-' + formatTimestamp(duration - previewPos)}
+                    />
+                    {clubDetail?.enabled && target && (
+                      <ClubProgressMarkers members={clubDetail.members} target={target} />
+                    )}
+                    <TimelineMarkers
+                      markers={timelineMarkers}
+                      onOpenNote={(id) => {
+                        setFocusedClubNoteId(id)
+                        activeClubId ? setPanel('club') : navigate(`/book/${libraryItemId}`)
+                      }}
+                      onOpenTeaser={(timeSec) =>
+                        setToast(`A note awaits at ${formatTimestamp(timeSec)}`)
+                      }
+                    />
+                  </div>
                 </>
               ) : (
                 <Scrubber
@@ -1061,7 +1141,7 @@ export function PlayerPage() {
             </div>
           )}
           {pop === 'volume' && (
-            <div className="p-pop">
+            <div className="p-pop volume-pop">
               <VolumePopover volume={volume} setVolume={setVolume} onClose={() => setPop(null)} />
             </div>
           )}
@@ -1216,6 +1296,8 @@ export function PlayerPage() {
             detail={clubDetail}
             libraryItemId={libraryItemId}
             position={pos}
+            focusNoteId={focusedClubNoteId}
+            onSeek={seekClamp}
             onClose={() => setPanel(null)}
             onOpenClub={() => navigate(`/club/${clubDetail.club.id}`)}
             onToast={setToast}
