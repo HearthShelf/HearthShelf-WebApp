@@ -17,10 +17,7 @@ import { Icon } from '@/components/common/Icon'
 import { Modal } from '@/components/common/Modal'
 import { usePlayer } from '@/player/PlayerProvider'
 import { getSyncState, subscribeSyncState, type SyncStatus } from '@/player/syncState'
-import {
-  getPendingSessionState,
-  subscribePendingSessions,
-} from '@/player/pendingProgress'
+import { getPendingSessionState, subscribePendingSessions } from '@/player/pendingProgress'
 
 type Kind = 'synced' | 'pending' | 'offline'
 
@@ -97,8 +94,7 @@ function SyncStatusDialog({ onClose }: { onClose: () => void }) {
   const kind = kindOf(sync.status)
   const look = LOOK[kind]
   const copy = COPY[kind]
-  const lastSynced =
-    sync.lastSyncedAt != null ? relativeTime(sync.lastSyncedAt, Date.now()) : null
+  const lastSynced = sync.lastSyncedAt != null ? relativeTime(sync.lastSyncedAt, Date.now()) : null
   const queued = useMemo(() => [...pending.byId.values()], [pending])
 
   const syncing = feedback === 'syncing'
@@ -109,14 +105,6 @@ function SyncStatusDialog({ onClose }: { onClose: () => void }) {
     const ok = await forceSyncNow()
     setFeedback(ok ? 'ok' : 'fail')
   }
-
-  const btnLabel = syncing
-    ? 'Syncing...'
-    : feedback === 'ok'
-      ? 'Synced'
-      : retry
-        ? 'Retry sync'
-        : 'Sync now'
 
   return (
     <Modal title="Sync" onClose={onClose}>
@@ -158,14 +146,13 @@ function SyncStatusDialog({ onClose }: { onClose: () => void }) {
           </div>
         ) : feedback === 'fail' ? (
           <div className="sync-dialog-result bad">
-            <Icon name="error" /> Still couldn't reach your server. Your listening is kept
-            safely and will sync on its own once your server is reachable.
+            <Icon name="error" /> Still couldn't reach your server. Your listening is kept safely
+            and will sync on its own once your server is reachable.
           </div>
         ) : null}
 
         <button className="sync-dialog-btn" disabled={syncing} onClick={onSync}>
           <Icon name={feedback === 'ok' ? 'check_circle' : retry ? 'refresh' : 'cloud_sync'} />
-          {btnLabel}
         </button>
       </div>
     </Modal>
