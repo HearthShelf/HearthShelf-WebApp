@@ -4347,6 +4347,192 @@
   transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.3, 1);
 }
 
+/* Desktop player refresh: artwork and identity share one calm stage while the
+   existing tool popovers and companion panel retain their original ownership. */
+.player-col.player-col-redesign {
+  width: min(660px, calc(100vw - 120px));
+  align-items: stretch;
+}
+
+.p-main-stage {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(220px, 255px) minmax(0, 1fr);
+  gap: clamp(28px, 4vw, 48px);
+  align-items: center;
+}
+
+.p-artwork-column {
+  min-width: 0;
+}
+
+.p-artwork-column .p-cover-wrap {
+  position: relative;
+}
+
+.player .p-artwork-column .p-cover-wrap .cover,
+.player.with-panel .p-artwork-column .p-cover-wrap .cover {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 20px;
+}
+
+.p-artwork-progress {
+  padding-top: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.p-control-column {
+  min-width: 0;
+}
+
+.p-book-identity {
+  margin-bottom: 22px;
+}
+
+.p-book-identity h2 {
+  margin: 6px 0 5px;
+  font-size: clamp(25px, 2.4vw, 34px);
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+.p-book-identity > p {
+  margin: 0 0 18px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.p-current-chapter {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--c-high) 78%, transparent);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.p-current-chapter span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.p-current-chapter strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.p-current-chapter .ms {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  color: var(--text-muted);
+}
+
+.player-col-redesign .p-prog-row {
+  margin-top: 0;
+}
+
+.player-col-redesign .p-pct {
+  font-size: 25px;
+}
+
+.player-col-redesign .p-transport {
+  gap: clamp(10px, 2vw, 22px);
+  margin-bottom: 0;
+}
+
+.player-col-redesign .p-play {
+  width: 72px;
+  height: 72px;
+}
+
+.p-club-pulse {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 28px;
+  padding: 13px 15px;
+  border: 1px solid color-mix(in oklab, var(--accent) 35%, var(--hairline));
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--accent) 8%, var(--c-high));
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.p-club-pulse:hover,
+.p-club-pulse.on {
+  background: color-mix(in oklab, var(--accent) 14%, var(--c-high));
+  border-color: color-mix(in oklab, var(--accent) 58%, var(--hairline));
+}
+
+.p-club-pulse-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--accent) 20%, transparent);
+  color: var(--accent);
+}
+
+.p-club-pulse small,
+.p-club-pulse strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-club-pulse small {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+
+.p-club-pulse strong {
+  font-size: 13px;
+}
+
+.p-club-pulse > b {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 11px;
+}
+
+.player-col-redesign .action-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.player-col-redesign .action-grid .pill {
+  min-width: 0;
+  padding: 11px 8px;
+  font-size: 11px;
+}
+
 .player .p-head {
   width: 100%;
   display: flex;
@@ -4966,16 +5152,392 @@
   background-clip: padding-box;
 }
 
+/* Player Book Club companion: dense enough for the player rail, but with the
+   same spoiler-safe, timestamped discussion model as the full club room. */
+.player-club-companion {
+  padding: 0;
+  overflow: hidden;
+}
+
+.player-club-companion .pc-head {
+  padding: 18px 20px 14px;
+  margin: 0;
+}
+
+.pc-head > .ms {
+  color: var(--accent);
+}
+
+.pc-club-link {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pc-scroll {
+  padding: 18px 20px 12px;
+}
+
+.pc-scroll section + section,
+.pc-scroll section + .pc-locked,
+.pc-scroll .pc-locked + section {
+  margin-top: 22px;
+}
+
+.pc-section-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.pc-race {
+  padding: 14px 14px 18px;
+  border: 1px solid var(--hairline);
+  border-radius: 15px;
+  background: color-mix(in oklab, var(--c-high) 70%, transparent);
+}
+
+.pc-race-line {
+  position: relative;
+  height: 30px;
+  margin: 4px 14px 0;
+}
+
+.pc-race-line::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 14px;
+  height: 3px;
+  border-radius: 99px;
+  background: linear-gradient(
+    90deg,
+    var(--accent),
+    color-mix(in oklab, var(--accent) 22%, var(--fill-strong))
+  );
+}
+
+.pc-racer {
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  transform: translateX(-50%);
+}
+
+.pc-racer.listening::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--c-high);
+  border-radius: 50%;
+  background: #52c47b;
+}
+
+.pc-note {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.pc-note.featured {
+  padding: 14px;
+  border: 1px solid color-mix(in oklab, var(--accent) 25%, var(--hairline));
+  border-radius: 15px;
+  background: color-mix(in oklab, var(--accent) 6%, var(--c-high));
+}
+
+.pc-note-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.pc-note-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.pc-note-meta span {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pc-note p {
+  margin: 5px 0 7px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.pc-note .note-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.pc-note .note-reactions button {
+  min-height: 26px;
+}
+
+.pc-locked {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 11px;
+  padding: 14px;
+  border: 1px dashed var(--hairline);
+  border-radius: 14px;
+  background: var(--fill);
+  color: var(--text-muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+.pc-locked strong,
+.pc-locked small {
+  display: block;
+}
+
+.pc-locked strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.pc-locked small,
+.pc-empty {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.pc-empty {
+  padding: 24px 12px;
+  text-align: center;
+}
+
+.pc-composer {
+  flex: none;
+  padding: 14px 20px 18px;
+  border-top: 1px solid var(--hairline);
+  background: color-mix(in oklab, var(--c-high) 93%, transparent);
+}
+
+.pc-composer textarea.fld {
+  min-height: 66px;
+  resize: none;
+}
+
+.pc-compose-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 9px;
+}
+
+.pc-safe {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.pc-compose-actions .btn {
+  padding: 9px 12px;
+  font-size: 11px;
+}
+
+/* Car/Touch remains the same movable, resizable card; these are hierarchy-only
+   refinements, deliberately leaving the fixed positioning and pointer handles. */
+.car-card {
+  background: linear-gradient(155deg, rgba(21, 18, 16, 0.92), rgba(10, 9, 8, 0.78));
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.52),
+    inset 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.car-head {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.car-title {
+  letter-spacing: -0.025em;
+}
+
+.car-card .car-play {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.34);
+}
+
+.car-card .car-pill {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.car-club-pulse {
+  width: min(82cqw, 620px);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin: 1.5cqh auto 2cqh;
+  padding: 11px 15px;
+  border: 1px solid color-mix(in oklab, var(--accent) 42%, rgba(255, 255, 255, 0.12));
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--accent) 11%, rgba(255, 255, 255, 0.06));
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.car-club-pulse.on {
+  background: color-mix(in oklab, var(--accent) 20%, rgba(255, 255, 255, 0.08));
+}
+
+.car-club-avatars {
+  display: flex;
+  padding-left: 10px;
+}
+
+.car-club-avatars > span {
+  margin-left: -10px;
+  box-shadow: 0 0 0 2px rgba(16, 13, 11, 0.92);
+}
+
+.car-club-pulse small,
+.car-club-pulse strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.car-club-pulse small {
+  color: var(--text-muted);
+  font-size: clamp(10px, 2.1cqw, 13px);
+}
+
+.car-club-pulse strong {
+  margin-top: 2px;
+  font-size: clamp(12px, 2.6cqw, 16px);
+}
+
+.car-club-sheet {
+  display: flex;
+  flex-direction: column;
+  max-height: min(66cqh, 520px);
+}
+
+.car-club-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 4px 2px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.car-club-sheet-head h3 {
+  margin: 3px 0 0;
+  font-size: clamp(20px, 4cqw, 30px);
+}
+
+.car-club-readers {
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.car-club-reader {
+  display: grid;
+  grid-template-columns: auto minmax(130px, 0.65fr) minmax(100px, 1fr);
+  align-items: center;
+  gap: 14px;
+  min-height: 62px;
+  padding: 9px 4px;
+}
+
+.car-club-reader strong,
+.car-club-reader small {
+  display: block;
+}
+
+.car-club-reader strong {
+  font-size: clamp(14px, 2.7cqw, 18px);
+}
+
+.car-club-reader small {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: clamp(11px, 2cqw, 14px);
+}
+
+.car-club-reader-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.car-club-reader-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
 @media (max-width: 1180px) {
-  .player.with-panel .player-col {
-    width: 380px;
+  .player.with-panel .player-col.player-col-redesign {
+    width: 480px;
+  }
+  .player.with-panel .p-main-stage {
+    grid-template-columns: 172px minmax(0, 1fr);
+    gap: 24px;
+  }
+  .player.with-panel .p-book-identity h2 {
+    font-size: 25px;
+  }
+  .player.with-panel .p-current-chapter {
+    padding: 10px 12px;
+  }
+  .player.with-panel .p-transport {
+    gap: 8px;
+  }
+  .player.with-panel .p-play {
+    width: 64px;
+    height: 64px;
   }
   .p-panel.open {
-    flex-basis: 380px;
+    flex-basis: 360px;
     margin-left: var(--s6);
   }
   .pp-inner {
-    width: 380px;
+    width: 360px;
   }
 }
 

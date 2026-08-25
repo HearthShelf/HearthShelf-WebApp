@@ -59,6 +59,10 @@ export function useDraggableCard(enabled: boolean, onInteract?: () => void): Dra
   const [rect, setRect] = useState<CarPlayerRect>(() =>
     saved ? fitToViewport(saved) : defaultRect(),
   )
+  // Pointer events can outpace a React render. Keep the gesture's latest rect
+  // in a ref so pointer-up can persist it without causing a store update from
+  // inside a React state updater (which React correctly warns about).
+  const rectRef = useRef(rect)
   const [dragging, setDragging] = useState(false)
 
   // A live gesture: what we're doing and the pointer/rect anchors at grab time.
@@ -72,14 +76,23 @@ export function useDraggableCard(enabled: boolean, onInteract?: () => void): Dra
   // Re-fit if the viewport changes (orientation, window resize).
   useEffect(() => {
     if (!enabled) return
-    const onResize = () => setRect((r) => fitToViewport(r))
+    const onResize = () =>
+      setRect((r) => {
+        const next = fitToViewport(r)
+        rectRef.current = next
+        return next
+      })
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [enabled])
 
   // Adopt a newly-saved rect (e.g. settings reset) when not mid-gesture.
   useEffect(() => {
-    if (saved && !gesture.current) setRect(fitToViewport(saved))
+    if (saved && !gesture.current) {
+      const next = fitToViewport(saved)
+      rectRef.current = next
+      setRect(next)
+    }
   }, [saved])
 
   const begin = useCallback(
@@ -110,15 +123,19 @@ export function useDraggableCard(enabled: boolean, onInteract?: () => void): Dra
       const vw = window.innerWidth
       const vh = window.innerHeight
       if (g.mode === 'move') {
-        setRect({
+        const next = {
           ...g.base,
           x: clamp(g.base.x + dx, 0, Math.max(0, vw - g.base.w)),
           y: clamp(g.base.y + dy, 0, Math.max(0, vh - g.base.h)),
-        })
+        }
+        rectRef.current = next
+        setRect(next)
       } else {
         const w = clamp(g.base.w + dx, MIN_W, Math.min(MAX_W, vw - g.base.x))
         const h = clamp(g.base.h + dy, MIN_H, Math.min(MAX_H, vh - g.base.y))
-        setRect({ ...g.base, w, h })
+        const next = { ...g.base, w, h }
+        rectRef.current = next
+        setRect(next)
       }
       onInteract?.()
     }
@@ -126,10 +143,7 @@ export function useDraggableCard(enabled: boolean, onInteract?: () => void): Dra
       gesture.current = null
       setDragging(false)
       // Persist the final rect so the position/size survive reloads.
-      setRect((r) => {
-        set('carPlayerRect', r)
-        return r
-      })
+      set('carPlayerRect', rectRef.current)
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)

@@ -5,6 +5,7 @@ import { CarPlayer } from '@/components/player/CarPlayer'
 import { useIdleFade } from '@/hooks/useIdleFade'
 import { useVisualViewportSize } from '@/hooks/useVisualViewportSize'
 import cozyHearth from '@/assets/img/SittingInTheHearth.webp'
+import type { HSClubDetail } from '@hearthshelf/core'
 
 // Minimal stub so shared components (Cover) can read the media seam. No covers,
 // no navigation - the harness only needs the layout to render.
@@ -24,6 +25,66 @@ const CHAPTERS = Array.from({ length: 12 }, (_, i) => ({
   end: (i + 1) * 1800,
   title: `Chapter ${i + 1}: The Long Road`,
 }))
+
+const CLUB: HSClubDetail = {
+  enabled: true,
+  club: {
+    id: 'dev-club',
+    name: 'Epic Fantasy Friends',
+    createdBy: 'maya',
+    visibility: 'closed',
+    isOpen: true,
+    archived: false,
+    createdAt: 0,
+    lastActivityAt: 0,
+    memberCount: 3,
+    currentBook: null,
+    queuedItemIds: [],
+    recBasis: 'club-history',
+    allowCommentEditing: true,
+    allowReplies: true,
+    autoAdvanceOnAllFinished: false,
+  },
+  books: [],
+  queue: [],
+  members: [
+    {
+      userId: 'maya',
+      username: 'Maya',
+      role: 'owner',
+      joinedAt: 0,
+      currentTime: 6900,
+      duration: 21600,
+      isFinished: false,
+      listeningNow: true,
+      reach: null,
+    },
+    {
+      userId: 'theo',
+      username: 'Theo',
+      role: 'member',
+      joinedAt: 0,
+      currentTime: 4200,
+      duration: 21600,
+      isFinished: false,
+      listeningNow: false,
+      reach: null,
+    },
+    {
+      userId: 'rin',
+      username: 'Rin',
+      role: 'member',
+      joinedAt: 0,
+      currentTime: 9700,
+      duration: 21600,
+      isFinished: false,
+      listeningNow: false,
+      reach: null,
+    },
+  ],
+  notes: { notes: [], locked: [], hiddenAhead: 0 },
+  unreadCount: 2,
+}
 
 export function CarPlayerHarness() {
   const [pos, setPos] = useState(3600 + 600)
@@ -76,6 +137,7 @@ export function CarPlayerHarness() {
             wake={idleFade.wake}
             tick={idleFade.tick}
             canReadAlong
+            clubDetail={CLUB}
           />
         </div>
       </MediaUIProvider>

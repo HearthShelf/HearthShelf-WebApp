@@ -8,6 +8,9 @@ import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
 import { RecentListens } from '@/components/player/RecentListens'
 import { SyncStatusPill } from '@/components/player/SyncStatusPill'
 import { formatTimestamp } from '@hearthshelf/core'
+import type { HSClubDetail } from '@hearthshelf/core'
+import { Avatar } from '@/components/common/Avatar'
+import type { AbsTarget } from '@/api/absLibrary'
 import { Cover } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
 
@@ -18,7 +21,7 @@ interface Chap {
   title: string
 }
 
-type Sheet = 'more' | 'speed' | 'sleep' | 'chapters' | 'recent' | null
+type Sheet = 'more' | 'speed' | 'sleep' | 'chapters' | 'recent' | 'club' | null
 
 /**
  * Car mode's player: a big-touch, glance-friendly card for in-car browsers. A
@@ -49,6 +52,8 @@ export function CarPlayer({
   wake,
   tick,
   canReadAlong,
+  target,
+  clubDetail,
 }: {
   libraryItemId: string
   title: string
@@ -78,6 +83,10 @@ export function CarPlayer({
    * the "Read along" action, which would otherwise dead-end. */
   canReadAlong: boolean
   tick: () => void
+  target?: AbsTarget
+  /** Read-only in Car/Touch mode: conversation writing stays on the normal
+   * player, while the car surface keeps progress glanceable. */
+  clubDetail?: HSClubDetail
 }) {
   const navigate = useNavigate()
   const skipFwd = useSettingsStore((s) => s.skipForward)
@@ -185,6 +194,30 @@ export function CarPlayer({
         <div className="car-titles">
           <div className="car-title">{title}</div>
         </div>
+
+        {clubDetail?.enabled && (
+          <button
+            className={'car-club-pulse' + (sheet === 'club' ? ' on' : '')}
+            onClick={() => toggleSheet('club')}
+          >
+            <span className="car-club-avatars">
+              {clubDetail.members.slice(0, 3).map((member) => (
+                <Avatar
+                  key={member.userId}
+                  name={member.username || 'Reader'}
+                  target={target}
+                  userId={member.userId}
+                  size={28}
+                />
+              ))}
+            </span>
+            <span>
+              <small>Reading together</small>
+              <strong>{clubDetail.club.name}</strong>
+            </span>
+            <Icon name="chevron_right" />
+          </button>
+        )}
 
         {/* Big scrubber - chapter or whole book, per the scrubber setting. The
             chapter label lives on the bar (UI standard), not above it. */}
@@ -337,6 +370,53 @@ export function CarPlayer({
                   seekClamp(sec)
                 }}
               />
+            </div>
+          )}
+          {sheet === 'club' && clubDetail?.enabled && (
+            <div className="car-club-sheet">
+              <div className="car-club-sheet-head">
+                <div>
+                  <span className="eyebrow">Book club · read only</span>
+                  <h3>{clubDetail.club.name}</h3>
+                </div>
+                <button
+                  className="car-icon-btn"
+                  onClick={() => setSheet(null)}
+                  aria-label="Close club progress"
+                >
+                  <Icon name="close" />
+                </button>
+              </div>
+              <div className="car-club-readers">
+                {clubDetail.members.map((member) => {
+                  const progress = member.isFinished
+                    ? 1
+                    : member.currentTime != null && member.duration != null && member.duration > 0
+                      ? Math.max(0, Math.min(1, member.currentTime / member.duration))
+                      : 0
+                  return (
+                    <div className="car-club-reader" key={member.userId}>
+                      <Avatar
+                        name={member.username || 'Reader'}
+                        target={target}
+                        userId={member.userId}
+                        size={42}
+                      />
+                      <span>
+                        <strong>{member.username}</strong>
+                        <small>
+                          {member.listeningNow
+                            ? 'Listening now'
+                            : `${Math.round(progress * 100)}% through`}
+                        </small>
+                      </span>
+                      <div className="car-club-reader-bar">
+                        <i style={{ width: `${progress * 100}%` }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
           {sheet === 'more' && (

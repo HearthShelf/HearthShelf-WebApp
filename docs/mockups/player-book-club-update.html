@@ -1,0 +1,2078 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Hearthshelf Player Redesign</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Hearthshelf Player Redesign" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Hearthshelf Player Redesign&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: var(--border-radius-lg, 12.5px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress {
+  display: flex;
+  height: 6px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 6px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: superellipse(1.5);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: 16px !important;
+  height: 16px !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;hs-player-redesign&quot; data-mode=&quot;normal&quot;&gt;
+  &lt;style&gt;
+    #hs-player-redesign {
+      --hs-ink: #f4eee5;
+      --hs-muted: #aaa197;
+      --hs-faint: #766e65;
+      --hs-shell: #12110f;
+      --hs-lowest: #0c0b0a;
+      --hs-low: #171512;
+      --hs-mid: #201d19;
+      --hs-high: #2a2621;
+      --hs-line: rgba(244, 238, 229, 0.1);
+      --hs-soft-line: rgba(244, 238, 229, 0.06);
+      --hs-ember: #e0654a;
+      --hs-ember-hot: #ee7658;
+      --hs-brass: #bd863f;
+      --hs-green: #75a985;
+      --hs-blue: #7896b9;
+      --hs-purple: #a889b7;
+      --hs-shadow: 0 28px 90px rgba(0, 0, 0, 0.44);
+      color: var(--hs-ink);
+      background: var(--hs-lowest);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;
+      width: 100%;
+      min-height: 860px;
+      overflow: hidden;
+    }
+    #hs-player-redesign * { box-sizing: border-box; }
+    #hs-player-redesign button,
+    #hs-player-redesign textarea,
+    #hs-player-redesign input { font: inherit; }
+    #hs-player-redesign button { color: inherit; }
+    #hs-player-redesign h1,
+    #hs-player-redesign h2,
+    #hs-player-redesign h3,
+    #hs-player-redesign p { margin: 0; }
+    #hs-player-redesign svg { width: 20px; height: 20px; stroke-width: 1.8; }
+    #hs-player-redesign .hs-app { min-height: 860px; height: 100vh; position: relative; overflow: hidden; }
+    #hs-player-redesign .hs-mode-switch {
+      position: absolute;
+      z-index: 50;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--hs-line);
+      border-radius: 14px;
+      background: rgba(12, 11, 10, 0.88);
+      backdrop-filter: blur(18px);
+      box-shadow: 0 14px 44px rgba(0, 0, 0, 0.28);
+    }
+    #hs-player-redesign .hs-mode-switch button {
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      padding: 10px 15px;
+      color: var(--hs-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 650;
+    }
+    #hs-player-redesign .hs-mode-switch button[aria-pressed=&quot;true&quot;] {
+      background: var(--hs-high);
+      color: var(--hs-ink);
+      box-shadow: inset 0 0 0 1px var(--hs-line);
+    }
+    #hs-player-redesign .hs-normal,
+    #hs-player-redesign .hs-car { position: absolute; inset: 0; }
+    #hs-player-redesign[data-mode=&quot;normal&quot;] .hs-car,
+    #hs-player-redesign[data-mode=&quot;car&quot;] .hs-normal { display: none; }
+
+    /* Normal mode */
+    #hs-player-redesign .hs-normal {
+      display: grid;
+      grid-template-columns: 224px 1fr;
+      background:
+        radial-gradient(ellipse 48% 54% at 47% 38%, rgba(189, 134, 63, 0.12), transparent 70%),
+        var(--hs-shell);
+    }
+    #hs-player-redesign .hs-sidebar {
+      background: rgba(12, 11, 10, 0.94);
+      border-right: 1px solid var(--hs-line);
+      padding: 24px 16px 18px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      z-index: 3;
+    }
+    #hs-player-redesign .hs-brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 0 8px 30px;
+      font-family: Georgia, &quot;Times New Roman&quot;, serif;
+      font-size: 19px;
+      letter-spacing: -0.02em;
+    }
+    #hs-player-redesign .hs-brand-mark {
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      color: var(--hs-brass);
+      background: rgba(189, 134, 63, 0.1);
+      box-shadow: 0 0 28px rgba(189, 134, 63, 0.12);
+    }
+    #hs-player-redesign .hs-brand span:first-of-type { color: var(--hs-brass); }
+    #hs-player-redesign .hs-brand span:last-of-type { color: var(--hs-ink); font-weight: 700; }
+    #hs-player-redesign .hs-nav-label {
+      color: var(--hs-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 10px;
+      padding: 0 12px 8px;
+    }
+    #hs-player-redesign .hs-nav-list { display: flex; flex-direction: column; gap: 3px; }
+    #hs-player-redesign .hs-nav-item {
+      border: 0;
+      background: transparent;
+      min-height: 46px;
+      border-radius: 12px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--hs-muted);
+      cursor: pointer;
+      text-align: left;
+    }
+    #hs-player-redesign .hs-nav-item:hover { background: rgba(244, 238, 229, 0.045); color: var(--hs-ink); }
+    #hs-player-redesign .hs-nav-item.active {
+      color: var(--hs-ink);
+      background: rgba(224, 101, 74, 0.12);
+    }
+    #hs-player-redesign .hs-nav-item.active svg { color: var(--hs-ember-hot); }
+    #hs-player-redesign .hs-sidebar-spacer { flex: 1; }
+    #hs-player-redesign .hs-server {
+      border-top: 1px solid var(--hs-soft-line);
+      padding: 16px 8px 0;
+      display: grid;
+      grid-template-columns: 38px 1fr auto;
+      align-items: center;
+      gap: 10px;
+    }
+    #hs-player-redesign .hs-server-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: linear-gradient(145deg, #79614b, #362c25);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+    }
+    #hs-player-redesign .hs-server-name { font-weight: 650; }
+    #hs-player-redesign .hs-server-sub { color: var(--hs-faint); font-size: 11px; margin-top: 2px; }
+    #hs-player-redesign .hs-normal-main { min-width: 0; display: grid; grid-template-rows: 72px 1fr; }
+    #hs-player-redesign .hs-normal-topbar {
+      border-bottom: 1px solid var(--hs-soft-line);
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+    #hs-player-redesign .hs-now-label { display: flex; align-items: center; gap: 12px; }
+    #hs-player-redesign .hs-now-label strong { font-size: 15px; }
+    #hs-player-redesign .hs-now-label span { color: var(--hs-faint); font-size: 12px; }
+    #hs-player-redesign .hs-normal-actions { display: flex; align-items: center; gap: 8px; }
+    #hs-player-redesign .hs-chip,
+    #hs-player-redesign .hs-top-action {
+      min-height: 38px;
+      border-radius: 11px;
+      border: 1px solid var(--hs-line);
+      background: rgba(244, 238, 229, 0.035);
+      color: var(--hs-muted);
+      padding: 0 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    #hs-player-redesign .hs-chip { cursor: default; }
+    #hs-player-redesign .hs-chip.saved svg { color: var(--hs-green); }
+    #hs-player-redesign .hs-top-action:hover { color: var(--hs-ink); background: rgba(244, 238, 229, 0.07); }
+    #hs-player-redesign .hs-normal-workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(540px, 1fr) 372px;
+      transition: grid-template-columns 260ms ease;
+    }
+    #hs-player-redesign .hs-normal-workspace.panel-closed { grid-template-columns: 1fr 0; }
+    #hs-player-redesign .hs-listening-stage {
+      min-width: 0;
+      min-height: 0;
+      position: relative;
+      overflow: auto;
+      padding: 28px 36px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #hs-player-redesign .hs-listening-stage::before {
+      content: &quot;&quot;;
+      position: absolute;
+      width: min(620px, 76%);
+      aspect-ratio: 1;
+      left: 50%;
+      top: 45%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(174, 98, 51, 0.15), rgba(111, 68, 38, 0.06) 48%, transparent 72%);
+      filter: blur(8px);
+      pointer-events: none;
+    }
+    #hs-player-redesign .hs-player-column {
+      width: min(680px, 100%);
+      position: relative;
+      display: grid;
+      grid-template-columns: 292px minmax(280px, 1fr);
+      grid-template-areas:
+        &quot;art identity&quot;
+        &quot;art progress&quot;
+        &quot;art transport&quot;
+        &quot;club club&quot;
+        &quot;tools tools&quot;;
+      gap: 18px 34px;
+      align-items: center;
+    }
+    #hs-player-redesign .hs-art-wrap { grid-area: art; align-self: center; }
+    #hs-player-redesign .hs-cover-art {
+      width: 292px;
+      aspect-ratio: 1;
+      border-radius: 20px;
+      position: relative;
+      overflow: hidden;
+      background:
+        linear-gradient(135deg, transparent 0 47%, rgba(255,255,255,.08) 48%, transparent 49%),
+        radial-gradient(circle at 50% 44%, transparent 0 19%, rgba(205,165,94,.58) 19.5% 20.5%, transparent 21%),
+        #263d57;
+      box-shadow: 0 30px 80px rgba(0,0,0,.46), 0 0 0 1px rgba(255,255,255,.08);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 36px;
+    }
+    #hs-player-redesign .hs-cover-art::before,
+    #hs-player-redesign .hs-cover-art::after {
+      content: &quot;&quot;;
+      position: absolute;
+      inset: 13px;
+      border: 1px solid rgba(211, 177, 111, .68);
+      pointer-events: none;
+    }
+    #hs-player-redesign .hs-cover-art::after { inset: 19px; opacity: .42; }
+    #hs-player-redesign .hs-cover-kicker,
+    #hs-player-redesign .hs-cover-title,
+    #hs-player-redesign .hs-cover-author { position: relative; z-index: 1; }
+    #hs-player-redesign .hs-cover-kicker { color: #d6bd8d; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; }
+    #hs-player-redesign .hs-cover-title {
+      color: #f6e8c8;
+      font-family: Georgia, &quot;Times New Roman&quot;, serif;
+      font-size: 25px;
+      line-height: 1.02;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      margin-top: 18px;
+    }
+    #hs-player-redesign .hs-cover-author { color: #d4b273; margin-top: 18px; font-size: 12px; }
+    #hs-player-redesign .hs-cover-progress {
+      position: absolute;
+      z-index: 2;
+      left: 20px;
+      right: 20px;
+      bottom: 17px;
+      height: 4px;
+      border-radius: 99px;
+      background: rgba(255,255,255,.18);
+      overflow: hidden;
+    }
+    #hs-player-redesign .hs-cover-progress i { display: block; width: 41%; height: 100%; background: #fff; border-radius: inherit; }
+    #hs-player-redesign .hs-cover-corners { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+    #hs-player-redesign .hs-cover-corner {
+      position: absolute;
+      width: 38px;
+      height: 38px;
+      border: 0;
+      border-radius: 11px;
+      background: rgba(8,8,8,.58);
+      color: #fff;
+      backdrop-filter: blur(10px);
+      display: grid;
+      place-items: center;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+    #hs-player-redesign .hs-cover-corner.zoom { top: 12px; left: 12px; }
+    #hs-player-redesign .hs-cover-corner.mark { top: 12px; right: 12px; }
+    #hs-player-redesign .hs-identity { grid-area: identity; align-self: end; min-width: 0; }
+    #hs-player-redesign .hs-identity .hs-book-type { color: var(--hs-brass); letter-spacing: .12em; text-transform: uppercase; font-size: 10px; }
+    #hs-player-redesign .hs-identity h1 {
+      font-family: Georgia, &quot;Times New Roman&quot;, serif;
+      font-size: clamp(28px, 3vw, 42px);
+      line-height: 1.04;
+      letter-spacing: -.035em;
+      margin-top: 7px;
+    }
+    #hs-player-redesign .hs-author { color: var(--hs-muted); margin-top: 8px; }
+    #hs-player-redesign .hs-chapter-name { color: var(--hs-ink); font-size: 13px; margin-top: 13px; }
+    #hs-player-redesign .hs-chapter-name span { color: var(--hs-faint); }
+    #hs-player-redesign .hs-progress-block { grid-area: progress; width: 100%; }
+    #hs-player-redesign .hs-progress-header,
+    #hs-player-redesign .hs-progress-footer { display: flex; justify-content: space-between; gap: 12px; color: var(--hs-muted); font-size: 12px; }
+    #hs-player-redesign .hs-progress-header strong { color: var(--hs-ink); font-weight: 700; }
+    #hs-player-redesign .hs-scrub-shell {
+      position: relative;
+      height: 24px;
+      margin: 8px 0 5px;
+      display: flex;
+      align-items: center;
+    }
+    #hs-player-redesign .hs-scrub-track { position: absolute; left: 0; right: 0; height: 5px; border-radius: 99px; background: rgba(244,238,229,.13); overflow: hidden; }
+    #hs-player-redesign .hs-scrub-fill { height: 100%; width: 41%; background: linear-gradient(90deg, #f3ede4, #d9d0c5); border-radius: inherit; }
+    #hs-player-redesign .hs-scrub-knob { position: absolute; left: 41%; width: 16px; height: 16px; border-radius: 50%; transform: translateX(-50%); background: var(--hs-ember-hot); box-shadow: 0 0 0 5px rgba(224,101,74,.15); }
+    #hs-player-redesign .hs-note-tick { position: absolute; top: 7px; width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--hs-shell); background: var(--hs-brass); }
+    #hs-player-redesign .hs-note-tick.locked { width: 3px; border: 0; border-radius: 2px; background: var(--hs-faint); }
+    #hs-player-redesign .hs-transport { grid-area: transport; display: flex; align-items: center; gap: 7px; justify-content: space-between; align-self: start; }
+    #hs-player-redesign .hs-transport-button {
+      width: 46px;
+      height: 46px;
+      border: 0;
+      border-radius: 14px;
+      background: transparent;
+      display: grid;
+      place-items: center;
+      color: var(--hs-muted);
+      cursor: pointer;
+      position: relative;
+    }
+    #hs-player-redesign .hs-transport-button:hover { background: rgba(244,238,229,.06); color: var(--hs-ink); }
+    #hs-player-redesign .hs-transport-button.play {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: var(--hs-ink);
+      color: var(--hs-shell);
+      box-shadow: 0 12px 34px rgba(0,0,0,.3);
+    }
+    #hs-player-redesign .hs-transport-button.play svg { width: 30px; height: 30px; stroke-width: 2.2; }
+    #hs-player-redesign .hs-skip-number { position: absolute; font-size: 9px; font-weight: 800; }
+    #hs-player-redesign .hs-club-pulse {
+      grid-area: club;
+      border: 1px solid rgba(189,134,63,.24);
+      background: linear-gradient(90deg, rgba(189,134,63,.08), rgba(244,238,229,.025));
+      border-radius: 15px;
+      min-height: 64px;
+      display: grid;
+      grid-template-columns: auto minmax(0,1fr) auto;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 12px;
+      cursor: pointer;
+      text-align: left;
+    }
+    #hs-player-redesign .hs-avatar-stack { display: flex; padding-left: 7px; }
+    #hs-player-redesign .hs-small-avatar {
+      width: 31px;
+      height: 31px;
+      border-radius: 50%;
+      margin-left: -7px;
+      border: 2px solid var(--hs-low);
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 750;
+    }
+    #hs-player-redesign .hs-club-pulse strong { display: block; font-size: 12px; }
+    #hs-player-redesign .hs-club-pulse span { display: block; color: var(--hs-muted); margin-top: 3px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #hs-player-redesign .hs-club-action { color: var(--hs-brass); display: flex; align-items: center; gap: 6px; font-size: 11px; }
+    #hs-player-redesign .hs-player-tools { grid-area: tools; display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 8px; }
+    #hs-player-redesign .hs-tool-button {
+      min-height: 58px;
+      border: 1px solid var(--hs-line);
+      border-radius: 13px;
+      background: rgba(244,238,229,.025);
+      color: var(--hs-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 10px;
+    }
+    #hs-player-redesign .hs-tool-button:hover,
+    #hs-player-redesign .hs-tool-button.active { border-color: rgba(224,101,74,.36); background: rgba(224,101,74,.09); color: var(--hs-ink); }
+    #hs-player-redesign .hs-companion {
+      min-width: 0;
+      border-left: 1px solid var(--hs-line);
+      background: rgba(23,21,18,.94);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      opacity: 1;
+      transition: opacity 180ms ease;
+    }
+    #hs-player-redesign .panel-closed .hs-companion { opacity: 0; pointer-events: none; }
+    #hs-player-redesign .hs-companion-tabs { padding: 16px 16px 12px; display: flex; gap: 5px; border-bottom: 1px solid var(--hs-soft-line); }
+    #hs-player-redesign .hs-companion-tab {
+      flex: 1;
+      min-height: 39px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--hs-muted);
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+    }
+    #hs-player-redesign .hs-companion-tab[aria-selected=&quot;true&quot;] { background: var(--hs-high); color: var(--hs-ink); }
+    #hs-player-redesign .hs-panel { display: none; flex: 1; min-height: 0; overflow: auto; }
+    #hs-player-redesign .hs-panel.active { display: flex; flex-direction: column; }
+    #hs-player-redesign .hs-panel-heading { padding: 20px 20px 14px; display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+    #hs-player-redesign .hs-panel-heading .hs-eyebrow { color: var(--hs-brass); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+    #hs-player-redesign .hs-panel-heading h2 { font-family: Georgia, &quot;Times New Roman&quot;, serif; font-size: 24px; margin-top: 4px; }
+    #hs-player-redesign .hs-panel-heading p { color: var(--hs-muted); margin-top: 5px; font-size: 12px; }
+    #hs-player-redesign .hs-close-panel { width: 38px; height: 38px; border: 0; background: transparent; color: var(--hs-muted); border-radius: 11px; cursor: pointer; display: grid; place-items: center; }
+    #hs-player-redesign .hs-close-panel:hover { background: rgba(244,238,229,.06); color: var(--hs-ink); }
+    #hs-player-redesign .hs-race { padding: 8px 22px 22px; border-bottom: 1px solid var(--hs-soft-line); }
+    #hs-player-redesign .hs-race-meta { display: flex; justify-content: space-between; color: var(--hs-muted); font-size: 11px; }
+    #hs-player-redesign .hs-live { color: var(--hs-ember-hot); }
+    #hs-player-redesign .hs-race-track { height: 4px; border-radius: 99px; background: rgba(244,238,229,.13); position: relative; margin: 23px 14px 12px; }
+    #hs-player-redesign .hs-racer { position: absolute; top: 50%; width: 30px; height: 30px; border-radius: 50%; transform: translate(-50%,-50%); border: 3px solid var(--hs-low); display: grid; place-items: center; color: #fff; font-size: 9px; font-weight: 800; }
+    #hs-player-redesign .hs-race-ends { display: flex; justify-content: space-between; color: var(--hs-faint); font-size: 10px; }
+    #hs-player-redesign .hs-nearby-note { margin: 15px 18px 0; border: 1px solid rgba(189,134,63,.24); border-radius: 14px; background: rgba(189,134,63,.08); padding: 14px; cursor: pointer; text-align: left; }
+    #hs-player-redesign .hs-note-head { display: flex; justify-content: space-between; gap: 10px; color: var(--hs-brass); font-size: 11px; }
+    #hs-player-redesign .hs-nearby-note p { margin-top: 8px; line-height: 1.45; font-size: 13px; }
+    #hs-player-redesign .hs-discussion-title { padding: 18px 20px 10px; display: flex; justify-content: space-between; color: var(--hs-muted); font-size: 11px; }
+    #hs-player-redesign .hs-thread { padding: 0 18px; display: flex; flex-direction: column; gap: 5px; }
+    #hs-player-redesign .hs-comment { display: grid; grid-template-columns: 34px 1fr; gap: 10px; padding: 10px 3px; }
+    #hs-player-redesign .hs-comment-avatar { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 10px; font-weight: 800; }
+    #hs-player-redesign .hs-comment-name { color: var(--hs-muted); font-size: 11px; }
+    #hs-player-redesign .hs-comment-body { margin-top: 4px; font-size: 12px; line-height: 1.45; }
+    #hs-player-redesign .hs-reactions { display: flex; gap: 6px; color: var(--hs-muted); margin-top: 7px; font-size: 11px; }
+    #hs-player-redesign .hs-reaction { padding: 3px 7px; border-radius: 8px; background: rgba(244,238,229,.05); }
+    #hs-player-redesign .hs-compose-area { margin-top: auto; padding: 16px 18px 18px; border-top: 1px solid var(--hs-soft-line); background: var(--hs-low); }
+    #hs-player-redesign .hs-compose-open { width: 100%; min-height: 46px; border: 0; border-radius: 12px; background: var(--hs-ember); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; }
+    #hs-player-redesign .hs-composer[hidden] { display: none; }
+    #hs-player-redesign .hs-composer label { display: block; color: var(--hs-muted); font-size: 11px; margin-bottom: 7px; }
+    #hs-player-redesign .hs-composer textarea { width: 100%; min-height: 88px; resize: vertical; border: 1px solid var(--hs-line); border-radius: 12px; background: var(--hs-mid); color: var(--hs-ink); padding: 12px; outline: none; }
+    #hs-player-redesign .hs-composer textarea:focus { border-color: var(--hs-ember); box-shadow: 0 0 0 3px rgba(224,101,74,.13); }
+    #hs-player-redesign .hs-composer-safe { display: flex; align-items: center; gap: 7px; color: var(--hs-muted); font-size: 10px; margin: 8px 0; }
+    #hs-player-redesign .hs-composer-safe svg { color: var(--hs-green); }
+    #hs-player-redesign .hs-compose-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+    #hs-player-redesign .hs-compose-buttons button { min-height: 38px; border-radius: 10px; padding: 0 13px; cursor: pointer; }
+    #hs-player-redesign .hs-compose-cancel { border: 1px solid var(--hs-line); background: transparent; }
+    #hs-player-redesign .hs-compose-post { border: 0; background: var(--hs-ember); color: #fff; }
+    #hs-player-redesign .hs-queue-list,
+    #hs-player-redesign .hs-chapter-list { padding: 0 14px 18px; display: flex; flex-direction: column; }
+    #hs-player-redesign .hs-queue-row { display: grid; grid-template-columns: 40px 1fr auto; gap: 11px; align-items: center; padding: 11px 7px; border-radius: 12px; }
+    #hs-player-redesign .hs-queue-row:hover { background: rgba(244,238,229,.04); }
+    #hs-player-redesign .hs-queue-cover { width: 40px; height: 40px; border-radius: 8px; background: linear-gradient(135deg,#3d5870,#1b2a38); display: grid; place-items: center; color: #d6bd8d; font-family: Georgia,serif; }
+    #hs-player-redesign .hs-queue-title { font-size: 12px; font-weight: 650; }
+    #hs-player-redesign .hs-queue-sub { color: var(--hs-faint); font-size: 10px; margin-top: 3px; }
+    #hs-player-redesign .hs-queue-time { color: var(--hs-muted); font-size: 10px; }
+    #hs-player-redesign .hs-chapter-row { border: 0; background: transparent; display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 10px; min-height: 48px; color: var(--hs-muted); border-radius: 10px; cursor: pointer; text-align: left; padding: 0 8px; }
+    #hs-player-redesign .hs-chapter-row:hover { background: rgba(244,238,229,.04); color: var(--hs-ink); }
+    #hs-player-redesign .hs-chapter-row.now { background: rgba(224,101,74,.1); color: var(--hs-ink); }
+    #hs-player-redesign .hs-chapter-row.now .hs-chapter-num { color: var(--hs-ember-hot); }
+    #hs-player-redesign .hs-chapter-num,
+    #hs-player-redesign .hs-chapter-time { font-size: 10px; color: var(--hs-faint); }
+
+    /* Car / Touch mode */
+    #hs-player-redesign .hs-car {
+      background:
+        linear-gradient(90deg, rgba(8,7,6,.94) 0 9%, rgba(8,7,6,.52) 28%, rgba(8,7,6,.34) 70%, rgba(8,7,6,.7)),
+        radial-gradient(circle at 66% 72%, rgba(224,101,74,.28), transparent 24%),
+        radial-gradient(circle at 50% 100%, rgba(189,134,63,.32), transparent 34%),
+        linear-gradient(145deg, #252019 0 28%, #100e0c 62%);
+      display: grid;
+      grid-template-columns: 126px 1fr;
+    }
+    #hs-player-redesign .hs-car::before {
+      content: &quot;&quot;;
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(90deg, transparent 0 18%, rgba(255,255,255,.035) 18.2% 18.4%, transparent 18.6% 35%, rgba(255,255,255,.025) 35.2% 35.4%, transparent 35.6%),
+        linear-gradient(0deg, rgba(0,0,0,.2), transparent 45%);
+      pointer-events: none;
+    }
+    #hs-player-redesign .hs-car-rail {
+      position: relative;
+      z-index: 3;
+      background: rgba(10,9,8,.82);
+      border-right: 1px solid rgba(255,255,255,.08);
+      backdrop-filter: blur(20px);
+      padding: 18px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 9px;
+    }
+    #hs-player-redesign .hs-car-brand { height: 60px; display: grid; place-items: center; color: var(--hs-brass); }
+    #hs-player-redesign .hs-car-brand svg { width: 30px; height: 30px; }
+    #hs-player-redesign .hs-car-nav {
+      border: 0;
+      background: rgba(255,255,255,.045);
+      min-height: 84px;
+      border-radius: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--hs-muted);
+      cursor: pointer;
+      font-size: 11px;
+    }
+    #hs-player-redesign .hs-car-nav svg { width: 30px; height: 30px; }
+    #hs-player-redesign .hs-car-nav.active { background: rgba(224,101,74,.16); color: var(--hs-ink); box-shadow: inset 0 0 0 1px rgba(224,101,74,.24); }
+    #hs-player-redesign .hs-car-rail-spacer { flex: 1; }
+    #hs-player-redesign .hs-car-surface { position: relative; z-index: 2; min-width: 0; padding: 92px 42px 28px; display: flex; align-items: center; justify-content: center; }
+    #hs-player-redesign .hs-car-card {
+      width: min(1120px, 100%);
+      min-height: 650px;
+      border-radius: 28px;
+      background: rgba(17,15,13,.76);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: var(--hs-shadow);
+      backdrop-filter: blur(22px);
+      display: grid;
+      grid-template-columns: minmax(330px,.8fr) minmax(520px,1.2fr);
+      overflow: hidden;
+      position: relative;
+    }
+    #hs-player-redesign .hs-car-art-section { padding: 38px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,.07); }
+    #hs-player-redesign .hs-car-cover {
+      width: min(330px, 100%);
+      aspect-ratio: 1;
+      border-radius: 22px;
+      background:
+        linear-gradient(135deg, transparent 0 47%, rgba(255,255,255,.08) 48%, transparent 49%),
+        radial-gradient(circle at 50% 44%, transparent 0 19%, rgba(205,165,94,.58) 19.5% 20.5%, transparent 21%),
+        #263d57;
+      box-shadow: 0 30px 80px rgba(0,0,0,.48), 0 0 0 1px rgba(255,255,255,.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 50px;
+      position: relative;
+    }
+    #hs-player-redesign .hs-car-cover::before { content:&quot;&quot;; position:absolute; inset:15px; border:1px solid rgba(211,177,111,.68); }
+    #hs-player-redesign .hs-car-cover .hs-cover-title { font-size: clamp(24px,3vw,36px); }
+    #hs-player-redesign .hs-car-cover .hs-cover-author { position:absolute; bottom:54px; }
+    #hs-player-redesign .hs-car-cover .hs-cover-progress { left:24px; right:24px; bottom:21px; height:5px; }
+    #hs-player-redesign .hs-car-book-label { text-align:center; margin-top:22px; }
+    #hs-player-redesign .hs-car-book-label h2 { font-family: Georgia, &quot;Times New Roman&quot;, serif; font-size: 27px; }
+    #hs-player-redesign .hs-car-book-label p { color: var(--hs-muted); margin-top:6px; font-size: 14px; }
+    #hs-player-redesign .hs-car-control-section { padding: 34px 40px; display: flex; flex-direction: column; min-width: 0; }
+    #hs-player-redesign .hs-car-head { display: flex; justify-content: space-between; gap:16px; align-items:center; }
+    #hs-player-redesign .hs-car-head .hs-eyebrow { color: var(--hs-brass); font-size: 11px; letter-spacing:.14em; text-transform:uppercase; }
+    #hs-player-redesign .hs-car-head h1 { font-family:Georgia,serif; font-size:34px; margin-top:4px; }
+    #hs-player-redesign .hs-car-saved { display:flex; gap:8px; align-items:center; color:var(--hs-green); font-size:13px; }
+    #hs-player-redesign .hs-car-progress { margin-top: 34px; }
+    #hs-player-redesign .hs-car-progress-copy { display:flex; justify-content:space-between; gap:18px; align-items:flex-end; }
+    #hs-player-redesign .hs-car-progress-copy strong { font-size:18px; }
+    #hs-player-redesign .hs-car-progress-copy span { color:var(--hs-muted); font-size:14px; }
+    #hs-player-redesign .hs-car-track { position:relative; height:16px; margin:16px 0 10px; display:flex; align-items:center; }
+    #hs-player-redesign .hs-car-track::before { content:&quot;&quot;; position:absolute; left:0; right:0; height:8px; border-radius:99px; background:rgba(255,255,255,.14); }
+    #hs-player-redesign .hs-car-track::after { content:&quot;&quot;; position:absolute; left:0; width:41%; height:8px; border-radius:99px; background:#f4eee5; }
+    #hs-player-redesign .hs-car-knob { position:absolute; z-index:2; left:41%; width:24px; height:24px; border-radius:50%; background:var(--hs-ember-hot); transform:translateX(-50%); box-shadow:0 0 0 7px rgba(224,101,74,.16); }
+    #hs-player-redesign .hs-car-times { display:flex; justify-content:space-between; color:var(--hs-muted); font-variant-numeric:tabular-nums; }
+    #hs-player-redesign .hs-car-transport { display:grid; grid-template-columns:72px 86px 116px 86px 72px; justify-content:center; align-items:center; gap:13px; margin:36px 0 24px; }
+    #hs-player-redesign .hs-car-transport button { height:72px; border:0; border-radius:22px; background:rgba(255,255,255,.055); display:grid; place-items:center; cursor:pointer; position:relative; color:var(--hs-ink); }
+    #hs-player-redesign .hs-car-transport button svg { width:34px; height:34px; }
+    #hs-player-redesign .hs-car-transport .hs-car-play { width:116px; height:116px; border-radius:50%; background:var(--hs-ink); color:var(--hs-shell); box-shadow:0 18px 46px rgba(0,0,0,.36); }
+    #hs-player-redesign .hs-car-transport .hs-car-play svg { width:48px; height:48px; stroke-width:2.2; }
+    #hs-player-redesign .hs-car-skip-number { position:absolute; font-size:11px; font-weight:800; }
+    #hs-player-redesign .hs-car-actions { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+    #hs-player-redesign .hs-car-action { min-height:82px; border:1px solid rgba(255,255,255,.1); border-radius:20px; background:rgba(255,255,255,.055); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; cursor:pointer; font-weight:650; }
+    #hs-player-redesign .hs-car-action svg { width:28px; height:28px; color:var(--hs-muted); }
+    #hs-player-redesign .hs-car-action.active { background:rgba(224,101,74,.16); border-color:rgba(224,101,74,.34); }
+    #hs-player-redesign .hs-car-action.active svg { color:var(--hs-ember-hot); }
+    #hs-player-redesign .hs-car-club-pulse { margin-top:auto; min-height:72px; border-top:1px solid rgba(255,255,255,.07); padding-top:18px; display:grid; grid-template-columns:auto 1fr auto; gap:13px; align-items:center; }
+    #hs-player-redesign .hs-car-club-pulse strong { font-size:14px; }
+    #hs-player-redesign .hs-car-club-pulse p { color:var(--hs-muted); margin-top:4px; font-size:12px; }
+    #hs-player-redesign .hs-car-club-button { min-height:52px; border:1px solid rgba(255,255,255,.1); border-radius:15px; background:rgba(255,255,255,.05); padding:0 16px; cursor:pointer; }
+    #hs-player-redesign .hs-car-drawer { position:absolute; z-index:10; top:18px; right:18px; bottom:18px; width:430px; border-radius:22px; background:#171512; border:1px solid rgba(255,255,255,.12); box-shadow:-20px 0 70px rgba(0,0,0,.5); padding:22px; display:none; flex-direction:column; overflow:auto; }
+    #hs-player-redesign .hs-car-drawer.open { display:flex; }
+    #hs-player-redesign .hs-car-drawer-head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; padding-bottom:17px; border-bottom:1px solid rgba(255,255,255,.08); }
+    #hs-player-redesign .hs-car-drawer-head h2 { font-family:Georgia,serif; font-size:27px; }
+    #hs-player-redesign .hs-car-drawer-head p { color:var(--hs-muted); margin-top:5px; font-size:13px; }
+    #hs-player-redesign .hs-car-drawer-close { width:52px; height:52px; border:0; border-radius:15px; background:rgba(255,255,255,.06); display:grid; place-items:center; cursor:pointer; }
+    #hs-player-redesign .hs-car-drawer .hs-race { padding:22px 6px; }
+    #hs-player-redesign .hs-parked-note { margin-top:18px; border-radius:17px; background:rgba(189,134,63,.1); border:1px solid rgba(189,134,63,.22); padding:17px; }
+    #hs-player-redesign .hs-parked-note strong { color:var(--hs-brass); }
+    #hs-player-redesign .hs-parked-note p { color:var(--hs-muted); margin-top:7px; line-height:1.45; }
+    #hs-player-redesign .hs-car-list { margin-top:12px; display:flex; flex-direction:column; gap:7px; }
+    #hs-player-redesign .hs-car-list-row { min-height:70px; border:0; border-radius:16px; background:rgba(255,255,255,.045); padding:0 16px; display:grid; grid-template-columns:38px 1fr auto; align-items:center; gap:12px; text-align:left; cursor:pointer; }
+    #hs-player-redesign .hs-car-list-row.active { background:rgba(224,101,74,.14); }
+    #hs-player-redesign .hs-car-list-row span { color:var(--hs-muted); font-size:12px; }
+
+    @media (max-width: 1120px) {
+      #hs-player-redesign .hs-normal { grid-template-columns: 76px 1fr; }
+      #hs-player-redesign .hs-sidebar { padding-inline:10px; align-items:center; }
+      #hs-player-redesign .hs-brand span,
+      #hs-player-redesign .hs-nav-label,
+      #hs-player-redesign .hs-nav-item span,
+      #hs-player-redesign .hs-server &gt; div:nth-child(2),
+      #hs-player-redesign .hs-server &gt; svg { display:none; }
+      #hs-player-redesign .hs-brand { padding-inline:0; }
+      #hs-player-redesign .hs-nav-item { width:50px; justify-content:center; padding:0; }
+      #hs-player-redesign .hs-server { display:block; padding-inline:0; }
+      #hs-player-redesign .hs-player-column { grid-template-columns:240px 1fr; }
+      #hs-player-redesign .hs-cover-art { width:240px; }
+      #hs-player-redesign .hs-player-tools { grid-template-columns:repeat(4,1fr); }
+      #hs-player-redesign .hs-car-card { grid-template-columns:320px 1fr; }
+      #hs-player-redesign .hs-car-art-section { padding:28px; }
+      #hs-player-redesign .hs-car-control-section { padding:28px; }
+    }
+    @media (max-width: 860px) {
+      #hs-player-redesign { min-height: 1180px; }
+      #hs-player-redesign .hs-app { height:auto; min-height:1180px; }
+      #hs-player-redesign .hs-normal,
+      #hs-player-redesign .hs-car { position:relative; min-height:1180px; }
+      #hs-player-redesign .hs-normal-workspace { grid-template-columns:1fr; overflow:auto; }
+      #hs-player-redesign .hs-companion { border-left:0; border-top:1px solid var(--hs-line); min-height:600px; }
+      #hs-player-redesign .hs-player-column { grid-template-columns:1fr; grid-template-areas:&quot;art&quot; &quot;identity&quot; &quot;progress&quot; &quot;transport&quot; &quot;club&quot; &quot;tools&quot;; justify-items:center; }
+      #hs-player-redesign .hs-identity { text-align:center; }
+      #hs-player-redesign .hs-progress-block { max-width:520px; }
+      #hs-player-redesign .hs-transport { width:min(430px,100%); }
+      #hs-player-redesign .hs-car { grid-template-columns:1fr; }
+      #hs-player-redesign .hs-car-rail { display:none; }
+      #hs-player-redesign .hs-car-surface { padding:90px 18px 24px; }
+      #hs-player-redesign .hs-car-card { grid-template-columns:1fr; }
+      #hs-player-redesign .hs-car-art-section { border-right:0; border-bottom:1px solid rgba(255,255,255,.07); }
+      #hs-player-redesign .hs-car-drawer { position:fixed; left:18px; width:auto; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #hs-player-redesign *, #hs-player-redesign *::before, #hs-player-redesign *::after { transition:none !important; animation:none !important; }
+    }
+  &lt;/style&gt;
+
+  &lt;div class=&quot;hs-app&quot;&gt;
+    &lt;div class=&quot;hs-mode-switch&quot; role=&quot;group&quot; aria-label=&quot;Player mode&quot;&gt;
+      &lt;button type=&quot;button&quot; data-set-mode=&quot;normal&quot; aria-pressed=&quot;true&quot;&gt;&lt;i data-lucide=&quot;monitor&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Normal&lt;/button&gt;
+      &lt;button type=&quot;button&quot; data-set-mode=&quot;car&quot; aria-pressed=&quot;false&quot;&gt;&lt;i data-lucide=&quot;car-front&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Car / Touch&lt;/button&gt;
+    &lt;/div&gt;
+
+    &lt;section class=&quot;hs-normal&quot; aria-label=&quot;Normal player redesign&quot;&gt;
+      &lt;aside class=&quot;hs-sidebar&quot;&gt;
+        &lt;div class=&quot;hs-brand&quot;&gt;&lt;span class=&quot;hs-brand-mark&quot;&gt;&lt;i data-lucide=&quot;flame&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;div&gt;&lt;span&gt;Hearth&lt;/span&gt;&lt;span&gt;Shelf&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+        &lt;div class=&quot;hs-nav-label&quot;&gt;Listen&lt;/div&gt;
+        &lt;nav class=&quot;hs-nav-list&quot; aria-label=&quot;Primary navigation&quot;&gt;
+          &lt;button type=&quot;button&quot; class=&quot;hs-nav-item&quot;&gt;&lt;i data-lucide=&quot;house&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Home&lt;/span&gt;&lt;/button&gt;
+          &lt;button type=&quot;button&quot; class=&quot;hs-nav-item active&quot;&gt;&lt;i data-lucide=&quot;headphones&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Now playing&lt;/span&gt;&lt;/button&gt;
+          &lt;button type=&quot;button&quot; class=&quot;hs-nav-item&quot;&gt;&lt;i data-lucide=&quot;library&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Library&lt;/span&gt;&lt;/button&gt;
+          &lt;button type=&quot;button&quot; class=&quot;hs-nav-item&quot;&gt;&lt;i data-lucide=&quot;list-music&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Following&lt;/span&gt;&lt;/button&gt;
+          &lt;button type=&quot;button&quot; class=&quot;hs-nav-item&quot;&gt;&lt;i data-lucide=&quot;users&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Book clubs&lt;/span&gt;&lt;/button&gt;
+        &lt;/nav&gt;
+        &lt;div class=&quot;hs-sidebar-spacer&quot;&gt;&lt;/div&gt;
+        &lt;button type=&quot;button&quot; class=&quot;hs-nav-item&quot;&gt;&lt;i data-lucide=&quot;settings&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Settings&lt;/span&gt;&lt;/button&gt;
+        &lt;div class=&quot;hs-server&quot;&gt;
+          &lt;div class=&quot;hs-server-avatar&quot;&gt;J&lt;/div&gt;
+          &lt;div&gt;&lt;div class=&quot;hs-server-name&quot;&gt;Jeremy&lt;/div&gt;&lt;div class=&quot;hs-server-sub&quot;&gt;Home server · Connected&lt;/div&gt;&lt;/div&gt;
+          &lt;i data-lucide=&quot;chevrons-up-down&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+        &lt;/div&gt;
+      &lt;/aside&gt;
+
+      &lt;div class=&quot;hs-normal-main&quot;&gt;
+        &lt;header class=&quot;hs-normal-topbar&quot;&gt;
+          &lt;div class=&quot;hs-now-label&quot;&gt;&lt;strong&gt;Now playing&lt;/strong&gt;&lt;span&gt;Home server&lt;/span&gt;&lt;/div&gt;
+          &lt;div class=&quot;hs-normal-actions&quot;&gt;
+            &lt;span class=&quot;hs-chip saved&quot;&gt;&lt;i data-lucide=&quot;cloud-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Saved just now&lt;/span&gt;
+            &lt;button type=&quot;button&quot; class=&quot;hs-top-action&quot; data-open-panel=&quot;queue&quot;&gt;&lt;i data-lucide=&quot;list-music&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; 4 up next&lt;/button&gt;
+            &lt;button type=&quot;button&quot; class=&quot;hs-top-action&quot; data-set-mode=&quot;car&quot;&gt;&lt;i data-lucide=&quot;car-front&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Car / Touch&lt;/button&gt;
+          &lt;/div&gt;
+        &lt;/header&gt;
+
+        &lt;div class=&quot;hs-normal-workspace&quot;&gt;
+          &lt;main class=&quot;hs-listening-stage&quot;&gt;
+            &lt;div class=&quot;hs-player-column&quot;&gt;
+              &lt;div class=&quot;hs-art-wrap&quot;&gt;
+                &lt;div class=&quot;hs-cover-art&quot; aria-label=&quot;Cover for The Will of the Many&quot;&gt;
+                  &lt;div class=&quot;hs-cover-kicker&quot;&gt;The Hierarchy · Book I&lt;/div&gt;
+                  &lt;div class=&quot;hs-cover-title&quot;&gt;The Will&lt;br&gt;of the Many&lt;/div&gt;
+                  &lt;div class=&quot;hs-cover-author&quot;&gt;James Islington&lt;/div&gt;
+                  &lt;div class=&quot;hs-cover-progress&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;
+                  &lt;div class=&quot;hs-cover-corners&quot;&gt;
+                    &lt;button type=&quot;button&quot; class=&quot;hs-cover-corner zoom&quot; aria-label=&quot;Zoom cover&quot;&gt;&lt;i data-lucide=&quot;scan&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+                    &lt;button type=&quot;button&quot; class=&quot;hs-cover-corner mark&quot; aria-label=&quot;Bookmark this moment&quot;&gt;&lt;i data-lucide=&quot;bookmark-plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+                  &lt;/div&gt;
+                &lt;/div&gt;
+              &lt;/div&gt;
+
+              &lt;div class=&quot;hs-identity&quot;&gt;
+                &lt;div class=&quot;hs-book-type&quot;&gt;Audiobook&lt;/div&gt;
+                &lt;h1&gt;The Will of the Many&lt;/h1&gt;
+                &lt;div class=&quot;hs-author&quot;&gt;James Islington · read by Euan Morton&lt;/div&gt;
+                &lt;div class=&quot;hs-chapter-name&quot;&gt;&lt;span&gt;Chapter 23 of 71&lt;/span&gt; &amp;nbsp; Career Moves&lt;/div&gt;
+              &lt;/div&gt;
+
+              &lt;div class=&quot;hs-progress-block&quot;&gt;
+                &lt;div class=&quot;hs-progress-header&quot;&gt;&lt;strong&gt;06:18:42&lt;/strong&gt;&lt;span&gt;41% complete&lt;/span&gt;&lt;span&gt;09:02:11 left&lt;/span&gt;&lt;/div&gt;
+                &lt;div class=&quot;hs-scrub-shell&quot; aria-label=&quot;Playback position 41 percent&quot;&gt;
+                  &lt;div class=&quot;hs-scrub-track&quot;&gt;&lt;div class=&quot;hs-scrub-fill&quot;&gt;&lt;/div&gt;&lt;/div&gt;
+                  &lt;div class=&quot;hs-scrub-knob&quot;&gt;&lt;/div&gt;
+                  &lt;i class=&quot;hs-note-tick&quot; style=&quot;left:31%&quot;&gt;&lt;/i&gt;&lt;i class=&quot;hs-note-tick&quot; style=&quot;left:37%&quot;&gt;&lt;/i&gt;&lt;i class=&quot;hs-note-tick locked&quot; style=&quot;left:48%&quot;&gt;&lt;/i&gt;&lt;i class=&quot;hs-note-tick locked&quot; style=&quot;left:61%&quot;&gt;&lt;/i&gt;
+                &lt;/div&gt;
+                &lt;div class=&quot;hs-progress-footer&quot;&gt;&lt;span&gt;18:42 into chapter&lt;/span&gt;&lt;span&gt;22:08 left in chapter&lt;/span&gt;&lt;/div&gt;
+              &lt;/div&gt;
+
+              &lt;div class=&quot;hs-transport&quot; aria-label=&quot;Playback controls&quot;&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-transport-button&quot; aria-label=&quot;Previous chapter&quot;&gt;&lt;i data-lucide=&quot;skip-back&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-transport-button&quot; aria-label=&quot;Back 30 seconds&quot;&gt;&lt;i data-lucide=&quot;rotate-ccw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span class=&quot;hs-skip-number&quot;&gt;30&lt;/span&gt;&lt;/button&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-transport-button play&quot; data-play-toggle aria-label=&quot;Pause&quot;&gt;&lt;i data-lucide=&quot;pause&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-transport-button&quot; aria-label=&quot;Forward 30 seconds&quot;&gt;&lt;i data-lucide=&quot;rotate-cw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span class=&quot;hs-skip-number&quot;&gt;30&lt;/span&gt;&lt;/button&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-transport-button&quot; aria-label=&quot;Next chapter&quot;&gt;&lt;i data-lucide=&quot;skip-forward&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+              &lt;/div&gt;
+
+              &lt;button type=&quot;button&quot; class=&quot;hs-club-pulse&quot; data-open-panel=&quot;club&quot;&gt;
+                &lt;span class=&quot;hs-avatar-stack&quot;&gt;&lt;i class=&quot;hs-small-avatar&quot; style=&quot;background:#755288&quot;&gt;T&lt;/i&gt;&lt;i class=&quot;hs-small-avatar&quot; style=&quot;background:#4b7c70&quot;&gt;M&lt;/i&gt;&lt;i class=&quot;hs-small-avatar&quot; style=&quot;background:#6273a5&quot;&gt;R&lt;/i&gt;&lt;/span&gt;
+                &lt;span&gt;&lt;strong&gt;Epic Fantasy Friends&lt;/strong&gt;&lt;span&gt;Maya is 7 minutes ahead · a spoiler-safe note is coming up&lt;/span&gt;&lt;/span&gt;
+                &lt;span class=&quot;hs-club-action&quot;&gt;Open club &lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+              &lt;/button&gt;
+
+              &lt;div class=&quot;hs-player-tools&quot; aria-label=&quot;Player tools&quot;&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-tool-button&quot;&gt;&lt;i data-lucide=&quot;list&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Chapters&lt;/button&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-tool-button&quot;&gt;&lt;i data-lucide=&quot;gauge&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;1.25×&lt;/button&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-tool-button&quot;&gt;&lt;i data-lucide=&quot;volume-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;80%&lt;/button&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-tool-button&quot;&gt;&lt;i data-lucide=&quot;moon&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Sleep&lt;/button&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-tool-button&quot;&gt;&lt;i data-lucide=&quot;history&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Recent&lt;/button&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-tool-button&quot;&gt;&lt;i data-lucide=&quot;book-open&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Read along&lt;/button&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-tool-button&quot;&gt;&lt;i data-lucide=&quot;ellipsis&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;More&lt;/button&gt;
+              &lt;/div&gt;
+            &lt;/div&gt;
+          &lt;/main&gt;
+
+          &lt;aside class=&quot;hs-companion&quot; aria-label=&quot;Player companion panel&quot;&gt;
+            &lt;div class=&quot;hs-companion-tabs&quot; role=&quot;tablist&quot; aria-label=&quot;Player companion&quot;&gt;
+              &lt;button type=&quot;button&quot; class=&quot;hs-companion-tab&quot; data-panel-tab=&quot;club&quot; role=&quot;tab&quot; aria-selected=&quot;true&quot;&gt;&lt;i data-lucide=&quot;users&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Club&lt;/button&gt;
+              &lt;button type=&quot;button&quot; class=&quot;hs-companion-tab&quot; data-panel-tab=&quot;queue&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot;&gt;&lt;i data-lucide=&quot;list-music&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Up next&lt;/button&gt;
+              &lt;button type=&quot;button&quot; class=&quot;hs-companion-tab&quot; data-panel-tab=&quot;chapters&quot; role=&quot;tab&quot; aria-selected=&quot;false&quot;&gt;&lt;i data-lucide=&quot;list&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Chapters&lt;/button&gt;
+            &lt;/div&gt;
+
+            &lt;section class=&quot;hs-panel active&quot; data-panel=&quot;club&quot; role=&quot;tabpanel&quot;&gt;
+              &lt;div class=&quot;hs-panel-heading&quot;&gt;
+                &lt;div&gt;&lt;div class=&quot;hs-eyebrow&quot;&gt;Book club&lt;/div&gt;&lt;h2&gt;Epic Fantasy Friends&lt;/h2&gt;&lt;p&gt;4 readers on this book&lt;/p&gt;&lt;/div&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-close-panel&quot; data-close-panel aria-label=&quot;Close companion panel&quot;&gt;&lt;i data-lucide=&quot;x&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+              &lt;/div&gt;
+              &lt;div class=&quot;hs-race&quot;&gt;
+                &lt;div class=&quot;hs-race-meta&quot;&gt;&lt;span&gt;Reading together&lt;/span&gt;&lt;span class=&quot;hs-live&quot;&gt;● Maya is listening now&lt;/span&gt;&lt;/div&gt;
+                &lt;div class=&quot;hs-race-track&quot;&gt;&lt;i class=&quot;hs-racer&quot; style=&quot;left:27%;background:#755288&quot;&gt;T&lt;/i&gt;&lt;i class=&quot;hs-racer&quot; style=&quot;left:41%;background:#bd634e&quot;&gt;You&lt;/i&gt;&lt;i class=&quot;hs-racer&quot; style=&quot;left:48%;background:#4b7c70&quot;&gt;M&lt;/i&gt;&lt;i class=&quot;hs-racer&quot; style=&quot;left:71%;background:#6273a5&quot;&gt;R&lt;/i&gt;&lt;/div&gt;
+                &lt;div class=&quot;hs-race-ends&quot;&gt;&lt;span&gt;Started&lt;/span&gt;&lt;span&gt;Finished&lt;/span&gt;&lt;/div&gt;
+              &lt;/div&gt;
+              &lt;button type=&quot;button&quot; class=&quot;hs-nearby-note&quot; data-open-composer&gt;
+                &lt;div class=&quot;hs-note-head&quot;&gt;&lt;span&gt;Nearby note · Maya&lt;/span&gt;&lt;span&gt;in 1 minute&lt;/span&gt;&lt;/div&gt;
+                &lt;p&gt;“This is where the hierarchy finally starts to crack.”&lt;/p&gt;
+              &lt;/button&gt;
+              &lt;div class=&quot;hs-discussion-title&quot;&gt;&lt;span&gt;Discussion near your spot&lt;/span&gt;&lt;span&gt;3 comments&lt;/span&gt;&lt;/div&gt;
+              &lt;div class=&quot;hs-thread&quot;&gt;
+                &lt;article class=&quot;hs-comment&quot;&gt;&lt;div class=&quot;hs-comment-avatar&quot; style=&quot;background:#755288&quot;&gt;T&lt;/div&gt;&lt;div&gt;&lt;div class=&quot;hs-comment-name&quot;&gt;Theo · 12 minutes behind&lt;/div&gt;&lt;p class=&quot;hs-comment-body&quot;&gt;The earlier academy scene makes much more sense now.&lt;/p&gt;&lt;div class=&quot;hs-reactions&quot;&gt;&lt;span class=&quot;hs-reaction&quot;&gt;♥ 3&lt;/span&gt;&lt;span class=&quot;hs-reaction&quot;&gt;😮 1&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;/article&gt;
+                &lt;article class=&quot;hs-comment&quot;&gt;&lt;div class=&quot;hs-comment-avatar&quot; style=&quot;background:#6273a5&quot;&gt;R&lt;/div&gt;&lt;div&gt;&lt;div class=&quot;hs-comment-name&quot;&gt;Rin · 4 minutes behind&lt;/div&gt;&lt;p class=&quot;hs-comment-body&quot;&gt;I caught the same detail. No spoilers, but keep that name in mind.&lt;/p&gt;&lt;div class=&quot;hs-reactions&quot;&gt;&lt;span class=&quot;hs-reaction&quot;&gt;👍 2&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;/article&gt;
+              &lt;/div&gt;
+              &lt;div class=&quot;hs-compose-area&quot;&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-compose-open&quot; data-open-composer&gt;&lt;i data-lucide=&quot;message-circle-plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Add a comment at 06:18:42&lt;/button&gt;
+                &lt;div class=&quot;hs-composer&quot; hidden&gt;
+                  &lt;label for=&quot;hs-redesign-comment&quot;&gt;Comment at 06:18:42&lt;/label&gt;
+                  &lt;textarea id=&quot;hs-redesign-comment&quot; placeholder=&quot;Share a thought with the club…&quot;&gt;&lt;/textarea&gt;
+                  &lt;div class=&quot;hs-composer-safe&quot;&gt;&lt;i data-lucide=&quot;shield-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Hidden until listeners reach this point&lt;/div&gt;
+                  &lt;div class=&quot;hs-compose-buttons&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;hs-compose-cancel&quot; data-cancel-composer&gt;Cancel&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;hs-compose-post&quot;&gt;Post comment&lt;/button&gt;&lt;/div&gt;
+                &lt;/div&gt;
+              &lt;/div&gt;
+            &lt;/section&gt;
+
+            &lt;section class=&quot;hs-panel&quot; data-panel=&quot;queue&quot; role=&quot;tabpanel&quot;&gt;
+              &lt;div class=&quot;hs-panel-heading&quot;&gt;&lt;div&gt;&lt;div class=&quot;hs-eyebrow&quot;&gt;Auto queue&lt;/div&gt;&lt;h2&gt;Up next&lt;/h2&gt;&lt;p&gt;4 books · about 74 hours&lt;/p&gt;&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;hs-close-panel&quot; data-close-panel aria-label=&quot;Close companion panel&quot;&gt;&lt;i data-lucide=&quot;x&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+              &lt;div class=&quot;hs-queue-list&quot;&gt;
+                &lt;div class=&quot;hs-queue-row&quot;&gt;&lt;div class=&quot;hs-queue-cover&quot;&gt;1&lt;/div&gt;&lt;div&gt;&lt;div class=&quot;hs-queue-title&quot;&gt;The Strength of the Few&lt;/div&gt;&lt;div class=&quot;hs-queue-sub&quot;&gt;James Islington · Next in series&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;hs-queue-time&quot;&gt;28h&lt;/div&gt;&lt;/div&gt;
+                &lt;div class=&quot;hs-queue-row&quot;&gt;&lt;div class=&quot;hs-queue-cover&quot; style=&quot;background:linear-gradient(135deg,#654633,#281d17)&quot;&gt;2&lt;/div&gt;&lt;div&gt;&lt;div class=&quot;hs-queue-title&quot;&gt;The Devils&lt;/div&gt;&lt;div class=&quot;hs-queue-sub&quot;&gt;Joe Abercrombie · Club pick&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;hs-queue-time&quot;&gt;24h&lt;/div&gt;&lt;/div&gt;
+                &lt;div class=&quot;hs-queue-row&quot;&gt;&lt;div class=&quot;hs-queue-cover&quot; style=&quot;background:linear-gradient(135deg,#514f71,#242237)&quot;&gt;3&lt;/div&gt;&lt;div&gt;&lt;div class=&quot;hs-queue-title&quot;&gt;The Tainted Cup&lt;/div&gt;&lt;div class=&quot;hs-queue-sub&quot;&gt;Robert Jackson Bennett&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;hs-queue-time&quot;&gt;15h&lt;/div&gt;&lt;/div&gt;
+                &lt;div class=&quot;hs-queue-row&quot;&gt;&lt;div class=&quot;hs-queue-cover&quot; style=&quot;background:linear-gradient(135deg,#526d52,#263526)&quot;&gt;4&lt;/div&gt;&lt;div&gt;&lt;div class=&quot;hs-queue-title&quot;&gt;Wind and Truth&lt;/div&gt;&lt;div class=&quot;hs-queue-sub&quot;&gt;Brandon Sanderson&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;hs-queue-time&quot;&gt;62h&lt;/div&gt;&lt;/div&gt;
+              &lt;/div&gt;
+            &lt;/section&gt;
+
+            &lt;section class=&quot;hs-panel&quot; data-panel=&quot;chapters&quot; role=&quot;tabpanel&quot;&gt;
+              &lt;div class=&quot;hs-panel-heading&quot;&gt;&lt;div&gt;&lt;div class=&quot;hs-eyebrow&quot;&gt;This book&lt;/div&gt;&lt;h2&gt;Chapters&lt;/h2&gt;&lt;p&gt;71 chapters · 48 left&lt;/p&gt;&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;hs-close-panel&quot; data-close-panel aria-label=&quot;Close companion panel&quot;&gt;&lt;i data-lucide=&quot;x&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+              &lt;div class=&quot;hs-chapter-list&quot;&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-chapter-row&quot;&gt;&lt;span class=&quot;hs-chapter-num&quot;&gt;21&lt;/span&gt;&lt;span&gt;An Unexpected Offer&lt;/span&gt;&lt;span class=&quot;hs-chapter-time&quot;&gt;34:18&lt;/span&gt;&lt;/button&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-chapter-row&quot;&gt;&lt;span class=&quot;hs-chapter-num&quot;&gt;22&lt;/span&gt;&lt;span&gt;The Price of Silence&lt;/span&gt;&lt;span class=&quot;hs-chapter-time&quot;&gt;41:02&lt;/span&gt;&lt;/button&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-chapter-row now&quot;&gt;&lt;span class=&quot;hs-chapter-num&quot;&gt;&lt;i data-lucide=&quot;audio-lines&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span&gt;Career Moves&lt;/span&gt;&lt;span class=&quot;hs-chapter-time&quot;&gt;40:50&lt;/span&gt;&lt;/button&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-chapter-row&quot;&gt;&lt;span class=&quot;hs-chapter-num&quot;&gt;24&lt;/span&gt;&lt;span&gt;A Question of Will&lt;/span&gt;&lt;span class=&quot;hs-chapter-time&quot;&gt;36:14&lt;/span&gt;&lt;/button&gt;
+                &lt;button type=&quot;button&quot; class=&quot;hs-chapter-row&quot;&gt;&lt;span class=&quot;hs-chapter-num&quot;&gt;25&lt;/span&gt;&lt;span&gt;Foundation&lt;/span&gt;&lt;span class=&quot;hs-chapter-time&quot;&gt;52:09&lt;/span&gt;&lt;/button&gt;
+              &lt;/div&gt;
+            &lt;/section&gt;
+          &lt;/aside&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/section&gt;
+
+    &lt;section class=&quot;hs-car&quot; aria-label=&quot;Car and touch player redesign&quot;&gt;
+      &lt;nav class=&quot;hs-car-rail&quot; aria-label=&quot;Car navigation&quot;&gt;
+        &lt;div class=&quot;hs-car-brand&quot;&gt;&lt;i data-lucide=&quot;flame&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+        &lt;button type=&quot;button&quot; class=&quot;hs-car-nav&quot;&gt;&lt;i data-lucide=&quot;house&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Home&lt;/button&gt;
+        &lt;button type=&quot;button&quot; class=&quot;hs-car-nav active&quot;&gt;&lt;i data-lucide=&quot;headphones&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Now playing&lt;/button&gt;
+        &lt;button type=&quot;button&quot; class=&quot;hs-car-nav&quot;&gt;&lt;i data-lucide=&quot;library&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Library&lt;/button&gt;
+        &lt;div class=&quot;hs-car-rail-spacer&quot;&gt;&lt;/div&gt;
+        &lt;button type=&quot;button&quot; class=&quot;hs-car-nav&quot; data-set-mode=&quot;normal&quot;&gt;&lt;i data-lucide=&quot;minimize-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Exit&lt;/button&gt;
+      &lt;/nav&gt;
+
+      &lt;main class=&quot;hs-car-surface&quot;&gt;
+        &lt;div class=&quot;hs-car-card&quot;&gt;
+          &lt;section class=&quot;hs-car-art-section&quot;&gt;
+            &lt;div class=&quot;hs-car-cover&quot;&gt;&lt;div class=&quot;hs-cover-title&quot;&gt;The Will&lt;br&gt;of the Many&lt;/div&gt;&lt;div class=&quot;hs-cover-author&quot;&gt;James Islington&lt;/div&gt;&lt;div class=&quot;hs-cover-progress&quot;&gt;&lt;i&gt;&lt;/i&gt;&lt;/div&gt;&lt;/div&gt;
+            &lt;div class=&quot;hs-car-book-label&quot;&gt;&lt;h2&gt;The Will of the Many&lt;/h2&gt;&lt;p&gt;James Islington · Chapter 23&lt;/p&gt;&lt;/div&gt;
+          &lt;/section&gt;
+
+          &lt;section class=&quot;hs-car-control-section&quot;&gt;
+            &lt;header class=&quot;hs-car-head&quot;&gt;&lt;div&gt;&lt;div class=&quot;hs-eyebrow&quot;&gt;Car / Touch&lt;/div&gt;&lt;h1&gt;Career Moves&lt;/h1&gt;&lt;/div&gt;&lt;div class=&quot;hs-car-saved&quot;&gt;&lt;i data-lucide=&quot;cloud-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; Saved&lt;/div&gt;&lt;/header&gt;
+            &lt;div class=&quot;hs-car-progress&quot;&gt;
+              &lt;div class=&quot;hs-car-progress-copy&quot;&gt;&lt;strong&gt;06:18:42&lt;/strong&gt;&lt;span&gt;41% complete · 09:02:11 left&lt;/span&gt;&lt;/div&gt;
+              &lt;div class=&quot;hs-car-track&quot;&gt;&lt;i class=&quot;hs-car-knob&quot;&gt;&lt;/i&gt;&lt;/div&gt;
+              &lt;div class=&quot;hs-car-times&quot;&gt;&lt;span&gt;18:42 into chapter&lt;/span&gt;&lt;span&gt;22:08 left&lt;/span&gt;&lt;/div&gt;
+            &lt;/div&gt;
+            &lt;div class=&quot;hs-car-transport&quot; aria-label=&quot;Large playback controls&quot;&gt;
+              &lt;button type=&quot;button&quot; aria-label=&quot;Previous chapter&quot;&gt;&lt;i data-lucide=&quot;skip-back&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+              &lt;button type=&quot;button&quot; aria-label=&quot;Back 30 seconds&quot;&gt;&lt;i data-lucide=&quot;rotate-ccw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span class=&quot;hs-car-skip-number&quot;&gt;30&lt;/span&gt;&lt;/button&gt;
+              &lt;button type=&quot;button&quot; class=&quot;hs-car-play&quot; data-play-toggle aria-label=&quot;Pause&quot;&gt;&lt;i data-lucide=&quot;pause&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+              &lt;button type=&quot;button&quot; aria-label=&quot;Forward 30 seconds&quot;&gt;&lt;i data-lucide=&quot;rotate-cw&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span class=&quot;hs-car-skip-number&quot;&gt;30&lt;/span&gt;&lt;/button&gt;
+              &lt;button type=&quot;button&quot; aria-label=&quot;Next chapter&quot;&gt;&lt;i data-lucide=&quot;skip-forward&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+            &lt;/div&gt;
+            &lt;div class=&quot;hs-car-actions&quot;&gt;
+              &lt;button type=&quot;button&quot; class=&quot;hs-car-action&quot; data-car-drawer=&quot;chapters&quot;&gt;&lt;i data-lucide=&quot;list&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Chapters&lt;/button&gt;
+              &lt;button type=&quot;button&quot; class=&quot;hs-car-action&quot;&gt;&lt;i data-lucide=&quot;gauge&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;1.25×&lt;/button&gt;
+              &lt;button type=&quot;button&quot; class=&quot;hs-car-action&quot;&gt;&lt;i data-lucide=&quot;bookmark-plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Bookmark&lt;/button&gt;
+              &lt;button type=&quot;button&quot; class=&quot;hs-car-action&quot; data-car-drawer=&quot;queue&quot;&gt;&lt;i data-lucide=&quot;list-music&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Up next · 4&lt;/button&gt;
+            &lt;/div&gt;
+            &lt;div class=&quot;hs-car-club-pulse&quot;&gt;
+              &lt;span class=&quot;hs-avatar-stack&quot;&gt;&lt;i class=&quot;hs-small-avatar&quot; style=&quot;background:#755288&quot;&gt;T&lt;/i&gt;&lt;i class=&quot;hs-small-avatar&quot; style=&quot;background:#4b7c70&quot;&gt;M&lt;/i&gt;&lt;i class=&quot;hs-small-avatar&quot; style=&quot;background:#6273a5&quot;&gt;R&lt;/i&gt;&lt;/span&gt;
+              &lt;div&gt;&lt;strong&gt;Epic Fantasy Friends&lt;/strong&gt;&lt;p&gt;Maya is listening 7 minutes ahead&lt;/p&gt;&lt;/div&gt;
+              &lt;button type=&quot;button&quot; class=&quot;hs-car-club-button&quot; data-car-drawer=&quot;club&quot;&gt;Club pulse&lt;/button&gt;
+            &lt;/div&gt;
+          &lt;/section&gt;
+
+          &lt;aside class=&quot;hs-car-drawer&quot; data-car-panel=&quot;club&quot;&gt;
+            &lt;div class=&quot;hs-car-drawer-head&quot;&gt;&lt;div&gt;&lt;h2&gt;Club pulse&lt;/h2&gt;&lt;p&gt;Epic Fantasy Friends · 4 readers&lt;/p&gt;&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;hs-car-drawer-close&quot; data-close-car-drawer aria-label=&quot;Close&quot;&gt;&lt;i data-lucide=&quot;x&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+            &lt;div class=&quot;hs-race&quot;&gt;&lt;div class=&quot;hs-race-meta&quot;&gt;&lt;span&gt;Reading together&lt;/span&gt;&lt;span class=&quot;hs-live&quot;&gt;● Maya is listening&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;hs-race-track&quot;&gt;&lt;i class=&quot;hs-racer&quot; style=&quot;left:27%;background:#755288&quot;&gt;T&lt;/i&gt;&lt;i class=&quot;hs-racer&quot; style=&quot;left:41%;background:#bd634e&quot;&gt;You&lt;/i&gt;&lt;i class=&quot;hs-racer&quot; style=&quot;left:48%;background:#4b7c70&quot;&gt;M&lt;/i&gt;&lt;i class=&quot;hs-racer&quot; style=&quot;left:71%;background:#6273a5&quot;&gt;R&lt;/i&gt;&lt;/div&gt;&lt;div class=&quot;hs-race-ends&quot;&gt;&lt;span&gt;Started&lt;/span&gt;&lt;span&gt;Finished&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+            &lt;div class=&quot;hs-parked-note&quot;&gt;&lt;strong&gt;A spoiler-safe note is 1 minute ahead&lt;/strong&gt;&lt;p&gt;Discussion stays readable here, but writing is kept out of Car / Touch mode. Open Normal mode when parked to comment or reply.&lt;/p&gt;&lt;/div&gt;
+            &lt;div class=&quot;hs-car-list&quot;&gt;&lt;div class=&quot;hs-car-list-row&quot;&gt;&lt;span class=&quot;hs-comment-avatar&quot; style=&quot;background:#755288&quot;&gt;T&lt;/span&gt;&lt;div&gt;Theo&lt;div&gt;&lt;span&gt;“The earlier academy scene makes much more sense now.”&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span&gt;12m behind&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;hs-car-list-row&quot;&gt;&lt;span class=&quot;hs-comment-avatar&quot; style=&quot;background:#6273a5&quot;&gt;R&lt;/span&gt;&lt;div&gt;Rin&lt;div&gt;&lt;span&gt;“Keep that name in mind.”&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span&gt;4m behind&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;
+          &lt;/aside&gt;
+          &lt;aside class=&quot;hs-car-drawer&quot; data-car-panel=&quot;chapters&quot;&gt;
+            &lt;div class=&quot;hs-car-drawer-head&quot;&gt;&lt;div&gt;&lt;h2&gt;Chapters&lt;/h2&gt;&lt;p&gt;71 chapters · 48 left&lt;/p&gt;&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;hs-car-drawer-close&quot; data-close-car-drawer aria-label=&quot;Close&quot;&gt;&lt;i data-lucide=&quot;x&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+            &lt;div class=&quot;hs-car-list&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;hs-car-list-row&quot;&gt;&lt;strong&gt;21&lt;/strong&gt;&lt;div&gt;An Unexpected Offer&lt;/div&gt;&lt;span&gt;34:18&lt;/span&gt;&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;hs-car-list-row&quot;&gt;&lt;strong&gt;22&lt;/strong&gt;&lt;div&gt;The Price of Silence&lt;/div&gt;&lt;span&gt;41:02&lt;/span&gt;&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;hs-car-list-row active&quot;&gt;&lt;i data-lucide=&quot;audio-lines&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;div&gt;Career Moves&lt;/div&gt;&lt;span&gt;40:50&lt;/span&gt;&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;hs-car-list-row&quot;&gt;&lt;strong&gt;24&lt;/strong&gt;&lt;div&gt;A Question of Will&lt;/div&gt;&lt;span&gt;36:14&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;
+          &lt;/aside&gt;
+          &lt;aside class=&quot;hs-car-drawer&quot; data-car-panel=&quot;queue&quot;&gt;
+            &lt;div class=&quot;hs-car-drawer-head&quot;&gt;&lt;div&gt;&lt;h2&gt;Up next&lt;/h2&gt;&lt;p&gt;Auto queue · 4 books&lt;/p&gt;&lt;/div&gt;&lt;button type=&quot;button&quot; class=&quot;hs-car-drawer-close&quot; data-close-car-drawer aria-label=&quot;Close&quot;&gt;&lt;i data-lucide=&quot;x&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+            &lt;div class=&quot;hs-car-list&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;hs-car-list-row&quot;&gt;&lt;strong&gt;1&lt;/strong&gt;&lt;div&gt;The Strength of the Few&lt;div&gt;&lt;span&gt;Next in series&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span&gt;28h&lt;/span&gt;&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;hs-car-list-row&quot;&gt;&lt;strong&gt;2&lt;/strong&gt;&lt;div&gt;The Devils&lt;div&gt;&lt;span&gt;Club pick&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;span&gt;24h&lt;/span&gt;&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;hs-car-list-row&quot;&gt;&lt;strong&gt;3&lt;/strong&gt;&lt;div&gt;The Tainted Cup&lt;/div&gt;&lt;span&gt;15h&lt;/span&gt;&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;hs-car-list-row&quot;&gt;&lt;strong&gt;4&lt;/strong&gt;&lt;div&gt;Wind and Truth&lt;/div&gt;&lt;span&gt;62h&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;
+          &lt;/aside&gt;
+        &lt;/div&gt;
+      &lt;/main&gt;
+    &lt;/section&gt;
+  &lt;/div&gt;
+
+  &lt;script&gt;
+    (() =&gt; {
+      const root = document.getElementById(&#x27;hs-player-redesign&#x27;);
+      const setMode = (mode) =&gt; {
+        root.dataset.mode = mode;
+        root.querySelectorAll(&#x27;[data-set-mode]&#x27;).forEach((button) =&gt; {
+          if (button.closest(&#x27;.hs-mode-switch&#x27;)) button.setAttribute(&#x27;aria-pressed&#x27;, String(button.dataset.setMode === mode));
+        });
+      };
+      root.querySelectorAll(&#x27;[data-set-mode]&#x27;).forEach((button) =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; setMode(button.dataset.setMode)));
+
+      const workspace = root.querySelector(&#x27;.hs-normal-workspace&#x27;);
+      const openPanel = (name) =&gt; {
+        workspace.classList.remove(&#x27;panel-closed&#x27;);
+        root.querySelectorAll(&#x27;[data-panel]&#x27;).forEach((panel) =&gt; panel.classList.toggle(&#x27;active&#x27;, panel.dataset.panel === name));
+        root.querySelectorAll(&#x27;[data-panel-tab]&#x27;).forEach((tab) =&gt; tab.setAttribute(&#x27;aria-selected&#x27;, String(tab.dataset.panelTab === name)));
+      };
+      root.querySelectorAll(&#x27;[data-panel-tab]&#x27;).forEach((tab) =&gt; tab.addEventListener(&#x27;click&#x27;, () =&gt; openPanel(tab.dataset.panelTab)));
+      root.querySelectorAll(&#x27;[data-open-panel]&#x27;).forEach((button) =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; openPanel(button.dataset.openPanel)));
+      root.querySelectorAll(&#x27;[data-close-panel]&#x27;).forEach((button) =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; workspace.classList.add(&#x27;panel-closed&#x27;)));
+
+      const composer = root.querySelector(&#x27;.hs-composer&#x27;);
+      const composeOpen = root.querySelector(&#x27;.hs-compose-open&#x27;);
+      root.querySelectorAll(&#x27;[data-open-composer]&#x27;).forEach((button) =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; {
+        composeOpen.hidden = true;
+        composer.hidden = false;
+        composer.querySelector(&#x27;textarea&#x27;).focus();
+      }));
+      root.querySelector(&#x27;[data-cancel-composer]&#x27;).addEventListener(&#x27;click&#x27;, () =&gt; {
+        composer.hidden = true;
+        composeOpen.hidden = false;
+      });
+
+      root.querySelectorAll(&#x27;[data-play-toggle]&#x27;).forEach((button) =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; {
+        const icon = button.querySelector(&#x27;svg&#x27;);
+        const paused = button.getAttribute(&#x27;aria-label&#x27;) === &#x27;Pause&#x27;;
+        button.setAttribute(&#x27;aria-label&#x27;, paused ? &#x27;Play&#x27; : &#x27;Pause&#x27;);
+        if (icon) icon.outerHTML = `&lt;i data-lucide=&quot;${paused ? &#x27;play&#x27; : &#x27;pause&#x27;}&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;`;
+        if (globalThis.lucide) globalThis.lucide.createIcons({ attrs: { width: 20, height: 20 } });
+      }));
+
+      const closeCarDrawers = () =&gt; root.querySelectorAll(&#x27;[data-car-panel]&#x27;).forEach((panel) =&gt; panel.classList.remove(&#x27;open&#x27;));
+      root.querySelectorAll(&#x27;[data-car-drawer]&#x27;).forEach((button) =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; {
+        const name = button.dataset.carDrawer;
+        closeCarDrawers();
+        root.querySelector(`[data-car-panel=&quot;${name}&quot;]`).classList.add(&#x27;open&#x27;);
+      }));
+      root.querySelectorAll(&#x27;[data-close-car-drawer]&#x27;).forEach((button) =&gt; button.addEventListener(&#x27;click&#x27;, closeCarDrawers));
+    })();
+  &lt;/script&gt;
+&lt;/div&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handleLeave = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

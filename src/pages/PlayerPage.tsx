@@ -17,6 +17,7 @@ import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { CarPlayer } from '@/components/player/CarPlayer'
 import { Scrubber } from '@/components/player/Scrubber'
 import { TimelineMarkers } from '@/components/player/TimelineMarkers'
+import { PlayerClubCompanion } from '@/components/player/PlayerClubCompanion'
 import { useCarMode } from '@/hooks/useCarMode'
 import { useVisualViewportSize } from '@/hooks/useVisualViewportSize'
 import { useIdleFade } from '@/hooks/useIdleFade'
@@ -41,7 +42,7 @@ interface Chap {
   title: string
 }
 
-type Panel = 'chapters' | 'details' | 'queue' | 'reader' | null
+type Panel = 'club' | 'chapters' | 'details' | 'queue' | 'reader' | null
 type Pop = 'speed' | 'sleep' | 'bookmark' | 'recent' | 'volume' | null
 
 function PanelHead({
@@ -808,6 +809,8 @@ export function PlayerPage() {
           wake={carIdleFade.wake}
           tick={carIdleFade.tick}
           canReadAlong={canReadAlong}
+          target={target ?? undefined}
+          clubDetail={clubDetail?.enabled ? clubDetail : undefined}
         />
         {toast && (
           <div className="p-toast">
@@ -850,7 +853,7 @@ export function PlayerPage() {
           <div className="player-hearth-veil" aria-hidden="true" />
         </>
       )}
-      <div className="player-col">
+      <div className="player-col player-col-redesign">
         <div className="p-head">
           <button
             className="p-minimize"
@@ -886,120 +889,165 @@ export function PlayerPage() {
           </div>
         </div>
 
-        <div className="p-cover-wrap">
-          <Cover
-            itemId={libraryItemId}
-            title={title}
-            author={author || undefined}
-            fs={26}
-            onClick={() => navigate(`/book/${libraryItemId}`)}
-          />
-          <div className="p-cover-prog">
-            <i style={{ width: bookRatio * 100 + '%' }} />
+        <div className="p-main-stage">
+          <div className="p-artwork-column">
+            <div className="p-cover-wrap">
+              <Cover
+                itemId={libraryItemId}
+                title={title}
+                author={author || undefined}
+                fs={26}
+                onClick={() => navigate(`/book/${libraryItemId}`)}
+              />
+              <div className="p-cover-prog">
+                <i style={{ width: bookRatio * 100 + '%' }} />
+              </div>
+            </div>
+            <div className="p-artwork-progress">{Math.round(bookRatio * 100)}% listened</div>
+          </div>
+
+          <div className="p-control-column">
+            <div className="p-book-identity">
+              <div className="eyebrow">Now playing</div>
+              <h2>{title}</h2>
+              <p>{author}</p>
+              <button className="p-current-chapter" onClick={() => togglePanel('chapters')}>
+                <span>
+                  Chapter {ci + 1} of {chapters.length || 1}
+                </span>
+                <strong>{cur.title}</strong>
+                <Icon name="chevron_right" />
+              </button>
+            </div>
+
+            <div className="p-prog-row">
+              <div className="p-pct">
+                {Math.round(bookRatio * 100)}
+                <small>%</small>
+              </div>
+              <div className="p-ch">
+                Ch {ci + 1} / {chapters.length || 1}
+              </div>
+            </div>
+
+            {/* secondary context line - the metric the main scrubber is NOT showing */}
+            {scrubber === 'book' ? (
+              <>
+                <Scrubber
+                  className="prog-line"
+                  knob={false}
+                  ratio={chRatio}
+                  onSeek={(r) => seekClamp(cur.start + r * chSpan)}
+                />
+                <div className="p-times">
+                  <span>{cur.title}</span>
+                  <span>-{formatTimestamp(chSpan - chPos)} in ch</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <Scrubber
+                  className="prog-line"
+                  knob={false}
+                  ratio={bookRatio}
+                  onSeek={(r) => seekClamp(r * duration)}
+                />
+                <div className="p-times">
+                  <span>{formatTimestamp(previewPos)} elapsed</span>
+                  <span>{formatTimestamp(duration - previewPos)} left</span>
+                </div>
+              </>
+            )}
+
+            {/* primary scrubber */}
+            <div style={{ width: '100%', marginTop: 28, textAlign: 'center' }}>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
+                {scrubber === 'book' ? 'Full book' : cur.title}
+              </div>
+              {scrubber === 'book' ? (
+                <>
+                  <Scrubber
+                    className="scrub"
+                    ratio={bookRatio}
+                    onDrag={setDragRatio}
+                    onSeek={(r) => seekClamp(r * duration)}
+                    elapsed={formatTimestamp(previewPos)}
+                    chapter={cur.title}
+                    remain={'-' + formatTimestamp(duration - previewPos)}
+                  />
+                  <TimelineMarkers
+                    markers={timelineMarkers}
+                    onOpenNote={() =>
+                      activeClubId ? setPanel('club') : navigate(`/book/${libraryItemId}`)
+                    }
+                    onOpenTeaser={(timeSec) =>
+                      setToast(`A note awaits at ${formatTimestamp(timeSec)}`)
+                    }
+                  />
+                </>
+              ) : (
+                <Scrubber
+                  className="scrub"
+                  ratio={chRatio}
+                  onDrag={setDragRatio}
+                  onSeek={(r) => seekClamp(cur.start + r * chSpan)}
+                  elapsed={formatTimestamp(chPos)}
+                  chapter={cur.title}
+                  remain={'-' + formatTimestamp(chSpan - chPos)}
+                />
+              )}
+            </div>
+
+            <div className="p-transport">
+              <button className="p-skip lite" title="Previous chapter" onClick={prevCh}>
+                <Icon name="skip_previous" fill />
+              </button>
+              <button
+                className="p-skip"
+                title={`Back ${skipBack} seconds`}
+                onClick={() => seekClamp(pos - skipBack)}
+              >
+                <Icon name="replay" />
+                <small>{skipBack}</small>
+              </button>
+              <button className="p-play" onClick={togglePlay}>
+                <Icon name={isPlaying ? 'pause' : 'play_arrow'} fill />
+              </button>
+              <button
+                className="p-skip"
+                title={`Forward ${skipFwd} seconds`}
+                onClick={() => seekClamp(pos + skipFwd)}
+              >
+                <Icon name="replay" style={{ transform: 'scaleX(-1)' }} />
+                <small>{skipFwd}</small>
+              </button>
+              <button className="p-skip lite" title="Next chapter" onClick={nextCh}>
+                <Icon name="skip_next" fill />
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="p-prog-row">
-          <div className="p-pct">
-            {Math.round(bookRatio * 100)}
-            <small>%</small>
-          </div>
-          <div className="p-ch">
-            Ch {ci + 1} / {chapters.length || 1}
-          </div>
-        </div>
-
-        {/* secondary context line - the metric the main scrubber is NOT showing */}
-        {scrubber === 'book' ? (
-          <>
-            <Scrubber
-              className="prog-line"
-              knob={false}
-              ratio={chRatio}
-              onSeek={(r) => seekClamp(cur.start + r * chSpan)}
-            />
-            <div className="p-times">
-              <span>{cur.title}</span>
-              <span>-{formatTimestamp(chSpan - chPos)} in ch</span>
-            </div>
-          </>
-        ) : (
-          <>
-            <Scrubber
-              className="prog-line"
-              knob={false}
-              ratio={bookRatio}
-              onSeek={(r) => seekClamp(r * duration)}
-            />
-            <div className="p-times">
-              <span>{formatTimestamp(previewPos)} elapsed</span>
-              <span>{formatTimestamp(duration - previewPos)} left</span>
-            </div>
-          </>
+        {clubDetail?.enabled && (
+          <button
+            className={'p-club-pulse' + (panel === 'club' ? ' on' : '')}
+            onClick={() => togglePanel('club')}
+          >
+            <span className="p-club-pulse-icon">
+              <Icon name="groups" />
+            </span>
+            <span>
+              <small>Reading with {clubDetail.club.name}</small>
+              <strong>
+                {clubDetail.members.filter((member) => member.listeningNow).length > 0
+                  ? `${clubDetail.members.filter((member) => member.listeningNow).length} listening now`
+                  : `${clubDetail.members.length} readers · open the conversation`}
+              </strong>
+            </span>
+            {clubDetail.unreadCount > 0 && <b>{clubDetail.unreadCount}</b>}
+            <Icon name="chevron_right" />
+          </button>
         )}
-
-        {/* primary scrubber */}
-        <div style={{ width: '100%', marginTop: 28, textAlign: 'center' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-            {scrubber === 'book' ? 'Full book' : cur.title}
-          </div>
-          {scrubber === 'book' ? (
-            <>
-              <Scrubber
-                className="scrub"
-                ratio={bookRatio}
-                onDrag={setDragRatio}
-                onSeek={(r) => seekClamp(r * duration)}
-                elapsed={formatTimestamp(previewPos)}
-                chapter={cur.title}
-                remain={'-' + formatTimestamp(duration - previewPos)}
-              />
-              <TimelineMarkers
-                markers={timelineMarkers}
-                onOpenNote={() => navigate(`/book/${libraryItemId}`)}
-                onOpenTeaser={(timeSec) => setToast(`A note awaits at ${formatTimestamp(timeSec)}`)}
-              />
-            </>
-          ) : (
-            <Scrubber
-              className="scrub"
-              ratio={chRatio}
-              onDrag={setDragRatio}
-              onSeek={(r) => seekClamp(cur.start + r * chSpan)}
-              elapsed={formatTimestamp(chPos)}
-              chapter={cur.title}
-              remain={'-' + formatTimestamp(chSpan - chPos)}
-            />
-          )}
-        </div>
-
-        <div className="p-transport">
-          <button className="p-skip lite" title="Previous chapter" onClick={prevCh}>
-            <Icon name="skip_previous" fill />
-          </button>
-          <button
-            className="p-skip"
-            title={`Back ${skipBack} seconds`}
-            onClick={() => seekClamp(pos - skipBack)}
-          >
-            <Icon name="replay" />
-            <small>{skipBack}</small>
-          </button>
-          <button className="p-play" onClick={togglePlay}>
-            <Icon name={isPlaying ? 'pause' : 'play_arrow'} fill />
-          </button>
-          <button
-            className="p-skip"
-            title={`Forward ${skipFwd} seconds`}
-            onClick={() => seekClamp(pos + skipFwd)}
-          >
-            <Icon name="replay" style={{ transform: 'scaleX(-1)' }} />
-            <small>{skipFwd}</small>
-          </button>
-          <button className="p-skip lite" title="Next chapter" onClick={nextCh}>
-            <Icon name="skip_next" fill />
-          </button>
-        </div>
 
         <div className="p-actions">
           {pop === 'speed' && (
@@ -1087,6 +1135,17 @@ export function PlayerPage() {
           )}
 
           <div className="action-grid">
+            {clubDetail?.enabled && (
+              <button
+                className={'pill' + (panel === 'club' ? ' on' : '')}
+                onClick={() => togglePanel('club')}
+              >
+                <Icon name="groups" /> Book club
+                {clubDetail.unreadCount > 0 && (
+                  <span className="badge-dot">{clubDetail.unreadCount}</span>
+                )}
+              </button>
+            )}
             <button
               className={'pill' + (panel === 'chapters' ? ' on' : '')}
               onClick={() => togglePanel('chapters')}
@@ -1151,6 +1210,17 @@ export function PlayerPage() {
       </div>
 
       <div className={'p-panel' + (open ? ' open' : '')} aria-hidden={!open}>
+        {panel === 'club' && target && clubDetail?.enabled && (
+          <PlayerClubCompanion
+            target={target}
+            detail={clubDetail}
+            libraryItemId={libraryItemId}
+            position={pos}
+            onClose={() => setPanel(null)}
+            onOpenClub={() => navigate(`/club/${clubDetail.club.id}`)}
+            onToast={setToast}
+          />
+        )}
         {panel === 'chapters' && (
           <ChaptersPanel
             chapters={chapters}
