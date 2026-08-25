@@ -7,9 +7,9 @@ import { Scrubber } from '@/components/player/Scrubber'
 import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
 import { RecentListens } from '@/components/player/RecentListens'
 import { SyncStatusPill } from '@/components/player/SyncStatusPill'
+import { PlayerClubCompanion } from '@/components/player/PlayerClubCompanion'
 import { formatTimestamp } from '@hearthshelf/core'
 import type { HSClubDetail } from '@hearthshelf/core'
-import { Avatar } from '@/components/common/Avatar'
 import type { AbsTarget } from '@/api/absLibrary'
 import { Cover } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
@@ -54,6 +54,7 @@ export function CarPlayer({
   canReadAlong,
   target,
   clubDetail,
+  onToast,
 }: {
   libraryItemId: string
   title: string
@@ -84,9 +85,8 @@ export function CarPlayer({
   canReadAlong: boolean
   tick: () => void
   target?: AbsTarget
-  /** Read-only in Car/Touch mode: conversation writing stays on the normal
-   * player, while the car surface keeps progress glanceable. */
   clubDetail?: HSClubDetail
+  onToast: (message: string) => void
 }) {
   const navigate = useNavigate()
   const skipFwd = useSettingsStore((s) => s.skipForward)
@@ -156,6 +156,7 @@ export function CarPlayer({
       className={'car-card' + (dragging ? ' dragging' : '') + (faded ? ' faded' : '')}
       style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}
       onPointerDown={wake}
+      onKeyDown={wake}
     >
       {/* Drag handle / header - hidden when faded. */}
       <div className="car-head" onPointerDown={onDragHandlePointerDown}>
@@ -348,58 +349,28 @@ export function CarPlayer({
               />
             </div>
           )}
-          {sheet === 'club' && clubDetail?.enabled && (
-            <div className="car-club-sheet">
-              <div className="car-club-sheet-head">
-                <div>
-                  <span className="eyebrow">Book club · read only</span>
-                  <h3>{clubDetail.club.name}</h3>
-                </div>
-                <button
-                  className="car-icon-btn"
-                  onClick={() => setSheet(null)}
-                  aria-label="Close club progress"
-                >
-                  <Icon name="close" />
-                </button>
-              </div>
-              <div className="car-club-readers">
-                {clubDetail.members.map((member) => {
-                  const progress = member.isFinished
-                    ? 1
-                    : member.currentTime != null && member.duration != null && member.duration > 0
-                      ? Math.max(0, Math.min(1, member.currentTime / member.duration))
-                      : 0
-                  return (
-                    <div className="car-club-reader" key={member.userId}>
-                      <Avatar
-                        name={member.username || 'Reader'}
-                        target={target}
-                        userId={member.userId}
-                        size={42}
-                      />
-                      <span>
-                        <strong>{member.username}</strong>
-                        <small>
-                          {member.listeningNow
-                            ? 'Listening now'
-                            : `${Math.round(progress * 100)}% through`}
-                        </small>
-                      </span>
-                      <div className="car-club-reader-bar">
-                        <i style={{ width: `${progress * 100}%` }} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+          {sheet === 'club' && target && clubDetail?.enabled && (
+            <div className="car-club-sidecar">
+              <PlayerClubCompanion
+                target={target}
+                detail={clubDetail}
+                libraryItemId={libraryItemId}
+                position={pos}
+                duration={duration}
+                focusNoteId={null}
+                onSeek={seekClamp}
+                onClose={() => setSheet(null)}
+                onOpenClub={() => navigate(`/club/${clubDetail.club.id}`)}
+                onOpenBook={(itemId) => navigate(`/book/${itemId}`)}
+                onToast={onToast}
+              />
             </div>
           )}
           {sheet === 'more' && (
             <div className="car-more">
               {clubDetail?.enabled && (
                 <button className="car-more-item" onClick={() => setSheet('club')}>
-                  <Icon name="groups" /> Book club progress
+                  <Icon name="groups" /> Book club
                 </button>
               )}
               <button className="car-more-item" onClick={() => setSheet('sleep')}>

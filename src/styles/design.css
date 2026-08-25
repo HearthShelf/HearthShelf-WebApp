@@ -4260,11 +4260,50 @@
    car-sheet shell already pins bottom: 84px; top: 16px keeps it inside the
    card with a comfortable finger-drag scroll region. */
 .car-sheet:has(.car-chapters),
-.car-sheet:has(.car-recent) {
+.car-sheet:has(.car-recent),
+.car-sheet:has(.car-club-sidecar) {
   top: 16px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* Car/Touch gets the real Book Club companion, not a read-only progress tray.
+   Let it own the available sheet and restore text selection/touch scrolling
+   inside the otherwise drag-oriented player card. */
+.car-sheet:has(.car-club-sidecar) {
+  bottom: 16px;
+  padding: 0;
+  background: color-mix(in oklab, var(--c-high) 92%, transparent);
+}
+
+.car-club-sidecar {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  user-select: text;
+  touch-action: pan-y;
+}
+
+.car-club-sidecar .player-club-companion {
+  position: static;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: inherit;
+  box-shadow: none;
+  animation: none;
+}
+
+.car-club-sidecar button,
+.car-club-sidecar input,
+.car-club-sidecar textarea {
+  touch-action: manipulation;
+}
+
+.car-club-sidecar input,
+.car-club-sidecar textarea {
+  user-select: text;
 }
 .car-chapters,
 .car-recent {
@@ -4599,6 +4638,23 @@
   backdrop-filter: blur(14px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
   pointer-events: none;
+  transition:
+    left 0.5s ease,
+    border-color 0.5s ease,
+    box-shadow 0.5s ease;
+}
+
+/* The touch rail overlays the full-screen player. Reserve its real width while
+   visible so the always-on progress surface starts beside it, not underneath. */
+.app.car-shell:not(.car-shell-faded) .car-book-progress {
+  left: calc(var(--sidebar-w) + clamp(18px, 3vw, 42px));
+}
+
+/* Idle mode keeps the dark readable backing but removes the framed-card look.
+   Once the nav fades, the rail can reclaim the normal screen-edge inset. */
+.app.car-shell-faded .car-book-progress {
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .car-book-progress-head,
@@ -4634,9 +4690,12 @@
 
 .car-book-progress-track > i {
   display: block;
+  width: 100%;
   height: 100%;
   border-radius: inherit;
   background: var(--accent);
+  transform-origin: left center;
+  transition: transform 1s linear;
 }
 
 .car-book-progress-track .club-progress-markers {

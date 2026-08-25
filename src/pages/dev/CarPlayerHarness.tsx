@@ -146,6 +146,7 @@ export function CarPlayerHarness() {
             tick={idleFade.tick}
             canReadAlong
             clubDetail={CLUB}
+            onToast={() => {}}
           />
         </div>
       </MediaUIProvider>

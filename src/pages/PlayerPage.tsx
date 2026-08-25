@@ -893,6 +893,7 @@ export function PlayerPage() {
           canReadAlong={canReadAlong}
           target={target ?? undefined}
           clubDetail={clubDetail?.enabled ? clubDetail : undefined}
+          onToast={setToast}
         />
         {toast && (
           <div className="p-toast">

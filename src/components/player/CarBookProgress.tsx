@@ -1,5 +1,6 @@
+import { useQuery } from '@tanstack/react-query'
 import { Avatar } from '@/components/common/Avatar'
-import type { AbsTarget } from '@/api/absLibrary'
+import { getMe, type AbsTarget } from '@/api/absLibrary'
 import { formatTimestamp } from '@hearthshelf/core'
 import type { HSClubMember } from '@hearthshelf/core'
 
@@ -19,6 +20,12 @@ export function CarBookProgress({
   target?: AbsTarget
 }) {
   const ratio = duration > 0 ? Math.max(0, Math.min(1, position / duration)) : 0
+  const { data: me } = useQuery({
+    queryKey: ['abs-me', target?.serverId ?? ''],
+    queryFn: () => getMe(target as AbsTarget),
+    enabled: Boolean(target),
+    staleTime: 10 * 60 * 1000,
+  })
 
   return (
     <div className="car-book-progress" aria-label={`Book progress ${Math.round(ratio * 100)}%`}>
@@ -29,15 +36,23 @@ export function CarBookProgress({
         </span>
       </div>
       <div className="car-book-progress-track">
-        <i style={{ width: `${ratio * 100}%` }} />
+        <i style={{ transform: `scaleX(${ratio})` }} />
         {members.length > 0 && (
           <div className="club-progress-markers" aria-label="Book Club reader progress">
             {members.map((member) => {
-              const memberRatio = member.isFinished
-                ? 1
-                : member.currentTime != null && member.duration != null && member.duration > 0
-                  ? Math.max(0, Math.min(1, member.currentTime / member.duration))
-                  : 0
+              // The connected reader follows the local player every tick. The
+              // server member snapshot only refreshes periodically, which made
+              // their avatar drift away from the live fill while listening.
+              const memberRatio =
+                member.userId === me?.id
+                  ? ratio
+                  : member.isFinished
+                    ? 1
+                    : member.currentTime != null &&
+                        member.duration != null &&
+                        member.duration > 0
+                      ? Math.max(0, Math.min(1, member.currentTime / member.duration))
+                      : 0
               return (
                 <span
                   key={member.userId}
