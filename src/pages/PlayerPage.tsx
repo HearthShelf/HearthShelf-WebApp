@@ -1244,10 +1244,12 @@ export function PlayerPage() {
             detail={clubDetail}
             libraryItemId={libraryItemId}
             position={pos}
+            duration={duration}
             focusNoteId={focusedClubNoteId}
             onSeek={seekClamp}
             onClose={() => setPanel(null)}
             onOpenClub={() => navigate(`/club/${clubDetail.club.id}`)}
+            onOpenBook={(itemId) => navigate(`/book/${itemId}`)}
             onToast={setToast}
           />
         )}

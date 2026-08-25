@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { HSClubDetail, HSNote, NoteReactionKind } from '@hearthshelf/core'
+import type { HSClubDetail, HSClubMember, HSNote, NoteReactionKind } from '@hearthshelf/core'
 import { formatTimestamp } from '@hearthshelf/core'
-import { clubsKeys } from '@/api/absClubs'
+import { clubsKeys, setClubSettings } from '@/api/absClubs'
 import { createNote, deleteNote, reactToNote, updateNote } from '@/api/absNotes'
 import { getMe, type AbsTarget } from '@/api/absLibrary'
 import { Avatar } from '@/components/common/Avatar'
 import { Icon } from '@/components/common/Icon'
+import { Modal } from '@/components/common/Modal'
+import { Cover } from '@/components/shared/Cover'
 import { MentionInput, type MentionCandidate } from '@/components/social/MentionInput'
 import { ReactionBar } from '@/components/social/ReactionBar'
+import { SetRow, Toggle } from '@/components/settings/controls'
+
+type ClubTab = 'comments' | 'queue' | 'members'
 
 function pickedMentions(body: string, picked: MentionCandidate[]): string[] {
   const text = body.toLowerCase()
@@ -24,25 +29,42 @@ function progressOf(currentTime: number | null, duration: number | null, finishe
   return Math.max(0, Math.min(1, currentTime / duration))
 }
 
+function memberProgress(
+  member: HSClubMember,
+  meId: string | undefined,
+  livePosition: number,
+  liveDuration: number,
+) {
+  return progressOf(
+    member.userId === meId ? livePosition : member.currentTime,
+    member.userId === meId && liveDuration > 0 ? liveDuration : member.duration,
+    member.isFinished,
+  )
+}
+
 export function PlayerClubCompanion({
   target,
   detail,
   libraryItemId,
   position,
+  duration,
   focusNoteId,
   onSeek,
   onClose,
   onOpenClub,
+  onOpenBook,
   onToast,
 }: {
   target: AbsTarget
   detail: HSClubDetail
   libraryItemId: string
   position: number
+  duration: number
   focusNoteId: string | null
   onSeek: (position: number) => void
   onClose: () => void
   onOpenClub: () => void
+  onOpenBook: (libraryItemId: string) => void
   onToast: (message: string) => void
 }) {
   const qc = useQueryClient()
@@ -56,6 +78,12 @@ export function PlayerClubCompanion({
   const [editDraft, setEditDraft] = useState('')
   const [editSpoiler, setEditSpoiler] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [tab, setTab] = useState<ClubTab>('comments')
+  const [progressExpanded, setProgressExpanded] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [allowEditing, setAllowEditing] = useState(detail.club.allowCommentEditing)
+  const [allowReplies, setAllowReplies] = useState(detail.club.allowReplies)
+  const [autoAdvance, setAutoAdvance] = useState(detail.club.autoAdvanceOnAllFinished)
   const detailKey = clubsKeys.detail(target.serverId, detail.club.id, libraryItemId)
   const members = detail.members.map(({ userId, username }) => ({ userId, username }))
 
@@ -70,10 +98,14 @@ export function PlayerClubCompanion({
   const topNotes = useMemo(
     () =>
       detail.notes.notes
-        .filter((note) => !note.parentId && note.timeSec != null)
-        .sort(
-          (a, b) => Math.abs((a.timeSec ?? 0) - position) - Math.abs((b.timeSec ?? 0) - position),
-        ),
+        .filter((note) => !note.parentId)
+        .sort((a, b) => {
+          const aDistance =
+            a.timeSec == null ? Number.POSITIVE_INFINITY : Math.abs(a.timeSec - position)
+          const bDistance =
+            b.timeSec == null ? Number.POSITIVE_INFINITY : Math.abs(b.timeSec - position)
+          return aDistance === bDistance ? a.createdAt - b.createdAt : aDistance - bDistance
+        }),
     [detail.notes.notes, position],
   )
   const repliesByParent = useMemo(() => {
@@ -98,6 +130,7 @@ export function PlayerClubCompanion({
 
   useEffect(() => {
     if (!focusNoteId) return
+    setTab('comments')
     const timer = window.setTimeout(() => {
       document
         .getElementById(`player-club-note-${focusNoteId}`)
@@ -160,6 +193,27 @@ export function PlayerClubCompanion({
     },
     onError: () => onToast('Could not delete that comment.'),
   })
+  const saveSettings = useMutation({
+    mutationFn: () =>
+      setClubSettings(target, detail.club.id, {
+        allowCommentEditing: allowEditing,
+        allowReplies,
+        autoAdvanceOnAllFinished: autoAdvance,
+      }),
+    onSuccess: () => {
+      setSettingsOpen(false)
+      refresh()
+      onToast('Club settings saved')
+    },
+    onError: () => onToast('Could not save club settings.'),
+  })
+
+  const openSettings = () => {
+    setAllowEditing(detail.club.allowCommentEditing)
+    setAllowReplies(detail.club.allowReplies)
+    setAutoAdvance(detail.club.autoAdvanceOnAllFinished)
+    setSettingsOpen(true)
+  }
 
   const beginEdit = (note: HSNote) => {
     setEditing(note)
@@ -171,6 +225,42 @@ export function PlayerClubCompanion({
     if (note.timeSec == null) return
     onSeek(Math.max(0, note.timeSec - rewind))
     onToast(rewind ? 'Jumped to one minute before the comment' : 'Jumped to the comment')
+  }
+
+  const progressRows = [...detail.members].sort(
+    (a, b) =>
+      memberProgress(b, meId, position, duration) - memberProgress(a, meId, position, duration),
+  )
+
+  const renderMemberProgress = (member: HSClubMember, detailed = false) => {
+    const progress = memberProgress(member, meId, position, duration)
+    const percent = Math.round(progress * 100)
+    return (
+      <div className={'pc-member-progress' + (detailed ? ' detailed' : '')} key={member.userId}>
+        <Avatar
+          name={member.username || 'Reader'}
+          target={target}
+          userId={member.userId}
+          size={detailed ? 34 : 28}
+        />
+        <div className="pc-member-progress-copy">
+          <div>
+            <strong>{member.username || 'Reader'}</strong>
+            <span>{member.isFinished ? 'Finished' : `${percent}%`}</span>
+          </div>
+          <div className="pc-member-progress-track" aria-label={`${percent}% complete`}>
+            <i style={{ width: `${percent}%` }} />
+          </div>
+          {detailed && (
+            <small>
+              {member.role === 'owner' ? 'Club owner' : 'Member'}
+              {member.listeningNow ? ' · Listening now' : ''}
+              {member.reach?.aheadOfClub ? ` · Reading ahead in ${member.reach.title}` : ''}
+            </small>
+          )}
+        </div>
+      </div>
+    )
   }
 
   const renderNote = (note: HSNote, featured = false, reply = false) => {
@@ -345,30 +435,64 @@ export function PlayerClubCompanion({
   }
 
   return (
-    <div className="pp-inner player-club-companion">
-      <div className="pp-head pc-head">
-        <Icon name="groups" />
-        <div className="pp-htext">
-          <div className="eyebrow">Book club</div>
-          <button className="pc-club-link" onClick={onOpenClub}>
-            {detail.club.name}
-          </button>
-          <div className="pp-sub">{detail.members.length} reading together</div>
+    <>
+      <div className="pp-inner player-club-companion">
+        <div className="pp-head pc-head">
+          <Icon name="groups" />
+          <div className="pp-htext">
+            <div className="eyebrow">Book club</div>
+            <strong className="pc-club-name">{detail.club.name}</strong>
+            <div className="pp-sub">{detail.members.length} reading together</div>
+          </div>
+          <div className="pc-head-actions">
+            {isOwner && (
+              <button
+                className="icon-btn"
+                onClick={openSettings}
+                aria-label="Club settings"
+                title="Club settings"
+              >
+                <Icon name="settings" />
+              </button>
+            )}
+            <button
+              className="icon-btn"
+              onClick={onOpenClub}
+              aria-label="Open full club page"
+              title="Open full club page"
+            >
+              <Icon name="open_in_new" />
+            </button>
+            <button
+              className="icon-btn"
+              onClick={onClose}
+              aria-label="Close Book Club panel"
+              title="Close"
+            >
+              <Icon name="close" />
+            </button>
+          </div>
         </div>
-        <button className="icon-btn" onClick={onClose} aria-label="Close Book Club panel">
-          <Icon name="close" />
-        </button>
-      </div>
 
-      <div className="pc-scroll pp-scroll">
-        <section className="pc-race" aria-label="Club reading progress">
+        <button
+          type="button"
+          className={'pc-race' + (progressExpanded ? ' expanded' : '')}
+          onClick={() => setProgressExpanded((value) => !value)}
+          aria-expanded={progressExpanded}
+        >
           <div className="pc-section-label">
-            <span>Reading together</span>
-            <span>Finished</span>
+            <span>Overall book progress</span>
+            <span>{progressExpanded ? 'Hide details' : 'Show everyone'}</span>
           </div>
           <div className="pc-race-line">
-            {detail.members.map((member) => {
-              const progress = progressOf(member.currentTime, member.duration, member.isFinished)
+            <i
+              className="pc-race-fill"
+              style={{
+                width: `${Math.round(progressOf(position, duration, false) * 100)}%`,
+              }}
+            />
+            {progressRows.map((member) => {
+              const progress = memberProgress(member, meId, position, duration)
               return (
                 <span
                   className={'pc-racer' + (member.listeningNow ? ' listening' : '')}
@@ -386,90 +510,222 @@ export function PlayerClubCompanion({
               )
             })}
           </div>
-        </section>
+          <div className="pc-race-footer">
+            <span>{detail.members.length} readers</span>
+            <Icon name={progressExpanded ? 'expand_less' : 'expand_more'} />
+          </div>
+        </button>
 
-        {nearby ? (
-          <section>
-            <div className="pc-section-label">
-              <span>{focusedTopId ? 'Selected comment' : 'Nearby comment'}</span>
-              <span>
-                {nearby.timeSec != null
-                  ? `${formatTimestamp(Math.abs(nearby.timeSec - position))} away`
-                  : ''}
-              </span>
-            </div>
-            {renderNote(nearby, true)}
-          </section>
-        ) : nextLocked ? (
-          <button
-            className="pc-locked"
-            onClick={() => onToast(`A comment unlocks at ${formatTimestamp(nextLocked.timeSec)}`)}
-          >
-            <Icon name="lock" />
-            <span>
-              <strong>A comment is ahead</strong>
-              <small>Keep listening to reveal it safely.</small>
-            </span>
-            <span>{formatTimestamp(nextLocked.timeSec - position)}</span>
-          </button>
-        ) : (
-          <div className="pc-empty">
-            No comments near your spot yet. Start the conversation below.
+        {progressExpanded && (
+          <div className="pc-progress-roster">
+            {progressRows.map((member) => renderMemberProgress(member))}
           </div>
         )}
 
-        {discussion.length > 0 && (
-          <section>
-            <div className="pc-section-label">
-              <span>Discussion around your spot</span>
-              <span>{discussion.length}</span>
+        <div className="pc-tabs" role="tablist" aria-label="Book Club sections">
+          {(
+            [
+              ['comments', 'forum', 'Comments', topNotes.length + detail.notes.locked.length],
+              ['queue', 'format_list_numbered', 'Queue', detail.queue.length],
+              ['members', 'group', 'Members', detail.members.length],
+            ] as const
+          ).map(([value, icon, label, count]) => (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === value}
+              className={tab === value ? 'on' : ''}
+              key={value}
+              onClick={() => setTab(value)}
+            >
+              <Icon name={icon} />
+              <span>{label}</span>
+              <b>{count}</b>
+            </button>
+          ))}
+        </div>
+
+        <div className="pc-scroll pp-scroll">
+          {tab === 'comments' && (
+            <>
+              {nearby ? (
+                <section>
+                  <div className="pc-section-label">
+                    <span>{focusedTopId ? 'Selected comment' : 'Nearby comment'}</span>
+                    <span>
+                      {nearby.timeSec != null
+                        ? `${formatTimestamp(Math.abs(nearby.timeSec - position))} away`
+                        : ''}
+                    </span>
+                  </div>
+                  {renderNote(nearby, true)}
+                </section>
+              ) : nextLocked ? (
+                <button
+                  className="pc-locked"
+                  onClick={() =>
+                    onToast(`A comment unlocks at ${formatTimestamp(nextLocked.timeSec)}`)
+                  }
+                >
+                  <Icon name="lock" />
+                  <span>
+                    <strong>A comment is ahead</strong>
+                    <small>Keep listening to reveal it safely.</small>
+                  </span>
+                  <span>{formatTimestamp(nextLocked.timeSec - position)}</span>
+                </button>
+              ) : (
+                <div className="pc-empty">
+                  No comments near your spot yet. Start the conversation below.
+                </div>
+              )}
+
+              {discussion.length > 0 && (
+                <section>
+                  <div className="pc-section-label">
+                    <span>Discussion around your spot</span>
+                    <span>{discussion.length}</span>
+                  </div>
+                  <div className="pc-discussion">{discussion.map((note) => renderNote(note))}</div>
+                </section>
+              )}
+            </>
+          )}
+
+          {tab === 'queue' && (
+            <section className="pc-tab-section">
+              <div className="pc-section-label">
+                <span>Up next</span>
+                <span>{detail.queue.length}</span>
+              </div>
+              {detail.queue.length === 0 ? (
+                <div className="pc-empty">Nothing is lined up after this book.</div>
+              ) : (
+                <div className="pc-queue-list">
+                  {detail.queue.map((book, index) => (
+                    <button
+                      type="button"
+                      className="pc-queue-row"
+                      key={book.libraryItemId}
+                      onClick={() => onOpenBook(book.libraryItemId)}
+                    >
+                      <span className="pc-queue-order">{index + 1}</span>
+                      <Cover
+                        itemId={book.libraryItemId}
+                        title={book.title}
+                        author={book.author}
+                        width={48}
+                        fs={5}
+                      />
+                      <span className="pc-queue-copy">
+                        <strong>{book.title || 'Untitled'}</strong>
+                        <small>{book.author || 'Unknown author'}</small>
+                      </span>
+                      <Icon name="chevron_right" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {tab === 'members' && (
+            <section className="pc-tab-section">
+              <div className="pc-section-label">
+                <span>Club members</span>
+                <span>{detail.members.length}</span>
+              </div>
+              <div className="pc-members-list">
+                {progressRows.map((member) => renderMemberProgress(member, true))}
+              </div>
+            </section>
+          )}
+        </div>
+
+        {tab === 'comments' && (
+          <form
+            className="pc-composer"
+            onSubmit={(event) => {
+              event.preventDefault()
+              if (draft.trim()) post.mutate({ body: draft.trim(), picked: mentions })
+            }}
+          >
+            <MentionInput
+              value={draft}
+              onChange={setDraft}
+              onMention={(member) =>
+                setMentions((current) =>
+                  current.some((item) => item.userId === member.userId)
+                    ? current
+                    : [...current, member],
+                )
+              }
+              members={members}
+              target={target}
+              meId={meId}
+              placeholder={`Share a thought at ${formatTimestamp(position)}…`}
+              rows={2}
+            />
+            <div className="pc-compose-actions">
+              <label className="pc-safe">
+                <input
+                  type="checkbox"
+                  checked={safe}
+                  onChange={(event) => setSafe(event.target.checked)}
+                />{' '}
+                Safe ahead
+              </label>
+              <button
+                className="btn btn-primary"
+                type="submit"
+                disabled={!draft.trim() || post.isPending}
+              >
+                <Icon name="send" /> {post.isPending ? 'Posting…' : 'Comment here'}
+              </button>
             </div>
-            <div className="pc-discussion">{discussion.map((note) => renderNote(note))}</div>
-          </section>
+          </form>
         )}
       </div>
 
-      <form
-        className="pc-composer"
-        onSubmit={(event) => {
-          event.preventDefault()
-          if (draft.trim()) post.mutate({ body: draft.trim(), picked: mentions })
-        }}
-      >
-        <MentionInput
-          value={draft}
-          onChange={setDraft}
-          onMention={(member) =>
-            setMentions((current) =>
-              current.some((item) => item.userId === member.userId)
-                ? current
-                : [...current, member],
-            )
+      {settingsOpen && (
+        <Modal
+          title="Club settings"
+          onClose={() => setSettingsOpen(false)}
+          foot={
+            <>
+              <button className="pill" onClick={() => setSettingsOpen(false)}>
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                disabled={saveSettings.isPending}
+                onClick={() => saveSettings.mutate()}
+              >
+                {saveSettings.isPending ? 'Saving…' : 'Save changes'}
+              </button>
+            </>
           }
-          members={members}
-          target={target}
-          meId={meId}
-          placeholder={`Share a thought at ${formatTimestamp(position)}…`}
-          rows={2}
-        />
-        <div className="pc-compose-actions">
-          <label className="pc-safe">
-            <input
-              type="checkbox"
-              checked={safe}
-              onChange={(event) => setSafe(event.target.checked)}
-            />{' '}
-            Safe ahead
-          </label>
-          <button
-            className="btn btn-primary"
-            type="submit"
-            disabled={!draft.trim() || post.isPending}
-          >
-            <Icon name="send" /> {post.isPending ? 'Posting…' : 'Comment here'}
-          </button>
-        </div>
-      </form>
-    </div>
+        >
+          <div className="pc-settings">
+            <p>{detail.club.name}</p>
+            <SetRow
+              title="Allow member comment editing"
+              desc="Members can revise their own text and spoiler flag."
+              control={<Toggle on={allowEditing} onChange={setAllowEditing} />}
+            />
+            <SetRow
+              title="Allow replies"
+              desc="Members can reply to existing top-level comments."
+              control={<Toggle on={allowReplies} onChange={setAllowReplies} />}
+            />
+            <SetRow
+              title="Move on when everyone has finished"
+              desc="Start the first queued book after every reader who began this one finishes."
+              control={<Toggle on={autoAdvance} onChange={setAutoAdvance} />}
+            />
+          </div>
+        </Modal>
+      )}
+    </>
   )
 }

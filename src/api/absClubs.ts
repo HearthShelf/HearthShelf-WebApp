@@ -284,6 +284,32 @@ export async function setClubVisibility(
   })
   if (!res.ok) throw new Error(`clubs visibility ${res.status}`)
 }
+
+export interface ClubPolicySettings {
+  allowCommentEditing: boolean
+  allowReplies: boolean
+  autoAdvanceOnAllFinished: boolean
+}
+
+/** Owner-controlled discussion and reading-pace policy for one club. */
+export async function setClubSettings(
+  t: AbsTarget,
+  clubId: string,
+  settings: ClubPolicySettings,
+): Promise<void> {
+  const token = getAbsToken(t.serverId)
+  if (!token) throw new Error('no token')
+  const res = await fetch(`${origin(t)}/hs/clubs/${encodeURIComponent(clubId)}/settings`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(settings),
+  })
+  if (!res.ok) throw new Error(`club settings ${res.status}`)
+}
 /**
  * Make a book the club's current read. The outgoing book becomes a past read
  * unless `finishPrevious` is false, which sets it aside unfinished instead so it
