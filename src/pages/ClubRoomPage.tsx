@@ -38,6 +38,10 @@ import { createNote, deleteNote, reactToNote } from '@/api/absNotes'
 import { ReactionBar } from '@/components/social/ReactionBar'
 import { MentionInput } from '@/components/social/MentionInput'
 import type { MentionCandidate } from '@/components/social/MentionInput'
+import {
+  CommentVisibilityControl,
+  SpoilerToggle,
+} from '@/components/social/CommentComposerControls'
 import { getMe, type AbsTarget } from '@/api/absLibrary'
 import { Avatar } from '@/components/common/Avatar'
 import { AvatarStack, type StackUser } from '@/components/common/AvatarStack'
@@ -815,7 +819,7 @@ function DiscussionNote({
           </strong>
           {note.safe && (
             <span className="badge-pill abridged">
-              <Icon name="shield" /> Spoiler-free
+              <Icon name="visibility" /> Visible ahead
             </span>
           )}
           <span>
@@ -930,9 +934,11 @@ function ClubRoom({
   const { toast, show } = useToast()
   const [draft, setDraft] = useState('')
   const [safe, setSafe] = useState(false)
+  const [spoiler, setSpoiler] = useState(false)
   const [addTimestamp, setAddTimestamp] = useState(true)
   const [replyingTo, setReplyingTo] = useState<HSNote | null>(null)
   const [replyDraft, setReplyDraft] = useState('')
+  const [replySpoiler, setReplySpoiler] = useState(false)
   // Ids picked from the @ list, per composer. Collected on selection rather than
   // re-parsed from the text, so a renamed or space-containing username can't be
   // mis-resolved. Filtered against the final body on post, so deleting the "@name"
@@ -986,13 +992,19 @@ function ClubRoom({
   }
 
   const post = useMutation({
-    mutationFn: (input: { body: string; parentId?: string; mentions?: MentionCandidate[] }) =>
+    mutationFn: (input: {
+      body: string
+      parentId?: string
+      mentions?: MentionCandidate[]
+      spoiler: boolean
+    }) =>
       createNote(target, {
         libraryItemId: viewedBook!.libraryItemId,
         clubId: club.id,
         parentId: input.parentId,
         timeSec: !input.parentId && addTimestamp && stampSec != null ? stampSec : undefined,
         safe: input.parentId ? false : safe,
+        spoiler: input.spoiler,
         body: input.body,
         mentions: pickedMentions(input.body, input.mentions ?? []),
       }),
@@ -1001,6 +1013,8 @@ function ClubRoom({
       setReplyDraft('')
       setReplyingTo(null)
       setSafe(false)
+      setSpoiler(false)
+      setReplySpoiler(false)
       setDraftMentions([])
       setReplyMentions([])
       void qc.invalidateQueries({ queryKey: detailKey })
@@ -1385,7 +1399,7 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
               <div className="book-club-composer">
                 <MentionInput
                   rows={3}
-                  placeholder="Share a thought with the club… use @ to mention someone"
+                  placeholder="Start a new thread…"
                   value={draft}
                   onChange={setDraft}
                   onMention={(member) =>
@@ -1416,41 +1430,19 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                         <Icon name="schedule" /> Leave at {formatTimestamp(stampSec)}
                       </label>
                     )}
-                    {/* Who can see this before they reach your spot. This was a
-                        lone "Spoiler-free" pill, which read as pressed whether
-                        or not it was on - a single highlighted control shows its
-                        LABEL, not its state. Matches mobile's SafeSwitch: two
-                        halves, so the selected one is obvious next to the
-                        unselected one, and the labels name the outcome for the
-                        reader rather than the flag. */}
-                    <span className="note-safe-switch">
-                      <span className="note-safe-label">Until they reach this point</span>
-                      <span className="seg" role="group" aria-label="Who can see this comment">
-                        <button
-                          type="button"
-                          className={safe ? '' : 'on'}
-                          aria-pressed={!safe}
-                          onClick={() => setSafe(false)}
-                          title="Hidden until they reach this point in the book"
-                        >
-                          <Icon name="lock" /> Hidden
-                        </button>
-                        <button
-                          type="button"
-                          className={safe ? 'on' : ''}
-                          aria-pressed={safe}
-                          onClick={() => setSafe(true)}
-                          title="Visible to everyone now"
-                        >
-                          <Icon name="visibility" /> Visible
-                        </button>
-                      </span>
-                    </span>
+                    <SpoilerToggle on={spoiler} onChange={setSpoiler} />
+                    <CommentVisibilityControl visibleAhead={safe} onChange={setSafe} />
                   </span>
                   <button
                     className="pill on"
                     disabled={!draft.trim() || post.isPending}
-                    onClick={() => post.mutate({ body: draft.trim(), mentions: draftMentions })}
+                    onClick={() =>
+                      post.mutate({
+                        body: draft.trim(),
+                        mentions: draftMentions,
+                        spoiler,
+                      })
+                    }
                   >
                     <Icon name="send" /> Post
                   </button>
@@ -1476,7 +1468,12 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                     target={target}
                     activeBook={isCurrentBook}
                     onDelete={(id) => removeNote.mutate(id)}
-                    onReply={setReplyingTo}
+                    onReply={(note) => {
+                      setReplyingTo(note)
+                      setReplyDraft('')
+                      setReplyMentions([])
+                      setReplySpoiler(false)
+                    }}
                     onReact={(n, kind, on) => react.mutate({ note: n, kind, on })}
                     onPlayTimestamp={(n, rewindSec) => void playFromNote(n, rewindSec)}
                   />
@@ -1779,7 +1776,16 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
             <span>
               Replying to <strong>{replyingTo.username}</strong>
             </span>
-            <button type="button" onClick={() => setReplyingTo(null)} aria-label="Cancel reply">
+            <button
+              type="button"
+              onClick={() => {
+                setReplyingTo(null)
+                setReplyDraft('')
+                setReplyMentions([])
+                setReplySpoiler(false)
+              }}
+              aria-label="Cancel reply"
+            >
               <Icon name="close" />
             </button>
           </div>
@@ -1796,21 +1802,25 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
             members={members}
             target={target}
             meId={meId}
-            placeholder="Write a reply… use @ to mention someone"
+            placeholder={`Reply to ${replyingTo.username}…`}
           />
-          <button
-            className="pill on"
-            disabled={!replyDraft.trim() || post.isPending}
-            onClick={() =>
-              post.mutate({
-                body: replyDraft.trim(),
-                parentId: replyingTo.id,
-                mentions: replyMentions,
-              })
-            }
-          >
-            <Icon name="send" /> Reply
-          </button>
+          <div className="book-club-reply-actions">
+            <SpoilerToggle on={replySpoiler} onChange={setReplySpoiler} />
+            <button
+              className="pill on"
+              disabled={!replyDraft.trim() || post.isPending}
+              onClick={() =>
+                post.mutate({
+                  body: replyDraft.trim(),
+                  parentId: replyingTo.id,
+                  mentions: replyMentions,
+                  spoiler: replySpoiler,
+                })
+              }
+            >
+              <Icon name="send" /> {post.isPending ? 'Posting…' : 'Post reply'}
+            </button>
+          </div>
         </div>
       )}
       {toast && (

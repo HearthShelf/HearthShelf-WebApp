@@ -173,6 +173,7 @@ export interface CreateNoteInput {
   parentId?: string
   timeSec?: number
   safe?: boolean
+  spoiler?: boolean
   body: string
   /** Club member ids the note @mentions. The server re-authorizes every id
    *  against club membership, so this is a request, never a grant. */

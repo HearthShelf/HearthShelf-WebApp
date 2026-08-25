@@ -11,6 +11,10 @@ import { Modal } from '@/components/common/Modal'
 import { Cover } from '@/components/shared/Cover'
 import { MentionInput, type MentionCandidate } from '@/components/social/MentionInput'
 import { ReactionBar } from '@/components/social/ReactionBar'
+import {
+  CommentVisibilityControl,
+  SpoilerToggle,
+} from '@/components/social/CommentComposerControls'
 import { SetRow, Toggle } from '@/components/settings/controls'
 
 type ClubTab = 'comments' | 'queue' | 'members'
@@ -70,9 +74,11 @@ export function PlayerClubCompanion({
   const qc = useQueryClient()
   const [draft, setDraft] = useState('')
   const [mentions, setMentions] = useState<MentionCandidate[]>([])
-  const [safe, setSafe] = useState(true)
+  const [safe, setSafe] = useState(false)
+  const [draftSpoiler, setDraftSpoiler] = useState(false)
   const [replyingTo, setReplyingTo] = useState<HSNote | null>(null)
   const [replyDraft, setReplyDraft] = useState('')
+  const [replySpoiler, setReplySpoiler] = useState(false)
   const [replyMentions, setReplyMentions] = useState<MentionCandidate[]>([])
   const [editing, setEditing] = useState<HSNote | null>(null)
   const [editDraft, setEditDraft] = useState('')
@@ -141,7 +147,12 @@ export function PlayerClubCompanion({
 
   const refresh = () => void qc.invalidateQueries({ queryKey: detailKey })
   const post = useMutation({
-    mutationFn: (input: { body: string; parentId?: string; picked: MentionCandidate[] }) =>
+    mutationFn: (input: {
+      body: string
+      parentId?: string
+      picked: MentionCandidate[]
+      spoiler: boolean
+    }) =>
       createNote(target, {
         libraryItemId,
         clubId: detail.club.id,
@@ -149,6 +160,7 @@ export function PlayerClubCompanion({
         parentId: input.parentId,
         timeSec: input.parentId ? undefined : Math.max(0, Math.floor(position)),
         safe: input.parentId ? false : safe,
+        spoiler: input.spoiler,
         body: input.body,
         mentions: pickedMentions(input.body, input.picked),
       }),
@@ -157,10 +169,13 @@ export function PlayerClubCompanion({
         setReplyingTo(null)
         setReplyDraft('')
         setReplyMentions([])
+        setReplySpoiler(false)
         onToast('Reply added')
       } else {
         setDraft('')
         setMentions([])
+        setDraftSpoiler(false)
+        setSafe(false)
         onToast('Comment added at your current spot')
       }
       refresh()
@@ -300,14 +315,7 @@ export function PlayerClubCompanion({
                 autoFocus
               />
               <div className="pc-inline-actions">
-                <label className="pc-safe">
-                  <input
-                    type="checkbox"
-                    checked={editSpoiler}
-                    onChange={(event) => setEditSpoiler(event.target.checked)}
-                  />{' '}
-                  Spoiler
-                </label>
+                <SpoilerToggle on={editSpoiler} onChange={setEditSpoiler} compact />
                 <button type="button" onClick={() => setEditing(null)}>
                   Cancel
                 </button>
@@ -351,6 +359,9 @@ export function PlayerClubCompanion({
                     type="button"
                     onClick={() => {
                       setReplyingTo(note)
+                      setReplyDraft('')
+                      setReplyMentions([])
+                      setReplySpoiler(false)
                       setEditing(null)
                     }}
                   >
@@ -394,10 +405,15 @@ export function PlayerClubCompanion({
               onSubmit={(event) => {
                 event.preventDefault()
                 if (replyDraft.trim())
-                  post.mutate({ body: replyDraft.trim(), parentId: note.id, picked: replyMentions })
+                  post.mutate({
+                    body: replyDraft.trim(),
+                    parentId: note.id,
+                    picked: replyMentions,
+                    spoiler: replySpoiler,
+                  })
               }}
             >
-              <div className="pc-reply-label">Reply to {note.username}</div>
+              <div className="pc-reply-label">Replying to {note.username}</div>
               <MentionInput
                 value={replyDraft}
                 onChange={setReplyDraft}
@@ -411,12 +427,21 @@ export function PlayerClubCompanion({
                 members={members}
                 target={target}
                 meId={meId}
-                placeholder="Write a reply…"
+                placeholder={`Reply to ${note.username}…`}
                 rows={2}
                 autoFocus
               />
               <div className="pc-inline-actions">
-                <button type="button" onClick={() => setReplyingTo(null)}>
+                <SpoilerToggle on={replySpoiler} onChange={setReplySpoiler} compact />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReplyingTo(null)
+                    setReplyDraft('')
+                    setReplyMentions([])
+                    setReplySpoiler(false)
+                  }}
+                >
                   Cancel
                 </button>
                 <button
@@ -424,7 +449,7 @@ export function PlayerClubCompanion({
                   type="submit"
                   disabled={!replyDraft.trim() || post.isPending}
                 >
-                  Reply
+                  {post.isPending ? 'Posting…' : 'Post reply'}
                 </button>
               </div>
             </form>
@@ -647,7 +672,12 @@ export function PlayerClubCompanion({
             className="pc-composer"
             onSubmit={(event) => {
               event.preventDefault()
-              if (draft.trim()) post.mutate({ body: draft.trim(), picked: mentions })
+              if (draft.trim())
+                post.mutate({
+                  body: draft.trim(),
+                  picked: mentions,
+                  spoiler: draftSpoiler,
+                })
             }}
           >
             <MentionInput
@@ -663,24 +693,24 @@ export function PlayerClubCompanion({
               members={members}
               target={target}
               meId={meId}
-              placeholder={`Share a thought at ${formatTimestamp(position)}…`}
+              placeholder="Start a new thread…"
               rows={2}
             />
+            <div className="pc-compose-context">
+              <Icon name="schedule" /> Comment at {formatTimestamp(position)}
+            </div>
+            <div className="pc-compose-options">
+              <SpoilerToggle on={draftSpoiler} onChange={setDraftSpoiler} compact />
+              <CommentVisibilityControl visibleAhead={safe} onChange={setSafe} compact />
+            </div>
             <div className="pc-compose-actions">
-              <label className="pc-safe">
-                <input
-                  type="checkbox"
-                  checked={safe}
-                  onChange={(event) => setSafe(event.target.checked)}
-                />{' '}
-                Safe ahead
-              </label>
+              <span />
               <button
                 className="btn btn-primary"
                 type="submit"
                 disabled={!draft.trim() || post.isPending}
               >
-                <Icon name="send" /> {post.isPending ? 'Posting…' : 'Comment here'}
+                <Icon name="send" /> {post.isPending ? 'Posting…' : 'Post comment'}
               </button>
             </div>
           </form>

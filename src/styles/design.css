@@ -6043,18 +6043,106 @@
   margin-top: 9px;
 }
 
-.pc-safe {
-  display: flex;
+.pc-compose-context {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  margin-top: 8px;
   color: var(--text-muted);
   font-size: 11px;
-  cursor: pointer;
+}
+
+.pc-compose-context .ms {
+  font-size: 15px;
+}
+
+.pc-compose-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 9px;
 }
 
 .pc-compose-actions .btn {
   padding: 9px 12px;
   font-size: 11px;
+}
+
+/* Shared by the player sidecar and full club room. "Spoiler" describes the
+   content; Hidden/Visible describes who can see it before reaching its spot. */
+.comment-visibility-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comment-control-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.comment-visibility-options button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 6px 12px;
+}
+
+.comment-visibility-options button .ms {
+  font-size: 15px;
+}
+
+.comment-visibility-control.compact {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.comment-visibility-control.compact .comment-control-label {
+  font-size: 10px;
+}
+
+.comment-visibility-control.compact .comment-visibility-options button {
+  min-height: 32px;
+  padding: 5px 9px;
+  font-size: 11px;
+}
+
+.comment-spoiler-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 11px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-pill);
+  background: var(--fill);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.comment-spoiler-toggle.on {
+  border-color: color-mix(in oklab, var(--accent) 50%, var(--hairline));
+  background: color-mix(in oklab, var(--accent) 15%, var(--fill));
+  color: var(--accent);
+}
+
+.comment-spoiler-toggle.compact {
+  min-height: 32px;
+  padding: 5px 9px;
+  font-size: 11px;
+}
+
+.app.car-mode .player-club-companion .comment-spoiler-toggle,
+.app.car-mode .player-club-companion .comment-visibility-options button {
+  min-height: 44px;
+  padding-inline: 14px;
 }
 
 /* Car/Touch remains the same movable, resizable card; these are hierarchy-only
@@ -16762,28 +16850,6 @@ select.fld {
   font-size: 16px;
 }
 
-.note-safe-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.note-safe-label {
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.book-club-composer-tools .seg button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-}
-
-.book-club-composer-tools .seg button .ms {
-  font-size: 15px;
-}
-
 .book-club-discussion {
   margin-top: 10px;
 }
@@ -17626,7 +17692,7 @@ select.fld {
   font-size: 12px;
 }
 
-.book-club-reply-bar > div button {
+.book-club-reply-bar > div:first-child > button {
   padding: 0;
   border: 0;
   background: none;
@@ -17636,6 +17702,19 @@ select.fld {
 
 .book-club-reply-bar > .pill {
   justify-self: end;
+}
+
+.book-club-reply-bar > .book-club-reply-actions {
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.book-club-reply-bar > .book-club-reply-actions .pill {
+  min-height: 36px;
+  padding: 7px 13px;
+  background: var(--primary);
+  color: var(--primary-foreground);
 }
 
 .book-club-empty-book {
@@ -17833,6 +17912,12 @@ select.fld {
 
   .book-club-composer-tools {
     display: grid;
+  }
+
+  .book-club-composer-tools .comment-visibility-control {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
   }
 
   .book-club-create {
