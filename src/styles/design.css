@@ -6654,6 +6654,54 @@
   margin-top: 3px;
 }
 
+/* A settings row carrying BOTH a trailing toggle and a stacked control below
+   it (the per-type notification channel chips). set-row-stack alone drops the
+   trailing control, so this keeps the meta+control on one line and lets the
+   extra content flow underneath. */
+.set-row-both {
+  flex-wrap: wrap;
+}
+.set-row-both .sr-meta {
+  flex: 1 1 60%;
+  min-width: 0;
+}
+.set-row-both .sr-extra {
+  flex: 1 0 100%;
+}
+
+/* Per-type delivery channel chips. Multi-select, so each is a checkbox rather
+   than a segment of a single-choice control. */
+.channel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+.channel-chip {
+  border-radius: var(--r-pill);
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--fill);
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.channel-chip:hover:not(.locked) {
+  background: var(--c-highest);
+}
+.channel-chip.on {
+  background: var(--accent);
+  /* --text, NOT --on-accent. The app-wide accent/on-accent pairing is a pale
+     cream on near-white in the light themes (about 1.3:1), which is illegible at
+     this 12px size. --text on the same accent measures ~12.8:1 and stays correct
+     in dark themes, where accent is light and --text is dark. */
+  color: var(--text);
+}
+.channel-chip.locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* Stacked settings row: meta on top, a full-width control below. */
 .set-row-stack {
   flex-direction: column;

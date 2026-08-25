@@ -78,6 +78,57 @@ export function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) =
   )
 }
 
+/**
+ * Multi-select chips for choosing WHICH delivery channels one notification type
+ * uses. Unlike Seg (pick one of N) every chip toggles independently, because
+ * these are not alternatives - a reaction can reasonably be push + in-app but
+ * not email, which is the whole point of the control.
+ *
+ * A `disabled` chip still renders, greyed, carrying the reason as its title: a
+ * channel switched off globally should look unavailable rather than silently
+ * vanish, so "why isn't this reaching me" stays answerable from this screen.
+ */
+export function ChannelChips<T extends string>({
+  options,
+  selected,
+  disabled,
+  onToggle,
+}: {
+  options: { id: T; label: string }[]
+  selected: Record<string, boolean>
+  /** Channel ids that cannot be toggled here, mapped to why. */
+  disabled?: Partial<Record<T, string>>
+  onToggle: (id: T, next: boolean) => void
+}) {
+  return (
+    <div className="channel-chips">
+      {options.map((option) => {
+        const on = Boolean(selected[option.id])
+        const lock = disabled?.[option.id]
+        return (
+          <button
+            key={option.id}
+            type="button"
+            // `on` and `lock` are independent: a locked chip may be locked
+            // because it is forced ON (club invites always reach the tray) or
+            // forced OFF (the channel is disabled globally). Showing every
+            // locked chip as off would misreport what actually happens.
+            className={'channel-chip' + (on ? ' on' : '') + (lock ? ' locked' : '')}
+            role="checkbox"
+            aria-checked={on}
+            aria-disabled={Boolean(lock)}
+            disabled={Boolean(lock)}
+            title={lock || undefined}
+            onClick={() => !lock && onToggle(option.id, !on)}
+          >
+            {option.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // A full-width slider that fills the row below the label (use with set-row-stack).
 export function Slider({
   value,
