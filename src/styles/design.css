@@ -6089,6 +6089,46 @@
   gap: 5px;
   min-height: 36px;
   padding: 6px 12px;
+  border: 1px solid transparent;
+}
+
+.comment-visibility-options button::after {
+  content: '✓';
+  display: grid;
+  width: 17px;
+  height: 17px;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--accent-foreground) 16%, transparent);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  opacity: 0;
+}
+
+.comment-visibility-options button.on {
+  border-color: color-mix(in oklab, var(--accent) 72%, white);
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-weight: 750;
+  box-shadow:
+    0 0 0 2px color-mix(in oklab, var(--accent) 28%, transparent),
+    0 3px 10px rgba(0, 0, 0, 0.24);
+}
+
+.comment-visibility-options button.on::after {
+  opacity: 1;
+}
+
+.comment-visibility-options button:not(.on):hover {
+  border-color: var(--hairline);
+  background: color-mix(in oklab, var(--c-highest) 72%, transparent);
+  color: var(--text);
+}
+
+.comment-visibility-options button:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--accent) 55%, white);
+  outline-offset: 2px;
 }
 
 .comment-visibility-options button .ms {
