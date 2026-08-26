@@ -266,6 +266,27 @@ export const leaveClub = (t: AbsTarget, clubId: string): Promise<void> =>
 export const kickMember = (t: AbsTarget, clubId: string, userId: string): Promise<void> =>
   clubAction(t, clubId, 'kick', { userId })
 
+/**
+ * Owner-only rename. Returns the stored name, which the server trims and may
+ * reject for an empty or over-long value.
+ */
+export async function renameClub(t: AbsTarget, clubId: string, name: string): Promise<string> {
+  const token = getAbsToken(t.serverId)
+  if (!token) throw new Error('no token')
+  const res = await fetch(`${origin(t)}/hs/clubs/${encodeURIComponent(clubId)}/name`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({ name }),
+  })
+  if (!res.ok) throw new Error(`club rename ${res.status}`)
+  const value = (await res.json()) as { name?: string }
+  return typeof value.name === 'string' ? value.name : name
+}
+
 export async function setClubVisibility(
   t: AbsTarget,
   clubId: string,

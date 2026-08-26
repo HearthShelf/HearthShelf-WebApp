@@ -16388,6 +16388,28 @@ select.fld {
   color: var(--danger, #ec8c82);
 }
 
+/* Owner-only club settings modal: rename plus the discussion/pace toggles.
+   Rows run edge to edge inside the sheet, matching the player sidecar's copy. */
+.book-club-settings .set-row {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.book-club-settings input[type='text'] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--c-low);
+  color: var(--text);
+  font: inherit;
+}
+
+.book-club-settings input[type='text']:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .club-invite-modal {
   width: min(620px, 100%);
 }
