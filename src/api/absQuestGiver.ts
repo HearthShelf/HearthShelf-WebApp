@@ -137,6 +137,21 @@ export async function saveQgAdminConfig(
   })
 }
 
+export interface QgProviderModel {
+  id: string
+  name: string
+}
+
+export function getQgProviderModels(
+  t: AbsTarget,
+  draft: Pick<QgAdminConfigPatch, 'provider' | 'baseUrl' | 'apiKey'>,
+): Promise<{ models: QgProviderModel[] }> {
+  return qgFetch<{ models: QgProviderModel[] }>(t, '/admin/models', {
+    method: 'POST',
+    body: JSON.stringify(draft),
+  })
+}
+
 // --- Recommendation -----------------------------------------------------------
 
 // Get a recommendation. Tries the AI backend; on any failure (unconfigured,
