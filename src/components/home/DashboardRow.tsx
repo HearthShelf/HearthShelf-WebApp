@@ -7,7 +7,7 @@
  */
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { formatDuration, type HSListeningStats } from '@hearthshelf/core'
+import { formatDuration, queueLengthLabel, type HSListeningStats } from '@hearthshelf/core'
 import { getHsStats, statsKeys } from '@/api/absStats'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useQueueStore } from '@/store/queueStore'
@@ -62,11 +62,14 @@ export function DashboardRow() {
             ))}
           </div>
         )}
+        {/* Count + total runtime, same line the player's queue tray shows, so
+            the two never disagree about how much is queued. Mode moves to its
+            own line rather than being appended - the length line is long
+            enough on its own. */}
         <div className="dash-cap">
-          {items.length > 0
-            ? `${items.length} queued · ${modeLabel}`
-            : `Nothing queued · ${modeLabel}`}
+          {items.length > 0 ? queueLengthLabel(items) : `Nothing queued · ${modeLabel}`}
         </div>
+        {items.length > 0 && <div className="dash-cap-sub">{modeLabel}</div>}
       </button>
 
       <button type="button" className="dash-card" onClick={() => navigate('/stats')}>

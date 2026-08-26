@@ -15903,6 +15903,18 @@ select.fld {
   font-size: 12px;
   color: var(--text-muted);
   margin-top: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Queue mode, under the count + runtime line. Dimmer than the length itself:
+   it is context, not the number you came for. */
+.dash-cap-sub {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  opacity: 0.75;
+  margin-top: 2px;
 }
 
 .dash-stat {
