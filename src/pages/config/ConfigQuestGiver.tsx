@@ -324,7 +324,8 @@ export function ConfigQuestGiver() {
                     </div>
                     <div className="sr-d">
                       QuestGiver uses this account's Copilot subscription. The official Copilot CLI
-                      stores the credential; HearthShelf never receives the token.
+                      keeps the credential in this server's private data directory, excluded from
+                      HearthShelf backups.
                     </div>
                     {data.hasKey && (
                       <button
@@ -386,7 +387,8 @@ export function ConfigQuestGiver() {
                     </p>
                   )}
                   <p className="sr-d" style={{ marginTop: 8 }}>
-                    GitHub shows a one-time device code. No token creation or copy/paste is needed.
+                    GitHub shows a one-time device code. No token creation or copy/paste is needed;
+                    headless servers keep the resulting credential in their private data directory.
                   </p>
                 </div>
               )}
