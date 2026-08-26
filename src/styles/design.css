@@ -16051,85 +16051,54 @@ select.fld {
   color: var(--text-muted);
 }
 
+/* The club switcher is a horizontal strip above the room, not a sidebar - at
+   1080px a fixed left column starved the discussion of the width it needs. */
 .book-clubs-layout {
-  display: grid;
-  grid-template-columns: minmax(270px, 330px) minmax(0, 1fr);
-  gap: var(--s5);
-  align-items: start;
-}
-
-.book-clubs-layout.single {
   display: block;
 }
 
 .book-clubs-list {
-  position: sticky;
-  top: var(--s4);
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: color-mix(in oklab, var(--sheet) 94%, transparent);
-}
-
-.book-clubs-list-head {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 15px 16px 11px;
-  color: var(--text-muted);
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.book-clubs-list-head span {
-  display: grid;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 6px;
-  place-items: center;
-  border-radius: 999px;
-  background: var(--c-low);
-  color: var(--text);
+  gap: 8px;
+  overflow-x: auto;
+  margin-bottom: var(--s4);
+  padding-bottom: 2px;
+  scrollbar-width: thin;
 }
 
 .book-club-mini {
   position: relative;
   display: grid;
-  width: 100%;
-  grid-template-columns: 48px minmax(0, 1fr) 18px;
-  gap: 12px;
+  min-width: 210px;
+  max-width: 280px;
+  flex: 1 1 210px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
   align-items: center;
-  padding: 14px 14px;
-  border: 0;
-  border-top: 1px solid var(--border);
-  background: transparent;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--sheet) 94%, transparent);
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .book-club-mini:hover,
 .book-club-mini.selected {
+  border-color: color-mix(in oklab, var(--primary) 45%, var(--border));
   background: color-mix(in oklab, var(--primary) 8%, var(--sheet));
-}
-
-.book-club-mini.selected::before {
-  position: absolute;
-  inset: 10px auto 10px 0;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: var(--primary);
-  content: '';
 }
 
 .book-club-mini-cover,
 .book-club-mini-empty {
-  width: 48px;
-  height: 66px;
-  border-radius: 7px;
+  width: 34px;
+  height: 47px;
+  border-radius: 6px;
 }
 
 .book-club-mini-empty {
@@ -16141,8 +16110,7 @@ select.fld {
 
 .book-club-mini-body,
 .book-club-mini-topline,
-.book-club-mini-stats,
-.book-club-mini-members {
+.book-club-mini-stats {
   display: flex;
 }
 
@@ -16157,27 +16125,24 @@ select.fld {
   gap: 7px;
 }
 
-.book-club-mini-topline strong,
-.book-club-mini-book {
+.book-club-mini-topline strong {
   overflow: hidden;
+  font-size: 13.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.book-club-mini-topline strong {
-  font-size: 14px;
-}
-
-.book-club-mini-book {
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
 .book-club-mini-stats {
-  flex-wrap: wrap;
-  gap: 5px 9px;
+  gap: 5px 8px;
+  overflow: hidden;
   font-size: 11.5px;
   color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.book-club-mini-stats > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .book-club-stat {
@@ -16197,33 +16162,6 @@ select.fld {
 
 .book-club-stat.done {
   color: #9bc68a;
-}
-
-.book-club-mini-members {
-  align-items: center;
-  min-height: 23px;
-  margin-top: 2px;
-}
-
-.book-club-mini-members .avatar,
-.book-club-mini-members .hs-avatar {
-  margin-left: -5px;
-  border: 2px solid var(--sheet);
-}
-
-.book-club-mini-members .avatar:first-child,
-.book-club-mini-members .hs-avatar:first-child {
-  margin-left: 0;
-}
-
-.book-club-mini-members > span {
-  margin-left: 4px;
-  color: var(--text-muted);
-  font-size: 10px;
-}
-
-.book-club-mini-chevron {
-  color: var(--text-muted);
 }
 
 .book-club-create {
@@ -16971,20 +16909,35 @@ select.fld {
   box-shadow: none;
 }
 
+/* The tools and Post button share one row only while they fit; below that the
+   button drops to its own line instead of squeezing the controls off-screen. */
 .book-club-composer > div {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   margin-top: 8px;
 }
 
+.book-club-composer > div > .pill {
+  margin-left: auto;
+}
+
 .book-club-composer-tools {
   display: flex;
+  min-width: 0;
+  flex: 1 1 320px;
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
 }
+
+.book-club-composer-tools .comment-visibility-control {
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+
 
 /* "Leave at 1:02:05" - an actual checkbox, so its on/off state is legible at a
    glance instead of having to be inferred from a pill's highlight. */
@@ -17914,11 +17867,6 @@ select.fld {
   .book-club-join-create {
     grid-template-columns: 1fr;
   }
-  .book-clubs-layout {
-    grid-template-columns: 260px minmax(0, 1fr);
-    gap: var(--s4);
-  }
-
   .book-club-content-grid {
     grid-template-columns: 1fr;
   }
@@ -17941,32 +17889,14 @@ select.fld {
 }
 
 @media (max-width: 820px) {
-  .book-clubs-layout {
-    display: block;
-  }
-
   .book-clubs-list {
-    position: static;
-    margin-bottom: var(--s4);
-  }
-
-  .book-clubs-list > div:last-child {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding: 0 12px 12px;
     scroll-snap-type: x proximity;
   }
 
   .book-club-mini {
-    min-width: min(295px, 82vw);
-    border: 1px solid var(--border);
-    border-radius: 12px;
+    min-width: min(240px, 76vw);
+    flex: 0 0 auto;
     scroll-snap-align: start;
-  }
-
-  .book-club-mini.selected::before {
-    inset: 8px auto 8px 0;
   }
 
   .book-club-hero {
@@ -18070,14 +18000,6 @@ select.fld {
 
   .book-club-past-grid {
     grid-template-columns: 1fr;
-  }
-
-  .book-club-composer > div {
-    align-items: flex-end;
-  }
-
-  .book-club-composer-tools {
-    display: grid;
   }
 
   .book-club-composer-tools .comment-visibility-control {

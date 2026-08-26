@@ -255,6 +255,7 @@ function ClubMiniCard({
       className={'book-club-mini' + (selected ? ' selected' : '')}
       onClick={onSelect}
       aria-current={selected ? 'page' : undefined}
+      title={club.currentBook?.title ?? 'Choose the first book'}
     >
       {club.currentBook ? (
         <Cover
@@ -275,9 +276,6 @@ function ClubMiniCard({
           <strong>{club.name}</strong>
           {(data?.unreadCount ?? 0) > 0 && <span className="ni-badge">{data?.unreadCount}</span>}
         </span>
-        <span className="book-club-mini-book">
-          {club.currentBook?.title ?? 'Choose the first book'}
-        </span>
         <span className="book-club-mini-stats">
           {everyoneFinished ? (
             <span className="book-club-stat done">
@@ -294,23 +292,7 @@ function ClubMiniCard({
             </>
           )}
         </span>
-        {members.length > 0 && (
-          <span className="book-club-mini-members" aria-label={`${members.length} members`}>
-            {members.slice(0, 4).map((member) => (
-              <Avatar
-                key={member.userId}
-                name={member.username}
-                target={target}
-                userId={member.userId}
-                size={22}
-                className="hs-avatar"
-              />
-            ))}
-            {members.length > 4 && <span>+{members.length - 4}</span>}
-          </span>
-        )}
       </span>
-      <Icon name="chevron_right" className="book-club-mini-chevron" />
     </button>
   )
 }
@@ -659,8 +641,12 @@ function ClubTimeline({
   target: AbsTarget
 }) {
   const mine = members.find((member) => member.userId === meId)
-  const myPosition = livePosition ?? mine?.currentTime ?? 0
-  const myFraction = duration > 0 ? Math.max(0, Math.min(1, myPosition / duration)) : 0
+  // Finishing a book resets currentTime to 0, so a raw position would drag the
+  // "You" marker back to the start. Only trust a position while it is live.
+  const myFraction =
+    livePosition != null && duration > 0
+      ? Math.max(0, Math.min(1, livePosition / duration))
+      : progressOf(mine)
   const readable = notes.filter((note) => !note.parentId && note.timeSec != null)
   // Stack pins that land close together onto extra rows. Absolutely positioning
   // every member at their own percentage buries a whole cluster under one avatar
@@ -697,7 +683,7 @@ function ClubTimeline({
         <span className="book-club-timeline-ahead" style={{ left: pct(myFraction) }} />
         <span className="book-club-timeline-you" style={{ left: pct(myFraction) }}>
           <i />
-          <b>You · {pct(myFraction)}</b>
+          <b>You · {mine?.isFinished && livePosition == null ? 'Finished' : pct(myFraction)}</b>
         </span>
         {readable.map((note) => {
           const fraction = Math.max(0, Math.min(1, (note.timeSec ?? 0) / duration))
@@ -2023,26 +2009,20 @@ export function ClubRoomPage() {
           onCreate={(name, visibility) => create.mutate({ name, visibility })}
         />
       )}
-      <div className={'book-clubs-layout' + (clubs.length === 1 ? ' single' : '')}>
+      <div className="book-clubs-layout">
         {clubs.length > 1 && (
-          <aside className="book-clubs-list">
-            <div className="book-clubs-list-head">
-              <strong>Your clubs</strong>
-              <span>{clubs.length}</span>
-            </div>
-            <div>
-              {clubs.map((club) => (
-                <ClubMiniCard
-                  key={club.id}
-                  club={club}
-                  target={target}
-                  meId={me?.id}
-                  selected={club.id === selectedId}
-                  onSelect={() => navigate(`/club/${club.id}`)}
-                />
-              ))}
-            </div>
-          </aside>
+          <nav className="book-clubs-list" aria-label="Your clubs">
+            {clubs.map((club) => (
+              <ClubMiniCard
+                key={club.id}
+                club={club}
+                target={target}
+                meId={me?.id}
+                selected={club.id === selectedId}
+                onSelect={() => navigate(`/club/${club.id}`)}
+              />
+            ))}
+          </nav>
         )}
         <main className="book-clubs-detail">
           {detailQuery.isError || !detailQuery.data?.enabled ? (

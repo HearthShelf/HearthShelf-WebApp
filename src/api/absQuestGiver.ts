@@ -152,6 +152,27 @@ export function getQgProviderModels(
   })
 }
 
+export interface QgCopilotAuth {
+  authenticated: boolean
+  login: string | null
+  host: string | null
+  authType: string | null
+  flow: {
+    state: 'idle' | 'starting' | 'waiting' | 'finishing' | 'connected' | 'failed'
+    verificationUri?: string
+    userCode?: string
+    error?: string
+  }
+}
+
+export function getQgCopilotAuth(t: AbsTarget): Promise<QgCopilotAuth> {
+  return qgFetch<QgCopilotAuth>(t, '/admin/copilot')
+}
+
+export function startQgCopilotAuth(t: AbsTarget): Promise<QgCopilotAuth> {
+  return qgFetch<QgCopilotAuth>(t, '/admin/copilot', { method: 'POST' })
+}
+
 // --- Recommendation -----------------------------------------------------------
 
 // Get a recommendation. Tries the AI backend; on any failure (unconfigured,
