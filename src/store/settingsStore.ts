@@ -25,6 +25,7 @@ import {
   DEFAULT_REC_SHELF_COUNT,
   normalizeHomeSections,
   DEFAULT_NOTIFY_PREFS,
+  normalizeNotifyPrefs,
 } from '@hearthshelf/core'
 
 // Client-only player + appearance preferences. Rendered from localStorage for an
@@ -345,7 +346,9 @@ export const useSettingsStore = create<SettingsState>()(
                 ? normalizeAutoRules(remote.value)
                 : key === 'homeSections'
                   ? normalizeHomeSections(remote.value)
-                  : remote.value
+                  : key === 'notifyPrefs'
+                    ? normalizeNotifyPrefs(remote.value)
+                    : remote.value
             meta[key] = remote.updatedAt
           }
         }
@@ -364,6 +367,7 @@ export const useSettingsStore = create<SettingsState>()(
         if (!state) return
         state.queueAutoRules = normalizeAutoRules(state.queueAutoRules)
         state.homeSections = normalizeHomeSections(state.homeSections)
+        state.notifyPrefs = normalizeNotifyPrefs(state.notifyPrefs)
       },
     },
   ),
