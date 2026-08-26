@@ -2,20 +2,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { HSClubDetail, HSClubMember, HSNote, NoteReactionKind } from '@hearthshelf/core'
 import { formatTimestamp, queueLengthLabel } from '@hearthshelf/core'
-import { clubsKeys, setClubSettings } from '@/api/absClubs'
+import { clubsKeys } from '@/api/absClubs'
 import { createNote, deleteNote, reactToNote, updateNote } from '@/api/absNotes'
 import { getMe, type AbsTarget } from '@/api/absLibrary'
 import { Avatar } from '@/components/common/Avatar'
 import { Icon } from '@/components/common/Icon'
-import { Modal } from '@/components/common/Modal'
 import { Cover } from '@/components/shared/Cover'
 import { MentionInput, type MentionCandidate } from '@/components/social/MentionInput'
 import { ReactionBar } from '@/components/social/ReactionBar'
+import { ClubSettingsModal } from '@/components/social/ClubSettingsModal'
 import {
   CommentVisibilityControl,
   SpoilerToggle,
 } from '@/components/social/CommentComposerControls'
-import { SetRow, Toggle } from '@/components/settings/controls'
 
 type ClubTab = 'comments' | 'queue' | 'members'
 
@@ -87,9 +86,6 @@ export function PlayerClubCompanion({
   const [tab, setTab] = useState<ClubTab>('comments')
   const [progressExpanded, setProgressExpanded] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [allowEditing, setAllowEditing] = useState(detail.club.allowCommentEditing)
-  const [allowReplies, setAllowReplies] = useState(detail.club.allowReplies)
-  const [autoAdvance, setAutoAdvance] = useState(detail.club.autoAdvanceOnAllFinished)
   const detailKey = clubsKeys.detail(target.serverId, detail.club.id, libraryItemId)
   const members = detail.members.map(({ userId, username }) => ({ userId, username }))
 
@@ -208,27 +204,6 @@ export function PlayerClubCompanion({
     },
     onError: () => onToast('Could not delete that comment.'),
   })
-  const saveSettings = useMutation({
-    mutationFn: () =>
-      setClubSettings(target, detail.club.id, {
-        allowCommentEditing: allowEditing,
-        allowReplies,
-        autoAdvanceOnAllFinished: autoAdvance,
-      }),
-    onSuccess: () => {
-      setSettingsOpen(false)
-      refresh()
-      onToast('Club settings saved')
-    },
-    onError: () => onToast('Could not save club settings.'),
-  })
-
-  const openSettings = () => {
-    setAllowEditing(detail.club.allowCommentEditing)
-    setAllowReplies(detail.club.allowReplies)
-    setAutoAdvance(detail.club.autoAdvanceOnAllFinished)
-    setSettingsOpen(true)
-  }
 
   const beginEdit = (note: HSNote) => {
     setEditing(note)
@@ -473,7 +448,7 @@ export function PlayerClubCompanion({
             {isOwner && (
               <button
                 className="icon-btn"
-                onClick={openSettings}
+                onClick={() => setSettingsOpen(true)}
                 aria-label="Club settings"
                 title="Club settings"
               >
@@ -718,43 +693,16 @@ export function PlayerClubCompanion({
       </div>
 
       {settingsOpen && (
-        <Modal
-          title="Club settings"
+        <ClubSettingsModal
+          target={target}
+          club={detail.club}
           onClose={() => setSettingsOpen(false)}
-          foot={
-            <>
-              <button className="pill" onClick={() => setSettingsOpen(false)}>
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={saveSettings.isPending}
-                onClick={() => saveSettings.mutate()}
-              >
-                {saveSettings.isPending ? 'Saving…' : 'Save changes'}
-              </button>
-            </>
-          }
-        >
-          <div className="pc-settings">
-            <p>{detail.club.name}</p>
-            <SetRow
-              title="Allow member comment editing"
-              desc="Members can revise their own text and spoiler flag."
-              control={<Toggle on={allowEditing} onChange={setAllowEditing} />}
-            />
-            <SetRow
-              title="Allow replies"
-              desc="Members can reply to existing top-level comments."
-              control={<Toggle on={allowReplies} onChange={setAllowReplies} />}
-            />
-            <SetRow
-              title="Move on when everyone has finished"
-              desc="Start the first queued book after every reader who began this one finishes."
-              control={<Toggle on={autoAdvance} onChange={setAutoAdvance} />}
-            />
-          </div>
-        </Modal>
+          onSaved={() => {
+            refresh()
+            onToast('Club settings saved')
+          }}
+          onError={onToast}
+        />
       )}
     </>
   )

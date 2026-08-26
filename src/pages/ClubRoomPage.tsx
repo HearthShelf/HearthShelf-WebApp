@@ -31,12 +31,10 @@ import {
   leaveClub,
   markClubRead,
   removeQueuedClubBook,
-  renameClub,
   reorderClubQueue,
   requeueClubBook,
   respondToClubInvite,
   revokeClubInvite,
-  setClubSettings,
   setClubVisibility,
   type ClubVisibility,
   type ClubInvitee,
@@ -54,13 +52,12 @@ import { Avatar } from '@/components/common/Avatar'
 import { AvatarStack, type StackUser } from '@/components/common/AvatarStack'
 import { ErrorState } from '@/components/common/ErrorState'
 import { Icon } from '@/components/common/Icon'
-import { Modal } from '@/components/common/Modal'
-import { SetRow, Toggle } from '@/components/settings/controls'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { Cover } from '@/components/shared/Cover'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { AddClubBooksDialog } from '@/components/social/AddClubBooksDialog'
 import { ClubBookMenu } from '@/components/social/ClubBookMenu'
+import { ClubSettingsModal } from '@/components/social/ClubSettingsModal'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
@@ -941,14 +938,9 @@ function ClubRoom({
   const [draftMentions, setDraftMentions] = useState<MentionCandidate[]>([])
   const [replyMentions, setReplyMentions] = useState<MentionCandidate[]>([])
   const [inviting, setInviting] = useState(false)
-  // Owner settings live in a modal so the club room header stays a short list of
-  // actions. Drafts are seeded when it opens, not on every render, so a refetch
-  // mid-edit can't yank a half-typed name out from under the owner.
+  // Owner settings live in a modal so the club room header stays a short list
+  // of actions. Mounted only while open, so its drafts reseed on each visit.
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [nameDraft, setNameDraft] = useState('')
-  const [allowEditing, setAllowEditing] = useState(false)
-  const [allowReplies, setAllowReplies] = useState(false)
-  const [autoAdvance, setAutoAdvance] = useState(false)
   const [adding, setAdding] = useState(false)
   const [queueExpanded, setQueueExpanded] = useState(false)
   const { activeId: libraryId } = useActiveLibrary()
@@ -1058,34 +1050,6 @@ function ClubRoom({
     },
     onError: () => show('Could not change club visibility.'),
   })
-  // Rename and the policy toggles are separate endpoints, so Save changes fires
-  // the rename only when the name actually changed - renaming to the same value
-  // would otherwise push a pointless write on every save.
-  const saveSettings = useMutation({
-    mutationFn: async () => {
-      const trimmed = nameDraft.trim()
-      if (trimmed && trimmed !== club.name) await renameClub(target, club.id, trimmed)
-      await setClubSettings(target, club.id, {
-        allowCommentEditing: allowEditing,
-        allowReplies,
-        autoAdvanceOnAllFinished: autoAdvance,
-      })
-    },
-    onSuccess: () => {
-      setSettingsOpen(false)
-      show('Club settings saved.')
-      void invalidate()
-    },
-    onError: () => show('Could not save club settings.'),
-  })
-
-  const openSettings = () => {
-    setNameDraft(club.name)
-    setAllowEditing(club.allowCommentEditing)
-    setAllowReplies(club.allowReplies)
-    setAutoAdvance(club.autoAdvanceOnAllFinished)
-    setSettingsOpen(true)
-  }
   const kick = useMutation({
     mutationFn: (userId: string) => kickMember(target, club.id, userId),
     onSuccess: () => void invalidate(),
@@ -1311,7 +1275,7 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                 <Icon name="more_horiz" /> Manage
               </summary>
               <div>
-                <button type="button" onClick={openSettings}>
+                <button type="button" onClick={() => setSettingsOpen(true)}>
                   <Icon name="settings" /> Club settings
                 </button>
                 <button type="button" onClick={() => visibility.mutate()}>
@@ -1865,57 +1829,16 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
         </div>
       )}
       {settingsOpen && (
-        <Modal
-          title="Club settings"
+        <ClubSettingsModal
+          target={target}
+          club={club}
           onClose={() => setSettingsOpen(false)}
-          foot={
-            <>
-              <button className="pill" onClick={() => setSettingsOpen(false)}>
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={saveSettings.isPending || !nameDraft.trim()}
-                onClick={() => saveSettings.mutate()}
-              >
-                {saveSettings.isPending ? 'Saving…' : 'Save changes'}
-              </button>
-            </>
-          }
-        >
-          <div className="book-club-settings">
-            <SetRow
-              title="Club name"
-              desc="Everyone in the club sees the new name right away."
-              stacked
-              control={null}
-            >
-              <input
-                type="text"
-                value={nameDraft}
-                maxLength={120}
-                placeholder="Club name"
-                aria-label="Club name"
-                onChange={(e) => setNameDraft(e.target.value)}
-              />
-            </SetRow>
-            <SetRow
-              title="Allow member comment editing"
-              desc="Members can revise their own text and add or remove the spoiler flag."
-              control={<Toggle on={allowEditing} onChange={setAllowEditing} />}
-            />
-            <SetRow
-              title="Allow replies"
-              desc="Members can reply to existing top-level comments. Existing replies stay readable."
-              control={<Toggle on={allowReplies} onChange={setAllowReplies} />}
-            />
-            <SetRow
-              title="Move on when everyone has finished"
-              desc="Once every reader who started the book finishes it, the club marks it read and starts the next book in Up next."
-              control={<Toggle on={autoAdvance} onChange={setAutoAdvance} />}
-            />
-          </div>
-        </Modal>
+          onSaved={() => {
+            show('Club settings saved.')
+            void invalidate()
+          }}
+          onError={show}
+        />
       )}
       {inviting && (
         <InviteReadersDialog

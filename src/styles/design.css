@@ -5833,17 +5833,6 @@
   padding: 10px 4px;
 }
 
-.pc-settings > p {
-  margin: 0 0 12px;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.pc-settings .set-row {
-  padding-right: 0;
-  padding-left: 0;
-}
-
 .dev-club-sidecar {
   min-height: 100vh;
   display: grid;
@@ -16396,6 +16385,7 @@ select.fld {
 }
 
 .book-club-settings input[type='text'] {
+  box-sizing: border-box;
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border);
