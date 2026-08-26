@@ -6,7 +6,7 @@ import { CarBookProgress } from '@/components/player/CarBookProgress'
 import { useIdleFade } from '@/hooks/useIdleFade'
 import { useVisualViewportSize } from '@/hooks/useVisualViewportSize'
 import cozyHearth from '@/assets/img/SittingInTheHearth.webp'
-import type { HSClubDetail } from '@hearthshelf/core'
+import type { HSClubDetail, TimelineMarker } from '@hearthshelf/core'
 
 // Minimal stub so shared components (Cover) can read the media seam. No covers,
 // no navigation - the harness only needs the layout to render.
@@ -20,6 +20,15 @@ const STUB_UI: MediaUI = {
 // data outside the auth/server stack so the layout, drag, resize, and idle-fade
 // can be checked without Clerk or a live ABS server. Gated to import.meta.env.DEV
 // in the router - never reachable in a production build.
+// One of each marker state, so the car layout can be eyeballed here without a
+// real club: a single note, a cluster, a locked-ahead stub, and a mixed cluster.
+const MARKERS: TimelineMarker[] = [
+  { kind: 'note', fraction: 0.18, count: 1, items: [] },
+  { kind: 'note', fraction: 0.42, count: 3, items: [] },
+  { kind: 'stub', fraction: 0.71, count: 1, items: [] },
+  { kind: 'mixed', fraction: 0.88, count: 2, items: [] },
+]
+
 const CHAPTERS = Array.from({ length: 12 }, (_, i) => ({
   id: i,
   start: i * 1800,
@@ -122,6 +131,7 @@ export function CarPlayerHarness() {
             chapterIndex={ci}
             chapterCount={CHAPTERS.length}
             members={CLUB.members}
+            markers={MARKERS}
           />
           <CarPlayer
             libraryItemId="dev-stub"

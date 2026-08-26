@@ -867,6 +867,7 @@ export function PlayerPage() {
           chapterIndex={ci}
           chapterCount={chapters.length}
           members={clubDetail?.enabled ? clubDetail.members : undefined}
+          markers={timelineMarkers}
           target={target ?? undefined}
         />
         <CarPlayer

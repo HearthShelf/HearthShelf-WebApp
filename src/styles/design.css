@@ -4709,6 +4709,69 @@
     0 3px 9px rgba(0, 0, 0, 0.5);
 }
 
+/* Comment positions on the car track. Same clustered data as the touch
+   scrubber's timeline markers, but display-only and sized for a glance from
+   the driver's seat rather than for tapping. */
+.car-progress-markers {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.car-progress-markers > span {
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, -50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: 2px solid rgba(13, 11, 10, 0.94);
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.5);
+}
+
+.car-progress-markers > span > .ms {
+  font-size: 12px;
+}
+
+/* Locked-ahead notes stay muted: something is there, but it is not readable
+   yet, and it must not read as an unheard comment the driver could open. */
+.car-progress-markers > span.locked {
+  background: var(--text-muted);
+  color: var(--c-lowest);
+  opacity: 0.72;
+}
+
+.car-progress-markers > span.mixed {
+  box-shadow:
+    0 0 0 2px color-mix(in oklab, var(--text-muted) 50%, transparent),
+    0 3px 9px rgba(0, 0, 0, 0.5);
+}
+
+.car-progress-markers > span > b {
+  position: absolute;
+  top: -6px;
+  right: -7px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--c-high);
+  color: var(--c-lowest);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .car-book-progress-times {
   margin-top: 6px;
 }

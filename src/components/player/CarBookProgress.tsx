@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Avatar } from '@/components/common/Avatar'
 import { getMe, type AbsTarget } from '@/api/absLibrary'
 import { formatTimestamp } from '@hearthshelf/core'
-import type { HSClubMember } from '@hearthshelf/core'
+import type { HSClubMember, TimelineMarker } from '@hearthshelf/core'
+import { Icon } from '@/components/common/Icon'
 
 export function CarBookProgress({
   position,
@@ -10,6 +11,7 @@ export function CarBookProgress({
   chapterIndex,
   chapterCount,
   members = [],
+  markers = [],
   target,
 }: {
   position: number
@@ -17,6 +19,10 @@ export function CarBookProgress({
   chapterIndex: number
   chapterCount: number
   members?: HSClubMember[]
+  /** Clustered comment positions, same data the touch scrubber marks. Shown so
+   *  the car track answers "is there anything at this point in the book" at a
+   *  glance. Display only - a driver never taps these to open a note. */
+  markers?: TimelineMarker[]
   target?: AbsTarget
 }) {
   const ratio = duration > 0 ? Math.max(0, Math.min(1, position / duration)) : 0
@@ -37,6 +43,20 @@ export function CarBookProgress({
       </div>
       <div className="car-book-progress-track">
         <i style={{ transform: `scaleX(${ratio})` }} />
+        {markers.length > 0 && (
+          <div className="car-progress-markers" aria-label="Comment positions">
+            {markers.map((m, i) => (
+              <span
+                key={i}
+                className={m.kind === 'stub' ? 'locked' : m.kind === 'mixed' ? 'mixed' : ''}
+                style={{ left: `${m.fraction * 100}%` }}
+              >
+                <Icon name="chat_bubble" fill />
+                {m.count > 1 && <b>{m.count}</b>}
+              </span>
+            ))}
+          </div>
+        )}
         {members.length > 0 && (
           <div className="club-progress-markers" aria-label="Book Club reader progress">
             {members.map((member) => {
