@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { Modal } from '@/components/common/Modal'
 import { Icon } from '@/components/common/Icon'
+import { SelectField } from '@/components/common/SelectField'
 
 /**
  * Resolves with the chosen completion time, or null for "Now" (let the server
@@ -125,32 +126,20 @@ function FinishModal({ count, onSettle }: { count: number; onSettle: (c: FinishC
         Backdating keeps your listening stats accurate. Pick the month you finished, or tap Now.
       </p>
       <div style={{ display: 'flex', gap: 10 }}>
-        <select
-          className="fld"
+        <SelectField
           style={{ flex: 2 }}
-          value={month}
-          onChange={(e) => setMonth(Number(e.target.value))}
+          value={String(month)}
+          onChange={(next) => setMonth(Number(next))}
           aria-label="Month finished"
-        >
-          {MONTHS.map((m, i) => (
-            <option key={m} value={i}>
-              {m}
-            </option>
-          ))}
-        </select>
-        <select
-          className="fld"
+          options={MONTHS.map((m, i) => ({ value: String(i), label: m }))}
+        />
+        <SelectField
           style={{ flex: 1 }}
-          value={year}
-          onChange={(e) => setYear(Number(e.target.value))}
+          value={String(year)}
+          onChange={(next) => setYear(Number(next))}
           aria-label="Year finished"
-        >
-          {years.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
+          options={years.map((y) => ({ value: String(y), label: String(y) }))}
+        />
       </div>
     </Modal>
   )

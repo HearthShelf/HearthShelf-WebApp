@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/useToast'
 import { friendlyError } from '@/lib/errorMessages'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { SelectField } from '@/components/common/SelectField'
 
 const REGION_LABELS: Record<string, string> = {
   us: 'United States',
@@ -310,18 +311,15 @@ function IntegrationsForm({ config }: { config: IntegrationsConfig }) {
         </div>
         <div className="field full">
           <label>Region{env.audibleRegion && <EnvLockTag />}</label>
-          <select
-            className="fld"
+          <SelectField
             value={env.audibleRegion ? config.audibleRegion : region}
             disabled={env.audibleRegion || save.isPending}
-            onChange={(e) => saveRegion(e.target.value as HSAudibleRegion)}
-          >
-            {config.validRegions.map((r) => (
-              <option key={r} value={r}>
-                {REGION_LABELS[r] ?? r.toUpperCase()}
-              </option>
-            ))}
-          </select>
+            onChange={(next) => saveRegion(next as HSAudibleRegion)}
+            options={config.validRegions.map((r) => ({
+              value: r,
+              label: REGION_LABELS[r] ?? r.toUpperCase(),
+            }))}
+          />
         </div>
       </div>
 

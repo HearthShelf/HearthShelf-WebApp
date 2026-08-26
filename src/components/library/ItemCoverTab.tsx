@@ -5,6 +5,7 @@ import type { AbsTarget } from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { Cover } from '@/components/shared/Cover'
+import { SelectField } from '@/components/common/SelectField'
 
 interface ItemCoverTabProps {
   target: AbsTarget
@@ -87,17 +88,17 @@ export function ItemCoverTab({
           </button>
         </div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-          <select
-            className="fld"
+          <SelectField
             style={{ flex: 'none', width: 130 }}
             value={provider}
-            onChange={(e) => setProvider(e.target.value)}
-          >
-            <option value="audible">Audible</option>
-            <option value="google">Google</option>
-            <option value="itunes">iTunes</option>
-            <option value="openlibrary">Open Library</option>
-          </select>
+            onChange={setProvider}
+            options={[
+              { value: 'audible', label: 'Audible' },
+              { value: 'google', label: 'Google' },
+              { value: 'itunes', label: 'iTunes' },
+              { value: 'openlibrary', label: 'Open Library' },
+            ]}
+          />
           <input
             className="fld"
             value={title}

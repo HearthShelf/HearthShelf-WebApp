@@ -4,6 +4,7 @@ import { UserFormFields } from '@/components/config/UserForm'
 import type { AbsTarget } from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
 import { Modal } from '@/components/common/Modal'
+import { SelectField } from '@/components/common/SelectField'
 
 interface AddUserModalProps {
   target: AbsTarget
@@ -109,14 +110,14 @@ export function AddUserModal({
           </div>
           <div className="field full">
             <label>Role</label>
-            <select
-              className="fld"
+            <SelectField
               value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value as 'admin' | 'user')}
-            >
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-            </select>
+              onChange={(next) => setInviteRole(next as 'admin' | 'user')}
+              options={[
+                { value: 'user', label: 'User' },
+                { value: 'admin', label: 'Admin' },
+              ]}
+            />
           </div>
         </>
       ) : (

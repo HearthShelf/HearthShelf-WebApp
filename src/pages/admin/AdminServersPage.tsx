@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { notify } from '@/lib/notify'
 import { cn } from '@/lib/cn'
+import { SelectField } from '@/components/common/SelectField'
 
 const MS_PER_DAY = 86_400_000
 
@@ -219,17 +220,12 @@ function FilterSelect<T extends string>({
   return (
     <label className="flex items-center gap-1.5 text-[13px]">
       <span className="t-muted">{label}</span>
-      <select
+      <SelectField
         value={value}
-        onChange={(e) => onChange(e.target.value as T)}
-        className="h-8 rounded-md border border-border bg-card px-2 text-[13px] text-card-foreground"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+        onChange={(next) => onChange(next as T)}
+        className="h-8 px-2 text-[13px]"
+        options={options.map((o) => ({ value: o.value, label: o.label }))}
+      />
     </label>
   )
 }

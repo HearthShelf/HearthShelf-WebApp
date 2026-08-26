@@ -3,6 +3,7 @@ import { checkFolderExists } from '@/api/absAdmin'
 import type { AbsTarget } from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
 import { Modal } from '@/components/common/Modal'
+import { SelectField } from '@/components/common/SelectField'
 
 const ERR_STYLE: CSSProperties = {
   fontSize: 13,
@@ -94,14 +95,14 @@ export function LibraryCreateModal({
 
       <div className="field full">
         <label>Media type</label>
-        <select
-          className="fld"
+        <SelectField
           value={mediaType}
-          onChange={(e) => setMediaType(e.target.value as 'book' | 'podcast')}
-        >
-          <option value="book">Books</option>
-          <option value="podcast">Podcasts</option>
-        </select>
+          onChange={(next) => setMediaType(next as 'book' | 'podcast')}
+          options={[
+            { value: 'book', label: 'Books' },
+            { value: 'podcast', label: 'Podcasts' },
+          ]}
+        />
       </div>
 
       <div className="field full">

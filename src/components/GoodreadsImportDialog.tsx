@@ -6,6 +6,7 @@ import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useDebounced, useLibrarySearch } from '@/hooks/useLibrary'
 import { Icon } from '@/components/common/Icon'
 import { parseGoodreadsCsv, isReadRow, type GoodreadsRow } from '@/lib/goodreadsCsv'
+import { SelectField } from '@/components/common/SelectField'
 import {
   finishedBooksKeys,
   importRows,
@@ -212,17 +213,11 @@ export function GoodreadsImportDialog({ onClose }: { onClose: () => void }) {
             {libraries.length > 1 && (
               <div className="field full">
                 <label>Library to match against</label>
-                <select
-                  className="fld"
+                <SelectField
                   value={activeId ?? ''}
-                  onChange={(e) => select(e.target.value)}
-                >
-                  {libraries.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={select}
+                  options={libraries.map((l) => ({ value: l.id, label: l.name }))}
+                />
               </div>
             )}
             <div className="field full">
@@ -427,22 +422,21 @@ function GoodreadsReviewRow({
         {editable && (
           <div style={{ marginTop: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {r.candidates.length > 0 && (
-              <select
-                className="fld"
+              <SelectField
+                // An action picker, not a bound field: it always shows its
+                // prompt and fires onResolve for whatever was chosen.
                 value=""
-                onChange={(e) => {
-                  if (e.target.value) onResolve(e.target.value)
+                onChange={(next) => {
+                  if (next) onResolve(next)
                 }}
-              >
-                <option value="">
-                  {r.status === 'ambiguous' ? 'Pick a suggested match...' : 'Suggested matches...'}
-                </option>
-                {r.candidates.map((c) => (
-                  <option key={c.libraryItemId} value={c.libraryItemId}>
-                    {c.title} - {c.author}
-                  </option>
-                ))}
-              </select>
+                placeholder={
+                  r.status === 'ambiguous' ? 'Pick a suggested match...' : 'Suggested matches...'
+                }
+                options={r.candidates.map((c) => ({
+                  value: c.libraryItemId,
+                  label: `${c.title} - ${c.author}`,
+                }))}
+              />
             )}
 
             <div style={{ position: 'relative' }}>

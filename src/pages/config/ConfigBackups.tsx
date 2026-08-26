@@ -30,6 +30,7 @@ import { friendlyError } from '@/lib/errorMessages'
 import { Icon } from '@/components/common/Icon'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { SelectField } from '@/components/common/SelectField'
 
 function fmtBytes(b: number): string {
   const mb = b / (1024 * 1024)
@@ -64,25 +65,21 @@ function ScheduleField({
   return (
     <div className="field full">
       <label>Automatic backup schedule</label>
-      <select
-        className="fld"
+      <SelectField
         disabled={locked}
         value={custom ? 'custom' : value}
-        onChange={(e) => {
-          if (e.target.value === 'custom') setCustom(true)
+        onChange={(next) => {
+          if (next === 'custom') setCustom(true)
           else {
             setCustom(false)
-            onChange(e.target.value)
+            onChange(next)
           }
         }}
-      >
-        {SCHEDULE_PRESETS.map((p) => (
-          <option key={p.value || 'off'} value={p.value}>
-            {p.label}
-          </option>
-        ))}
-        <option value="custom">Custom schedule...</option>
-      </select>
+        options={[
+          ...SCHEDULE_PRESETS.map((p) => ({ value: p.value, label: p.label })),
+          { value: 'custom', label: 'Custom schedule...' },
+        ]}
+      />
       {custom && (
         <input
           className="fld"

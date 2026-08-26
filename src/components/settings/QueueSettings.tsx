@@ -16,6 +16,7 @@ import { SetRow, Seg } from '@/components/settings/controls'
 import { ManualQueueEditor } from '@/components/player/ManualQueueEditor'
 import { AutoQueueInfo } from '@/components/settings/AutoQueueInfo'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
+import { SelectField } from '@/components/common/SelectField'
 
 const QUEUE_MODES: { value: QueueMode; label: string }[] = [
   { value: 'off', label: 'Off' },
@@ -131,19 +132,13 @@ function PlaylistPicker() {
   if (!target || !activeId) return <span className="badge-pill">No active library</span>
   if (data.length === 0) return <span className="badge-pill">No playlists yet</span>
   return (
-    <select
-      className="fld"
+    <SelectField
       style={{ maxWidth: 260 }}
       value={playlistId ?? ''}
-      onChange={(e) => setPlaylistId(e.target.value || null)}
-    >
-      <option value="">Choose a playlist...</option>
-      {data.map((p) => (
-        <option key={p.id} value={p.id}>
-          {p.name}
-        </option>
-      ))}
-    </select>
+      onChange={(next) => setPlaylistId(next || null)}
+      placeholder="Choose a playlist..."
+      options={data.map((p) => ({ value: p.id, label: p.name }))}
+    />
   )
 }
 

@@ -34,6 +34,7 @@ import { Avatar } from '@/components/common/Avatar'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
+import { SelectField } from '@/components/common/SelectField'
 
 const WINDOWS: { id: LeaderboardWindow; label: string }[] = [
   { id: 'week', label: 'Week' },
@@ -755,18 +756,13 @@ function CompareCard({
           Server average
         </button>
         {others.length > 0 && (
-          <select
-            className="compare-picker"
+          <SelectField
+            triggerClassName="compare-picker"
             value={selectedUserId}
-            onChange={(e) => onSelectUser(e.target.value)}
-          >
-            <option value="">Pick a user...</option>
-            {others.map((u) => (
-              <option key={u.userId} value={u.userId}>
-                {u.username}
-              </option>
-            ))}
-          </select>
+            onChange={onSelectUser}
+            placeholder="Pick a user..."
+            options={others.map((u) => ({ value: u.userId, label: u.username }))}
+          />
         )}
         {compare.scope === 'user' && selectedUserId && (
           <button className="pill" onClick={() => onOpenProfile(selectedUserId)}>

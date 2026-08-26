@@ -3,6 +3,7 @@ import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { useToast } from '@/hooks/useToast'
 import { useActiveServer } from '@/hooks/useActiveServer'
+import { SelectField } from '@/components/common/SelectField'
 import {
   getCommunityConfig,
   setCommunityConfig,
@@ -80,15 +81,15 @@ export function ConfigCommunity() {
       <div className="cfg-card">
         <div className="field full">
           <label>New and existing listeners appear on the leaderboard</label>
-          <select
-            className="fld"
+          <SelectField
             disabled={!data.canEdit || save.isPending}
             value={sharing ? 'on' : 'off'}
-            onChange={(e) => save.mutate({ defaultShare: e.target.value === 'on' })}
-          >
-            <option value="on">On - opt-out (shared by default)</option>
-            <option value="off">Off - opt-in (hidden by default)</option>
-          </select>
+            onChange={(next) => save.mutate({ defaultShare: next === 'on' })}
+            options={[
+              { value: 'on', label: 'On - opt-out (shared by default)' },
+              { value: 'off', label: 'Off - opt-in (hidden by default)' },
+            ]}
+          />
         </div>
         <div className="banner info" style={{ marginTop: 'var(--s4)' }}>
           <Icon name="info" />
@@ -105,15 +106,15 @@ export function ConfigCommunity() {
       <div className="cfg-card">
         <div className="field full">
           <label>New and existing listeners show as "listening recently"</label>
-          <select
-            className="fld"
+          <SelectField
             disabled={!data.canEdit || save.isPending}
             value={sharingListening ? 'on' : 'off'}
-            onChange={(e) => save.mutate({ defaultShareListening: e.target.value === 'on' })}
-          >
-            <option value="on">On - opt-out (shared by default)</option>
-            <option value="off">Off - opt-in (hidden by default)</option>
-          </select>
+            onChange={(next) => save.mutate({ defaultShareListening: next === 'on' })}
+            options={[
+              { value: 'on', label: 'On - opt-out (shared by default)' },
+              { value: 'off', label: 'Off - opt-in (hidden by default)' },
+            ]}
+          />
         </div>
         <div className="banner info" style={{ marginTop: 'var(--s4)' }}>
           <Icon name="info" />
@@ -134,16 +135,16 @@ export function ConfigCommunity() {
             <div className="cl-t">Public notes</div>
             <div className="cl-d">Per-book notes visible to every listener on this server.</div>
           </div>
-          <select
-            className="fld"
+          <SelectField
             style={{ width: 'auto' }}
             disabled={!data.canEdit || save.isPending}
             value={data.notesEnabled ? 'on' : 'off'}
-            onChange={(e) => save.mutate({ notesEnabled: e.target.value === 'on' })}
-          >
-            <option value="on">Enabled</option>
-            <option value="off">Disabled</option>
-          </select>
+            onChange={(next) => save.mutate({ notesEnabled: next === 'on' })}
+            options={[
+              { value: 'on', label: 'Enabled' },
+              { value: 'off', label: 'Disabled' },
+            ]}
+          />
         </div>
         <div className="cfg-line">
           <Icon name="groups_3" style={{ color: 'var(--text-muted)' }} />
@@ -151,16 +152,16 @@ export function ConfigCommunity() {
             <div className="cl-t">Book Club</div>
             <div className="cl-d">Persistent reading groups with per-book chat.</div>
           </div>
-          <select
-            className="fld"
+          <SelectField
             style={{ width: 'auto' }}
             disabled={!data.canEdit || save.isPending}
             value={data.clubsEnabled ? 'on' : 'off'}
-            onChange={(e) => save.mutate({ clubsEnabled: e.target.value === 'on' })}
-          >
-            <option value="on">Enabled</option>
-            <option value="off">Disabled</option>
-          </select>
+            onChange={(next) => save.mutate({ clubsEnabled: next === 'on' })}
+            options={[
+              { value: 'on', label: 'Enabled' },
+              { value: 'off', label: 'Disabled' },
+            ]}
+          />
         </div>
       </div>
 
@@ -218,16 +219,16 @@ function TelemetrySection() {
               Help improve HearthShelf and power the public stats page. Off by default.
             </div>
           </div>
-          <select
-            className="fld"
+          <SelectField
             style={{ width: 'auto' }}
             disabled={!data.canEdit || save.isPending}
             value={data.enabled ? 'on' : 'off'}
-            onChange={(e) => save.mutate(e.target.value === 'on')}
-          >
-            <option value="off">Off</option>
-            <option value="on">On</option>
-          </select>
+            onChange={(next) => save.mutate(next === 'on')}
+            options={[
+              { value: 'off', label: 'Off' },
+              { value: 'on', label: 'On' },
+            ]}
+          />
         </div>
 
         <div className="banner info" style={{ marginTop: 'var(--s4)', display: 'block' }}>

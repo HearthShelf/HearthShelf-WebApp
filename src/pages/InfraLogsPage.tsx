@@ -14,6 +14,7 @@ import {
   ClipboardCopy,
 } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { SelectField } from '@/components/common/SelectField'
 import {
   fetchInfraLogs,
   deleteInfraLog,
@@ -426,17 +427,12 @@ function Select({
   return (
     <label className="inline-flex items-center gap-2">
       <span className="sr-only">{label}</span>
-      <select
+      <SelectField
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="t-body rounded-md border border-border bg-card px-3 py-1.5 text-[13px]"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+        onChange={onChange}
+        className="t-body px-3 py-1.5 text-[13px]"
+        options={options.map((o) => ({ value: o.value, label: o.label }))}
+      />
     </label>
   )
 }

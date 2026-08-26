@@ -4,6 +4,7 @@ import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { useToast } from '@/hooks/useToast'
 import { useActiveServer } from '@/hooks/useActiveServer'
+import { SelectField } from '@/components/common/SelectField'
 import {
   getQgAdminConfig,
   getQgCopilotAuth,
@@ -252,23 +253,23 @@ export function ConfigQuestGiver() {
       <div className="cfg-card">
         <div className="field full">
           <label>Provider{data.env.provider && <EnvLockTag />}</label>
-          <select
-            className="fld"
+          <SelectField
             value={data.env.provider ? (data.provider ?? '') : (form.provider ?? '')}
             disabled={data.env.provider}
-            onChange={(e) => {
-              set('provider', e.target.value)
+            onChange={(next) => {
+              set('provider', next)
               set('model', '')
               models.reset()
             }}
-          >
-            <option value="">None (use heuristic)</option>
-            {data.validProviders.map((p) => (
-              <option key={p} value={p}>
-                {PROVIDER_LABELS[p] ?? p}
-              </option>
-            ))}
-          </select>
+            placeholder="None (use heuristic)"
+            options={[
+              { value: '', label: 'None (use heuristic)' },
+              ...data.validProviders.map((p) => ({
+                value: p,
+                label: PROVIDER_LABELS[p] ?? p,
+              })),
+            ]}
+          />
         </div>
         <div className="field full">
           <label>Model{data.env.model && <EnvLockTag />}</label>

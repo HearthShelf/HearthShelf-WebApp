@@ -13,6 +13,7 @@ import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { RawJson } from '@/components/config/RawJson'
 import { useActiveServer } from '@/hooks/useActiveServer'
+import { SelectField } from '@/components/common/SelectField'
 
 // Why a series shows the books it shows.
 //
@@ -555,19 +556,12 @@ export function ConfigSeriesDebugger() {
               Series{' '}
               {list.data && <span style={{ color: 'var(--text-faint)' }}>({matches.length})</span>}
             </span>
-            <select
-              className="input"
+            <SelectField
               value={seriesId}
-              onChange={(e) => setSeriesId(e.target.value)}
-              style={{ width: '100%' }}
-            >
-              <option value="">Choose a series</option>
-              {matches.map((s) => (
-                <option key={s.seriesId} value={s.seriesId}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+              onChange={setSeriesId}
+              placeholder="Choose a series"
+              options={matches.map((s) => ({ value: s.seriesId, label: s.name }))}
+            />
           </label>
           <button
             className="btn btn-primary"

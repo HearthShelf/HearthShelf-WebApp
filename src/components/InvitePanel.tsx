@@ -4,6 +4,7 @@ import { useInviteToServer } from '@/hooks/useServers'
 import { Button } from '@/components/ui/Button'
 import { notify } from '@/lib/notify'
 import { cn } from '@/lib/cn'
+import { SelectField } from '@/components/common/SelectField'
 
 /**
  * Invite-by-email control for a server. Shown only to admins (the caller gates
@@ -55,14 +56,15 @@ export function InvitePanel({ serverId }: { serverId: string }) {
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           )}
         />
-        <select
+        <SelectField
           value={role}
-          onChange={(e) => setRole(e.target.value as 'admin' | 'user')}
-          className="h-10 rounded-lg border border-input bg-background px-3 text-[15px] text-foreground"
-        >
-          <option value="user">User</option>
-          <option value="admin">Admin</option>
-        </select>
+          onChange={(next) => setRole(next as 'admin' | 'user')}
+          className="h-10 px-3 text-[15px]"
+          options={[
+            { value: 'user', label: 'User' },
+            { value: 'admin', label: 'Admin' },
+          ]}
+        />
         <Button type="submit" disabled={invite.isPending}>
           {invite.isPending ? 'Sending...' : 'Send invite'}
         </Button>

@@ -7,6 +7,7 @@ import { useActiveServer } from '@/hooks/useActiveServer'
 import { getLibraries, getMe } from '@/api/absLibrary'
 import type { AbsLibrary } from '@/api/absLibrary'
 import { acceptFor, classifyFile, fileExt, uploadItem, SUPPORTED_AUDIO } from '@/api/absUpload'
+import { SelectField } from '@/components/common/SelectField'
 
 // Allow directory selection on the folder picker. Non-standard attributes need
 // a typed shim to satisfy strict mode.
@@ -266,35 +267,23 @@ export function UploadPage() {
           <div className="form-grid">
             <div className="field">
               <label>Library</label>
-              <select
-                className="fld"
+              <SelectField
                 value={selectedLibraryId}
                 disabled={locked}
-                onChange={(e) => onLibraryChange(e.target.value)}
-              >
-                <option value="">Select a library…</option>
-                {libraries.map((l: AbsLibrary) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
-              </select>
+                onChange={onLibraryChange}
+                placeholder="Select a library…"
+                options={libraries.map((l: AbsLibrary) => ({ value: l.id, label: l.name }))}
+              />
             </div>
             <div className="field">
               <label>Folder</label>
-              <select
-                className="fld"
+              <SelectField
                 value={selectedFolderId}
                 disabled={locked || !selectedLibrary}
-                onChange={(e) => setSelectedFolderId(e.target.value)}
-              >
-                {folders.length === 0 && <option value="">No folders</option>}
-                {folders.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.fullPath}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedFolderId}
+                placeholder="No folders"
+                options={folders.map((f) => ({ value: f.id, label: f.fullPath }))}
+              />
             </div>
           </div>
           <div className="field-row">

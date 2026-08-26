@@ -3,6 +3,7 @@ import { Play, Pause, RotateCcw, RotateCw, Moon, List, Gauge } from 'lucide-reac
 import { usePlayer } from '@/player/PlayerProvider'
 import type { AbsChapter } from '@/api/absLibrary'
 import { cn } from '@/lib/cn'
+import { SelectField } from '@/components/common/SelectField'
 
 function fmt(sec: number): string {
   if (!Number.isFinite(sec) || sec < 0) sec = 0
@@ -147,18 +148,13 @@ export function AudioPlayer({
       <div className="mt-5 flex items-center justify-center gap-2 border-t border-border pt-4">
         <label className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
           <Gauge size={15} />
-          <select
-            value={rate}
-            onChange={(e) => setRate(Number(e.target.value))}
+          <SelectField
+            value={String(rate)}
+            onChange={(next) => setRate(Number(next))}
             aria-label="Playback speed"
-            className="rounded-md border border-input bg-background px-2 py-1 text-[13px] text-foreground"
-          >
-            {SPEEDS.map((s) => (
-              <option key={s} value={s}>
-                {s}x
-              </option>
-            ))}
-          </select>
+            className="px-2 py-1 text-[13px]"
+            options={SPEEDS.map((s) => ({ value: String(s), label: `${s}x` }))}
+          />
         </label>
 
         <SleepMenu armed={sleepArmed} remainingMs={sleepRemainingMs} onSet={setSleepMinutes} />
