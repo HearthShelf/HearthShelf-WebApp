@@ -41,6 +41,20 @@ that way.
 | `get_recommendations` | HearthShelf's own Discover picks for this user |
 | `find_similar` | Neighbours **in the user's own library** for a given book |
 
+### Admin diagnostics
+
+Read-only, and only usable by an admin on the target server - the server's own
+`/hs/admin/*` routes reject a non-admin token. These read server-wide data
+rather than the caller's own library, which is why they are gated separately
+from everything above. The web UI's "re-sweep this series" write is deliberately
+not exposed here; this surface stays read-only.
+
+| Tool | What it returns |
+| --- | --- |
+| `list_debug_series` | Series in the library, to find a `series_id` (filterable) |
+| `debug_series` | Why a series shows the books it shows: ASIN resolution, roster filtering, and the signal behind every owned/missing verdict |
+| `debug_queue` | Why a user's Auto Queue contains what it does, rule by rule |
+
 Every tool takes an optional `server_id`. Users with one linked server can omit
 it; users with several get an error naming the available ids.
 

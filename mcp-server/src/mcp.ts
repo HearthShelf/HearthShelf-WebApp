@@ -29,6 +29,7 @@ import {
   getRecommendations,
   findSimilar,
 } from './tools/library'
+import { listDebugSeries, getSeriesReport, getQueueReport } from './tools/debug'
 
 /** Wrap a tool body so failures read as guidance, not as raw HTTP noise. */
 async function safe<T>(fn: () => Promise<T>): Promise<T | { error: string }> {
@@ -272,6 +273,86 @@ export class HearthShelfMCP extends McpAgent<Env, never, McpProps> {
           await safe(async () => {
             const id = await this.resolveServerId(server_id)
             return findSimilar(this.abs(), id, item_id, limit)
+          }),
+        ),
+    )
+
+    // --- Admin diagnostics ---------------------------------------------------
+    // Read-only, and gated by the connected server (its /hs/admin/* routes 403 a
+    // non-admin token). Unlike everything above, these read server-wide data
+    // rather than the caller's own library, so a non-admin simply cannot use
+    // them. The UI's re-sweep write is deliberately NOT exposed - see
+    // tools/debug.ts and DESIGN RULE 2 at the top of this file.
+
+    this.server.registerTool(
+      'list_debug_series',
+      {
+        description:
+          'ADMIN ONLY. List the series in the library, to find the series_id that ' +
+          'debug_series needs. Pass `query` to narrow by name - the full list is ' +
+          'capped at 100 entries.',
+        inputSchema: {
+          query: z.string().optional().describe('Filter series by name substring.'),
+          ...serverIdArg,
+        },
+      },
+      async ({ query, server_id }) =>
+        json(
+          await safe(async () => {
+            const id = await this.resolveServerId(server_id)
+            return listDebugSeries(this.abs(), id, query)
+          }),
+        ),
+    )
+
+    this.server.registerTool(
+      'debug_series',
+      {
+        description:
+          'ADMIN ONLY. Explain why a series shows the books it shows. Returns the ' +
+          'whole matching pipeline as facts: which Audible series the name resolved ' +
+          'to and what else was in the running; every raw roster entry and whether ' +
+          'filtering dropped it as a placeholder or a duplicate edition; and for ' +
+          'each remaining book whether the library owns it, which signal decided ' +
+          '(asin/title/sequence) and the reason every other signal was refused. ' +
+          'Use it when a book is wrongly listed as missing, or a missing book never ' +
+          'appears. The `normalizedTitle` field is the string matching actually ' +
+          'compares - when it reads as the series name plus a number instead of the ' +
+          "book's own name, the series-prefix strip is what failed.",
+        inputSchema: {
+          series_id: z.string().describe('ABS series id, from list_debug_series.'),
+          ...serverIdArg,
+        },
+      },
+      async ({ series_id, server_id }) =>
+        json(
+          await safe(async () => {
+            const id = await this.resolveServerId(server_id)
+            return getSeriesReport(this.abs(), id, series_id)
+          }),
+        ),
+    )
+
+    this.server.registerTool(
+      'debug_queue',
+      {
+        description:
+          "ADMIN ONLY. Explain a user's Auto Queue: every rule that ran, in priority " +
+          'order, and for each book whether it was added, skipped as a duplicate, or ' +
+          'excluded - with the reason. Also reports whether the stored queue still ' +
+          'matches a fresh compute. Pass `item_id` to focus on one book and get the ' +
+          'full per-rule verdict for it.',
+        inputSchema: {
+          user_id: z.string().describe('The ABS user id whose queue to explain.'),
+          item_id: z.string().optional().describe('Library item id to inspect in detail.'),
+          ...serverIdArg,
+        },
+      },
+      async ({ user_id, item_id, server_id }) =>
+        json(
+          await safe(async () => {
+            const id = await this.resolveServerId(server_id)
+            return getQueueReport(this.abs(), id, user_id, item_id)
           }),
         ),
     )
