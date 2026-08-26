@@ -132,9 +132,12 @@ export async function setTelemetryEnabled(
 
 // --- Versions (ABS + HearthShelf backend) ------------------------------------
 //
-// Both reads are public (no auth): ABS reports its version on /status, and the
-// HearthShelf backend echoes its own version on /hs/runtime. Either may be
-// absent (older box, or a slim ABS with no HS backend), so both are nullable.
+// One public read (no auth): the HearthShelf backend echoes its own version on
+// /hs/runtime, and proxies the ABS version alongside it. We do NOT fetch ABS's
+// own /status from the browser - that endpoint sends no CORS headers, so a
+// hosted page load only got a blocked request and a null version. Either field
+// may be absent (older box, or a slim ABS with no HS backend), so both are
+// nullable.
 
 export interface ServerVersions {
   /** audiobookshelf server version, e.g. "2.35.1". */
@@ -145,17 +148,12 @@ export interface ServerVersions {
 
 export async function getServerVersions(t: AbsTarget): Promise<ServerVersions> {
   const base = origin(t)
-  const [abs, hs] = await Promise.all([
-    fetch(`${base}/status`)
-      .then((r) => (r.ok ? r.json() : null))
-      .catch(() => null),
-    fetch(`${base}/hs/runtime`)
-      .then((r) => (r.ok ? r.json() : null))
-      .catch(() => null),
-  ])
+  const hs = (await fetch(`${base}/hs/runtime`)
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null)) as { hsVersion?: string; absVersion?: string } | null
   return {
-    absVersion: (abs as { serverVersion?: string } | null)?.serverVersion ?? null,
-    hsVersion: (hs as { hsVersion?: string } | null)?.hsVersion ?? null,
+    absVersion: hs?.absVersion ?? null,
+    hsVersion: hs?.hsVersion ?? null,
   }
 }
 
