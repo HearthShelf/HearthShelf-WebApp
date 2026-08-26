@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { HSClubDetail, HSClubMember, HSNote, NoteReactionKind } from '@hearthshelf/core'
-import { formatTimestamp } from '@hearthshelf/core'
+import { formatTimestamp, queueLengthLabel } from '@hearthshelf/core'
 import { clubsKeys, setClubSettings } from '@/api/absClubs'
 import { createNote, deleteNote, reactToNote, updateNote } from '@/api/absNotes'
 import { getMe, type AbsTarget } from '@/api/absLibrary'
@@ -621,7 +621,7 @@ export function PlayerClubCompanion({
             <section className="pc-tab-section">
               <div className="pc-section-label">
                 <span>Up next</span>
-                <span>{detail.queue.length}</span>
+                <span>{queueLengthLabel(detail.queue)}</span>
               </div>
               {detail.queue.length === 0 ? (
                 <div className="pc-empty">Nothing is lined up after this book.</div>

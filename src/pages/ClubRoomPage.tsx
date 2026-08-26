@@ -10,7 +10,12 @@ import type {
   HSNote,
   NoteReactionKind,
 } from '@hearthshelf/core'
-import { fmtSessDate, formatTimestamp, sortMembersByProgress } from '@hearthshelf/core'
+import {
+  fmtSessDate,
+  formatTimestamp,
+  queueLengthLabel,
+  sortMembersByProgress,
+} from '@hearthshelf/core'
 import {
   advanceClubBook,
   archiveClub,
@@ -1618,7 +1623,9 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
           <section className="book-club-section">
             <div className="book-club-section-head compact">
               <h2>Up next</h2>
-              <span>{queue.length}</span>
+              {/* Totals the whole queue, not the previewed slice, so collapsing
+                  the list never changes what the club has ahead of it. */}
+              <span>{queueLengthLabel(queue)}</span>
             </div>
             {isOwner && (
               <button

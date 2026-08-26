@@ -16616,6 +16616,9 @@ select.fld {
 .book-club-section-head > span {
   color: var(--text-muted);
   font-size: 12px;
+  /* The queue summary ("5 Books - 1d 04h 12m") reads as one value, so keep it
+     on a single line instead of letting it break after the book count. */
+  white-space: nowrap;
 }
 
 .book-club-section-head.compact {
