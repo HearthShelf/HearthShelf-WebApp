@@ -31,7 +31,12 @@ import { useItemsInProgress } from '@/hooks/useLibrary'
 import { getItemDetail, type AbsChapter, type AbsTarget } from '@/api/absLibrary'
 import { getNotes, notesKeys } from '@/api/absNotes'
 import { getClubs, getClubDetail, clubsKeys } from '@/api/absClubs'
-import { formatTimestamp, stripHtml, clusterTimelineMarkers } from '@hearthshelf/core'
+import {
+  formatTimestamp,
+  stripHtml,
+  clusterTimelineMarkers,
+  queueLengthLabel,
+} from '@hearthshelf/core'
 import { Cover } from '@/components/shared/Cover'
 import { Avatar } from '@/components/common/Avatar'
 import { Icon } from '@/components/common/Icon'
@@ -275,10 +280,14 @@ function QueuePanel({
       autoRules.map((r) => (r.id === id ? { ...r, on: !r.on } : r)),
     )
 
+  // Count + total runtime of what's QUEUED, the same line the other queue
+  // surfaces show. The now-playing book is listed above the queue rather than
+  // being part of it, so it isn't counted here - the old "+1" counted it and
+  // made this panel disagree with Home and the tray.
   const panelSub =
     queueMode === 'manual'
-      ? `${items.length + 1} in queue · drag to reorder`
-      : `${items.length + 1} in queue`
+      ? `${queueLengthLabel(items)} · drag to reorder`
+      : queueLengthLabel(items)
 
   return (
     <div className="pp-inner">
