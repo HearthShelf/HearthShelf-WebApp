@@ -4,7 +4,13 @@ import { useQuery } from '@tanstack/react-query'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getMe } from '@/api/absLibrary'
-import { getUsers, getLibrariesAdmin, getServiceAccountIds, adminKeys, serviceAccountKeys } from '@/api/absAdmin'
+import {
+  getUsers,
+  getLibrariesAdmin,
+  getServiceAccountIds,
+  adminKeys,
+  serviceAccountKeys,
+} from '@/api/absAdmin'
 import { getServerRuntime, hostedKeys } from '@/api/absHosted'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
@@ -15,6 +21,8 @@ import { ConfigSessions } from '@/pages/config/ConfigSessions'
 import { ConfigBackups } from '@/pages/config/ConfigBackups'
 import { ConfigLogs } from '@/pages/config/ConfigLogs'
 import { ConfigJobs } from '@/pages/config/ConfigJobs'
+import { ConfigQueueDebugger } from '@/pages/config/ConfigQueueDebugger'
+import { ConfigSeriesDebugger } from '@/pages/config/ConfigSeriesDebugger'
 import { ConfigApiKeys } from '@/pages/config/ConfigApiKeys'
 import { ConfigServiceAccounts } from '@/pages/config/ConfigServiceAccounts'
 import { ConfigServerInfo } from '@/pages/config/ConfigServerInfo'
@@ -30,7 +38,7 @@ import { ConfigCommunity } from '@/pages/config/ConfigCommunity'
 import { ConfigServerStats, ConfigLibraryStats } from '@/pages/config/ConfigStats'
 import { StatsPage } from '@/pages/StatsPage'
 import { ConfigStub } from '@/pages/config/ConfigStub'
-import { AdvancedModeProvider, AdvancedToggle } from '@/pages/config/AdvancedMode'
+import { AdvancedModeProvider, AdvancedToggle, useAdvancedMode } from '@/pages/config/AdvancedMode'
 import { AdminDataSourceProvider } from '@/admin/adminDataSource'
 
 interface NavEntry {
@@ -49,6 +57,14 @@ interface NavGroup {
 // live: build its component, add a case to renderSection() below, and the nav
 // item (which already exists) lights it up automatically.
 export function ConfigShell({ menuMode = false }: { menuMode?: boolean }) {
+  return (
+    <AdvancedModeProvider>
+      <ConfigShellBody menuMode={menuMode} />
+    </AdvancedModeProvider>
+  )
+}
+
+function ConfigShellBody({ menuMode = false }: { menuMode?: boolean }) {
   const { section = 'settings', userId } = useParams()
   const navigate = useNavigate()
   const isMobile = useIsMobile()
@@ -63,6 +79,7 @@ export function ConfigShell({ menuMode = false }: { menuMode?: boolean }) {
     staleTime: 5 * 60 * 1000,
   })
   const isAdmin = me?.type === 'admin' || me?.type === 'root'
+  const { advanced } = useAdvancedMode()
 
   // On a phone the two-pane layout drills down: the bare /config index shows the
   // section list (menu); picking a section shows its detail with a back button.
@@ -100,7 +117,8 @@ export function ConfigShell({ menuMode = false }: { menuMode?: boolean }) {
   const trackedServiceIdSet = new Set(trackedServiceIds?.ids ?? [])
   const humanUserCount = usersData?.users.filter(
     (u) =>
-      !trackedServiceIdSet.has(u.id) && !(serviceUsername != null && u.username === serviceUsername),
+      !trackedServiceIdSet.has(u.id) &&
+      !(serviceUsername != null && u.username === serviceUsername),
   ).length
 
   if (!target || meLoading) {
@@ -174,6 +192,20 @@ export function ConfigShell({ menuMode = false }: { menuMode?: boolean }) {
         { id: 'libstats', icon: 'insights', label: 'Library Stats' },
       ],
     },
+    // Read-only diagnostics, hidden until Advanced Options is on. Each page
+    // explains why a piece of derived data came out the way it did, so a wrong
+    // answer can be read off rather than guessed at.
+    ...(advanced
+      ? [
+          {
+            label: 'Debugger',
+            items: [
+              { id: 'queue-debug', icon: 'troubleshoot', label: 'Queue Debugger' },
+              { id: 'series-debug', icon: 'account_tree', label: 'Series Debugger' },
+            ],
+          },
+        ]
+      : []),
   ]
 
   // The Users nav item stays active on the user-detail sub-route.
@@ -196,6 +228,10 @@ export function ConfigShell({ menuMode = false }: { menuMode?: boolean }) {
         return <ConfigLogs />
       case 'tasks':
         return <ConfigJobs />
+      case 'queue-debug':
+        return <ConfigQueueDebugger />
+      case 'series-debug':
+        return <ConfigSeriesDebugger />
       case 'apikeys':
         return <ConfigApiKeys />
       case 'service-accounts':
@@ -234,8 +270,7 @@ export function ConfigShell({ menuMode = false }: { menuMode?: boolean }) {
   const wrapMode = isMobile ? (mobileMenu ? ' cfg-menu' : ' cfg-detail') : ''
 
   return (
-    <AdvancedModeProvider>
-     <AdminDataSourceProvider>
+    <AdminDataSourceProvider>
       <div className={'page config-wrap fade-in' + wrapMode}>
         <nav className="config-nav">
           {groups.map((g) => (
@@ -273,8 +308,7 @@ export function ConfigShell({ menuMode = false }: { menuMode?: boolean }) {
           </div>
         )}
       </div>
-     </AdminDataSourceProvider>
-    </AdvancedModeProvider>
+    </AdminDataSourceProvider>
   )
 }
 
