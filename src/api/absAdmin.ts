@@ -318,6 +318,8 @@ export const adminSectionKeys = {
   userStats: (serverId: string, userId: string) => ['admin', serverId, 'user-stats', userId] as const,
   userSessions: (serverId: string, userId: string, page: number) =>
     ['admin', serverId, 'user-sessions', userId, page] as const,
+  userProgress: (serverId: string, userId: string) =>
+    ['admin', serverId, 'user-progress', userId] as const,
   backups: (serverId: string) => ['admin', serverId, 'backups'] as const,
   logs: (serverId: string) => ['admin', serverId, 'logs'] as const,
   apiKeys: (serverId: string) => ['admin', serverId, 'apikeys'] as const,
@@ -393,6 +395,55 @@ export async function getUserListeningSessions(
     itemsPerPage: res.itemsPerPage ?? itemsPerPage,
     sessions: res.sessions ?? [],
   }
+}
+
+// --- Per-user media progress (admin) ----------------------------------------
+// GET /api/users/:id returns the full user record, including the mediaProgress
+// rows ABS keeps per item. The me-scoped useMediaProgress() can't answer "why
+// isn't THIS user's book finished?" - only this read can, and it carries the
+// fields that explain it: how far in they are, whether ABS ever stamped
+// finishedAt, and the duration it measured progress against (a 0 duration is
+// the usual culprit - the fraction never reaches the finish threshold).
+
+export interface ABSUserMediaProgress {
+  id: string
+  libraryItemId: string
+  episodeId: string | null
+  /** Seconds ABS believes the item runs. 0 means ABS never measured it. */
+  duration: number
+  /** 0..1 fraction complete. */
+  progress: number
+  currentTime: number
+  isFinished: boolean
+  hideFromContinueListening: boolean
+  lastUpdate: number
+  startedAt: number
+  finishedAt: number | null
+  displayTitle?: string
+}
+
+export async function getUserMediaProgress(
+  t: AbsTarget,
+  userId: string,
+): Promise<ABSUserMediaProgress[]> {
+  const res = await absGet<{ mediaProgress?: Partial<ABSUserMediaProgress>[] }>(
+    t,
+    `/api/users/${userId}`,
+  )
+  return (res.mediaProgress ?? []).map((p) => ({
+    id: p.id ?? '',
+    libraryItemId: p.libraryItemId ?? '',
+    episodeId: p.episodeId ?? null,
+    duration: p.duration ?? 0,
+    progress: p.progress ?? 0,
+    currentTime: p.currentTime ?? 0,
+    isFinished: Boolean(p.isFinished),
+    hideFromContinueListening: Boolean(p.hideFromContinueListening),
+    lastUpdate: p.lastUpdate ?? 0,
+    startedAt: p.startedAt ?? 0,
+    finishedAt: p.finishedAt ?? null,
+    displayTitle: p.displayTitle,
+  }))
 }
 
 // DELETE /api/sessions/:id - removes a single playback session record (admin).
