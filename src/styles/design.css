@@ -17457,15 +17457,23 @@ select.fld {
   font-size: 10px;
 }
 
-.book-club-progress-row > div {
+.book-club-progress-row > div:not(.book-club-progress-actions) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 5px;
   min-width: 0;
 }
 
+/* Keeps the live indicator and the remove button in one grid cell, so a member
+   who is listening does not push the button onto a line of its own. */
+.book-club-progress-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
 .book-club-progress-row strong,
-.book-club-progress-row span {
+.book-club-progress-row > div > span {
   overflow: hidden;
   font-size: 11.5px;
   text-overflow: ellipsis;

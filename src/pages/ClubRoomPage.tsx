@@ -1594,19 +1594,23 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                         </em>
                       )}
                     </div>
-                    {member.listeningNow && <Icon name="graphic_eq" className="book-club-live" />}
-                    {isOwner && member.role !== 'owner' && (
-                      <button
-                        className="tbl-icon"
-                        title={`Remove ${member.username}`}
-                        onClick={() =>
-                          window.confirm(`Remove ${member.username} from the club?`) &&
-                          kick.mutate(member.userId)
-                        }
-                      >
-                        <Icon name="person_remove" />
-                      </button>
-                    )}
+                    <div className="book-club-progress-actions">
+                      {member.listeningNow && (
+                        <Icon name="graphic_eq" className="book-club-live" />
+                      )}
+                      {isOwner && member.role !== 'owner' && (
+                        <button
+                          className="tbl-icon"
+                          title={`Remove ${member.username}`}
+                          onClick={() =>
+                            window.confirm(`Remove ${member.username} from the club?`) &&
+                            kick.mutate(member.userId)
+                          }
+                        >
+                          <Icon name="person_remove" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )
               })}
