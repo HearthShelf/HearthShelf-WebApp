@@ -17493,30 +17493,25 @@ select.fld {
   height: 4px;
 }
 
-/* Anchors the listening badge to the avatar's bottom-left corner. */
+/* Anchors the listening badge to the avatar's bottom-right corner. */
 .book-club-avatar-wrap {
   position: relative;
   width: 30px;
   height: 30px;
 }
 
-/* A presence dot on the avatar rather than a separate column, so a long row
-   never has to find room for it. The ring matches the row background so the
-   badge reads as sitting on top of the photo. */
+/* The bare waveform on the avatar rather than a separate column, so a long row
+   never has to find room for it. No filled dot behind it - the glyph is its own
+   shape; the halo is what keeps it legible over a light cover image. */
 .book-club-live {
   position: absolute;
-  bottom: -2px;
-  left: -2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--sheet);
-  box-shadow: 0 0 0 2px var(--sheet);
+  right: -5px;
+  bottom: -5px;
   color: #93c982;
-  font-size: 11px;
+  font-size: 15px;
+  text-shadow:
+    0 0 3px var(--sheet),
+    0 0 2px var(--sheet);
 }
 
 /* Each row is wrapped in a display:contents right-click handler, so the row div
