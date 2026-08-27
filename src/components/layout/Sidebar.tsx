@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import { useQuery } from '@tanstack/react-query'
 import { Wordmark } from '@/components/Wordmark'
@@ -54,7 +54,6 @@ interface NavItemDef {
   badge?: number | null
   active: boolean
   collapsed: boolean
-  onNavigate: (to: string) => void
 }
 
 // Declared at module scope, NOT inside Sidebar. A component defined in the
@@ -62,19 +61,23 @@ interface NavItemDef {
 // nav button instead of reconciling it - which restarts the CSS background
 // transition and made the hover fill flash once a second while audio played
 // (the player's position tick re-renders this whole shell).
-function Item({ icon, label, to, badge, active, collapsed, onNavigate }: NavItemDef) {
+function Item({ icon, label, to, badge, active, collapsed }: NavItemDef) {
   return (
-    <button
+    // A real <Link> (not a button) so the browser owns the URL: ctrl/cmd-click
+    // and middle-click open the destination in a new tab, and hovering shows the
+    // target. Router navigation on a plain click is handled by Link itself.
+    <Link
+      to={to}
       className={'nav-item' + (active ? ' active' : '')}
-      onClick={() => onNavigate(to)}
       // When collapsed the label is hidden, so expose it as a tooltip.
       title={collapsed ? label : undefined}
       aria-label={label}
+      aria-current={active ? 'page' : undefined}
     >
       <Icon name={icon} fill={active} />
       <span className="ni-label">{label}</span>
       {badge != null && <span className="ni-badge">{badge}</span>}
-    </button>
+    </Link>
   )
 }
 
@@ -131,7 +134,6 @@ function UserMenu() {
 }
 
 export function Sidebar() {
-  const navigate = useNavigate()
   const { pathname } = useLocation()
   const { target } = useActiveServer()
   const { active: activeLib } = useActiveLibrary()
@@ -170,7 +172,7 @@ export function Sidebar() {
 
   // Shared per-render props for every nav item. Spread rather than wrapped in a
   // component, so the element type stays the module-scope `Item`.
-  const itemProps = { collapsed, onNavigate: navigate }
+  const itemProps = { collapsed }
 
   return (
     <aside className="sidebar">
