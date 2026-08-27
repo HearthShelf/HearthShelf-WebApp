@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -1870,7 +1870,7 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
 /** One club opens directly; multiple clubs use a persistent overview rail. */
 export function ClubRoomPage() {
   const { clubId } = useParams()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const invitedClubId = searchParams.get('club')
   const inviteId = searchParams.get('invite')
   const navigate = useNavigate()
@@ -1879,7 +1879,25 @@ export function ClubRoomPage() {
   const { toast, show } = useToast()
   const player = usePlayer()
   const [creating, setCreating] = useState(false)
-  const [viewedBookId, setViewedBookId] = useState<string | undefined>()
+  // Which past book is being read, kept in the URL rather than in state so the
+  // browser Back button returns to the current read instead of leaving the club.
+  const viewedBookId = searchParams.get('book') ?? undefined
+  const setViewedBookId = useCallback(
+    (id: string | undefined) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          if (id) next.set('book', id)
+          else next.delete('book')
+          return next
+        },
+        // Opening a past book is a navigation the reader can go Back from;
+        // clearing it is the Back destination itself, so that one replaces.
+        { replace: !id },
+      )
+    },
+    [setSearchParams],
+  )
   const processedInvite = useRef<string | null>(null)
 
   const { data: me } = useQuery({
