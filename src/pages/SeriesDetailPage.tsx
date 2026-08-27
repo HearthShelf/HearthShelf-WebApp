@@ -16,6 +16,8 @@ import type { OwnedSeriesBook } from '@hearthshelf/core'
 import { SeriesMissingBooks } from '@/components/requests/SeriesMissingBooks'
 import { FollowSeriesButton } from '@/components/requests/FollowSeriesButton'
 import { IgnoreSeriesButton } from '@/components/requests/IgnoreSeriesButton'
+import { QuestGiverAssessment } from '@/components/questgiver/QuestGiverAssessment'
+import { qgSeriesTarget } from '@hearthshelf/core'
 import { useIgnoredAsins } from '@/hooks/useIgnoredBooks'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
 import { usePromptedMarkFinished } from '@/hooks/useMarkFinished'
@@ -275,6 +277,11 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
           coverArtUrl={seriesCover}
         />
         <IgnoreSeriesButton seriesId={series.id} />
+        <QuestGiverAssessment
+          key={series.id}
+          libraryId={books[0]?.libraryId}
+          target={qgSeriesTarget(series.name, books)}
+        />
       </div>
       {heroProg}
     </div>
@@ -310,6 +317,11 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
             author={author}
           />
           <IgnoreSeriesButton seriesId={series.id} />
+          <QuestGiverAssessment
+            key={series.id}
+            libraryId={books[0]?.libraryId}
+            target={qgSeriesTarget(series.name, books)}
+          />
         </div>
       </div>
 

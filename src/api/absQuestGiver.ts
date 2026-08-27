@@ -21,6 +21,10 @@ import type { AbsTarget } from './absLibrary'
 import {
   qgHeuristic,
   qgCraftPrompt,
+  qgAssessHeuristic,
+  qgCraftAssessmentPrompt,
+  type QgAssessment,
+  type QgAssessmentContext,
   type QgProfile,
   type QgAnswers,
   type QgCandidate,
@@ -208,6 +212,44 @@ export async function qgRecommend(
     }
   }
   return { ...qgHeuristic(profile, answers, candidates), engine: 'heuristic' }
+}
+
+/**
+ * "Would I like this?" - judge a single book or series against the listener's
+ * own history. AI-powered whenever the server has a provider configured; the
+ * deterministic heuristic is the fallback, never the default.
+ *
+ * Mirrors the self-hosted flow exactly:
+ *  - Compute the heuristic first. A verdict of 'unknown' means there is too
+ *    little history for any engine to judge fairly, so we return it WITHOUT
+ *    spending an AI call (and without a rate-limit hit).
+ *  - Otherwise ask the server. It returns 503 when no AI provider is set up, and
+ *    that - like any other failure - degrades to the heuristic.
+ *  - Confidence is capped by how much history actually backs the answer, so the
+ *    AI cannot overclaim on a thin library.
+ */
+export async function qgAssess(
+  t: AbsTarget | null,
+  context: QgAssessmentContext,
+): Promise<QgAssessment> {
+  const fallback = qgAssessHeuristic(context)
+  if (!t || fallback.verdict === 'unknown') return fallback
+  try {
+    const data = await qgFetch<Omit<QgAssessment, 'engine'>>(t, '/assess', {
+      method: 'POST',
+      body: JSON.stringify({ prompt: qgCraftAssessmentPrompt(context) }),
+    })
+    const historyCount = context.finishedBooks + context.startedBooks
+    const confidence =
+      historyCount < 4
+        ? 'low'
+        : historyCount < 8 && data.confidence === 'high'
+          ? 'medium'
+          : data.confidence
+    return { ...data, confidence, engine: 'ai' }
+  } catch {
+    return fallback
+  }
 }
 
 // --- Client-only persistence (run history, feedback) -------------------------

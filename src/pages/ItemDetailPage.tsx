@@ -9,6 +9,8 @@ import { getNotes, notesKeys } from '@/api/absNotes'
 import type { HSFinishedByResponse, HSListeningNowResponse } from '@hearthshelf/core'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
 import { usePromptedMarkFinished } from '@/hooks/useMarkFinished'
+import { QuestGiverAssessment } from '@/components/questgiver/QuestGiverAssessment'
+import { qgBookTargetFromFields } from '@hearthshelf/core'
 import { useBookmarks } from '@/hooks/useBookmarks'
 import { useToast } from '@/hooks/useToast'
 import { usePlayer } from '@/player/PlayerProvider'
@@ -421,6 +423,17 @@ export function ItemDetailPage() {
               <Icon name={finished ? 'task_alt' : 'check'} fill={finished} />{' '}
               {finished ? 'Finished' : 'Mark finished'}
             </button>
+            <QuestGiverAssessment
+              key={data.id}
+              libraryId={data.libraryId}
+              target={qgBookTargetFromFields({
+                id: data.id,
+                title: data.title,
+                author: data.author,
+                genres: data.genres,
+                durationSec: data.durationSec,
+              })}
+            />
             {(pct > 0 || finished) && (
               <button className="pill" onClick={() => setShowSessions(true)}>
                 <Icon name="history" /> Recent Listens
