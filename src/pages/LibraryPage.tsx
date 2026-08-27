@@ -26,6 +26,7 @@ import { Cover, tintFor } from '@/components/shared/Cover'
 import { PodcastsGrid } from '@/pages/PodcastsGrid'
 import { BookTile } from '@/components/library/BookTile'
 import { SeriesCard } from '@/components/library/SeriesCard'
+import { audibleKeys, fetchSeriesGapSummaries, type SeriesGapSummary } from '@/api/absAudible'
 import { ReadersProvider } from '@/components/shared/ReadersContext'
 import { AzJumpRail } from '@/components/library/AzJumpRail'
 import { letterOf } from '@hearthshelf/core'
@@ -47,6 +48,7 @@ import {
   LibraryRail,
   type StatusFilter,
   type SeriesDoneFilter,
+  type SeriesGapFilter,
 } from '@/components/library/LibraryRail'
 import { useDismissalsStore } from '@/store/dismissalsStore'
 import { useFollowedAbsSeriesIds } from '@/hooks/useSubscriptions'
@@ -125,6 +127,7 @@ export function LibraryPage() {
   // that recorded its ABS series id. Both stack with the filters above.
   const [status, setStatus] = useState<StatusFilter>('all')
   const [seriesDone, setSeriesDone] = useState<SeriesDoneFilter>('all')
+  const [seriesGap, setSeriesGap] = useState<SeriesGapFilter>('all')
   const [view, setView] = useState<View>(() => {
     const v = localStorage.getItem(VIEW_KEY)
     return v === 'list' ? 'list' : 'grid'
@@ -163,6 +166,21 @@ export function LibraryPage() {
     enabled: Boolean(target) && activeId !== null,
     staleTime: 2 * 60 * 1000,
   })
+
+  // Gap counts for every swept series, in ONE request. Only fetched on the
+  // series tab; absent series simply render without a badge (see
+  // fetchSeriesGapSummaries).
+  const { data: gapData } = useQuery({
+    queryKey: audibleKeys.seriesSummary(target?.serverId ?? ''),
+    queryFn: () => fetchSeriesGapSummaries(target!),
+    enabled: Boolean(target) && tab === 'series',
+    staleTime: 10 * 60 * 1000,
+  })
+  const gapById = useMemo(() => {
+    const map = new Map<string, SeriesGapSummary>()
+    for (const g of gapData ?? []) map.set(g.seriesId, g)
+    return map
+  }, [gapData])
 
   const { data: seriesData } = useQuery({
     queryKey: ['library-series', target?.serverId, activeId],
@@ -469,13 +487,35 @@ export function LibraryPage() {
         return seriesDone === 'finished' ? allDone : !allDone
       })
     }
+    if (seriesGap !== 'all') {
+      // A series with no roster entry is unknown, not complete - the sweep may
+      // simply not have reached it - so it drops out of every gap filter rather
+      // than being asserted either way.
+      list = list.filter((s) => {
+        const gap = gapById.get(s.id)
+        if (!gap) return false
+        if (seriesGap === 'incomplete') return gap.missing > 0
+        if (seriesGap === 'complete') return gap.missing === 0
+        return gap.upcoming > 0
+      })
+    }
     list.sort(
       sSort === 'Name'
         ? (a, b) => a.name.localeCompare(b.name)
         : (a, b) => (b.books?.length ?? 0) - (a.books?.length ?? 0),
     )
     return list
-  }, [seriesData, sSort, status, seriesDone, followedSeriesIds, hiddenSeries, progressById])
+  }, [
+    seriesData,
+    sSort,
+    status,
+    seriesDone,
+    seriesGap,
+    gapById,
+    followedSeriesIds,
+    hiddenSeries,
+    progressById,
+  ])
 
   // Multi-select
   const anySelected = selected.size > 0
@@ -530,12 +570,17 @@ export function LibraryPage() {
   }
 
   const filtersActive =
-    filter !== 'all' || prog !== 'all' || status !== 'all' || seriesDone !== 'all'
+    filter !== 'all' ||
+    prog !== 'all' ||
+    status !== 'all' ||
+    seriesDone !== 'all' ||
+    seriesGap !== 'all'
   const clearFilters = () => {
     setFilter('all')
     setProg('all')
     setStatus('all')
     setSeriesDone('all')
+    setSeriesGap('all')
   }
 
   // A narrator card click lands the user in the Books grid with filters cleared.
@@ -640,602 +685,624 @@ export function LibraryPage() {
 
   return (
     <ReadersProvider itemIds={readerItemIds}>
-    <div
-      className="page fade-in"
-      style={
-        fill && !isMobile
-          ? {
-              paddingTop: 24,
-              maxWidth: 'none',
-              paddingLeft: 'var(--s6)',
-              paddingRight: 'var(--s6)',
-            }
-          : isMobile
-            ? {}
-            : { paddingTop: 24 }
-      }
-    >
-      <div className="page-head lib-head">
-        <div className="lib-head-titles">
-          <div className="eyebrow">Your collection</div>
-          <h1 className="title-xl">
-            {active?.name ?? 'Library'}
-            <span className="lib-count">
-              {tab === 'books' && `${books.length} of ${data?.total ?? allItems.length} books`}
-              {tab === 'series' && `${seriesList.length} series`}
-              {tab === 'authors' && `${authors.length} authors`}
-              {tab === 'narrators' && `${narrators.length} narrators`}
-            </span>
-          </h1>
+      <div
+        className="page fade-in"
+        style={
+          fill && !isMobile
+            ? {
+                paddingTop: 24,
+                maxWidth: 'none',
+                paddingLeft: 'var(--s6)',
+                paddingRight: 'var(--s6)',
+              }
+            : isMobile
+              ? {}
+              : { paddingTop: 24 }
+        }
+      >
+        <div className="page-head lib-head">
+          <div className="lib-head-titles">
+            <div className="eyebrow">Your collection</div>
+            <h1 className="title-xl">
+              {active?.name ?? 'Library'}
+              <span className="lib-count">
+                {tab === 'books' && `${books.length} of ${data?.total ?? allItems.length} books`}
+                {tab === 'series' && `${seriesList.length} series`}
+                {tab === 'authors' && `${authors.length} authors`}
+                {tab === 'narrators' && `${narrators.length} narrators`}
+              </span>
+            </h1>
+          </div>
+          {/* Mobile keeps the popover pills; the desktop rail replaces them. */}
+          {tab === 'books' && !anySelected && isMobile && (
+            <div className="lib-controls">
+              <LibraryFilterMenu
+                items={allItems}
+                filter={filter}
+                setFilter={setFilter}
+                prog={prog}
+                setProg={setProg}
+              />
+              <LibrarySortMenu
+                sort={sort}
+                desc={desc}
+                setSort={setSort}
+                toggleDesc={() => setDesc((d) => !d)}
+              />
+              {(filter !== 'all' || prog !== 'all') && (
+                <button className="pill pill-sm" onClick={clearFilters} title="Clear all filters">
+                  <Icon name="filter_alt_off" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
-        {/* Mobile keeps the popover pills; the desktop rail replaces them. */}
-        {tab === 'books' && !anySelected && isMobile && (
-          <div className="lib-controls">
-            <LibraryFilterMenu
+
+        {isMobile && (
+          <form
+            className="ab-search lib-search"
+            onSubmit={(e) => {
+              e.preventDefault()
+              const v = mSearch.trim()
+              if (v) navigate(`/search?q=${encodeURIComponent(v)}`)
+            }}
+          >
+            <Icon name="search" />
+            <input
+              value={mSearch}
+              onChange={(e) => setMSearch(e.target.value)}
+              placeholder={`Search ${active?.name ?? 'library'}...`}
+              aria-label="Search library"
+            />
+          </form>
+        )}
+
+        <div className={'lib-shell' + (isMobile ? ' no-rail' : '')}>
+          {!isMobile && (
+            <LibraryRail
+              tab={tab}
               items={allItems}
               filter={filter}
               setFilter={setFilter}
               prog={prog}
               setProg={setProg}
-            />
-            <LibrarySortMenu
+              status={status}
+              setStatus={setStatus}
+              seriesDone={seriesDone}
+              seriesGap={seriesGap}
+              setSeriesGap={setSeriesGap}
+              setSeriesDone={setSeriesDone}
               sort={sort}
-              desc={desc}
               setSort={setSort}
+              desc={desc}
               toggleDesc={() => setDesc((d) => !d)}
+              altSort={tab === 'series' ? sSort : pSort}
+              setAltSort={tab === 'series' ? setSSort : setPSort}
+              onClear={clearFilters}
+              anyActive={filtersActive}
             />
-            {(filter !== 'all' || prog !== 'all') && (
-              <button
-                className="pill pill-sm"
-                onClick={clearFilters}
-                title="Clear all filters"
-              >
-                <Icon name="filter_alt_off" />
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {isMobile && (
-        <form
-          className="ab-search lib-search"
-          onSubmit={(e) => {
-            e.preventDefault()
-            const v = mSearch.trim()
-            if (v) navigate(`/search?q=${encodeURIComponent(v)}`)
-          }}
-        >
-          <Icon name="search" />
-          <input
-            value={mSearch}
-            onChange={(e) => setMSearch(e.target.value)}
-            placeholder={`Search ${active?.name ?? 'library'}...`}
-            aria-label="Search library"
-          />
-        </form>
-      )}
-
-      <div className={'lib-shell' + (isMobile ? ' no-rail' : '')}>
-        {!isMobile && (
-          <LibraryRail
-            tab={tab}
-            items={allItems}
-            filter={filter}
-            setFilter={setFilter}
-            prog={prog}
-            setProg={setProg}
-            status={status}
-            setStatus={setStatus}
-            seriesDone={seriesDone}
-            setSeriesDone={setSeriesDone}
-            sort={sort}
-            setSort={setSort}
-            desc={desc}
-            toggleDesc={() => setDesc((d) => !d)}
-            altSort={tab === 'series' ? sSort : pSort}
-            setAltSort={tab === 'series' ? setSSort : setPSort}
-            onClear={clearFilters}
-            anyActive={filtersActive}
-          />
-        )}
-        <div className="lib-main">
-      <div className="qv-tabs">
-        {TABS.map((tb) => (
-          <button
-            key={tb.id}
-            className={'qv-tab' + (tab === tb.id ? ' on' : '')}
-            onClick={() => switchTab(tb.id)}
-          >
-            <Icon name={tb.icon} fill={tab === tb.id} />
-            <span>{tb.label}</span>
-            <span className="qv-count">{tb.n}</span>
-          </button>
-        ))}
-      </div>
-
-      {isLoading && <LoadingSpinner className="py-12" label="Loading library..." />}
-      {isError && <ErrorState message="Could not load this library." onRetry={refetch} />}
-
-      {/* ---- Books ---- */}
-      {tab === 'books' && data && (
-        <>
-          {anySelected ? (
-            <div className="toolbar2 sel-bar">
-              <button className="pill" onClick={clearSel} title="Clear selection">
-                <Icon name="close" />
-              </button>
-              <span className="count-badge" style={{ color: 'var(--accent)', fontWeight: 600 }}>
-                {selected.size} selected
-              </span>
-              {selected.size < books.length && (
-                <button className="pill" onClick={selectAll}>
-                  Select all {books.length}
-                </button>
-              )}
-              <div className="tb-spacer" />
-              <button
-                className="pill"
-                disabled={marking}
-                onClick={() => {
-                  const ids = [...selected]
-                  const allFinished = ids.every((id) => progressById.get(id)?.isFinished)
-                  void markFinishedPrompted(ids, !allFinished).then((ok) => {
-                    if (ok) clearSel()
-                  })
-                }}
-              >
-                <Icon name="task_alt" />{' '}
-                {[...selected].every((id) => progressById.get(id)?.isFinished)
-                  ? 'Mark not finished'
-                  : 'Mark finished'}
-              </button>
-              {canUpdate && (
-                <button className="pill" onClick={() => setBatchEditing(true)}>
-                  <Icon name="edit" /> Edit
-                </button>
-              )}
-              <button className="pill" onClick={() => setBatchAdding(true)}>
-                <Icon name="playlist_add" /> Add to…
-              </button>
-              <Dropdown icon="more_horiz" label="More">
-                {batchDownloadHref && (
-                  <a className="mp-item" href={batchDownloadHref} target="_blank" rel="noreferrer">
-                    <Icon name="download" /> Download
-                  </a>
-                )}
-                {canUpdate && (
-                  <>
-                    <MItem
-                      icon="auto_fix_high"
-                      label="Quick match"
-                      onClick={() =>
-                        void batchAction(
-                          (ids) => batchQuickMatchItems(target!, ids),
-                          `Matching ${selected.size} book${selected.size === 1 ? '' : 's'}…`,
-                        )
-                      }
-                    />
-                    <MItem
-                      icon="sync"
-                      label="Re-scan"
-                      onClick={() =>
-                        void batchAction(
-                          (ids) => batchScanItems(target!, ids),
-                          `Re-scanning ${selected.size} book${selected.size === 1 ? '' : 's'}…`,
-                        )
-                      }
-                    />
-                  </>
-                )}
-                {canDelete && (
-                  <>
-                    <div className="mp-sep" />
-                    <MItem icon="delete" label="Delete" danger onClick={batchDelete} />
-                  </>
-                )}
-              </Dropdown>
-            </div>
-          ) : (
-            displayToolbar
           )}
-
-          {books.length === 0 && (
-            <div className="empty-state">
-              <Icon name="filter_alt_off" />
-              <h3>No results for filter</h3>
-              <p>Nothing in this library matches the active filter.</p>
-              <button
-                className="btn-sm btn-ghost"
-                style={{ margin: '0 auto' }}
-                onClick={() => {
-                  setProg('all')
-                  setFilter('all')
-                }}
-              >
-                Clear filter
-              </button>
+          <div className="lib-main">
+            <div className="qv-tabs">
+              {TABS.map((tb) => (
+                <button
+                  key={tb.id}
+                  className={'qv-tab' + (tab === tb.id ? ' on' : '')}
+                  onClick={() => switchTab(tb.id)}
+                >
+                  <Icon name={tb.icon} fill={tab === tb.id} />
+                  <span>{tb.label}</span>
+                  <span className="qv-count">{tb.n}</span>
+                </button>
+              ))}
             </div>
-          )}
 
-          {books.length > 0 &&
-            (view === 'list' ? (
-              <div className={'lib-list' + (anySelected ? ' selecting' : '')}>
-                {books.map((b) => {
-                  const p = progressById.get(b.id)
-                  const m = b.media.metadata
-                  const hours = b.media.duration ? Math.round(b.media.duration / 360) / 10 : 0
-                  return (
-                    <div
-                      className={'ll-row' + (selected.has(b.id) ? ' sel' : '')}
-                      key={b.id}
-                      data-cv={tintFor(m.title ?? 'Untitled')}
-                      onClick={() => (anySelected ? toggleSel(b.id) : ui.openItem(b.id))}
+            {isLoading && <LoadingSpinner className="py-12" label="Loading library..." />}
+            {isError && <ErrorState message="Could not load this library." onRetry={refetch} />}
+
+            {/* ---- Books ---- */}
+            {tab === 'books' && data && (
+              <>
+                {anySelected ? (
+                  <div className="toolbar2 sel-bar">
+                    <button className="pill" onClick={clearSel} title="Clear selection">
+                      <Icon name="close" />
+                    </button>
+                    <span
+                      className="count-badge"
+                      style={{ color: 'var(--accent)', fontWeight: 600 }}
                     >
-                      <Cover
-                        itemId={b.id}
-                        title={m.title ?? 'Untitled'}
-                        fs={5}
-                        overlay={
-                          <button
-                            className={'b-check' + (selected.has(b.id) ? ' on' : '')}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              toggleSel(b.id)
-                            }}
-                          >
-                            <Icon
-                              name="check"
-                              fill
-                              style={{ opacity: selected.has(b.id) ? 1 : 0 }}
-                            />
-                          </button>
-                        }
-                      />
-                      <div style={{ minWidth: 0 }}>
-                        <div className="ll-title">{m.title}</div>
-                        <div className="ll-sub">
-                          {m.authorName}
-                          {m.narratorName && ` · ${m.narratorName}`}
-                        </div>
-                      </div>
-                      <span className="ll-col">
-                        {m.genres[0] ?? ''} {m.publishedYear ? `· ${m.publishedYear}` : ''}
-                      </span>
-                      <span className="ll-rate" onClick={(e) => e.stopPropagation()}>
-                        <StarRating
-                          value={ratings?.[ratingKeyForItem(b.id)] ?? null}
-                          onChange={(n) =>
-                            setRating.mutate({ itemKey: ratingKeyForItem(b.id), rating: n })
-                          }
-                          size={14}
-                        />
-                      </span>
-                      {p && p.progress > 0 && !p.isFinished ? (
-                        <div className="ll-prog">
-                          <div className="prog-line">
-                            <i style={{ width: p.progress * 100 + '%' }} />
-                          </div>
-                          <span>{Math.round(p.progress * 100)}%</span>
-                        </div>
-                      ) : (
-                        <span className="ll-col mono" style={{ fontFamily: 'var(--font-mono)' }}>
-                          {p?.isFinished ? 'Finished' : `${hours}h`}
-                        </span>
+                      {selected.size} selected
+                    </span>
+                    {selected.size < books.length && (
+                      <button className="pill" onClick={selectAll}>
+                        Select all {books.length}
+                      </button>
+                    )}
+                    <div className="tb-spacer" />
+                    <button
+                      className="pill"
+                      disabled={marking}
+                      onClick={() => {
+                        const ids = [...selected]
+                        const allFinished = ids.every((id) => progressById.get(id)?.isFinished)
+                        void markFinishedPrompted(ids, !allFinished).then((ok) => {
+                          if (ok) clearSel()
+                        })
+                      }}
+                    >
+                      <Icon name="task_alt" />{' '}
+                      {[...selected].every((id) => progressById.get(id)?.isFinished)
+                        ? 'Mark not finished'
+                        : 'Mark finished'}
+                    </button>
+                    {canUpdate && (
+                      <button className="pill" onClick={() => setBatchEditing(true)}>
+                        <Icon name="edit" /> Edit
+                      </button>
+                    )}
+                    <button className="pill" onClick={() => setBatchAdding(true)}>
+                      <Icon name="playlist_add" /> Add to…
+                    </button>
+                    <Dropdown icon="more_horiz" label="More">
+                      {batchDownloadHref && (
+                        <a
+                          className="mp-item"
+                          href={batchDownloadHref}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <Icon name="download" /> Download
+                        </a>
                       )}
-                      <div className="ll-actions" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          className={'icon-btn' + (p?.isFinished ? ' on' : '')}
-                          disabled={marking}
-                          title={p?.isFinished ? 'Mark not finished' : 'Mark finished'}
-                          onClick={() => void markFinishedPrompted([b.id], !p?.isFinished)}
-                        >
-                          <Icon name="task_alt" fill={p?.isFinished} />
-                        </button>
-                        <button
-                          className={'icon-btn' + (hiddenItems.has(b.id) ? ' on' : '')}
-                          title={
-                            hiddenItems.has(b.id)
-                              ? 'Unhide - show on shelves again'
-                              : 'Hide from shelves and the queue'
-                          }
-                          onClick={() => {
-                            const hidden = hiddenItems.has(b.id)
-                            const done = hidden
-                              ? restoreItem(target!, 'item', b.id)
-                              : dismissItem(target!, 'item', b.id, m.title ?? 'Untitled')
-                            void done.then(
-                              () => show(hidden ? 'Shown again' : 'Hidden from shelves'),
-                              () => show(hidden ? 'Could not unhide' : 'Could not hide'),
-                            )
-                          }}
-                        >
-                          <Icon name={hiddenItems.has(b.id) ? 'visibility_off' : 'visibility'} />
-                        </button>
-                      </div>
+                      {canUpdate && (
+                        <>
+                          <MItem
+                            icon="auto_fix_high"
+                            label="Quick match"
+                            onClick={() =>
+                              void batchAction(
+                                (ids) => batchQuickMatchItems(target!, ids),
+                                `Matching ${selected.size} book${selected.size === 1 ? '' : 's'}…`,
+                              )
+                            }
+                          />
+                          <MItem
+                            icon="sync"
+                            label="Re-scan"
+                            onClick={() =>
+                              void batchAction(
+                                (ids) => batchScanItems(target!, ids),
+                                `Re-scanning ${selected.size} book${selected.size === 1 ? '' : 's'}…`,
+                              )
+                            }
+                          />
+                        </>
+                      )}
+                      {canDelete && (
+                        <>
+                          <div className="mp-sep" />
+                          <MItem icon="delete" label="Delete" danger onClick={batchDelete} />
+                        </>
+                      )}
+                    </Dropdown>
+                  </div>
+                ) : (
+                  displayToolbar
+                )}
+
+                {books.length === 0 && (
+                  <div className="empty-state">
+                    <Icon name="filter_alt_off" />
+                    <h3>No results for filter</h3>
+                    <p>Nothing in this library matches the active filter.</p>
+                    <button
+                      className="btn-sm btn-ghost"
+                      style={{ margin: '0 auto' }}
+                      onClick={() => {
+                        setProg('all')
+                        setFilter('all')
+                      }}
+                    >
+                      Clear filter
+                    </button>
+                  </div>
+                )}
+
+                {books.length > 0 &&
+                  (view === 'list' ? (
+                    <div className={'lib-list' + (anySelected ? ' selecting' : '')}>
+                      {books.map((b) => {
+                        const p = progressById.get(b.id)
+                        const m = b.media.metadata
+                        const hours = b.media.duration ? Math.round(b.media.duration / 360) / 10 : 0
+                        return (
+                          <div
+                            className={'ll-row' + (selected.has(b.id) ? ' sel' : '')}
+                            key={b.id}
+                            data-cv={tintFor(m.title ?? 'Untitled')}
+                            onClick={() => (anySelected ? toggleSel(b.id) : ui.openItem(b.id))}
+                          >
+                            <Cover
+                              itemId={b.id}
+                              title={m.title ?? 'Untitled'}
+                              fs={5}
+                              overlay={
+                                <button
+                                  className={'b-check' + (selected.has(b.id) ? ' on' : '')}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleSel(b.id)
+                                  }}
+                                >
+                                  <Icon
+                                    name="check"
+                                    fill
+                                    style={{ opacity: selected.has(b.id) ? 1 : 0 }}
+                                  />
+                                </button>
+                              }
+                            />
+                            <div style={{ minWidth: 0 }}>
+                              <div className="ll-title">{m.title}</div>
+                              <div className="ll-sub">
+                                {m.authorName}
+                                {m.narratorName && ` · ${m.narratorName}`}
+                              </div>
+                            </div>
+                            <span className="ll-col">
+                              {m.genres[0] ?? ''} {m.publishedYear ? `· ${m.publishedYear}` : ''}
+                            </span>
+                            <span className="ll-rate" onClick={(e) => e.stopPropagation()}>
+                              <StarRating
+                                value={ratings?.[ratingKeyForItem(b.id)] ?? null}
+                                onChange={(n) =>
+                                  setRating.mutate({ itemKey: ratingKeyForItem(b.id), rating: n })
+                                }
+                                size={14}
+                              />
+                            </span>
+                            {p && p.progress > 0 && !p.isFinished ? (
+                              <div className="ll-prog">
+                                <div className="prog-line">
+                                  <i style={{ width: p.progress * 100 + '%' }} />
+                                </div>
+                                <span>{Math.round(p.progress * 100)}%</span>
+                              </div>
+                            ) : (
+                              <span
+                                className="ll-col mono"
+                                style={{ fontFamily: 'var(--font-mono)' }}
+                              >
+                                {p?.isFinished ? 'Finished' : `${hours}h`}
+                              </span>
+                            )}
+                            <div className="ll-actions" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                className={'icon-btn' + (p?.isFinished ? ' on' : '')}
+                                disabled={marking}
+                                title={p?.isFinished ? 'Mark not finished' : 'Mark finished'}
+                                onClick={() => void markFinishedPrompted([b.id], !p?.isFinished)}
+                              >
+                                <Icon name="task_alt" fill={p?.isFinished} />
+                              </button>
+                              <button
+                                className={'icon-btn' + (hiddenItems.has(b.id) ? ' on' : '')}
+                                title={
+                                  hiddenItems.has(b.id)
+                                    ? 'Unhide - show on shelves again'
+                                    : 'Hide from shelves and the queue'
+                                }
+                                onClick={() => {
+                                  const hidden = hiddenItems.has(b.id)
+                                  const done = hidden
+                                    ? restoreItem(target!, 'item', b.id)
+                                    : dismissItem(target!, 'item', b.id, m.title ?? 'Untitled')
+                                  void done.then(
+                                    () => show(hidden ? 'Shown again' : 'Hidden from shelves'),
+                                    () => show(hidden ? 'Could not unhide' : 'Could not hide'),
+                                  )
+                                }}
+                              >
+                                <Icon
+                                  name={hiddenItems.has(b.id) ? 'visibility_off' : 'visibility'}
+                                />
+                              </button>
+                            </div>
+                            <button
+                              className="ll-play"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                ui.playItem(b.id)
+                              }}
+                            >
+                              <Icon name="play_arrow" fill />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div
+                      className={
+                        'lib-grid' +
+                        (isCompact ? ' compact' : '') +
+                        (anySelected ? ' selecting' : '')
+                      }
+                      style={{ '--tile': `${gridScale}px` } as CSSProperties}
+                    >
+                      {books.map((b) => {
+                        const p = progressById.get(b.id)
+                        return (
+                          <BookTile
+                            key={b.id}
+                            item={b}
+                            fs={Math.round(gridScale / 11.2)}
+                            progress={p?.progress ?? 0}
+                            finished={p?.isFinished}
+                            compact={isCompact}
+                            selected={selected.has(b.id)}
+                            anySelected={anySelected}
+                            onToggleSelect={() => toggleSel(b.id)}
+                            authorId={authorIdByName.get(b.media.metadata.authorName)}
+                            onToast={show}
+                          />
+                        )
+                      })}
+                    </div>
+                  ))}
+              </>
+            )}
+
+            {/* ---- Series ---- */}
+            {tab === 'series' && (
+              <>
+                {displayToolbar}
+                {seriesList.length === 0 ? (
+                  <div className="empty-state">
+                    <Icon name="filter_alt_off" />
+                    <h3>No series match</h3>
+                    <p>Nothing in this library matches the active filter.</p>
+                    {filtersActive && (
                       <button
-                        className="ll-play"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          ui.playItem(b.id)
+                        className="btn-sm btn-ghost"
+                        style={{ margin: '0 auto' }}
+                        onClick={clearFilters}
+                      >
+                        Clear filter
+                      </button>
+                    )}
+                  </div>
+                ) : view === 'list' ? (
+                  <div className="lib-list">
+                    {seriesList.map((s) => {
+                      const owned = s.books ?? []
+                      const done = owned.filter((b) => progressById.get(b.id)?.isFinished).length
+                      return (
+                        <div
+                          className="ll-row ll-series"
+                          key={s.id}
+                          data-cv={tintFor(s.name)}
+                          onClick={() => navigate(`/series/${s.id}`)}
+                        >
+                          <Cover itemId={owned[0]?.id ?? ''} title={s.name} fs={5} />
+                          <div style={{ minWidth: 0 }}>
+                            <div className="ll-title">{s.name}</div>
+                            <div className="ll-sub">
+                              {owned.length} book{owned.length === 1 ? '' : 's'} · {done} finished
+                            </div>
+                          </div>
+                          <span className="ll-col">
+                            {followedSeriesIds.has(s.id) ? 'Following' : ''}
+                          </span>
+                          <span className="ll-col mono" style={{ fontFamily: 'var(--font-mono)' }}>
+                            {owned.length ? Math.round((done / owned.length) * 100) : 0}%
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div
+                    className="series-grid"
+                    style={{ '--tile': `${gridScale}px` } as CSSProperties}
+                  >
+                    {seriesList.map((s) => (
+                      <SeriesCard key={s.id} series={s} gap={gapById.get(s.id)} />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* ---- Authors / Narrators ---- */}
+            {(tab === 'authors' || tab === 'narrators') && (
+              <>
+                <div className={'toolbar2' + (personAnySelected ? ' sel-bar' : '')}>
+                  {canUpdate && !personAnySelected && !isMobile && (
+                    <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
+                      Hover to select, edit, or merge
+                    </span>
+                  )}
+                  {canUpdate && personSel.size === 1 && (
+                    <button
+                      className="btn-sm btn-ghost"
+                      onClick={() => setPersonEditing(selectedPeople[0])}
+                    >
+                      <Icon name="edit" /> Edit
+                    </button>
+                  )}
+                  {canUpdate && personSel.size >= 2 && (
+                    <button className="btn-sm btn-primary" onClick={() => setPersonMerging(true)}>
+                      <Icon name="merge" /> Merge {personSel.size}
+                    </button>
+                  )}
+                  {canUpdate && personAnySelected && (
+                    <button
+                      className="btn-sm btn-ghost danger"
+                      onClick={() => setPersonDeleting(selectedPeople)}
+                    >
+                      <Icon name="delete" /> Remove {personSel.size}
+                    </button>
+                  )}
+                  {canUpdate && personAnySelected && (
+                    <button className="btn-sm btn-ghost" onClick={() => setPersonSel(new Set())}>
+                      Clear
+                    </button>
+                  )}
+                  <div className="tb-spacer" />
+                  <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>Sort</span>
+                  <div className="seg">
+                    {(['Name', 'Books'] as const).map((o) => (
+                      <button
+                        key={o}
+                        className={pSort === o ? 'on' : ''}
+                        onClick={() => setPSort(o)}
+                      >
+                        {o}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {!personAnySelected && displayToolbar}
+                {view === 'list' ? (
+                  <div className="lib-list">
+                    {personList.map((p) => (
+                      <div
+                        className="ll-row ll-person"
+                        key={p.id}
+                        data-cv={tintFor(p.name)}
+                        onClick={() => {
+                          if (tab === 'narrators') {
+                            const href = ui.narratorHref?.(p.name)
+                            if (href) navigate(href)
+                            else goBooks()
+                            return
+                          }
+                          navigate(ui.authorHref?.(p.id) ?? `/author/${p.id}`)
                         }}
                       >
-                        <Icon name="play_arrow" fill />
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div
-                className={
-                  'lib-grid' + (isCompact ? ' compact' : '') + (anySelected ? ' selecting' : '')
-                }
-                style={{ '--tile': `${gridScale}px` } as CSSProperties}
-              >
-                {books.map((b) => {
-                  const p = progressById.get(b.id)
-                  return (
-                    <BookTile
-                      key={b.id}
-                      item={b}
-                      fs={Math.round(gridScale / 11.2)}
-                      progress={p?.progress ?? 0}
-                      finished={p?.isFinished}
-                      compact={isCompact}
-                      selected={selected.has(b.id)}
-                      anySelected={anySelected}
-                      onToggleSelect={() => toggleSel(b.id)}
-                      authorId={authorIdByName.get(b.media.metadata.authorName)}
-                      onToast={show}
-                    />
-                  )
-                })}
-              </div>
-            ))}
-        </>
-      )}
-
-      {/* ---- Series ---- */}
-      {tab === 'series' && (
-        <>
-          {displayToolbar}
-          {seriesList.length === 0 ? (
-            <div className="empty-state">
-              <Icon name="filter_alt_off" />
-              <h3>No series match</h3>
-              <p>Nothing in this library matches the active filter.</p>
-              {filtersActive && (
-                <button
-                  className="btn-sm btn-ghost"
-                  style={{ margin: '0 auto' }}
-                  onClick={clearFilters}
-                >
-                  Clear filter
-                </button>
-              )}
-            </div>
-          ) : view === 'list' ? (
-            <div className="lib-list">
-              {seriesList.map((s) => {
-                const owned = s.books ?? []
-                const done = owned.filter((b) => progressById.get(b.id)?.isFinished).length
-                return (
-                  <div
-                    className="ll-row ll-series"
-                    key={s.id}
-                    data-cv={tintFor(s.name)}
-                    onClick={() => navigate(`/series/${s.id}`)}
-                  >
-                    <Cover itemId={owned[0]?.id ?? ''} title={s.name} fs={5} />
-                    <div style={{ minWidth: 0 }}>
-                      <div className="ll-title">{s.name}</div>
-                      <div className="ll-sub">
-                        {owned.length} book{owned.length === 1 ? '' : 's'} · {done} finished
+                        <div className="ll-person-av">{initialsOf(p.name)}</div>
+                        <div style={{ minWidth: 0 }}>
+                          <div className="ll-title">{p.name}</div>
+                          <div className="ll-sub">
+                            {p.books.length} book{p.books.length === 1 ? '' : 's'}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <span className="ll-col">
-                      {followedSeriesIds.has(s.id) ? 'Following' : ''}
-                    </span>
-                    <span className="ll-col mono" style={{ fontFamily: 'var(--font-mono)' }}>
-                      {owned.length ? Math.round((done / owned.length) * 100) : 0}%
-                    </span>
+                    ))}
                   </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="series-grid" style={{ '--tile': `${gridScale}px` } as CSSProperties}>
-              {seriesList.map((s) => (
-                <SeriesCard key={s.id} series={s} />
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ---- Authors / Narrators ---- */}
-      {(tab === 'authors' || tab === 'narrators') && (
-        <>
-          <div className={'toolbar2' + (personAnySelected ? ' sel-bar' : '')}>
-            {canUpdate && !personAnySelected && !isMobile && (
-              <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
-                Hover to select, edit, or merge
-              </span>
-            )}
-            {canUpdate && personSel.size === 1 && (
-              <button
-                className="btn-sm btn-ghost"
-                onClick={() => setPersonEditing(selectedPeople[0])}
-              >
-                <Icon name="edit" /> Edit
-              </button>
-            )}
-            {canUpdate && personSel.size >= 2 && (
-              <button className="btn-sm btn-primary" onClick={() => setPersonMerging(true)}>
-                <Icon name="merge" /> Merge {personSel.size}
-              </button>
-            )}
-            {canUpdate && personAnySelected && (
-              <button
-                className="btn-sm btn-ghost danger"
-                onClick={() => setPersonDeleting(selectedPeople)}
-              >
-                <Icon name="delete" /> Remove {personSel.size}
-              </button>
-            )}
-            {canUpdate && personAnySelected && (
-              <button className="btn-sm btn-ghost" onClick={() => setPersonSel(new Set())}>
-                Clear
-              </button>
-            )}
-            <div className="tb-spacer" />
-            <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>Sort</span>
-            <div className="seg">
-              {(['Name', 'Books'] as const).map((o) => (
-                <button key={o} className={pSort === o ? 'on' : ''} onClick={() => setPSort(o)}>
-                  {o}
-                </button>
-              ))}
-            </div>
-          </div>
-          {!personAnySelected && displayToolbar}
-          {view === 'list' ? (
-            <div className="lib-list">
-              {personList.map((p) => (
-                <div
-                  className="ll-row ll-person"
-                  key={p.id}
-                  data-cv={tintFor(p.name)}
-                  onClick={() => {
-                    if (tab === 'narrators') {
-                      const href = ui.narratorHref?.(p.name)
-                      if (href) navigate(href)
-                      else goBooks()
-                      return
-                    }
-                    navigate(ui.authorHref?.(p.id) ?? `/author/${p.id}`)
-                  }}
-                >
-                  <div className="ll-person-av">{initialsOf(p.name)}</div>
-                  <div style={{ minWidth: 0 }}>
-                    <div className="ll-title">{p.name}</div>
-                    <div className="ll-sub">
-                      {p.books.length} book{p.books.length === 1 ? '' : 's'}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (() => {
-            const list = personList
-            const seen = new Set<string>()
-            const showRail = isMobile && pSort === 'Name'
-            return (
-              <div className={'az-wrap' + (showRail ? ' has-rail' : '')}>
-                <div
-                  className="person-grid"
-                  style={{ '--tile': `${gridScale}px` } as CSSProperties}
-                >
-                  {list.map((p) => {
-                    const letter = letterOf(p.name)
-                    let dataLetter: string | undefined
-                    if (pSort === 'Name' && !seen.has(letter)) {
-                      seen.add(letter)
-                      dataLetter = letter
-                    }
+                ) : (
+                  (() => {
+                    const list = personList
+                    const seen = new Set<string>()
+                    const showRail = isMobile && pSort === 'Name'
                     return (
-                      <div key={p.id} data-letter={dataLetter}>
-                        <PersonCard
-                          person={p}
-                          selected={personSel.has(p.id)}
-                          anySelected={personAnySelected}
-                          canEdit={canUpdate}
-                          onToggleSelect={() => togglePersonSel(p.id)}
-                          onOpen={() => {
-                            if (tab === 'narrators') {
-                              const href = ui.narratorHref?.(p.name)
-                              if (href) navigate(href)
-                              else goBooks()
-                              return
+                      <div className={'az-wrap' + (showRail ? ' has-rail' : '')}>
+                        <div
+                          className="person-grid"
+                          style={{ '--tile': `${gridScale}px` } as CSSProperties}
+                        >
+                          {list.map((p) => {
+                            const letter = letterOf(p.name)
+                            let dataLetter: string | undefined
+                            if (pSort === 'Name' && !seen.has(letter)) {
+                              seen.add(letter)
+                              dataLetter = letter
                             }
-                            const href = ui.authorHref?.(p.id) ?? `/author/${p.id}`
-                            navigate(href)
-                          }}
-                          onEdit={() => setPersonEditing(p)}
-                        />
+                            return (
+                              <div key={p.id} data-letter={dataLetter}>
+                                <PersonCard
+                                  person={p}
+                                  selected={personSel.has(p.id)}
+                                  anySelected={personAnySelected}
+                                  canEdit={canUpdate}
+                                  onToggleSelect={() => togglePersonSel(p.id)}
+                                  onOpen={() => {
+                                    if (tab === 'narrators') {
+                                      const href = ui.narratorHref?.(p.name)
+                                      if (href) navigate(href)
+                                      else goBooks()
+                                      return
+                                    }
+                                    const href = ui.authorHref?.(p.id) ?? `/author/${p.id}`
+                                    navigate(href)
+                                  }}
+                                  onEdit={() => setPersonEditing(p)}
+                                />
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {showRail && <AzJumpRail names={list.map((p) => p.name)} />}
                       </div>
                     )
-                  })}
-                </div>
-                {showRail && <AzJumpRail names={list.map((p) => p.name)} />}
-              </div>
-            )
-          })()}
-        </>
-      )}
+                  })()
+                )}
+              </>
+            )}
+          </div>
         </div>
+
+        {personMerging && (
+          <MergeModal
+            kind={tab === 'authors' ? 'author' : 'narrator'}
+            items={selectedPersonItems}
+            onMerge={doPersonMerge}
+            onClose={() => setPersonMerging(false)}
+          />
+        )}
+        {personEditing && (
+          <PersonEditModal
+            person={personEditing}
+            saving={personBusy}
+            onSave={doPersonSave}
+            onChanged={invalidatePersons}
+            onDelete={invalidatePersons}
+            onClose={() => setPersonEditing(null)}
+          />
+        )}
+        {personDeleting && (
+          <PersonDeleteModal
+            people={personDeleting}
+            deleting={personBusy}
+            onConfirm={doPersonDelete}
+            onClose={() => setPersonDeleting(null)}
+          />
+        )}
+
+        {batchEditing && (
+          <BatchEditModal
+            ids={[...selected]}
+            items={books.filter((b) => selected.has(b.id))}
+            target={target}
+            onClose={() => setBatchEditing(false)}
+            onDone={() => {
+              reloadItems()
+              setBatchEditing(false)
+              clearSel()
+            }}
+          />
+        )}
+        {batchAdding && activeId && (
+          <AddToListModal
+            libraryItemIds={[...selected]}
+            target={target}
+            libraryId={activeId}
+            onClose={() => setBatchAdding(false)}
+            onToast={(msg) => {
+              show(msg)
+              setBatchAdding(false)
+              clearSel()
+            }}
+          />
+        )}
+        {toast && (
+          <div className="p-toast">
+            <Icon name="check_circle" fill /> {toast}
+          </div>
+        )}
       </div>
-
-      {personMerging && (
-        <MergeModal
-          kind={tab === 'authors' ? 'author' : 'narrator'}
-          items={selectedPersonItems}
-          onMerge={doPersonMerge}
-          onClose={() => setPersonMerging(false)}
-        />
-      )}
-      {personEditing && (
-        <PersonEditModal
-          person={personEditing}
-          saving={personBusy}
-          onSave={doPersonSave}
-          onChanged={invalidatePersons}
-          onDelete={invalidatePersons}
-          onClose={() => setPersonEditing(null)}
-        />
-      )}
-      {personDeleting && (
-        <PersonDeleteModal
-          people={personDeleting}
-          deleting={personBusy}
-          onConfirm={doPersonDelete}
-          onClose={() => setPersonDeleting(null)}
-        />
-      )}
-
-      {batchEditing && (
-        <BatchEditModal
-          ids={[...selected]}
-          items={books.filter((b) => selected.has(b.id))}
-          target={target}
-          onClose={() => setBatchEditing(false)}
-          onDone={() => {
-            reloadItems()
-            setBatchEditing(false)
-            clearSel()
-          }}
-        />
-      )}
-      {batchAdding && activeId && (
-        <AddToListModal
-          libraryItemIds={[...selected]}
-          target={target}
-          libraryId={activeId}
-          onClose={() => setBatchAdding(false)}
-          onToast={(msg) => {
-            show(msg)
-            setBatchAdding(false)
-            clearSel()
-          }}
-        />
-      )}
-      {toast && (
-        <div className="p-toast">
-          <Icon name="check_circle" fill /> {toast}
-        </div>
-      )}
-    </div>
     </ReadersProvider>
   )
 }

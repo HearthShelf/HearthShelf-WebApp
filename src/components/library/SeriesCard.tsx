@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { AbsSeries } from '@/api/absLibrary'
+import type { SeriesGapSummary } from '@/api/absAudible'
 import { Cover, tintFor } from '@/components/shared/Cover'
 import { AvatarStack } from '@/components/common/AvatarStack'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
@@ -10,9 +11,13 @@ import { useMediaProgress } from '@/hooks/useMediaProgress'
 interface SeriesCardProps {
   series: AbsSeries
   selectionActive?: boolean
+  /** Gap counts from the swept roster. Undefined when the sweep hasn't reached
+   *  this series - the card then reads exactly as it did before, with no badge:
+   *  "unknown" must not render as "complete". */
+  gap?: SeriesGapSummary
 }
 
-export function SeriesCard({ series, selectionActive = false }: SeriesCardProps) {
+export function SeriesCard({ series, selectionActive = false, gap }: SeriesCardProps) {
   const navigate = useNavigate()
   const ui = useMediaUI()
   const progressById = useMediaProgress()
@@ -53,6 +58,14 @@ export function SeriesCard({ series, selectionActive = false }: SeriesCardProps)
           {author && `${author} · `}
           {books.length} {books.length === 1 ? 'book' : 'books'} · {done} finished
         </p>
+        {gap && (gap.missing > 0 || gap.upcoming > 0) && (
+          <p className="sc-gap">
+            {gap.missing > 0 && (
+              <span className="sc-gap-missing">{gap.missing} not in library</span>
+            )}
+            {gap.upcoming > 0 && <span className="sc-gap-soon">{gap.upcoming} coming soon</span>}
+          </p>
+        )}
         <div className="sc-prog">
           <div className="prog-line" style={{ flex: 1 }}>
             <i style={{ width: pct * 100 + '%' }} />

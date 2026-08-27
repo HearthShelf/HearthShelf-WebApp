@@ -27,6 +27,9 @@ export const audibleKeys = {
   // follow, which stores the ASIN rather than an ABS series id).
   seriesByAsin: (seriesAsin: string) => ['audible', 'series-asin', seriesAsin] as const,
   product: (asin: string) => ['audible', 'product', asin] as const,
+  // Owned/total counts for every swept series on this server, for the library
+  // grid. Server-scoped, not library-scoped: the store is per instance.
+  seriesSummary: (serverId: string) => ['audible', 'series-summary', serverId] as const,
   // This is library-specific even though its input is an Audible ASIN: the
   // returned id belongs to the connected server's ABS library.
   libraryItem: (serverId: string | undefined, asin: string) =>
@@ -35,6 +38,46 @@ export const audibleKeys = {
 
 function origin(t: AbsTarget): string {
   return t.serverUrl.replace(/\/$/, '')
+}
+
+/** Owned/total counts for one series, as the library grid reads them. */
+export interface SeriesGapSummary {
+  seriesId: string
+  /** Books in the series after phantom/duplicate filtering, released or not. */
+  total: number
+  /** Released books the library doesn't hold. Excludes unreleased ones - nobody
+   *  could own those, and counting them would leave a caught-up series
+   *  permanently incomplete. */
+  missing: number
+  /** Books announced but not out yet. */
+  upcoming: number
+  resolvedAt: number
+}
+
+/**
+ * Gap counts for every series the nightly sweep has resolved, in one request.
+ *
+ * The library's series grid needs one fact per card for hundreds of cards, so
+ * this returns counts only - fetching the rosters themselves would be megabytes
+ * to render a badge. Series the sweep hasn't reached are simply absent, and the
+ * grid shows those exactly as it did before (no badge).
+ *
+ * Degrades to an empty list on any failure: these counts are decoration, and a
+ * library page must still render without them.
+ */
+export async function fetchSeriesGapSummaries(t: AbsTarget): Promise<SeriesGapSummary[]> {
+  const token = getAbsToken(t.serverId)
+  if (!token) return []
+  try {
+    const res = await fetch(`${origin(t)}/hs/audible/series-summary`, {
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return []
+    const body = (await res.json()) as { series?: SeriesGapSummary[] }
+    return body.series ?? []
+  } catch {
+    return []
+  }
 }
 
 /**

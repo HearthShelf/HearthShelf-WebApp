@@ -25,6 +25,12 @@ import type { ProgFilter } from '@/components/library/LibraryFilters'
 export type StatusFilter = 'all' | 'following' | 'hidden' | 'not-hidden'
 export type SeriesDoneFilter = 'all' | 'finished' | 'unfinished'
 
+/** Whether the library holds the whole series. A DIFFERENT axis from
+ *  SeriesDoneFilter: "finished" is how much you've read of what you own,
+ *  "incomplete" is whether books are missing from the shelf at all. A series can
+ *  be finished and incomplete at once, so these must not share a control. */
+export type SeriesGapFilter = 'all' | 'incomplete' | 'complete' | 'upcoming'
+
 export type RailTab = 'books' | 'series' | 'authors' | 'narrators'
 
 const PROGRESS_ROWS: [ProgFilter, string][] = [
@@ -36,6 +42,12 @@ const PROGRESS_ROWS: [ProgFilter, string][] = [
 const SERIES_DONE_ROWS: [SeriesDoneFilter, string][] = [
   ['finished', 'Finished'],
   ['unfinished', 'Unfinished'],
+]
+
+const SERIES_GAP_ROWS: [SeriesGapFilter, string][] = [
+  ['incomplete', 'Missing books'],
+  ['complete', 'Have them all'],
+  ['upcoming', 'More coming'],
 ]
 
 function RailRow({
@@ -111,7 +123,8 @@ function GroupSection({
   // Keep the active value visible even when it sorts below the cap.
   const activeVal = filter.startsWith(`${group.id}|`) ? filter.split('|')[1] : null
   let shown = expanded ? values : values.slice(0, VALUES_SHOWN)
-  if (activeVal && !shown.includes(activeVal)) shown = [activeVal, ...shown.slice(0, VALUES_SHOWN - 1)]
+  if (activeVal && !shown.includes(activeVal))
+    shown = [activeVal, ...shown.slice(0, VALUES_SHOWN - 1)]
 
   return (
     <RailSection title={group.label} collapsible defaultOpen={Boolean(activeVal)}>
@@ -146,6 +159,8 @@ export interface LibraryRailProps {
   setStatus: (s: StatusFilter) => void
   seriesDone: SeriesDoneFilter
   setSeriesDone: (s: SeriesDoneFilter) => void
+  seriesGap: SeriesGapFilter
+  setSeriesGap: (s: SeriesGapFilter) => void
   sort: LibrarySort
   setSort: (s: LibrarySort) => void
   desc: boolean
@@ -168,6 +183,8 @@ export function LibraryRail({
   setStatus,
   seriesDone,
   setSeriesDone,
+  seriesGap,
+  setSeriesGap,
   sort,
   setSort,
   desc,
@@ -215,6 +232,19 @@ export function LibraryRail({
               label={label}
               on={seriesDone === id}
               onClick={() => setSeriesDone(seriesDone === id ? 'all' : id)}
+            />
+          ))}
+        </RailSection>
+      )}
+
+      {isSeries && (
+        <RailSection title="Collection">
+          {SERIES_GAP_ROWS.map(([id, label]) => (
+            <RailRow
+              key={id}
+              label={label}
+              on={seriesGap === id}
+              onClick={() => setSeriesGap(seriesGap === id ? 'all' : id)}
             />
           ))}
         </RailSection>
@@ -278,28 +308,22 @@ export function LibraryRail({
               >
                 <span className="rail-row-label">{s}</span>
                 {s === sort && (
-                  <Icon name={desc ? 'arrow_downward' : 'arrow_upward'} className="rail-row-check" />
+                  <Icon
+                    name={desc ? 'arrow_downward' : 'arrow_upward'}
+                    className="rail-row-check"
+                  />
                 )}
               </button>
             ))}
           </>
         ) : (
           (['Name', 'Books'] as const).map((s) => (
-            <RailRow
-              key={s}
-              label={s}
-              on={altSort === s}
-              onClick={() => setAltSort(s)}
-            />
+            <RailRow key={s} label={s} on={altSort === s} onClick={() => setAltSort(s)} />
           ))
         )}
       </RailSection>
 
-      {isPeople && (
-        <p className="rail-note">
-          Filters apply to the Books and Series tabs.
-        </p>
-      )}
+      {isPeople && <p className="rail-note">Filters apply to the Books and Series tabs.</p>}
     </aside>
   )
 }
