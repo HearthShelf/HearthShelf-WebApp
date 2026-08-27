@@ -48,6 +48,7 @@ interface RawClubBook {
   queuedAt?: number | null
   abandonedAt?: number | null
   sortOrder?: number
+  duration?: number | null
 }
 
 interface RawClub {
@@ -79,6 +80,9 @@ function mapClubBook(b: RawClubBook): HSClubBook {
     queuedAt: b.queuedAt ?? null,
     abandonedAt: b.abandonedAt ?? null,
     sortOrder: b.sortOrder ?? 0,
+    // Left off entirely when unknown, so an up-next total reads as a floor
+    // ("8 Books - 2d 11h+") instead of counting the book as zero-length.
+    ...(b.duration == null ? {} : { duration: Number(b.duration) }),
   }
 }
 
