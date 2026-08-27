@@ -1563,14 +1563,23 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                 return (
                   <div className="book-club-progress-row" key={member.userId}>
                     <span className="book-club-rank">{index + 1}</span>
-                    <Avatar
-                      name={member.username}
-                      target={target}
-                      userId={member.userId}
-                      size={30}
-                      className="hs-avatar"
-                    />
-                    <div>
+                    <div className="book-club-avatar-wrap">
+                      <Avatar
+                        name={member.username}
+                        target={target}
+                        userId={member.userId}
+                        size={30}
+                        className="hs-avatar"
+                      />
+                      {member.listeningNow && (
+                        <Icon
+                          name="graphic_eq"
+                          className="book-club-live"
+                          title={`${member.username} is listening now`}
+                        />
+                      )}
+                    </div>
+                    <div className="book-club-progress-info">
                       <strong>
                         {member.userId === meId ? (
                           'You'
@@ -1595,9 +1604,6 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                       )}
                     </div>
                     <div className="book-club-progress-actions">
-                      {member.listeningNow && (
-                        <Icon name="graphic_eq" className="book-club-live" />
-                      )}
                       {isOwner && member.role !== 'owner' && (
                         <button
                           className="tbl-icon"

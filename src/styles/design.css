@@ -17457,7 +17457,7 @@ select.fld {
   font-size: 10px;
 }
 
-.book-club-progress-row > div:not(.book-club-progress-actions) {
+.book-club-progress-info {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 5px;
@@ -17472,28 +17472,51 @@ select.fld {
   align-items: center;
 }
 
-.book-club-progress-row strong,
-.book-club-progress-row > div > span {
+/* Scoped to the text cell by class: an icon renders its name as text, so any
+   font-family reaching an .ms span would show "graphic_eq" instead of a glyph. */
+.book-club-progress-info strong,
+.book-club-progress-info > span {
   overflow: hidden;
   font-size: 11.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.book-club-progress-row > div > span {
+.book-club-progress-info > span {
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: 10px;
 }
 
-.book-club-progress-row .prog-line {
+.book-club-progress-info .prog-line {
   grid-column: 1 / -1;
   height: 4px;
 }
 
+/* Anchors the listening badge to the avatar's bottom-left corner. */
+.book-club-avatar-wrap {
+  position: relative;
+  width: 30px;
+  height: 30px;
+}
+
+/* A presence dot on the avatar rather than a separate column, so a long row
+   never has to find room for it. The ring matches the row background so the
+   badge reads as sitting on top of the photo. */
 .book-club-live {
+  position: absolute;
+  bottom: -2px;
+  left: -2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--sheet);
+  box-shadow: 0 0 0 2px var(--sheet);
   color: #93c982;
-  font-size: 16px;
+  font-size: 11px;
 }
 
 /* Each row is wrapped in a display:contents right-click handler, so the row div
