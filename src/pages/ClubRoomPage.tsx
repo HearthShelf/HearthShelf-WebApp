@@ -8,6 +8,7 @@ import type {
   HSClubDetail,
   HSClubMember,
   HSNote,
+  HSNoteStub,
   NoteReactionKind,
 } from '@hearthshelf/core'
 import {
@@ -774,6 +775,7 @@ function ClubTimeline({
 function DiscussionNote({
   note,
   replies,
+  lockedReplies,
   meId,
   isOwner,
   target,
@@ -785,6 +787,7 @@ function DiscussionNote({
 }: {
   note: HSNote
   replies: HSNote[]
+  lockedReplies: number
   meId: string | undefined
   isOwner: boolean
   target: AbsTarget
@@ -897,6 +900,48 @@ function DiscussionNote({
                 </div>
               )
             })}
+          </div>
+        )}
+        {lockedReplies > 0 && (
+          <div className="book-club-locked-replies">
+            <Icon name="lock" fill />
+            {lockedReplies} {lockedReplies === 1 ? 'reply' : 'replies'} in this thread{' '}
+            {lockedReplies === 1 ? 'unlocks' : 'unlock'} further into the book
+          </div>
+        )}
+      </div>
+    </article>
+  )
+}
+
+/**
+ * A comment that sits ahead of where you are. The server never sends its body
+ * or its author, so this renders the one thing it does send - the spot in the
+ * book it unlocks at - and keeps the thread's place in the conversation.
+ */
+function LockedNote({ stub, replies }: { stub: HSNoteStub; replies: number }) {
+  return (
+    <article className="book-club-note locked" aria-label="Locked comment">
+      <span className="book-club-locked-avatar" aria-hidden="true">
+        <Icon name="lock" fill />
+      </span>
+      <div className="book-club-note-body">
+        <div className="book-club-note-meta">
+          <strong>Locked comment</strong>
+          <span>unlocks at {formatTimestamp(stub.timeSec)}</span>
+        </div>
+        <p className="book-club-locked-body" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </p>
+        <div className="book-club-locked-hint">
+          <Icon name="schedule" />
+          <span>Unlocks as your listening progress reaches it.</span>
+        </div>
+        {replies > 0 && (
+          <div className="book-club-locked-replies">
+            {replies} {replies === 1 ? 'reply is' : 'replies are'} waiting in this thread
           </div>
         )}
       </div>
@@ -1138,6 +1183,26 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
     }
     return grouped
   }, [notes.notes])
+  // Locked stubs carry position + parentId only - never a body or an author.
+  // One pass over them rebuilds the shape of the gated discussion: how many
+  // locked replies hang off each parent, and which stubs are threads of their
+  // own. A locked reply is keyed by its parent whether or not that parent is
+  // readable, and the two consumers below read disjoint sets of those keys.
+  const { lockedThreads, lockedRepliesByParent } = useMemo(() => {
+    const byParent = new Map<string, number>()
+    for (const stub of notes.locked) {
+      if (!stub.parentId) continue
+      byParent.set(stub.parentId, (byParent.get(stub.parentId) ?? 0) + 1)
+    }
+    const threads = notes.locked
+      .filter((stub) => !stub.parentId)
+      .map((stub) => ({ stub, replies: byParent.get(stub.id) ?? 0 }))
+      .sort((a, b) => a.stub.timeSec - b.stub.timeSec)
+    return { lockedThreads: threads, lockedRepliesByParent: byParent }
+  }, [notes.locked])
+  // Gated comments the server could not place on the timeline (no timestamp of
+  // their own) have no stub, so they get a count rather than a card.
+  const hiddenAheadUnplaced = Math.max(0, notes.hiddenAhead - notes.locked.length)
   const sortedMembers = useMemo(() => sortMembersByProgress(members), [members])
   const aheadMembersByBook = useMemo(() => {
     const byBook = new Map<string, StackUser[]>()
@@ -1461,6 +1526,7 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                     replies={(repliesByParent.get(note.id) ?? []).sort(
                       (a, b) => a.createdAt - b.createdAt,
                     )}
+                    lockedReplies={lockedRepliesByParent.get(note.id) ?? 0}
                     meId={meId}
                     isOwner={isOwner}
                     target={target}
@@ -1478,13 +1544,20 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                 ))}
               </div>
             )}
-            {notes.hiddenAhead > 0 && (
+            {lockedThreads.length > 0 && (
+              <div className="book-club-discussion locked-discussion">
+                {lockedThreads.map(({ stub, replies }) => (
+                  <LockedNote key={stub.id} stub={stub} replies={replies} />
+                ))}
+              </div>
+            )}
+            {hiddenAheadUnplaced > 0 && (
               <div className="book-club-locked-teaser">
                 <Icon name="lock" fill />
                 <div>
                   <strong>
-                    {notes.hiddenAhead} {notes.hiddenAhead === 1 ? 'discussion' : 'discussions'}{' '}
-                    waiting ahead
+                    {hiddenAheadUnplaced}{' '}
+                    {hiddenAheadUnplaced === 1 ? 'more comment' : 'more comments'} waiting ahead
                   </strong>
                   <span>They unlock as your listening progress reaches them.</span>
                 </div>

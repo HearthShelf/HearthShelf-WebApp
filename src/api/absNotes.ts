@@ -58,6 +58,7 @@ export interface RawNote {
 interface RawStub {
   id?: string
   timeSec?: number
+  parentId?: string
 }
 
 interface RawNotesResponse {
@@ -119,7 +120,11 @@ export function mapNote(n: RawNote): HSNote {
 }
 
 function mapStub(s: RawStub): HSNoteStub {
-  return { id: s.id ?? '', timeSec: s.timeSec ?? 0 }
+  const stub: HSNoteStub = { id: s.id ?? '', timeSec: s.timeSec ?? 0 }
+  // Locked replies report their parent's timestamp and carry parentId, so the
+  // client can show a gated thread's shape without any of its text.
+  if (s.parentId) stub.parentId = s.parentId
+  return stub
 }
 
 export interface GetNotesOptions {

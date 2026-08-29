@@ -17392,6 +17392,76 @@ select.fld {
   background: currentColor;
 }
 
+.book-club-note.locked {
+  border: 1px dashed var(--border);
+  border-radius: 11px;
+  padding: 12px 13px;
+  background: color-mix(in oklab, var(--c-low) 45%, transparent);
+}
+
+.book-club-locked-avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--c-low) 80%, transparent);
+  color: var(--text-muted);
+}
+
+.book-club-note.locked .book-club-note-meta strong {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Redacted stand-in for the withheld text. Purely decorative - the body never
+   reaches the client, so there is nothing here to reveal. */
+.book-club-locked-body {
+  display: grid;
+  gap: 5px;
+  margin: 7px 0 9px;
+}
+
+.book-club-locked-body i {
+  height: 8px;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--text-muted) 22%, transparent);
+}
+
+.book-club-locked-body i:nth-child(1) {
+  width: 92%;
+}
+
+.book-club-locked-body i:nth-child(2) {
+  width: 78%;
+}
+
+.book-club-locked-body i:nth-child(3) {
+  width: 44%;
+}
+
+.book-club-locked-hint,
+.book-club-locked-replies {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.book-club-locked-replies {
+  margin-top: 8px;
+}
+
+.book-club-locked-hint .ms,
+.book-club-locked-replies .ms {
+  font-size: 14px;
+}
+
+.book-club-discussion.locked-discussion {
+  margin-top: 12px;
+}
+
 .book-club-locked-teaser,
 .book-club-empty-discussion,
 .book-club-empty-side {
