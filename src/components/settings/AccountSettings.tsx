@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { Loader2 } from 'lucide-react'
 import { Toggle } from '@/components/settings/controls'
 import { isCarBrowser } from '@/hooks/useCarMode'
+import { useVisualViewportSize } from '@/hooks/useVisualViewportSize'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useClerkAvatarSync } from '@/hooks/useClerkAvatarSync'
 import {
@@ -367,6 +368,15 @@ function AdvancedPanel({
 
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
   const detected = isCarBrowser()
+  // Live screen readout. Car dashboards vary wildly and don't identify their
+  // model, so the only way to size a layout for one is to read the numbers off
+  // the car itself - which is what this panel is for.
+  const vv = useVisualViewportSize()
+  const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1
+  const screenSize =
+    typeof window === 'undefined' ? '?' : `${window.screen.width} x ${window.screen.height}`
+  const windowSize =
+    typeof window === 'undefined' ? '?' : `${window.innerWidth} x ${window.innerHeight}`
 
   const copyUa = async () => {
     try {
@@ -448,6 +458,22 @@ function AdvancedPanel({
             <span style={{ color: detected ? 'var(--ok, #6bbf73)' : 'var(--text-muted)' }}>
               {detected ? 'Yes' : 'No'}
             </span>
+          </div>
+
+          <div className="cfg-line" style={{ alignItems: 'flex-start' }}>
+            <Icon name="aspect_ratio" style={{ color: 'var(--text-muted)', marginTop: 2 }} />
+            <div className="cl-meta" style={{ flex: 1 }}>
+              <div className="cl-t">Screen size</div>
+              <div className="cl-d">
+                Browser window: {windowSize}
+                <br />
+                Visible area: {vv.width} x {vv.height}
+                <br />
+                Screen: {screenSize}
+                <br />
+                Pixel ratio: {dpr}x
+              </div>
+            </div>
           </div>
 
           <div className="cfg-line" style={{ alignItems: 'flex-start' }}>
