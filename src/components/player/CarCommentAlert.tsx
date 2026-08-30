@@ -20,12 +20,16 @@ export function CarCommentAlert({
   markers,
   position,
   rate,
+  suppressed = false,
 }: {
   markers: TimelineMarker[]
   position: number
   /** Playback speed, so the countdown reads in real seconds rather than book
    *  seconds - at 1.5x a "5 minutes away" comment is 3.3 minutes away. */
   rate: number
+  /** Hidden while the club chat is open: the countdown is a nudge toward the
+   *  conversation, and the conversation is already on screen. */
+  suppressed?: boolean
 }) {
   const next = useMemo(() => {
     let soonest: { timeSec: number; count: number; locked: boolean } | null = null
@@ -43,7 +47,7 @@ export function CarCommentAlert({
     return soonest
   }, [markers, position])
 
-  if (!next) return null
+  if (suppressed || !next) return null
   const bookSecondsAway = next.timeSec - position
   if (bookSecondsAway > LEAD_SECONDS) return null
   const secondsAway = rate > 0 ? bookSecondsAway / rate : bookSecondsAway
