@@ -4292,25 +4292,122 @@
    car-sheet shell already pins bottom: 84px; top: 16px keeps it inside the
    card with a comfortable finger-drag scroll region. */
 .car-sheet:has(.car-chapters),
-.car-sheet:has(.car-recent),
-.car-sheet:has(.car-club-sidecar) {
+.car-sheet:has(.car-recent) {
   top: 16px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
+/* "Jump to furthest" - offered after a large backwards seek. Accent-filled so
+   it reads as an offer rather than another piece of chrome, and draggable
+   sideways to throw the spot away. */
+.return-pill-wrap {
+  touch-action: pan-y;
+  cursor: grab;
+}
+.return-pill-wrap:active {
+  cursor: grabbing;
+}
+.return-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--accent) 94%, transparent);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow-lift);
+}
+.return-pill .ms {
+  font-size: 18px;
+}
+.return-pill b {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+/* Car mode: directly under the fixed progress bar, clear of the nav rail. */
+.car-return-pill {
+  position: fixed;
+  top: calc(max(14px, env(safe-area-inset-top)) + var(--car-progress-h, 81px) + 10px);
+  left: calc(124px + clamp(18px, 3vw, 42px));
+  right: clamp(18px, 3vw, 42px);
+  z-index: 9;
+  display: flex;
+  justify-content: center;
+}
+.app.car-shell-faded .car-return-pill {
+  left: clamp(18px, 3vw, 42px);
+}
+.car-return-pill .return-pill {
+  width: auto;
+  min-height: 50px;
+  font-size: 15px;
+}
+
+/* Desktop player: above the book progress block it relates to. */
+.p-return-pill {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+.p-return-pill .return-pill {
+  width: auto;
+}
+
+/* The club chat is not confined to the player card. The card is a transport
+   you park wherever it suits you; a conversation wants the room. This spans
+   from just under the fixed progress bar to the bottom edge, starting right of
+   the 124px nav rail.
+
+   Portalled to <body> (see CarPlayer) because the card's backdrop-filter makes
+   it a containing block, which would anchor this to the card. That also puts
+   it outside .app, so the faded state is passed in as a class rather than
+   inherited from .app.car-shell-faded.
+
+   z-index 6 keeps it under the progress bar (7) - the bar is the tap target
+   that opens this, so it stays visible and clickable above it. */
+.car-club-layer {
+  position: fixed;
+  /* --car-progress-h is published by CarBookProgress from its measured height;
+     the fallback covers the first paint before the observer runs. */
+  top: calc(max(14px, env(safe-area-inset-top)) + var(--car-progress-h, 81px) + 10px);
+  left: calc(124px + clamp(18px, 3vw, 42px));
+  right: clamp(18px, 3vw, 42px);
+  bottom: clamp(14px, 2vh, 28px);
+  z-index: 6;
+  display: flex;
+  background: color-mix(in oklab, var(--c-high) 92%, transparent);
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  box-shadow: var(--shadow-lift);
+  overflow: hidden;
+  transition: opacity 0.5s ease;
+}
+/* The nav rail fades with the rest of the chrome, so the chat reclaims that
+   space instead of leaving a gap where the tiles were. */
+.car-club-layer.faded {
+  left: clamp(18px, 3vw, 42px);
+}
+
 /* Car/Touch gets the real Book Club companion, not a read-only progress tray.
    Let it own the available sheet and restore text selection/touch scrolling
    inside the otherwise drag-oriented player card. */
-.car-sheet:has(.car-club-sidecar) {
-  bottom: 16px;
-  padding: 0;
-  background: color-mix(in oklab, var(--c-high) 92%, transparent);
-}
+
 
 .car-club-sidecar {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
   user-select: text;
@@ -4343,11 +4440,12 @@
    header each cost roughly one visible message. What's left: a one-line
    header, the thread, and the composer. */
 .car-chat .pc-head {
-  padding: 10px 12px;
-  gap: 10px;
+  padding: 6px 10px;
+  gap: 8px;
+  min-height: 0;
 }
 .car-chat .pc-head > .ms {
-  font-size: 22px;
+  font-size: 19px;
 }
 .car-chat .pp-htext {
   display: flex;
@@ -4356,18 +4454,18 @@
   min-width: 0;
 }
 .car-chat .pc-club-name {
-  font-size: 17px;
+  font-size: 15px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .car-chat .pp-sub {
   flex: none;
-  font-size: 13px;
+  font-size: 12px;
 }
 .car-chat .pc-head-actions .icon-btn {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
 }
 
 /* The thread fills everything between the header and the composer. */
@@ -4381,6 +4479,18 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+/* A full-width line on a 1000px car screen is a poor read. Cap the measure and
+   center it, so the thread and the composer share one column. */
+.car-chat .pc-scroll > *,
+.car-chat .pc-discussion {
+  max-width: 820px;
+  margin-inline: auto;
+}
+.car-chat .pc-composer {
+  max-width: 820px;
+  margin-inline: auto;
+  width: 100%;
 }
 /* The comment nearest your spot is the one the driver is listening for, so it
    keeps a highlight even though the stream is otherwise plain chronological. */
@@ -4505,7 +4615,7 @@
   position: fixed;
   left: 18px;
   bottom: 18px;
-  z-index: 4;
+  z-index: 8;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -4515,7 +4625,6 @@
   border: 1px solid color-mix(in oklab, var(--accent) 40%, var(--hairline));
   box-shadow: var(--shadow-lift);
   backdrop-filter: blur(8px);
-  animation: cornerToastIn 0.25s ease both;
   pointer-events: none;
   max-width: min(340px, 42vw);
 }
@@ -11130,20 +11239,6 @@
   to {
     opacity: 1;
     transform: none;
-  }
-}
-
-/* Corner variant of toastIn: rises without toastIn's translateX(-50%), which
-   exists only to center the .p-toast pill and would shove a corner card
-   off-screen. */
-@keyframes cornerToastIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 

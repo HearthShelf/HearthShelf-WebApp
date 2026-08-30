@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useSleepTimer } from '@/hooks/useSleepTimer'
@@ -57,6 +58,7 @@ export function CarPlayer({
   clubDetail,
   onToast,
   openClubSignal = 0,
+  onClubOpenChange,
 }: {
   libraryItemId: string
   title: string
@@ -93,6 +95,9 @@ export function CarPlayer({
    *  the card is a tap target for it, and that bar isn't rendered in here. A
    *  counter rather than a boolean so re-opening after a manual close works. */
   openClubSignal?: number
+  /** Fires when the club chat opens or closes, so the caller can stand down
+   *  surfaces that would otherwise sit under it (the comment countdown). */
+  onClubOpenChange?: (open: boolean) => void
 }) {
   const navigate = useNavigate()
   const skipFwd = useSettingsStore((s) => s.skipForward)
@@ -173,6 +178,10 @@ export function CarPlayer({
   useEffect(() => {
     if (openClubSignal > 0) setSheet('club')
   }, [openClubSignal])
+
+  useEffect(() => {
+    onClubOpenChange?.(sheet === 'club')
+  }, [sheet, onClubOpenChange])
 
   const toggleSheet = (s: Exclude<Sheet, null>) => {
     wake()
@@ -384,24 +393,6 @@ export function CarPlayer({
               />
             </div>
           )}
-          {sheet === 'club' && target && clubDetail?.enabled && (
-            <div className="car-club-sidecar">
-              <PlayerClubCompanion
-                target={target}
-                detail={clubDetail}
-                libraryItemId={libraryItemId}
-                position={pos}
-                duration={duration}
-                focusNoteId={null}
-                onSeek={seekClamp}
-                onClose={() => setSheet(null)}
-                onOpenClub={() => navigate(`/club/${clubDetail.club.id}`)}
-                onOpenBook={(itemId) => navigate(`/book/${itemId}`)}
-                onToast={onToast}
-                car
-              />
-            </div>
-          )}
           {sheet === 'more' && (
             <div className="car-more">
               {clubDetail?.enabled && (
@@ -440,6 +431,37 @@ export function CarPlayer({
           )}
         </div>
       )}
+
+      {/* The club chat is the one sheet that isn't scoped to the card. The card
+          is a transport you park wherever suits you; a conversation wants the
+          room, so this spans the screen between the progress bar and the
+          bottom edge. It has to be portalled out: the card's backdrop-filter
+          makes it a containing block, which would anchor a position:fixed
+          child to the card instead of the viewport. */}
+      {sheet === 'club' &&
+        target &&
+        clubDetail?.enabled &&
+        createPortal(
+          <div className={'car-club-layer' + (faded ? ' faded' : '')}>
+            <div className="car-club-sidecar">
+              <PlayerClubCompanion
+                target={target}
+                detail={clubDetail}
+                libraryItemId={libraryItemId}
+                position={pos}
+                duration={duration}
+                focusNoteId={null}
+                onSeek={seekClamp}
+                onClose={() => setSheet(null)}
+                onOpenClub={() => navigate(`/club/${clubDetail.club.id}`)}
+                onOpenBook={(itemId) => navigate(`/book/${itemId}`)}
+                onToast={onToast}
+                car
+              />
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {/* Resize grip - bottom-right corner. */}
       <span className="car-resize" onPointerDown={onResizeHandlePointerDown} aria-hidden>

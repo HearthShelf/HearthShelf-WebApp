@@ -18,11 +18,13 @@ import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { CarPlayer } from '@/components/player/CarPlayer'
 import { CarBookProgress } from '@/components/player/CarBookProgress'
 import { CarCommentAlert } from '@/components/player/CarCommentAlert'
+import { ReturnPositionPill } from '@/components/player/ReturnPositionPill'
 import { Scrubber } from '@/components/player/Scrubber'
 import { TimelineMarkers } from '@/components/player/TimelineMarkers'
 import { PlayerClubCompanion } from '@/components/player/PlayerClubCompanion'
 import { useCarMode } from '@/hooks/useCarMode'
 import { useVisualViewportSize } from '@/hooks/useVisualViewportSize'
+import { useReturnPosition } from '@/hooks/useReturnPosition'
 import { useIdleFade } from '@/hooks/useIdleFade'
 import { setCarFaded } from '@/hooks/useCarFaded'
 import { useBookmarks } from '@/hooks/useBookmarks'
@@ -533,6 +535,14 @@ export function PlayerPage() {
   // but the sheet lives inside CarPlayer, so the open is passed down as a
   // counter (see CarPlayer's openClubSignal).
   const [openClubSignal, setOpenClubSignal] = useState(0)
+  const [clubChatOpen, setClubChatOpen] = useState(false)
+  // Offers a jump back to the furthest spot after a big backwards seek.
+  const returnPos = useReturnPosition()
+  // Listening forward past the remembered spot retires the offer on its own.
+  const notePosition = returnPos.notePosition
+  useEffect(() => {
+    notePosition(pos)
+  }, [pos, notePosition])
   const carFadeEnabled = useSettingsStore((s) => s.carFadeEnabled)
   const carFadeSec = useSettingsStore((s) => s.carFadeSec)
   const setSetting = useSettingsStore((s) => s.set)
@@ -849,7 +859,11 @@ export function PlayerPage() {
   const chRatio = chSpan > 0 ? Math.min(1, chPos / chSpan) : 0
   const bookRatio = duration > 0 ? previewPos / duration : 0
 
-  const seekClamp = (sec: number) => seekTo(Math.max(0, Math.min(duration, sec)))
+  const seekClamp = (sec: number) => {
+    const target = Math.max(0, Math.min(duration, sec))
+    returnPos.noteSeek(pos, target)
+    seekTo(target)
+  }
   const prevCh = () =>
     seekClamp(chPos > 4 ? cur.start : (chapters[Math.max(0, ci - 1)]?.start ?? 0))
   const nextCh = () =>
@@ -887,7 +901,25 @@ export function PlayerPage() {
             clubDetail?.enabled && target ? () => setOpenClubSignal((n) => n + 1) : undefined
           }
         />
-        <CarCommentAlert markers={timelineMarkers} position={pos} rate={speed} />
+        <CarCommentAlert
+          markers={timelineMarkers}
+          position={pos}
+          rate={speed}
+          suppressed={clubChatOpen}
+        />
+        {returnPos.returnPosition !== null && (
+          <div className="car-return-pill">
+            <ReturnPositionPill
+              position={returnPos.returnPosition}
+              onJump={() => {
+                const target = returnPos.returnPosition as number
+                returnPos.dismiss()
+                seekTo(Math.max(0, Math.min(duration, target)))
+              }}
+              onDismiss={returnPos.dismiss}
+            />
+          </div>
+        )}
         <CarPlayer
           libraryItemId={libraryItemId}
           title={title}
@@ -913,6 +945,7 @@ export function PlayerPage() {
           target={target ?? undefined}
           clubDetail={clubDetail?.enabled ? clubDetail : undefined}
           openClubSignal={openClubSignal}
+          onClubOpenChange={setClubChatOpen}
           onToast={setToast}
         />
         {toast && (
@@ -988,6 +1021,20 @@ export function PlayerPage() {
             </button>
           </div>
         </div>
+
+        {returnPos.returnPosition !== null && (
+          <div className="p-return-pill">
+            <ReturnPositionPill
+              position={returnPos.returnPosition}
+              onJump={() => {
+                const target = returnPos.returnPosition as number
+                returnPos.dismiss()
+                seekTo(Math.max(0, Math.min(duration, target)))
+              }}
+              onDismiss={returnPos.dismiss}
+            />
+          </div>
+        )}
 
         <div className="p-book-progress">
           <div className="p-prog-row">

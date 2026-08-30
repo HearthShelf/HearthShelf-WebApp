@@ -4,6 +4,7 @@ import { MediaUIProvider, type MediaUI } from '@/components/shared/MediaUIContex
 import { CarPlayer } from '@/components/player/CarPlayer'
 import { CarBookProgress } from '@/components/player/CarBookProgress'
 import { CarCommentAlert } from '@/components/player/CarCommentAlert'
+import { ReturnPositionPill } from '@/components/player/ReturnPositionPill'
 import { useIdleFade } from '@/hooks/useIdleFade'
 import { useVisualViewportSize } from '@/hooks/useVisualViewportSize'
 import cozyHearth from '@/assets/img/SittingInTheHearth.webp'
@@ -163,6 +164,10 @@ const STUB_TARGET = { serverId: 'dev', serverUrl: 'http://localhost:0' }
 export function CarPlayerHarness() {
   const [pos, setPos] = useState(3600 + 600)
   const [openClubSignal, setOpenClubSignal] = useState(0)
+  const [clubChatOpen, setClubChatOpen] = useState(false)
+  // Always-on in the harness so the pill's drag-to-dismiss can be exercised
+  // without staging a real backwards seek.
+  const [returnAt, setReturnAt] = useState<number | null>(5400)
   const [playing, setPlaying] = useState(true)
   const [rate, setRate] = useState(1.5)
   const duration = CHAPTERS.length * 1800
@@ -200,7 +205,24 @@ export function CarPlayerHarness() {
             markers={MARKERS}
             onOpenClub={() => setOpenClubSignal((n) => n + 1)}
           />
-          <CarCommentAlert markers={MARKERS} position={pos} rate={rate} />
+          <CarCommentAlert
+            markers={MARKERS}
+            position={pos}
+            rate={rate}
+            suppressed={clubChatOpen}
+          />
+          {returnAt !== null && (
+            <div className="car-return-pill">
+              <ReturnPositionPill
+                position={returnAt}
+                onJump={() => {
+                  seekClamp(returnAt)
+                  setReturnAt(null)
+                }}
+                onDismiss={() => setReturnAt(null)}
+              />
+            </div>
+          )}
           <CarPlayer
             libraryItemId="dev-stub"
             title="The Wind-Up Bird Chronicle"
@@ -226,6 +248,7 @@ export function CarPlayerHarness() {
             clubDetail={CLUB}
             target={STUB_TARGET}
             openClubSignal={openClubSignal}
+            onClubOpenChange={setClubChatOpen}
             onToast={() => {}}
           />
         </div>

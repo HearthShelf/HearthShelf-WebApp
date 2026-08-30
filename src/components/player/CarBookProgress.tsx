@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Avatar } from '@/components/common/Avatar'
 import { getMe, type AbsTarget } from '@/api/absLibrary'
@@ -38,9 +39,29 @@ export function CarBookProgress({
     staleTime: 10 * 60 * 1000,
   })
 
+  // The bar's height varies with its content (avatars, marker glyphs, safe-area
+  // inset), and the club chat layer has to start below it. Publish the measured
+  // height so CSS can lay out against the real number instead of a guess that
+  // drifts.
+  const barRef = useRef<HTMLDivElement | HTMLButtonElement | null>(null)
+  useEffect(() => {
+    const el = barRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const publish = () =>
+      document.documentElement.style.setProperty(
+        '--car-progress-h',
+        `${Math.round(el.getBoundingClientRect().height)}px`,
+      )
+    publish()
+    const ro = new ResizeObserver(publish)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   const Root = onOpenClub ? 'button' : 'div'
   return (
     <Root
+      ref={barRef as never}
       className={'car-book-progress' + (onOpenClub ? ' tappable' : '')}
       {...(onOpenClub
         ? { type: 'button' as const, onClick: onOpenClub, title: 'Open the book club' }
