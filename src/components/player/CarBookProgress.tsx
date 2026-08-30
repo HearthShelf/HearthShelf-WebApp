@@ -13,6 +13,7 @@ export function CarBookProgress({
   members = [],
   markers = [],
   target,
+  onOpenClub,
 }: {
   position: number
   duration: number
@@ -24,6 +25,10 @@ export function CarBookProgress({
    *  glance. Display only - a driver never taps these to open a note. */
   markers?: TimelineMarker[]
   target?: AbsTarget
+  /** Opens the club chat. The bar is the one thing on screen already showing
+   *  who else is reading and where the comments are, so it's the natural place
+   *  to reach for the conversation. Omitted when there's no club to open. */
+  onOpenClub?: () => void
 }) {
   const ratio = duration > 0 ? Math.max(0, Math.min(1, position / duration)) : 0
   const { data: me } = useQuery({
@@ -33,8 +38,19 @@ export function CarBookProgress({
     staleTime: 10 * 60 * 1000,
   })
 
+  const Root = onOpenClub ? 'button' : 'div'
   return (
-    <div className="car-book-progress" aria-label={`Book progress ${Math.round(ratio * 100)}%`}>
+    <Root
+      className={'car-book-progress' + (onOpenClub ? ' tappable' : '')}
+      {...(onOpenClub
+        ? { type: 'button' as const, onClick: onOpenClub, title: 'Open the book club' }
+        : {})}
+      aria-label={
+        onOpenClub
+          ? `Book progress ${Math.round(ratio * 100)}% - open the book club`
+          : `Book progress ${Math.round(ratio * 100)}%`
+      }
+    >
       <div className="car-book-progress-head">
         <strong>{Math.round(ratio * 100)}%</strong>
         <span>
@@ -96,6 +112,6 @@ export function CarBookProgress({
         <span>{formatTimestamp(position)} elapsed</span>
         <span>{formatTimestamp(Math.max(0, duration - position))} left</span>
       </div>
-    </div>
+    </Root>
   )
 }

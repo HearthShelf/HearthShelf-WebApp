@@ -17,6 +17,7 @@ import { RecomputeQueueButton } from '@/components/settings/AutoQueueInfo'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { CarPlayer } from '@/components/player/CarPlayer'
 import { CarBookProgress } from '@/components/player/CarBookProgress'
+import { CarCommentAlert } from '@/components/player/CarCommentAlert'
 import { Scrubber } from '@/components/player/Scrubber'
 import { TimelineMarkers } from '@/components/player/TimelineMarkers'
 import { PlayerClubCompanion } from '@/components/player/PlayerClubCompanion'
@@ -528,6 +529,10 @@ export function PlayerPage() {
   // needed so the normal player's "Car mode" toggle can force it back on
   // (setting 'on') regardless of whether it's currently 'off' or 'auto'-off.
   const carModeSetting = useSettingsStore((s) => s.carMode)
+  // Tapping the big car progress bar opens the club chat. The bar renders here
+  // but the sheet lives inside CarPlayer, so the open is passed down as a
+  // counter (see CarPlayer's openClubSignal).
+  const [openClubSignal, setOpenClubSignal] = useState(0)
   const carFadeEnabled = useSettingsStore((s) => s.carFadeEnabled)
   const carFadeSec = useSettingsStore((s) => s.carFadeSec)
   const setSetting = useSettingsStore((s) => s.set)
@@ -878,7 +883,11 @@ export function PlayerPage() {
           members={clubDetail?.enabled ? clubDetail.members : undefined}
           markers={timelineMarkers}
           target={target ?? undefined}
+          onOpenClub={
+            clubDetail?.enabled && target ? () => setOpenClubSignal((n) => n + 1) : undefined
+          }
         />
+        <CarCommentAlert markers={timelineMarkers} position={pos} rate={speed} />
         <CarPlayer
           libraryItemId={libraryItemId}
           title={title}
@@ -903,6 +912,7 @@ export function PlayerPage() {
           canReadAlong={canReadAlong}
           target={target ?? undefined}
           clubDetail={clubDetail?.enabled ? clubDetail : undefined}
+          openClubSignal={openClubSignal}
           onToast={setToast}
         />
         {toast && (

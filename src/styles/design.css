@@ -4337,6 +4337,96 @@
 .car-club-sidecar textarea {
   user-select: text;
 }
+
+/* Car mode's Book Club is a chat room, not a dashboard. A Tesla screen is wide
+   and short, so the tab strip, the duplicate race bar, and the three-line
+   header each cost roughly one visible message. What's left: a one-line
+   header, the thread, and the composer. */
+.car-chat .pc-head {
+  padding: 10px 12px;
+  gap: 10px;
+}
+.car-chat .pc-head > .ms {
+  font-size: 22px;
+}
+.car-chat .pp-htext {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.car-chat .pc-club-name {
+  font-size: 17px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.car-chat .pp-sub {
+  flex: none;
+  font-size: 13px;
+}
+.car-chat .pc-head-actions .icon-btn {
+  width: 42px;
+  height: 42px;
+}
+
+/* The thread fills everything between the header and the composer. */
+.car-chat .pc-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 8px 12px;
+  overscroll-behavior: contain;
+}
+.car-chat .pc-discussion {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* The comment nearest your spot is the one the driver is listening for, so it
+   keeps a highlight even though the stream is otherwise plain chronological. */
+.car-chat .pc-note.featured {
+  border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+}
+.car-chat .pc-note p {
+  font-size: 16px;
+  line-height: 1.45;
+}
+.car-chat .pc-note-actions button,
+.car-chat .pc-note-actions summary {
+  min-height: 40px;
+}
+
+.car-chat .pc-composer {
+  padding: 10px 12px;
+  gap: 8px;
+}
+.car-chat .pc-composer textarea {
+  font-size: 16px;
+}
+/* Timestamp, spoiler, visibility and Send on one line. */
+.pc-compose-actions.car-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pc-compose-actions.car-row .pc-compose-context {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  flex: none;
+}
+.pc-compose-actions.car-row .btn-primary {
+  margin-left: auto;
+  min-height: 46px;
+  padding-inline: 20px;
+}
+/* The visibility control stacks a caption above its two buttons, which makes
+   the composer row two lines tall. In the car the buttons alone carry it. */
+.pc-compose-actions.car-row .comment-control-label {
+  display: none;
+}
 .car-chapters,
 .car-recent {
   overflow-y: auto;
@@ -4405,6 +4495,52 @@
 /* Recent-session rows read small on a phone; scale them up for the car. */
 .car-recent .recent-row {
   padding: 14px 12px;
+}
+
+/* Heads-up for a comment you're about to reach. Bottom-left corner: the card
+   floats center-ish and the resize grip owns bottom-right, so this is the one
+   corner that stays clear. Sits under the card (z-index 4 vs the card's own
+   stacking) so it can never cover a control. */
+.car-comment-alert {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px 12px 14px;
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--c-highest) 92%, transparent);
+  border: 1px solid color-mix(in oklab, var(--accent) 40%, var(--hairline));
+  box-shadow: var(--shadow-lift);
+  backdrop-filter: blur(8px);
+  animation: cornerToastIn 0.25s ease both;
+  pointer-events: none;
+  max-width: min(340px, 42vw);
+}
+.car-comment-alert > .ms {
+  font-size: 24px;
+  color: var(--accent);
+  flex: none;
+}
+.car-comment-alert .cca-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.car-comment-alert strong {
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.car-comment-alert small {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .car-resize {
@@ -4675,6 +4811,24 @@
     border-color 0.5s ease,
     box-shadow 0.5s ease;
 }
+
+/* The bar doubles as the way into the club chat, so it needs to read as a
+   control: full-width button reset plus a press state. */
+.car-book-progress.tappable {
+  appearance: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  /* The base bar is pointer-events:none so it never eats a tap meant for the
+     player behind it. As a control it has to take taps again. */
+  pointer-events: auto;
+}
+.car-book-progress.tappable:hover,
+.car-book-progress.tappable:active {
+  background: color-mix(in oklab, var(--c-highest) 80%, transparent);
+}
+
 
 /* The touch rail overlays the full-screen player. Reserve its real width while
    visible so the always-on progress surface starts beside it, not underneath. */
@@ -10976,6 +11130,20 @@
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+/* Corner variant of toastIn: rises without toastIn's translateX(-50%), which
+   exists only to center the .p-toast pill and would shove a corner card
+   off-screen. */
+@keyframes cornerToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

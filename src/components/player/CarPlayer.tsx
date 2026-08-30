@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useSleepTimer } from '@/hooks/useSleepTimer'
 import { useDraggableCard } from '@/hooks/useDraggableCard'
+import { useVisualViewportSize } from '@/hooks/useVisualViewportSize'
 import { Scrubber } from '@/components/player/Scrubber'
 import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
 import { RecentListens } from '@/components/player/RecentListens'
@@ -55,6 +56,7 @@ export function CarPlayer({
   target,
   clubDetail,
   onToast,
+  openClubSignal = 0,
 }: {
   libraryItemId: string
   title: string
@@ -87,6 +89,10 @@ export function CarPlayer({
   target?: AbsTarget
   clubDetail?: HSClubDetail
   onToast: (message: string) => void
+  /** Bumped by the caller to open the club sheet - the big progress bar above
+   *  the card is a tap target for it, and that bar isn't rendered in here. A
+   *  counter rather than a boolean so re-opening after a manual close works. */
+  openClubSignal?: number
 }) {
   const navigate = useNavigate()
   const skipFwd = useSettingsStore((s) => s.skipForward)
@@ -102,6 +108,24 @@ export function CarPlayer({
     true,
     wake,
   )
+
+  // Keyboard-aware card: an on-screen keyboard shrinks the VISUAL viewport but
+  // not the layout viewport, so the card keeps its saved rect and the composer
+  // ends up under the keys. Compare the two and, when the visual viewport is
+  // meaningfully shorter, shift the card up by however much of it the keyboard
+  // covers (and no further than the top of the screen).
+  const vv = useVisualViewportSize()
+  // The tallest visual viewport seen this session is the no-keyboard baseline.
+  // Reading window.innerHeight instead would misfire in the Tesla browser,
+  // whose transient "video not available" banner nudges the layout viewport.
+  const fullHeight = useRef(0)
+  useEffect(() => {
+    if (vv.height > fullHeight.current) fullHeight.current = vv.height
+  }, [vv.height])
+  // 120px of slack ignores browser-chrome jitter; a real keyboard takes far more.
+  const keyboardInset = Math.max(0, fullHeight.current - vv.height)
+  const overlap = keyboardInset > 120 ? Math.max(0, rect.y + rect.h - vv.height) : 0
+  const liftedY = Math.max(0, rect.y - overlap)
 
   const chSpan = Math.max(1, cur.end - cur.start)
   // The absolute book position shown in the labels: the drag target while
@@ -146,6 +170,10 @@ export function CarPlayer({
     nextCh()
   }
 
+  useEffect(() => {
+    if (openClubSignal > 0) setSheet('club')
+  }, [openClubSignal])
+
   const toggleSheet = (s: Exclude<Sheet, null>) => {
     wake()
     setSheet((c) => (c === s ? null : s))
@@ -154,7 +182,14 @@ export function CarPlayer({
   return (
     <div
       className={'car-card' + (dragging ? ' dragging' : '') + (faded ? ' faded' : '')}
-      style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}
+      style={{
+        left: rect.x,
+        top: liftedY,
+        width: rect.w,
+        // While the keyboard is up the card can't be taller than what's left of
+        // the screen, or the composer at its bottom is still out of reach.
+        height: overlap > 0 ? Math.min(rect.h, vv.height) : rect.h,
+      }}
       onPointerDown={wake}
       onKeyDown={wake}
     >
@@ -363,6 +398,7 @@ export function CarPlayer({
                 onOpenClub={() => navigate(`/club/${clubDetail.club.id}`)}
                 onOpenBook={(itemId) => navigate(`/book/${itemId}`)}
                 onToast={onToast}
+                car
               />
             </div>
           )}

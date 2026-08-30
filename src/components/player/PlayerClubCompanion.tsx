@@ -57,6 +57,7 @@ export function PlayerClubCompanion({
   onOpenClub,
   onOpenBook,
   onToast,
+  car = false,
 }: {
   target: AbsTarget
   detail: HSClubDetail
@@ -69,6 +70,11 @@ export function PlayerClubCompanion({
   onOpenClub: () => void
   onOpenBook: (libraryItemId: string) => void
   onToast: (message: string) => void
+  /** Car mode renders this as a chat room: no tabs (comments only), no race
+   *  bar, and a one-line header. A driver has one job here - read the thread
+   *  and say something - and the touchscreen is short and wide, so every row
+   *  that isn't the conversation costs a message. */
+  car?: boolean
 }) {
   const qc = useQueryClient()
   const [draft, setDraft] = useState('')
@@ -83,7 +89,9 @@ export function PlayerClubCompanion({
   const [editDraft, setEditDraft] = useState('')
   const [editSpoiler, setEditSpoiler] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const [tab, setTab] = useState<ClubTab>('comments')
+  const [tabState, setTab] = useState<ClubTab>('comments')
+  // Car mode has no tab strip, so the conversation is the only view there.
+  const tab: ClubTab = car ? 'comments' : tabState
   const [progressExpanded, setProgressExpanded] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const detailKey = clubsKeys.detail(target.serverId, detail.club.id, libraryItemId)
@@ -126,6 +134,13 @@ export function PlayerClubCompanion({
   const focusedTopId = focused?.parentId || focused?.id
   const nearby = topNotes.find((note) => note.id === focusedTopId) ?? topNotes[0]
   const discussion = topNotes.filter((note) => note.id !== nearby?.id)
+  // A chat room reads oldest-at-the-top, newest just above where you type.
+  // topNotes is sorted by distance from your spot, which is right for the
+  // desktop "nearby comment" framing but reads as shuffled in a thread.
+  const carStream = useMemo(
+    () => (car ? [...topNotes].sort((a, b) => (a.timeSec ?? 0) - (b.timeSec ?? 0)) : []),
+    [car, topNotes],
+  )
   const nextLocked = detail.notes.locked
     .filter((stub) => stub.timeSec > position)
     .sort((a, b) => a.timeSec - b.timeSec)[0]
@@ -216,6 +231,8 @@ export function PlayerClubCompanion({
     onSeek(Math.max(0, note.timeSec - rewind))
     onToast(rewind ? 'Jumped to one minute before the comment' : 'Jumped to the comment')
   }
+
+  const listeningNow = detail.members.filter((member) => member.listeningNow).length
 
   const progressRows = [...detail.members].sort(
     (a, b) =>
@@ -436,13 +453,21 @@ export function PlayerClubCompanion({
 
   return (
     <>
-      <div className="pp-inner player-club-companion">
+      <div className={'pp-inner player-club-companion' + (car ? ' car-chat' : '')}>
         <div className="pp-head pc-head">
           <Icon name="groups" />
           <div className="pp-htext">
-            <div className="eyebrow">Book club</div>
+            {!car && <div className="eyebrow">Book club</div>}
             <strong className="pc-club-name">{detail.club.name}</strong>
-            <div className="pp-sub">{detail.members.length} reading together</div>
+            {car ? (
+              <div className="pp-sub">
+                {listeningNow > 0
+                  ? `${listeningNow} listening now`
+                  : `${detail.members.length} readers`}
+              </div>
+            ) : (
+              <div className="pp-sub">{detail.members.length} reading together</div>
+            )}
           </div>
           <div className="pc-head-actions">
             {isOwner && (
@@ -474,6 +499,11 @@ export function PlayerClubCompanion({
           </div>
         </div>
 
+        {/* The car screen already shows this exact bar - avatars, fill and all -
+            pinned across the top, so repeating it here would only push the
+            conversation off the screen. */}
+        {!car && (
+          <>
         <button
           type="button"
           className={'pc-race' + (progressExpanded ? ' expanded' : '')}
@@ -544,9 +574,41 @@ export function PlayerClubCompanion({
             </button>
           ))}
         </div>
+          </>
+        )}
 
         <div className="pc-scroll pp-scroll">
-          {tab === 'comments' && (
+          {tab === 'comments' && car && (
+            <>
+              {carStream.length === 0 ? (
+                nextLocked ? (
+                  <button
+                    className="pc-locked"
+                    onClick={() =>
+                      onToast(`A comment unlocks at ${formatTimestamp(nextLocked.timeSec)}`)
+                    }
+                  >
+                    <Icon name="lock" />
+                    <span>
+                      <strong>A comment is ahead</strong>
+                      <small>Keep listening to reveal it safely.</small>
+                    </span>
+                    <span>{formatTimestamp(nextLocked.timeSec - position)}</span>
+                  </button>
+                ) : (
+                  <div className="pc-empty">
+                    No comments yet. Start the conversation below.
+                  </div>
+                )
+              ) : (
+                <div className="pc-discussion">
+                  {carStream.map((note) => renderNote(note, note.id === nearby?.id))}
+                </div>
+              )}
+            </>
+          )}
+
+          {tab === 'comments' && !car && (
             <>
               {nearby ? (
                 <section>
@@ -668,26 +730,47 @@ export function PlayerClubCompanion({
               members={members}
               target={target}
               meId={meId}
-              placeholder="Start a new thread…"
-              rows={2}
+              placeholder={car ? 'Message the club…' : 'Start a new thread…'}
+              rows={car ? 1 : 2}
             />
-            <div className="pc-compose-context">
-              <Icon name="schedule" /> Comment at {formatTimestamp(position)}
-            </div>
-            <div className="pc-compose-options">
-              <SpoilerToggle on={draftSpoiler} onChange={setDraftSpoiler} compact />
-              <CommentVisibilityControl visibleAhead={safe} onChange={setSafe} compact />
-            </div>
-            <div className="pc-compose-actions">
-              <span />
-              <button
-                className="btn btn-primary"
-                type="submit"
-                disabled={!draft.trim() || post.isPending}
-              >
-                <Icon name="send" /> {post.isPending ? 'Posting…' : 'Post comment'}
-              </button>
-            </div>
+            {car ? (
+              /* One row instead of three: at a stoplight you have time for the
+                 spoiler/visibility toggles and Send, not for a stack of them. */
+              <div className="pc-compose-actions car-row">
+                <span className="pc-compose-context">
+                  <Icon name="schedule" /> {formatTimestamp(position)}
+                </span>
+                <SpoilerToggle on={draftSpoiler} onChange={setDraftSpoiler} compact />
+                <CommentVisibilityControl visibleAhead={safe} onChange={setSafe} compact />
+                <button
+                  className="btn btn-primary"
+                  type="submit"
+                  disabled={!draft.trim() || post.isPending}
+                >
+                  <Icon name="send" /> {post.isPending ? 'Posting…' : 'Send'}
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="pc-compose-context">
+                  <Icon name="schedule" /> Comment at {formatTimestamp(position)}
+                </div>
+                <div className="pc-compose-options">
+                  <SpoilerToggle on={draftSpoiler} onChange={setDraftSpoiler} compact />
+                  <CommentVisibilityControl visibleAhead={safe} onChange={setSafe} compact />
+                </div>
+                <div className="pc-compose-actions">
+                  <span />
+                  <button
+                    className="btn btn-primary"
+                    type="submit"
+                    disabled={!draft.trim() || post.isPending}
+                  >
+                    <Icon name="send" /> {post.isPending ? 'Posting…' : 'Post comment'}
+                  </button>
+                </div>
+              </>
+            )}
           </form>
         )}
       </div>
