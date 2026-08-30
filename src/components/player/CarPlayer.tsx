@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useSleepTimer } from '@/hooks/useSleepTimer'
 import { useDraggableCard } from '@/hooks/useDraggableCard'
 import { useVisualViewportSize } from '@/hooks/useVisualViewportSize'
+import { useKeyboardInset } from '@/hooks/useKeyboardInset'
 import { Scrubber } from '@/components/player/Scrubber'
 import { SpeedPopover, SleepPopover } from '@/components/player/PlayerPopovers'
 import { RecentListens } from '@/components/player/RecentListens'
@@ -114,22 +115,14 @@ export function CarPlayer({
     wake,
   )
 
-  // Keyboard-aware card: an on-screen keyboard shrinks the VISUAL viewport but
-  // not the layout viewport, so the card keeps its saved rect and the composer
-  // ends up under the keys. Compare the two and, when the visual viewport is
-  // meaningfully shorter, shift the card up by however much of it the keyboard
-  // covers (and no further than the top of the screen).
+  // Keyboard-aware card: an on-screen keyboard covers the bottom of the screen
+  // while the card keeps its saved rect, putting the composer under the keys.
+  // Shift the card up by however much of it the keyboard covers (never past the
+  // top of the screen). See useKeyboardInset for how the inset is detected.
   const vv = useVisualViewportSize()
-  // The tallest visual viewport seen this session is the no-keyboard baseline.
-  // Reading window.innerHeight instead would misfire in the Tesla browser,
-  // whose transient "video not available" banner nudges the layout viewport.
-  const fullHeight = useRef(0)
-  useEffect(() => {
-    if (vv.height > fullHeight.current) fullHeight.current = vv.height
-  }, [vv.height])
-  // 120px of slack ignores browser-chrome jitter; a real keyboard takes far more.
-  const keyboardInset = Math.max(0, fullHeight.current - vv.height)
-  const overlap = keyboardInset > 120 ? Math.max(0, rect.y + rect.h - vv.height) : 0
+  const keyboardInset = useKeyboardInset()
+  const visibleBottom = (vv.height || window.innerHeight) - keyboardInset
+  const overlap = keyboardInset > 0 ? Math.max(0, rect.y + rect.h - visibleBottom) : 0
   const liftedY = Math.max(0, rect.y - overlap)
 
   const chSpan = Math.max(1, cur.end - cur.start)
@@ -197,7 +190,7 @@ export function CarPlayer({
         width: rect.w,
         // While the keyboard is up the card can't be taller than what's left of
         // the screen, or the composer at its bottom is still out of reach.
-        height: overlap > 0 ? Math.min(rect.h, vv.height) : rect.h,
+        height: overlap > 0 ? Math.min(rect.h, visibleBottom) : rect.h,
       }}
       onPointerDown={wake}
       onKeyDown={wake}
@@ -442,7 +435,10 @@ export function CarPlayer({
         target &&
         clubDetail?.enabled &&
         createPortal(
-          <div className={'car-club-layer' + (faded ? ' faded' : '')}>
+          <div
+            className={'car-club-layer' + (faded ? ' faded' : '')}
+            style={keyboardInset > 0 ? { bottom: keyboardInset + 12 } : undefined}
+          >
             <div className="car-club-sidecar">
               <PlayerClubCompanion
                 target={target}
