@@ -4404,7 +4404,6 @@
    Let it own the available sheet and restore text selection/touch scrolling
    inside the otherwise drag-oriented player card. */
 
-
 .car-club-sidecar {
   flex: 1;
   min-width: 0;
@@ -4937,7 +4936,6 @@
 .car-book-progress.tappable:active {
   background: color-mix(in oklab, var(--c-highest) 80%, transparent);
 }
-
 
 /* The touch rail overlays the full-screen player. Reserve its real width while
    visible so the always-on progress surface starts beside it, not underneath. */
@@ -18630,6 +18628,41 @@ select.fld {
   margin: 0;
   font-size: 12px;
   line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.ch-bulk-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: -2px;
+}
+
+.ch-bulk-chips-lbl {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ch-chip {
+  background: var(--fill-2, var(--fill));
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  padding: 5px 10px;
+}
+
+.ch-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ch-bulk-chips-hint {
+  font-size: 12px;
   color: var(--text-muted);
 }
 
