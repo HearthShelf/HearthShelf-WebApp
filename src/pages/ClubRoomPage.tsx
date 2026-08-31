@@ -34,6 +34,7 @@ import {
   removeQueuedClubBook,
   reorderClubQueue,
   requeueClubBook,
+  finishCurrentClubBook,
   respondToClubInvite,
   revokeClubInvite,
   setClubVisibility,
@@ -58,6 +59,11 @@ import { Cover } from '@/components/shared/Cover'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { AddClubBooksDialog } from '@/components/social/AddClubBooksDialog'
 import { ClubBookMenu } from '@/components/social/ClubBookMenu'
+import { useConfirm } from '@/components/shared/ConfirmPrompt'
+import {
+  StartClubBookPromptProvider,
+  useStartClubBookPrompt,
+} from '@/components/social/StartClubBookPrompt'
 import { ClubSettingsModal } from '@/components/social/ClubSettingsModal'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
@@ -969,6 +975,8 @@ function ClubRoom({
   const ui = useMediaUI()
   const player = usePlayer()
   const { toast, show } = useToast()
+  const { promptStart } = useStartClubBookPrompt()
+  const { confirm } = useConfirm()
   const [draft, setDraft] = useState('')
   const [safe, setSafe] = useState(false)
   const [spoiler, setSpoiler] = useState(false)
@@ -1132,6 +1140,18 @@ function ClubRoom({
     },
     onError: () => show('Could not move that book. Start a different book first.'),
   })
+  // Close out the current book with nothing queued up next. Without this the
+  // only way to finish a book is to start another one, so a club between books
+  // could never record what it just read.
+  const finishCurrent = useMutation({
+    mutationFn: () => finishCurrentClubBook(target, club.id),
+    onSuccess: () => {
+      onViewBook(undefined)
+      show('Moved to Past reads.')
+      void invalidate()
+    },
+    onError: () => show('Could not finish that book.'),
+  })
   const reorder = useMutation({
     mutationFn: (ids: string[]) => reorderClubQueue(target, club.id, ids),
     onSuccess: () => void invalidate(),
@@ -1152,20 +1172,20 @@ function ClubRoom({
 
   // Starting a queued book has to settle what happens to the book leaving the
   // current slot: it either finished, or the club is shelving it unread. Asking
-  // is what keeps an unread book out of Past reads.
-  const onStartQueued = (book: HSClubBook) => {
+  // is what keeps an unread book out of Past reads. Dismissing the prompt starts
+  // nothing - the outgoing book is untouched.
+  const onStartQueued = async (book: HSClubBook) => {
     const outgoing = club.currentBook
     if (!outgoing) {
       promote.mutate(book.libraryItemId)
       return
     }
-    const finished = window.confirm(
-      `Start ${book.title}?
-
-OK: the club FINISHED ${outgoing.title} - move it to Past reads.
-Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available to come back to.`,
-    )
-    if (finished) promote.mutate(book.libraryItemId)
+    const choice = await promptStart({
+      nextTitle: book.title,
+      outgoingTitle: outgoing.title,
+    })
+    if (!choice) return
+    if (choice === 'finished') promote.mutate(book.libraryItemId)
     else shelveAndStart.mutate(book.libraryItemId)
   }
 
@@ -1418,6 +1438,26 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
           <button className="read-more" onClick={() => ui.openItem(viewedBook.libraryItemId)}>
             View book
           </button>
+          {isOwner && isCurrentBook && (
+            // Closing out a book used to be possible only as a side effect of
+            // starting the next one, which left a club between books with no way
+            // to record what it had just read.
+            <button
+              className="read-more"
+              disabled={finishCurrent.isPending}
+              onClick={() => {
+                void confirm({
+                  title: 'Finish this book?',
+                  message: `${viewedBook.title || 'This book'} moves to Past reads with its discussion, and the club is left without a current book until you start the next one.`,
+                  confirmLabel: 'Move to Past reads',
+                }).then((ok) => {
+                  if (ok) finishCurrent.mutate()
+                })
+              }}
+            >
+              <Icon name="check_circle" /> Finish book
+            </button>
+          )}
         </div>
       </div>
 
@@ -1734,7 +1774,7 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                           label: 'Start this book now',
                           icon: 'play_circle',
                           disabled: promote.isPending || shelveAndStart.isPending,
-                          onSelect: () => onStartQueued(book),
+                          onSelect: () => void onStartQueued(book),
                         },
                         isOwner &&
                           index > 0 && {
@@ -1787,6 +1827,24 @@ Cancel: the club is SETTING ASIDE ${outgoing.title} unread - keep it available t
                               target={target}
                               bookTitle={book.title}
                             />
+                            {isOwner && (
+                              // Starting a book is the whole point of the queue, so
+                              // it cannot live only in the right-click menu: a hidden
+                              // menu is not a control, and touch has no right-click.
+                              <button
+                                type="button"
+                                className="pill book-club-queue-start"
+                                title={`Start ${book.title || 'this book'} now`}
+                                aria-label={`Start ${book.title || 'this book'} now`}
+                                disabled={promote.isPending || shelveAndStart.isPending}
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  void onStartQueued(book)
+                                }}
+                              >
+                                <Icon name="play_circle" /> Start
+                              </button>
+                            )}
                             {isOwner && (
                               // Reordering also lives in the right-click menu, but a
                               // hidden menu is not a control: without these the queue
@@ -2151,14 +2209,16 @@ export function ClubRoomPage() {
               onRetry={() => void detailQuery.refetch()}
             />
           ) : (
-            <ClubRoom
-              target={target}
-              meId={me?.id}
-              data={detailQuery.data}
-              viewedBookId={viewedBookId}
-              onViewBook={setViewedBookId}
-              onClubRemoved={() => void removed()}
-            />
+            <StartClubBookPromptProvider>
+              <ClubRoom
+                target={target}
+                meId={me?.id}
+                data={detailQuery.data}
+                viewedBookId={viewedBookId}
+                onViewBook={setViewedBookId}
+                onClubRemoved={() => void removed()}
+              />
+            </StartClubBookPromptProvider>
           )}
         </main>
       </div>

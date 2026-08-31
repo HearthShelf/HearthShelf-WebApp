@@ -346,6 +346,11 @@ export const advanceClubBook = (
   libraryItemId: string,
   finishPrevious = true,
 ): Promise<void> => clubAction(t, clubId, 'books', { libraryItemId, finishPrevious })
+/** Stamp the club's current book as a past read and leave the slot empty. For a
+ * club that finished its book with nothing lined up next - advanceClubBook can
+ * only close out a book by starting another one. */
+export const finishCurrentClubBook = (t: AbsTarget, clubId: string): Promise<void> =>
+  clubAction(t, clubId, 'finish', {})
 export const enqueueClubBook = (
   t: AbsTarget,
   clubId: string,

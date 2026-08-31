@@ -18897,3 +18897,27 @@ select.fld {
 .qg-assess-engine .ms {
   font-size: 15px;
 }
+
+/* Start-this-book on a queued row. Like the reorder arrows it stays faint until
+   the row is hovered, but it is always present: right-click is not reachable on
+   touch, and starting a book is the queue's primary action. */
+.book-club-queue-start {
+  flex: none;
+  gap: 4px;
+  opacity: 0.75;
+  transition: opacity 0.12s ease;
+}
+
+.book-club-queue-row:hover .book-club-queue-start,
+.book-club-queue-start:focus-visible {
+  opacity: 1;
+}
+
+.book-club-queue-start .ms {
+  font-size: 16px;
+}
+
+.book-club-queue-start:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
