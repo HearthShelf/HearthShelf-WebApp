@@ -14260,12 +14260,15 @@ select.fld {
   display: none;
 }
 
-/* Tablet: narrow the sidebar so content keeps room before the phone layout. */
+/* Tablet: narrow the sidebar so content keeps room before the phone layout.
+   Car mode is excluded: its square nav tiles have a fixed 124px width set far
+   earlier in this file, which these later same-specificity rules would
+   otherwise override. A Tesla at 773 CSS px now lands in this range. */
 @media (max-width: 1023px) and (min-width: 761px) {
-  .app {
+  .app:not(.car-mode) {
     --sidebar-w: 200px;
   }
-  .app.nav-collapsed {
+  .app.nav-collapsed:not(.car-mode) {
     --sidebar-w: 76px;
   }
 }

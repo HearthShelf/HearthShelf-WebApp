@@ -537,22 +537,9 @@ export function PlayerPage() {
   // counter (see CarPlayer's openClubSignal).
   const [openClubSignal, setOpenClubSignal] = useState(0)
   const [clubChatOpen, setClubChatOpen] = useState(false)
-  // Shrinks the whole car surface when the browser's pixel ratio inflates it.
-  // Applied with `zoom` at the document root rather than a transform on a
-  // wrapper: zoom actually resizes the CSS pixel, so window.innerWidth, the
-  // card's saved rect and pointer coordinates all stay in one coordinate space
-  // (a transform would desync them and break the drag). The root is the target
-  // because the progress bar and the portalled chat are fixed to the viewport
-  // and would escape any wrapper.
+  // The zoom itself is applied once for the whole app in AppShell; this is just
+  // the value, which the card's rect math and the pinned background need.
   const carScale = useCarScale()
-  useEffect(() => {
-    if (!carMode || carScale === 1) return
-    const root = document.documentElement
-    root.style.zoom = String(carScale)
-    return () => {
-      root.style.zoom = ''
-    }
-  }, [carMode, carScale])
   // Offers a jump back to the furthest spot after a big backwards seek.
   const returnPos = useReturnPosition()
   // Listening forward past the remembered spot retires the offer on its own.

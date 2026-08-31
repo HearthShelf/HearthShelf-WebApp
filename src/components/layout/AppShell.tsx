@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { AppBar } from '@/components/layout/AppBar'
@@ -13,6 +14,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useNavCollapsed } from '@/hooks/useNavCollapsed'
 import { useCarMode } from '@/hooks/useCarMode'
+import { useCarScale } from '@/hooks/useCarScale'
 import { useCarFaded } from '@/hooks/useCarFaded'
 import { SharedDevicePrompt } from '@/components/account/SharedDevicePrompt'
 import { ServerHealthWatcher } from '@/components/hosted/ServerHealthWatcher'
@@ -52,6 +54,24 @@ export function AppShell() {
   // User can hide the docked mini player; the full player stays reachable from
   // the player nav / a book's Play button.
   const hideMiniPlayer = useSettingsStore((s) => s.hideMiniPlayer)
+
+  // Car UI scale: shrinks the app when the browser's pixel ratio inflates it
+  // (see useCarScale). Applied here rather than on the player, because a car
+  // screen renders Library, Settings and everything else too large as well.
+  //
+  // `zoom` on the document root, not a transform on a wrapper: zoom resizes the
+  // CSS pixel itself, so layout measurements and pointer coordinates stay in one
+  // coordinate space, and the root is the only target that fixed-position and
+  // portalled UI cannot escape. Gated on carMode (any route), not carShell.
+  const carScale = useCarScale()
+  useEffect(() => {
+    if (!carMode || carScale === 1) return
+    const root = document.documentElement
+    root.style.zoom = String(carScale)
+    return () => {
+      root.style.zoom = ''
+    }
+  }, [carMode, carScale])
 
   // Drive the connection to the active server for the whole shell.
   useConnectActiveServer()
