@@ -60,6 +60,7 @@ export function CarPlayer({
   onToast,
   openClubSignal = 0,
   onClubOpenChange,
+  carScale = 1,
 }: {
   libraryItemId: string
   title: string
@@ -99,6 +100,8 @@ export function CarPlayer({
   /** Fires when the club chat opens or closes, so the caller can stand down
    *  surfaces that would otherwise sit under it (the comment countdown). */
   onClubOpenChange?: (open: boolean) => void
+  /** Current car UI scale, so the card re-fits when it changes. */
+  carScale?: number
 }) {
   const navigate = useNavigate()
   const skipFwd = useSettingsStore((s) => s.skipForward)
@@ -113,6 +116,7 @@ export function CarPlayer({
   const { rect, onDragHandlePointerDown, onResizeHandlePointerDown, dragging } = useDraggableCard(
     true,
     wake,
+    carScale,
   )
 
   // Keyboard-aware card: an on-screen keyboard covers the bottom of the screen

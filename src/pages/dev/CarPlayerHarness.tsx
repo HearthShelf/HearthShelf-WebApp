@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PlayerProvider } from '@/player/PlayerProvider'
 import { MediaUIProvider, type MediaUI } from '@/components/shared/MediaUIContext'
 import { CarPlayer } from '@/components/player/CarPlayer'
@@ -179,20 +179,32 @@ export function CarPlayerHarness() {
   // that the fade itself can still be eyeballed here.
   const idleFade = useIdleFade(true, 20000)
   const vv = useVisualViewportSize()
+  // ?scale=0.65 forces the car scale here, so the zoom path can be eyeballed on
+  // a desktop browser that reports devicePixelRatio 1.
+  const forcedScale = Number(new URLSearchParams(location.search).get('scale')) || 1
+  useEffect(() => {
+    if (forcedScale === 1) return
+    document.documentElement.style.zoom = String(forcedScale)
+    return () => {
+      document.documentElement.style.zoom = ''
+    }
+  }, [forcedScale])
+  const carVw = vv.width ? Math.ceil(vv.width / forcedScale) : 0
+  const carVh = vv.height ? Math.ceil(vv.height / forcedScale) : 0
 
   return (
     <PlayerProvider>
       <MediaUIProvider value={STUB_UI}>
         <div
           className="player car-mode hearth-bg"
-          style={vv.width ? { width: vv.width, height: vv.height } : undefined}
+          style={carVw ? { width: carVw, height: carVh } : undefined}
         >
           <div
             className="player-hearth-bg car-bg"
             aria-hidden="true"
             style={{
               backgroundImage: `url("${cozyHearth}")`,
-              ...(vv.width ? { width: vv.width, height: vv.height } : {}),
+              ...(carVw ? { width: carVw, height: carVh } : {}),
             }}
             onPointerDown={idleFade.wake}
           />
@@ -249,6 +261,7 @@ export function CarPlayerHarness() {
             target={STUB_TARGET}
             openClubSignal={openClubSignal}
             onClubOpenChange={setClubChatOpen}
+            carScale={forcedScale}
             onToast={() => {}}
           />
         </div>

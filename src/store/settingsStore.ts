@@ -45,6 +45,8 @@ export type GlowMode = 'gradient' | 'image'
 // Car mode: a big-touch, glance-friendly player for in-car browsers (Tesla).
 // 'auto' enables it when a Tesla user-agent is detected; 'on'/'off' force it.
 export type CarMode = 'auto' | 'on' | 'off'
+/** Car UI scale: 'auto' derives it from the device pixel ratio, or a fixed percent. */
+export type CarScale = 'auto' | 100 | 85 | 75 | 65 | 50
 
 // The draggable/resizable car-mode player card, in viewport px. null until the
 // user first moves or resizes it. Device-window geometry - stays local (not in
@@ -138,6 +140,10 @@ export interface SettingsState {
   carPlayerRect: CarPlayerRect | null
   carFadeEnabled: boolean
   carFadeSec: number
+  // How much to shrink the car UI, as a percentage, or 'auto' to divide out the
+  // device pixel ratio. Local-only (like carPlayerRect): the right value is a
+  // property of the screen in front of you, not of your account.
+  carScale: CarScale
 
   // Reveal the Advanced panel (browser/UA diagnostics) on the Account page.
   showAdvanced: boolean
@@ -233,8 +239,9 @@ type SettingsValues = Omit<
   'set' | 'applyServerKeys' | 'markPushed' | 'meta' | 'pushed' | 'deviceId'
 >
 
-// Keys that sync to the server (present in the catalog). carPlayerRect is
-// local-only window geometry, so it's absent from the catalog and never syncs.
+// Keys that sync to the server (present in the catalog). carPlayerRect (window
+// geometry) and carScale (a property of the screen in front of you) are
+// local-only, so they're absent from the catalog and never sync.
 export const SYNCED_KEYS = Object.keys(SETTINGS_CATALOG) as (keyof SettingsValues)[]
 
 function newDeviceId(): string {
@@ -275,6 +282,7 @@ export const useSettingsStore = create<SettingsState>()(
       carPlayerRect: null,
       carFadeEnabled: true,
       carFadeSec: 30,
+      carScale: 'auto',
       showAdvanced: false,
       notePops: true,
       noteDefaultVisibility: 'public',

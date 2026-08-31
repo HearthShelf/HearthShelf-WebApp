@@ -12,10 +12,20 @@ function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v))
 }
 
+// The CSS-pixel size of the viewport at the current car scale. `zoom` resizes
+// the CSS pixel but leaves window.innerWidth/Height reporting UNZOOMED pixels,
+// so every bound below has to be divided by the scale or the card is confined
+// to a fraction of the room it actually has.
+function viewport(scale: number) {
+  return {
+    vw: Math.round(window.innerWidth / scale),
+    vh: Math.round(window.innerHeight / scale),
+  }
+}
+
 // Keep a rect fully on-screen (e.g. after a viewport/orientation change).
-function fitToViewport(r: CarPlayerRect): CarPlayerRect {
-  const vw = window.innerWidth
-  const vh = window.innerHeight
+function fitToViewport(r: CarPlayerRect, scale = 1): CarPlayerRect {
+  const { vw, vh } = viewport(scale)
   const w = clamp(r.w, MIN_W, Math.min(MAX_W, vw))
   const h = clamp(r.h, MIN_H, Math.min(MAX_H, vh))
   return {
@@ -27,15 +37,11 @@ function fitToViewport(r: CarPlayerRect): CarPlayerRect {
 }
 
 // A sensible first-run rect: centered, comfortably large for touch.
-function defaultRect(): CarPlayerRect {
-  const w = clamp(Math.round(window.innerWidth * 0.42), MIN_W, 560)
-  const h = clamp(Math.round(window.innerHeight * 0.82), MIN_H, 920)
-  return {
-    w,
-    h,
-    x: Math.round((window.innerWidth - w) / 2),
-    y: Math.round((window.innerHeight - h) / 2),
-  }
+function defaultRect(scale = 1): CarPlayerRect {
+  const { vw, vh } = viewport(scale)
+  const w = clamp(Math.round(vw * 0.42), MIN_W, 560)
+  const h = clamp(Math.round(vh * 0.82), MIN_H, 920)
+  return { w, h, x: Math.round((vw - w) / 2), y: Math.round((vh - h) / 2) }
 }
 
 interface DraggableCard {
@@ -52,12 +58,18 @@ interface DraggableCard {
  * corner grip), clamped to the viewport and persisted to settings. `onChange`
  * fires on every move so the caller can treat dragging as a "wake" interaction.
  */
-export function useDraggableCard(enabled: boolean, onInteract?: () => void): DraggableCard {
+export function useDraggableCard(
+  enabled: boolean,
+  onInteract?: () => void,
+  /** Car UI scale. Changing it resizes the CSS pixel, so the saved rect has to
+   *  be re-fitted - `zoom` does not fire a window resize event. */
+  scale = 1,
+): DraggableCard {
   const saved = useSettingsStore((s) => s.carPlayerRect)
   const set = useSettingsStore((s) => s.set)
 
   const [rect, setRect] = useState<CarPlayerRect>(() =>
-    saved ? fitToViewport(saved) : defaultRect(),
+    saved ? fitToViewport(saved, scale) : defaultRect(scale),
   )
   // Pointer events can outpace a React render. Keep the gesture's latest rect
   // in a ref so pointer-up can persist it without causing a store update from
@@ -78,22 +90,34 @@ export function useDraggableCard(enabled: boolean, onInteract?: () => void): Dra
     if (!enabled) return
     const onResize = () =>
       setRect((r) => {
-        const next = fitToViewport(r)
+        const next = fitToViewport(r, scale)
         rectRef.current = next
         return next
       })
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
-  }, [enabled])
+  }, [enabled, scale])
+
+  // Re-fit when the car scale changes: zoom changes how many CSS pixels the
+  // screen holds without firing a resize, so a rect saved at one scale can hang
+  // off the edge at another.
+  useEffect(() => {
+    if (!enabled || gesture.current) return
+    setRect((r) => {
+      const next = fitToViewport(r, scale)
+      rectRef.current = next
+      return next
+    })
+  }, [enabled, scale])
 
   // Adopt a newly-saved rect (e.g. settings reset) when not mid-gesture.
   useEffect(() => {
     if (saved && !gesture.current) {
-      const next = fitToViewport(saved)
+      const next = fitToViewport(saved, scale)
       rectRef.current = next
       setRect(next)
     }
-  }, [saved])
+  }, [saved, scale])
 
   const begin = useCallback(
     (mode: 'move' | 'resize', e: React.PointerEvent) => {
@@ -120,8 +144,7 @@ export function useDraggableCard(enabled: boolean, onInteract?: () => void): Dra
       if (!g) return
       const dx = e.clientX - g.startX
       const dy = e.clientY - g.startY
-      const vw = window.innerWidth
-      const vh = window.innerHeight
+      const { vw, vh } = viewport(scale)
       if (g.mode === 'move') {
         const next = {
           ...g.base,

@@ -33,6 +33,8 @@ const TESLA_SCREEN_SIZES: [number, number][] = [
   [1920, 1200], // Model 3 / Model Y
   [2200, 1300], // Model S / Model X (2021+ refresh)
 ]
+/** Panel sizes are matched within this many px per axis. */
+const SIZE_TOLERANCE = 24
 
 function isTouchOnlyTeslaSizedScreen(): boolean {
   if (typeof window === 'undefined' || typeof screen === 'undefined') return false
@@ -40,9 +42,17 @@ function isTouchOnlyTeslaSizedScreen(): boolean {
     window.matchMedia?.('(any-pointer: coarse)').matches &&
     !window.matchMedia?.('(any-pointer: fine)').matches
   if (!touchOnly) return false
-  const w = screen.width
-  const h = screen.height
-  return TESLA_SCREEN_SIZES.some(([sw, sh]) => (w === sw && h === sh) || (w === sh && h === sw))
+  // screen.width/height are CSS px, so they shrink when the device pixel ratio
+  // changes. A 2026 Tesla software update moved the ratio to ~1.53, turning a
+  // reported 1920x1200 into 1254x784 with no hardware change - so the panel
+  // sizes have to be compared in PHYSICAL px (CSS px x DPR), which stays put.
+  const dpr = window.devicePixelRatio || 1
+  const w = screen.width * dpr
+  const h = screen.height * dpr
+  const near = (a: number, b: number) => Math.abs(a - b) <= SIZE_TOLERANCE
+  return TESLA_SCREEN_SIZES.some(
+    ([sw, sh]) => (near(w, sw) && near(h, sh)) || (near(w, sh) && near(h, sw)),
+  )
 }
 
 export function isCarBrowser(): boolean {

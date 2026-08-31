@@ -1,12 +1,20 @@
-import { useSettingsStore, type CarMode } from '@/store/settingsStore'
+import { useSettingsStore, type CarMode, type CarScale } from '@/store/settingsStore'
 import { Icon } from '@/components/common/Icon'
 import { SetRow, Seg, Toggle, Slider } from '@/components/settings/controls'
 import { isCarBrowser } from '@/hooks/useCarMode'
+import { useCarScale } from '@/hooks/useCarScale'
 
 export function CarModeSettings() {
   const s = useSettingsStore()
   const set = s.set
   const carDetected = isCarBrowser()
+  const effectiveScale = useCarScale()
+  const scaleDesc =
+    s.carScale === 'auto'
+      ? effectiveScale === 1
+        ? 'Matching this screen automatically. It looks standard, so nothing is being shrunk.'
+        : `Matching this screen automatically - currently ${Math.round(effectiveScale * 100)}%.`
+      : 'Shrinks the car player and its controls. Use this if everything looks too big or too small.'
   const carDesc =
     s.carMode === 'auto'
       ? carDetected
@@ -34,6 +42,24 @@ export function CarModeSettings() {
                 { value: 'auto', label: 'Auto' },
                 { value: 'on', label: 'On' },
                 { value: 'off', label: 'Off' },
+              ]}
+            />
+          }
+        />
+        <SetRow
+          title="Car display size"
+          desc={scaleDesc}
+          control={
+            <Seg<CarScale>
+              value={s.carScale}
+              onChange={(v) => set('carScale', v)}
+              options={[
+                { value: 'auto', label: 'Auto' },
+                { value: 100, label: '100%' },
+                { value: 85, label: '85%' },
+                { value: 75, label: '75%' },
+                { value: 65, label: '65%' },
+                { value: 50, label: '50%' },
               ]}
             />
           }

@@ -25,6 +25,7 @@ import { PlayerClubCompanion } from '@/components/player/PlayerClubCompanion'
 import { useCarMode } from '@/hooks/useCarMode'
 import { useVisualViewportSize } from '@/hooks/useVisualViewportSize'
 import { useReturnPosition } from '@/hooks/useReturnPosition'
+import { useCarScale } from '@/hooks/useCarScale'
 import { useIdleFade } from '@/hooks/useIdleFade'
 import { setCarFaded } from '@/hooks/useCarFaded'
 import { useBookmarks } from '@/hooks/useBookmarks'
@@ -536,6 +537,22 @@ export function PlayerPage() {
   // counter (see CarPlayer's openClubSignal).
   const [openClubSignal, setOpenClubSignal] = useState(0)
   const [clubChatOpen, setClubChatOpen] = useState(false)
+  // Shrinks the whole car surface when the browser's pixel ratio inflates it.
+  // Applied with `zoom` at the document root rather than a transform on a
+  // wrapper: zoom actually resizes the CSS pixel, so window.innerWidth, the
+  // card's saved rect and pointer coordinates all stay in one coordinate space
+  // (a transform would desync them and break the drag). The root is the target
+  // because the progress bar and the portalled chat are fixed to the viewport
+  // and would escape any wrapper.
+  const carScale = useCarScale()
+  useEffect(() => {
+    if (!carMode || carScale === 1) return
+    const root = document.documentElement
+    root.style.zoom = String(carScale)
+    return () => {
+      root.style.zoom = ''
+    }
+  }, [carMode, carScale])
   // Offers a jump back to the furthest spot after a big backwards seek.
   const returnPos = useReturnPosition()
   // Listening forward past the remembered spot retires the offer on its own.
@@ -873,17 +890,22 @@ export function PlayerPage() {
   // background. Replaces the two-pane desktop layout when an in-car browser is
   // detected or the user forces it on.
   if (carMode) {
+    // visualViewport reports unzoomed pixels, but `zoom` means the layout is
+    // laid out in larger CSS pixels - so the pinned background has to be
+    // divided by the scale or it covers only part of the screen.
+    const carVw = vv.width ? Math.ceil(vv.width / carScale) : 0
+    const carVh = vv.height ? Math.ceil(vv.height / carScale) : 0
     return (
       <div
         className="player car-mode hearth-bg"
-        style={vv.width ? { width: vv.width, height: vv.height } : undefined}
+        style={carVw ? { width: carVw, height: carVh } : undefined}
       >
         <div
           className="player-hearth-bg car-bg"
           aria-hidden="true"
           style={{
             backgroundImage: `url("${cozyHearth}")`,
-            ...(vv.width ? { width: vv.width, height: vv.height } : {}),
+            ...(carVw ? { width: carVw, height: carVh } : {}),
           }}
           // Tapping the background (not the card) should also reveal faded
           // chrome, same as tapping the card itself.
@@ -946,6 +968,7 @@ export function PlayerPage() {
           clubDetail={clubDetail?.enabled ? clubDetail : undefined}
           openClubSignal={openClubSignal}
           onClubOpenChange={setClubChatOpen}
+          carScale={carScale}
           onToast={setToast}
         />
         {toast && (
