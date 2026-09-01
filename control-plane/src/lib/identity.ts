@@ -30,6 +30,10 @@ export interface AuthIdentity {
   /** Stable account id - the grant `sub`, and the per-user key on every box.
    *  Migrated accounts keep their original Clerk user id verbatim. */
   subject: string
+  /** Alias of `subject`, kept so the existing call sites (and the
+   *  `clerk_user_id` D1 columns they feed) read unchanged. The name is a
+   *  historical artifact: the id is ours now, not Clerk's. */
+  userId: string
   email: string
   emailVerified: boolean
   username: string
@@ -60,6 +64,7 @@ async function verifyWith(
   const clerk = await verifyClerk(env, token)
   return {
     subject: clerk.userId,
+    userId: clerk.userId,
     email: clerk.email,
     emailVerified: clerk.emailVerified,
     username: clerk.username,

@@ -37,7 +37,8 @@
  */
 import { Hono, type Context } from 'hono'
 import type { Env } from '../types'
-import { bearer, verifyClerk, AuthError, type ClerkIdentity } from '../lib/clerk'
+import { bearer } from '../lib/clerk'
+import { verifyIdentity, AuthError, type AuthIdentity } from '../lib/identity'
 import { resolveAdmin } from '../lib/admin'
 import {
   createApp,
@@ -82,11 +83,11 @@ const DEVICE_CODE_TTL = (env: Env) => Number(env.APP_DEVICE_CODE_TTL_SECONDS || 
 /** RFC 8628 polling interval, in seconds, handed to the app and enforced. */
 const POLL_INTERVAL = 5
 
-async function requireUser(c: Context<{ Bindings: Env }>): Promise<ClerkIdentity | null> {
+async function requireUser(c: Context<{ Bindings: Env }>): Promise<AuthIdentity | null> {
   const token = bearer(c.req.header('Authorization') ?? null)
   if (!token) return null
   try {
-    return await verifyClerk(c.env, token)
+    return await verifyIdentity(c.env, token)
   } catch (err) {
     if (err instanceof AuthError) return null
     throw err
@@ -527,7 +528,7 @@ apps.post('/apps/mine', async (c) => {
 /** Owner-only guard for the console mutations below. */
 async function ownedApp(
   c: Context<{ Bindings: Env }>,
-  user: ClerkIdentity,
+  user: AuthIdentity,
   id: string,
 ): Promise<AppRow | null> {
   const app = await getApp(c.env, id)

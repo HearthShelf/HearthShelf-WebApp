@@ -27,7 +27,8 @@
  */
 import { Hono, type Context } from 'hono'
 import type { Env } from '../types'
-import { bearer, verifyClerk, AuthError, type ClerkIdentity } from '../lib/clerk'
+import { bearer } from '../lib/clerk'
+import { verifyIdentity, AuthError, type AuthIdentity } from '../lib/identity'
 import {
   createDeviceHandle,
   getDeviceHandle,
@@ -50,11 +51,11 @@ const TICKET_TTL_SEC = 60
  *  forced. Bounds brute-force of the 4-digit (10k) PIN space. */
 const MAX_PIN_ATTEMPTS = 10
 
-async function requireUser(c: Context<{ Bindings: Env }>): Promise<ClerkIdentity | null> {
+async function requireUser(c: Context<{ Bindings: Env }>): Promise<AuthIdentity | null> {
   const token = bearer(c.req.header('Authorization') ?? null)
   if (!token) return null
   try {
-    return await verifyClerk(c.env, token)
+    return await verifyIdentity(c.env, token)
   } catch (err) {
     if (err instanceof AuthError) return null
     throw err

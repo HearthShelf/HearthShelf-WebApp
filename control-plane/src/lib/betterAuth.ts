@@ -107,6 +107,7 @@ export async function verifyBetterAuth(env: Env, token: string): Promise<AuthIde
 
   const identity: AuthIdentity = {
     subject,
+    userId: subject,
     email,
     emailVerified,
     username,

@@ -24,7 +24,8 @@
  */
 import { Hono, type Context } from 'hono'
 import type { Env, LinkedServerDTO } from '../types'
-import { bearer, verifyClerk, AuthError, type ClerkIdentity } from '../lib/clerk'
+import { bearer } from '../lib/clerk'
+import { verifyIdentity, AuthError, type AuthIdentity } from '../lib/identity'
 import {
   listLinksForUser,
   getLink,
@@ -85,11 +86,11 @@ import {
 export const servers = new Hono<{ Bindings: Env }>()
 
 /** Resolve the Clerk identity, or null if the request is not authenticated. */
-async function requireUser(c: Context<{ Bindings: Env }>): Promise<ClerkIdentity | null> {
+async function requireUser(c: Context<{ Bindings: Env }>): Promise<AuthIdentity | null> {
   const token = bearer(c.req.header('Authorization') ?? null)
   if (!token) return null
   try {
-    return await verifyClerk(c.env, token)
+    return await verifyIdentity(c.env, token)
   } catch (err) {
     if (err instanceof AuthError) return null
     throw err
@@ -102,7 +103,7 @@ async function requireUser(c: Context<{ Bindings: Env }>): Promise<ClerkIdentity
  * email; on their first authed call we match and materialize. Only acts on a
  * VERIFIED email so an unverified address can't claim someone else's invite.
  */
-async function acceptPendingInvites(c: Context<{ Bindings: Env }>, user: ClerkIdentity) {
+async function acceptPendingInvites(c: Context<{ Bindings: Env }>, user: AuthIdentity) {
   if (!user.emailVerified) return
   const invites = await pendingInvitesForEmail(c.env, user.email)
   for (const inv of invites) {

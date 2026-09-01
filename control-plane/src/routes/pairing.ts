@@ -18,7 +18,8 @@
  */
 import { Hono } from 'hono'
 import type { Env } from '../types'
-import { bearer, verifyClerk, AuthError } from '../lib/clerk'
+import { bearer } from '../lib/clerk'
+import { verifyIdentity, AuthError } from '../lib/identity'
 import {
   createPairing,
   getPairing,
@@ -287,7 +288,7 @@ pairing.post('/pairing/redeem', async (c) => {
 
   let identity
   try {
-    identity = await verifyClerk(c.env, token)
+    identity = await verifyIdentity(c.env, token)
   } catch (err) {
     if (err instanceof AuthError) return c.json({ error: 'unauthorized', detail: err.message }, 401)
     throw err

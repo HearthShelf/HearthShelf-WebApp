@@ -20,11 +20,12 @@ type AdminLookupContext = {
   env: Env
   req: { header(name: string): string | undefined }
 }
-import { bearer, verifyClerk, AuthError, type ClerkIdentity } from './clerk'
+import { bearer } from './clerk'
+import { verifyIdentity, AuthError, type AuthIdentity } from './identity'
 import { getPlatformAdmin, backfillAdminClerkId, getEntitlement, type PlatformAdminRow } from './db'
 
 export interface AdminContext {
-  user: ClerkIdentity
+  user: AuthIdentity
   admin: PlatformAdminRow
 }
 
@@ -39,9 +40,9 @@ export async function resolveAdmin(c: AdminLookupContext): Promise<AdminContext 
   const token = bearer(c.req.header('Authorization') ?? null)
   if (!token) return null
 
-  let user: ClerkIdentity
+  let user: AuthIdentity
   try {
-    user = await verifyClerk(c.env, token)
+    user = await verifyIdentity(c.env, token)
   } catch (err) {
     if (err instanceof AuthError) return null
     throw err

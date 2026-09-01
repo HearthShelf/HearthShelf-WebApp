@@ -17,7 +17,8 @@ import type { Env } from '../types'
 import { getServer } from '../lib/db'
 import { sha256Hex, timingSafeEqual } from '../lib/ids'
 import { resolveAdmin } from '../lib/admin'
-import { bearer, verifyClerk, AuthError } from '../lib/clerk'
+import { bearer } from '../lib/clerk'
+import { verifyIdentity, AuthError } from '../lib/identity'
 import { forwardLog, readLogs, deleteLog, deleteLogs } from '../lib/logs'
 
 export const logs = new Hono<{ Bindings: Env }>()
@@ -75,7 +76,7 @@ logs.post('/logs/mobile', async (c) => {
   if (!token) return c.json({ error: 'unauthorized' }, 401)
   let identity
   try {
-    identity = await verifyClerk(c.env, token)
+    identity = await verifyIdentity(c.env, token)
   } catch (err) {
     if (err instanceof AuthError) return c.json({ error: 'unauthorized' }, 401)
     throw err

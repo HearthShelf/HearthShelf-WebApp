@@ -17,7 +17,8 @@
  */
 import { Hono, type Context } from 'hono'
 import type { Env } from '../types'
-import { bearer, verifyClerk, AuthError, type ClerkIdentity } from '../lib/clerk'
+import { bearer } from '../lib/clerk'
+import { verifyIdentity, AuthError, type AuthIdentity } from '../lib/identity'
 import {
   deleteAllLinksForUser,
   deleteUserPrefs,
@@ -31,11 +32,11 @@ import { uuid } from '../lib/ids'
 
 export const account = new Hono<{ Bindings: Env }>()
 
-async function requireUser(c: Context<{ Bindings: Env }>): Promise<ClerkIdentity | null> {
+async function requireUser(c: Context<{ Bindings: Env }>): Promise<AuthIdentity | null> {
   const token = bearer(c.req.header('Authorization') ?? null)
   if (!token) return null
   try {
-    return await verifyClerk(c.env, token)
+    return await verifyIdentity(c.env, token)
   } catch (err) {
     if (err instanceof AuthError) return null
     throw err
