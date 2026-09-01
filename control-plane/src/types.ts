@@ -13,6 +13,14 @@ export interface Env {
   // vars (wrangler.toml [vars])
   CP_ISSUER: string
   CLERK_JWKS_URL: string
+  /** Which identity provider to verify sessions against first: 'clerk'
+   *  (default) or 'better-auth'. Both are tried during cutover so a browser
+   *  holding an old session is not logged out mid-migration; flip this once
+   *  Better Auth is live, then drop the Clerk secrets. */
+  AUTH_PROVIDER?: 'clerk' | 'better-auth'
+  /** Base URL of the Better Auth service, e.g. "https://auth.hearthshelf.com".
+   *  Unset = Better Auth is not configured and is never tried. */
+  BETTER_AUTH_URL?: string
   GRANT_TTL_SECONDS: string
   PAIRING_TTL_SECONDS: string
   /** Connect-domain base zone, e.g. "d.hearthshelf.com" (current) / a dedicated
