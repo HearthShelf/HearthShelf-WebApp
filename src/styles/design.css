@@ -5531,6 +5531,7 @@
 .speed-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
+  box-sizing: border-box;
   width: 20px;
   height: 20px;
   border-radius: 50%;
@@ -5541,8 +5542,9 @@
 }
 
 .speed-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--accent);
   cursor: pointer;
@@ -5550,12 +5552,35 @@
 }
 
 .speed-ticks {
-  display: flex;
-  justify-content: space-between;
+  position: relative;
+  height: 13px;
   font-size: 10.5px;
   color: var(--text-faint);
-  margin: 0 1px 14px;
+  /* Range thumbs travel between their centers, not the input's outer edges. */
+  margin: 0 10px 14px;
   font-variant-numeric: tabular-nums;
+}
+
+.speed-ticks span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+/* True positions across the 0.5x-3x range: 0%, 20%, 60%, and 100%. */
+.speed-ticks span:nth-child(1) {
+  left: 0;
+}
+
+.speed-ticks span:nth-child(2) {
+  left: 20%;
+}
+
+.speed-ticks span:nth-child(3) {
+  left: 60%;
+}
+
+.speed-ticks span:nth-child(4) {
+  left: 100%;
 }
 
 .pop-divider {
