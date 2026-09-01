@@ -1,0 +1,30 @@
+{
+  "name": "hearthshelf-auth",
+  "version": "0.1.0",
+  "description": "Isolated Cloudflare Worker running Better Auth for HearthShelf accounts (auth.hearthshelf.com): passkeys, email OTP, magic links, TOTP/2FA and social sign-in. Owns the user identity database; holds no ABS credential and no control-plane signing key.",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "better-auth generate --config src/auth.ts --output migrations/0001_better_auth.sql",
+    "db:migrate:local": "wrangler d1 migrations apply hearthshelf-auth --local",
+    "db:migrate:remote": "wrangler d1 migrations apply hearthshelf-auth --remote",
+    "seed:local": "node scripts/seed-legacy.mjs --local",
+    "seed:remote": "node scripts/seed-legacy.mjs --remote"
+  },
+  "dependencies": {
+    "@better-auth/passkey": "^1.7.2",
+    "better-auth": "^1.7.2",
+    "hono": "^4.13.4",
+    "kysely": "^0.28.2",
+    "kysely-d1": "^0.4.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260823.1",
+    "typescript": "^5.7.2",
+    "wrangler": "^4.125.0"
+  }
+}
