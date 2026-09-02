@@ -232,7 +232,7 @@ export function MiniPlayer() {
           {pop === 'chapters' && (
             <div
               className="p-pop pb-pop"
-              style={{ width: 340, maxHeight: '70vh', overflowY: 'auto' }}
+              style={{ width: 340, maxHeight: 'calc(var(--vh) * 70)', overflowY: 'auto' }}
             >
               <div className="pop-head">
                 <Icon name="list" /> Chapters
@@ -280,7 +280,7 @@ export function MiniPlayer() {
 
         <div className="pb-pop-wrap">
           {pop === 'sleep' && (
-            <div className="p-pop pb-pop" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+            <div className="p-pop pb-pop" style={{ maxHeight: 'calc(var(--vh) * 70)', overflowY: 'auto' }}>
               <SleepPopover ctl={sleepCtl} onClose={() => setPop(null)} />
             </div>
           )}

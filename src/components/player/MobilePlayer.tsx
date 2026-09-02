@@ -543,7 +543,7 @@ export function MobilePlayer({
         <div
           style={{
             position: 'relative',
-            width: 'min(216px, 60vw)',
+            width: 'min(216px, calc(var(--vw) * 60))',
             aspectRatio: '1 / 1',
             flex: 'none',
           }}
@@ -558,7 +558,7 @@ export function MobilePlayer({
                   top: 0,
                   bottom: 0,
                   right: '100%',
-                  width: '50vw',
+                  width: 'calc(var(--vw) * 50)',
                   zIndex: 3,
                   cursor: 'pointer',
                 }}
@@ -571,7 +571,7 @@ export function MobilePlayer({
                   top: 0,
                   bottom: 0,
                   left: '100%',
-                  width: '50vw',
+                  width: 'calc(var(--vw) * 50)',
                   zIndex: 3,
                   cursor: 'pointer',
                 }}
@@ -1472,7 +1472,10 @@ export function MobilePlayer({
       )}
       {sheet === 'sleep' && (
         <PopSheet onClose={closeSheet}>
-          <div className="p-pop" style={{ width: 'auto', maxHeight: '70vh', overflowY: 'auto' }}>
+          <div
+            className="p-pop"
+            style={{ width: 'auto', maxHeight: 'calc(var(--vh) * 70)', overflowY: 'auto' }}
+          >
             <SleepPopover ctl={sleep} onClose={() => setSheet(null)} />
           </div>
         </PopSheet>
@@ -1557,7 +1560,7 @@ export function MobilePlayer({
             <div
               onClick={toggle}
               style={{
-                width: 'min(264px, 72vw)',
+                width: 'min(264px, calc(var(--vw) * 72))',
                 aspectRatio: '1 / 1',
                 borderRadius: 22,
                 overflow: 'hidden',

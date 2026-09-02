@@ -7,12 +7,35 @@
    Scope: app shell, sidebar, playbar, covers, library, series, home.
    ===================================================================== */
 
+/* ---- Viewport units ------------------------------------------------
+   Every viewport-relative length in this file is written as
+   `calc(var(--vh) * N)` instead of `Nvh` (likewise --vw / --dvh). The vars
+   are 1% of the viewport and default to the real units, so outside car mode
+   nothing changes.
+
+   Car mode is why: it sets `zoom` on <html> to undo the inflated device pixel
+   ratio Tesla's browser reports (see useCarScale). Chromium multiplies every
+   length in a zoomed subtree by the zoom factor, but it resolves vh/vw against
+   the UNZOOMED viewport - so at zoom 0.65 a `height: 100vh` element paints only
+   65% of the screen, leaving a dead band at the bottom that reads exactly like
+   an on-screen keyboard is up. AppShell overwrites these vars with measured
+   pixels while car mode is on, which puts them back in the zoomed coordinate
+   space the rest of the layout uses.
+
+   New rules should follow suit: `Nvh`/`Nvw` will look right everywhere except
+   in a car. */
+:root {
+  --vh: 1vh;
+  --vw: 1vw;
+  --dvh: 1dvh;
+}
+
 /* ---- App shell ----------------------------------------------------- */
 .app {
   --sidebar-w: 248px;
   display: grid;
   grid-template-columns: var(--sidebar-w) 1fr;
-  height: 100vh;
+  height: calc(var(--vh) * 100);
   position: relative;
 }
 
@@ -109,7 +132,7 @@
   /* The switcher can list several saved accounts + actions; opening upward from
      the bottom chip it could run off the top of the screen. Cap it to the space
      above the chip and let it scroll. */
-  max-height: calc(100vh - 96px);
+  max-height: calc(var(--vh) * 100 - 96px);
   overflow-y: auto;
 }
 
@@ -117,7 +140,7 @@
 .app-glow {
   position: absolute;
   inset: 0 0 auto var(--sidebar-w);
-  height: 78vh;
+  height: calc(var(--vh) * 78);
   pointer-events: none;
   z-index: 0;
   transition:
@@ -131,7 +154,7 @@
 }
 
 .app.player-mode .app-glow {
-  height: 100vh;
+  height: calc(var(--vh) * 100);
 }
 
 /* ---- Sidebar ------------------------------------------------------- */
@@ -774,7 +797,7 @@
   position: sticky;
   top: var(--s6);
   align-self: start;
-  max-height: calc(100vh - 160px);
+  max-height: calc(var(--vh) * 100 - 160px);
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 4px;
@@ -2006,7 +2029,7 @@
 .up-h1 {
   margin: 0 0 6px;
   font-family: var(--font-brand);
-  font-size: clamp(30px, 4vw, 44px);
+  font-size: clamp(30px, calc(var(--vw) * 4), 44px);
   letter-spacing: -0.045em;
 }
 .up-page-heading p {
@@ -2032,9 +2055,9 @@
   display: grid;
   grid-template-columns: 190px minmax(0, 1fr) 190px;
   align-items: center;
-  gap: clamp(28px, 4vw, 56px);
+  gap: clamp(28px, calc(var(--vw) * 4), 56px);
   overflow: hidden;
-  padding: 36px clamp(28px, 5vw, 60px);
+  padding: 36px clamp(28px, calc(var(--vw) * 5), 60px);
   border: 1px solid var(--hairline);
   border-radius: 27px;
   background: linear-gradient(102deg, rgba(20, 27, 31, 0.55), transparent 68%), var(--c-high);
@@ -2096,7 +2119,7 @@
   max-width: 540px;
   margin: 0 0 12px;
   font-family: var(--font-brand);
-  font-size: clamp(28px, 3.6vw, 46px);
+  font-size: clamp(28px, calc(var(--vw) * 3.6), 46px);
   line-height: 1.02;
   letter-spacing: -0.05em;
 }
@@ -3178,7 +3201,7 @@
   }
   /* Keep the dropdown clear of the mini player / bottom nav on a phone. */
   .ss-results {
-    max-height: 60vh;
+    max-height: calc(var(--vh) * 60);
   }
 }
 
@@ -3202,7 +3225,7 @@
   box-shadow: var(--shadow-lift);
   padding: 6px;
   z-index: 40;
-  max-height: min(70vh, 560px);
+  max-height: min(calc(var(--vh) * 70), 560px);
   overflow-y: auto;
 }
 .search-pop .sp-status {
@@ -3381,7 +3404,7 @@
   z-index: 80;
   top: calc(100% + 10px);
   right: 0;
-  width: min(390px, calc(100vw - 28px));
+  width: min(390px, calc(var(--vw) * 100 - 28px));
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -3413,7 +3436,7 @@
   cursor: pointer;
 }
 .notification-tray-list {
-  max-height: min(560px, calc(100vh - 100px));
+  max-height: min(560px, calc(var(--vh) * 100 - 100px));
   overflow-y: auto;
 }
 .notification-row {
@@ -3725,7 +3748,7 @@
   z-index: 2;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: calc(var(--vh) * 100);
   min-height: 0;
   min-width: 0;
 }
@@ -3961,7 +3984,7 @@
 .player {
   position: relative;
   z-index: 2;
-  height: 100vh;
+  height: calc(var(--vh) * 100);
   overflow-y: auto;
   display: flex;
   flex-direction: row;
@@ -4340,14 +4363,14 @@
 .car-return-pill {
   position: fixed;
   top: calc(max(14px, env(safe-area-inset-top)) + var(--car-progress-h, 81px) + 10px);
-  left: calc(124px + clamp(18px, 3vw, 42px));
-  right: clamp(18px, 3vw, 42px);
+  left: calc(124px + clamp(18px, calc(var(--vw) * 3), 42px));
+  right: clamp(18px, calc(var(--vw) * 3), 42px);
   z-index: 9;
   display: flex;
   justify-content: center;
 }
 .app.car-shell-faded .car-return-pill {
-  left: clamp(18px, 3vw, 42px);
+  left: clamp(18px, calc(var(--vw) * 3), 42px);
 }
 .car-return-pill .return-pill {
   width: auto;
@@ -4382,9 +4405,9 @@
   /* --car-progress-h is published by CarBookProgress from its measured height;
      the fallback covers the first paint before the observer runs. */
   top: calc(max(14px, env(safe-area-inset-top)) + var(--car-progress-h, 81px) + 10px);
-  left: calc(124px + clamp(18px, 3vw, 42px));
-  right: clamp(18px, 3vw, 42px);
-  bottom: clamp(14px, 2vh, 28px);
+  left: calc(124px + clamp(18px, calc(var(--vw) * 3), 42px));
+  right: clamp(18px, calc(var(--vw) * 3), 42px);
+  bottom: clamp(14px, calc(var(--vh) * 2), 28px);
   z-index: 6;
   display: flex;
   background: color-mix(in oklab, var(--c-high) 92%, transparent);
@@ -4397,7 +4420,7 @@
 /* The nav rail fades with the rest of the chrome, so the chat reclaims that
    space instead of leaving a gap where the tiles were. */
 .car-club-layer.faded {
-  left: clamp(18px, 3vw, 42px);
+  left: clamp(18px, calc(var(--vw) * 3), 42px);
 }
 
 /* Car/Touch gets the real Book Club companion, not a read-only progress tray.
@@ -4625,7 +4648,7 @@
   box-shadow: var(--shadow-lift);
   backdrop-filter: blur(8px);
   pointer-events: none;
-  max-width: min(340px, 42vw);
+  max-width: min(340px, calc(var(--vw) * 42));
 }
 .car-comment-alert > .ms {
   font-size: 24px;
@@ -4711,7 +4734,7 @@
 /* Desktop player refresh: artwork and identity share one calm stage while the
    existing tool popovers and companion panel retain their original ownership. */
 .player-col.player-col-redesign {
-  width: min(660px, calc(100vw - 120px));
+  width: min(660px, calc(var(--vw) * 100 - 120px));
   align-items: stretch;
 }
 
@@ -4720,7 +4743,7 @@
   width: 100%;
   display: grid;
   grid-template-columns: var(--player-art) minmax(0, 1fr);
-  gap: clamp(30px, 3.4vw, 44px);
+  gap: clamp(30px, calc(var(--vw) * 3.4), 44px);
   align-items: center;
 }
 
@@ -4755,7 +4778,7 @@
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
-  font-size: clamp(22px, 2vw, 28px);
+  font-size: clamp(22px, calc(var(--vw) * 2), 28px);
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: -0.03em;
@@ -4837,7 +4860,7 @@
 }
 
 .player-col-redesign .p-transport {
-  gap: clamp(10px, 2vw, 22px);
+  gap: clamp(10px, calc(var(--vw) * 2), 22px);
   margin: 25px 0 0;
 }
 
@@ -4904,8 +4927,8 @@
   position: fixed;
   z-index: 7;
   top: max(14px, env(safe-area-inset-top));
-  left: clamp(18px, 3vw, 42px);
-  right: clamp(18px, 3vw, 42px);
+  left: clamp(18px, calc(var(--vw) * 3), 42px);
+  right: clamp(18px, calc(var(--vw) * 3), 42px);
   min-height: 64px;
   padding: 9px 15px 8px;
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -4940,7 +4963,7 @@
 /* The touch rail overlays the full-screen player. Reserve its real width while
    visible so the always-on progress surface starts beside it, not underneath. */
 .app.car-shell:not(.car-shell-faded) .car-book-progress {
-  left: calc(var(--sidebar-w) + clamp(18px, 3vw, 42px));
+  left: calc(var(--sidebar-w) + clamp(18px, calc(var(--vw) * 3), 42px));
 }
 
 /* Idle mode keeps the dark readable backing but removes the framed-card look.
@@ -4964,14 +4987,14 @@
 }
 
 .car-book-progress-head strong {
-  font-size: clamp(17px, 2.2vw, 22px);
+  font-size: clamp(17px, calc(var(--vw) * 2.2), 22px);
   line-height: 1;
 }
 
 .car-book-progress-head span,
 .car-book-progress-times {
   color: rgba(255, 255, 255, 0.7);
-  font-size: clamp(10px, 1.35vw, 13px);
+  font-size: clamp(10px, calc(var(--vw) * 1.35), 13px);
 }
 
 .car-book-progress-track {
@@ -5722,7 +5745,7 @@
 
 .pp-inner {
   width: 440px;
-  height: calc(100vh - 92px - 84px);
+  height: calc(var(--vh) * 100 - 92px - 84px);
   position: sticky;
   top: var(--s8);
   background: var(--c-high);
@@ -6127,7 +6150,7 @@
 }
 
 .dev-club-sidecar {
-  min-height: 100vh;
+  min-height: calc(var(--vh) * 100);
   display: grid;
   place-items: center;
   padding: 28px;
@@ -6851,7 +6874,7 @@
 
 .sheet {
   width: 560px;
-  max-width: 92vw;
+  max-width: calc(var(--vw) * 92);
   height: 100%;
   background: var(--sheet);
   border-left: 1px solid var(--hairline);
@@ -9815,10 +9838,10 @@
 
 /* Oversized modal for the enlarged log view. */
 .modal.modal-xl {
-  width: 90vw;
-  max-width: 90vw;
-  height: 95vh;
-  max-height: 95vh;
+  width: calc(var(--vw) * 90);
+  max-width: calc(var(--vw) * 90);
+  height: calc(var(--vh) * 95);
+  max-height: calc(var(--vh) * 95);
 }
 
 /* --- Tasks (scheduled jobs) panel --- */
@@ -10611,7 +10634,7 @@
 .modal {
   width: 800px;
   max-width: 100%;
-  max-height: 88vh;
+  max-height: calc(var(--vh) * 88);
   background: var(--sheet);
   border: 1px solid var(--hairline);
   border-radius: var(--r-sheet);
@@ -10632,7 +10655,7 @@
 .modal-xl {
   width: min(1400px, 100%);
   max-width: 100%;
-  height: min(900px, calc(100vh - 48px));
+  height: min(900px, calc(var(--vh) * 100 - 48px));
   max-height: 100%;
 }
 
@@ -10785,8 +10808,8 @@
   padding: max(24px, env(safe-area-inset-top)) 24px;
 }
 .zoom-img {
-  max-width: 92vw;
-  max-height: 92vh;
+  max-width: calc(var(--vw) * 92);
+  max-height: calc(var(--vh) * 92);
   width: auto;
   height: auto;
   object-fit: contain;
@@ -11122,8 +11145,8 @@
 
 .pm {
   width: 420px;
-  max-width: 92vw;
-  max-height: 80vh;
+  max-width: calc(var(--vw) * 92);
+  max-height: calc(var(--vh) * 80);
   background: var(--sheet);
   border: 1px solid var(--hairline);
   border-radius: var(--r-sheet);
@@ -12853,7 +12876,7 @@ select.fld {
 }
 .rr-status .rmab-prog {
   width: 260px;
-  max-width: 42vw;
+  max-width: calc(var(--vw) * 42);
 }
 .rr-right {
   display: flex;
@@ -14063,7 +14086,7 @@ select.fld {
   font-size: 12.5px;
   color: var(--rd-faint);
   min-width: 92px;
-  max-width: 60vw;
+  max-width: calc(var(--vw) * 60);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -14202,7 +14225,7 @@ select.fld {
 /* chapter list popover */
 .rd-chapters {
   width: 300px;
-  max-height: 70vh;
+  max-height: calc(var(--vh) * 70);
   overflow-y: auto;
   padding: 10px;
 }
@@ -14277,17 +14300,17 @@ select.fld {
   /* ---- shell: collapse the sidebar grid to a single column ---- */
   .app {
     grid-template-columns: 1fr;
-    height: 100dvh;
+    height: calc(var(--dvh) * 100);
   }
   .sidebar {
     display: none;
   }
   .app-glow {
     inset: 0;
-    height: 52vh;
+    height: calc(var(--vh) * 52);
   }
   .main {
-    height: 100dvh;
+    height: calc(var(--dvh) * 100);
   }
 
   /* ---- top app bar hidden: search lives on Library, switch in More ---- */
@@ -14459,7 +14482,7 @@ select.fld {
     left: 0;
     right: 0;
     bottom: 0;
-    max-height: 86vh;
+    max-height: calc(var(--vh) * 86);
     background: var(--c-low);
     border-top: 1px solid var(--hairline);
     border-radius: 24px 24px 0 0;
@@ -14637,7 +14660,7 @@ select.fld {
   }
   .pp-inner {
     width: 100%;
-    height: 100dvh;
+    height: calc(var(--dvh) * 100);
     position: static;
     top: auto;
     border: none;
@@ -14660,8 +14683,8 @@ select.fld {
   }
   .player .cover,
   .player.with-panel .cover {
-    width: min(260px, 70vw);
-    height: min(260px, 70vw);
+    width: min(260px, calc(var(--vw) * 70));
+    height: min(260px, calc(var(--vw) * 70));
   }
   .p-cover-wrap {
     align-self: center;
@@ -15367,7 +15390,7 @@ select.fld {
     left: 0;
     right: 0;
     width: auto;
-    max-height: 80vh;
+    max-height: calc(var(--vh) * 80);
     overflow-y: auto;
     border-radius: 20px 20px 0 0;
     padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
@@ -15375,7 +15398,7 @@ select.fld {
   }
   .rd-chapters {
     width: auto;
-    max-height: 80vh;
+    max-height: calc(var(--vh) * 80);
   }
 
   /* the cover zoom affordance can't rely on hover on touch - always show it */
@@ -15392,7 +15415,7 @@ select.fld {
     width: 100%;
     max-width: none;
     max-height: none;
-    height: 100dvh;
+    height: calc(var(--dvh) * 100);
     border-radius: 0;
     border: none;
     transform: translateY(100%);
@@ -15873,7 +15896,7 @@ select.fld {
 
 .pin-card {
   position: relative;
-  width: min(440px, 92vw);
+  width: min(440px, calc(var(--vw) * 92));
   background: var(--sheet);
   border: 1px solid var(--hairline);
   border-radius: var(--r-sheet);
@@ -16675,7 +16698,7 @@ select.fld {
 .book-club-room-head h1 {
   margin: 3px 0 0;
   font-family: var(--font-display);
-  font-size: clamp(25px, 3vw, 36px);
+  font-size: clamp(25px, calc(var(--vw) * 3), 36px);
   line-height: 1.05;
 }
 
@@ -16924,7 +16947,7 @@ select.fld {
   max-width: 700px;
   margin: 7px 0 4px;
   font-family: var(--font-display);
-  font-size: clamp(24px, 3vw, 38px);
+  font-size: clamp(24px, calc(var(--vw) * 3), 38px);
   line-height: 1.05;
 }
 
@@ -17464,7 +17487,7 @@ select.fld {
   left: 0;
   max-height: 360px;
   z-index: 40;
-  width: min(320px, 78vw);
+  width: min(320px, calc(var(--vw) * 78));
   padding: 10px;
   border: 1px solid var(--hairline);
   border-radius: 12px;
@@ -18099,13 +18122,13 @@ select.fld {
 
 /* Add-books dialog: library search, series drill-down, per-row add. */
 .club-add-modal {
-  width: min(640px, calc(100vw - 32px));
+  width: min(640px, calc(var(--vw) * 100 - 32px));
 }
 
 .club-add-body {
   display: grid;
   gap: 14px;
-  max-height: min(70vh, 640px);
+  max-height: min(calc(var(--vh) * 70), 640px);
   overflow-y: auto;
 }
 
@@ -18257,7 +18280,7 @@ select.fld {
   right: 28px;
   bottom: 28px;
   display: grid;
-  width: min(520px, calc(100vw - 40px));
+  width: min(520px, calc(var(--vw) * 100 - 40px));
   gap: 8px;
   padding: 14px;
   border: 1px solid color-mix(in oklab, var(--primary) 35%, var(--border));
@@ -18356,7 +18379,7 @@ select.fld {
   }
 
   .book-club-mini {
-    min-width: min(240px, 76vw);
+    min-width: min(240px, calc(var(--vw) * 76));
     flex: 0 0 auto;
     scroll-snap-align: start;
   }
@@ -18493,7 +18516,7 @@ select.fld {
   .book-club-reply-bar {
     right: 12px;
     bottom: calc(var(--mobile-nav-h, 68px) + 12px);
-    width: calc(100vw - 24px);
+    width: calc(var(--vw) * 100 - 24px);
   }
 }
 

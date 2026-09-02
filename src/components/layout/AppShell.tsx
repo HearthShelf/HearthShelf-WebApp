@@ -15,6 +15,7 @@ import { useSettingsStore } from '@/store/settingsStore'
 import { useNavCollapsed } from '@/hooks/useNavCollapsed'
 import { useCarMode } from '@/hooks/useCarMode'
 import { useCarScale } from '@/hooks/useCarScale'
+import { useVisualViewportSize } from '@/hooks/useVisualViewportSize'
 import { useCarFaded } from '@/hooks/useCarFaded'
 import { SharedDevicePrompt } from '@/components/account/SharedDevicePrompt'
 import { ServerHealthWatcher } from '@/components/hosted/ServerHealthWatcher'
@@ -64,14 +65,32 @@ export function AppShell() {
   // coordinate space, and the root is the only target that fixed-position and
   // portalled UI cannot escape. Gated on carMode (any route), not carShell.
   const carScale = useCarScale()
+  // Live viewport, needed because zoom breaks vh/vw (below).
+  const vv = useVisualViewportSize()
   useEffect(() => {
     if (!carMode || carScale === 1) return
     const root = document.documentElement
     root.style.zoom = String(carScale)
+    // Chromium multiplies lengths in a zoomed subtree by the zoom factor but
+    // resolves vh/vw against the UNZOOMED viewport, so `height: 100vh` paints
+    // at 65% of the screen on a Tesla and every full-height screen ends up
+    // short a band at the bottom - as if a keyboard were parked there. The
+    // stylesheet writes viewport lengths as `calc(var(--vh) * N)`; publishing
+    // 1% of the real viewport, divided back out of the zoom, restores them.
+    // visualViewport is the right source: it also tracks the Tesla browser's
+    // transient banner and any on-screen keyboard, so the units stay honest.
+    if (vv.height > 0) {
+      root.style.setProperty('--vh', `${vv.height / carScale / 100}px`)
+      root.style.setProperty('--dvh', `${vv.height / carScale / 100}px`)
+    }
+    if (vv.width > 0) root.style.setProperty('--vw', `${vv.width / carScale / 100}px`)
     return () => {
       root.style.zoom = ''
+      root.style.removeProperty('--vh')
+      root.style.removeProperty('--dvh')
+      root.style.removeProperty('--vw')
     }
-  }, [carMode, carScale])
+  }, [carMode, carScale, vv.width, vv.height])
 
   // Drive the connection to the active server for the whole shell.
   useConnectActiveServer()
