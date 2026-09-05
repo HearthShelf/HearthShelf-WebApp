@@ -175,7 +175,9 @@ export function ItemDetailPage() {
   }
 
   const title = data.title
-  const cv = tintFor(title)
+  // Seeded on the item id so the page glow matches this book's cover on every
+  // surface (DESIGN.shared.md, "The One Cover Palette Rule").
+  const cv = tintFor(data.id)
   const author = data.author
   const authorId = data.authorId
   const narrator = data.narrator

@@ -105,7 +105,7 @@ export function FinishedBooksPage() {
               <div
                 key={r.libraryItemId}
                 className="sl-row"
-                data-cv={tintFor(r.title)}
+                data-cv={tintFor(r.libraryItemId)}
                 onClick={() => navigate(`/book/${r.libraryItemId}`)}
               >
                 <div className="sl-num">

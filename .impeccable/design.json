@@ -1,0 +1,598 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-04T00:00:00.000Z",
+  "title": "Design System: HearthShelf",
+  "extensions": {
+    "colorMeta": {
+      "ember-coral": {
+        "role": "primary",
+        "displayName": "Ember Coral",
+        "canonical": "#e0654a",
+        "tonalRamp": [
+          "#2e120b",
+          "#4d1e12",
+          "#75301c",
+          "#a04429",
+          "#c55538",
+          "#e0654a",
+          "#ec8f79",
+          "#f7c4b5"
+        ]
+      },
+      "hearth-gold": {
+        "role": "secondary",
+        "displayName": "Hearth Gold",
+        "canonical": "#bd863f",
+        "tonalRamp": [
+          "#271a09",
+          "#412c11",
+          "#63431c",
+          "#875c28",
+          "#a37134",
+          "#bd863f",
+          "#d3a86b",
+          "#efdcc0"
+        ]
+      },
+      "shelf-cream": {
+        "role": "secondary",
+        "displayName": "Shelf Cream",
+        "canonical": "#f0e6d6",
+        "tonalRamp": [
+          "#2a251d",
+          "#453d31",
+          "#665b4a",
+          "#8a7d69",
+          "#ad9f8a",
+          "#cfc2ad",
+          "#f0e6d6",
+          "#fbf6ee"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#1b1a18",
+        "tonalRamp": [
+          "#0a0a09",
+          "#131211",
+          "#1b1a18",
+          "#242220",
+          "#2a2825",
+          "#322f2b",
+          "#4a463f",
+          "#6b665c"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#f4f1ea",
+        "tonalRamp": [
+          "#2b2a26",
+          "#46443e",
+          "#67645b",
+          "#8b8779",
+          "#aea998",
+          "#d0ccbc",
+          "#f4f1ea",
+          "#fffdf8"
+        ]
+      },
+      "surface-lowest": {
+        "role": "neutral",
+        "displayName": "Sidebar Well",
+        "canonical": "#131211",
+        "tonalRamp": [
+          "#000000",
+          "#0a0908",
+          "#131211",
+          "#1b1a18",
+          "#201e1c",
+          "#242220",
+          "#2a2825",
+          "#322f2b"
+        ]
+      },
+      "surface-low": {
+        "role": "neutral",
+        "displayName": "Playbar Ground",
+        "canonical": "#201e1c",
+        "tonalRamp": [
+          "#000000",
+          "#0a0908",
+          "#131211",
+          "#1b1a18",
+          "#201e1c",
+          "#242220",
+          "#2a2825",
+          "#322f2b"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Page Surface",
+        "canonical": "#242220",
+        "tonalRamp": [
+          "#000000",
+          "#0a0908",
+          "#131211",
+          "#1b1a18",
+          "#201e1c",
+          "#242220",
+          "#2a2825",
+          "#322f2b"
+        ]
+      },
+      "surface-high": {
+        "role": "neutral",
+        "displayName": "Card Surface",
+        "canonical": "#2a2825",
+        "tonalRamp": [
+          "#000000",
+          "#0a0908",
+          "#131211",
+          "#1b1a18",
+          "#201e1c",
+          "#242220",
+          "#2a2825",
+          "#322f2b"
+        ]
+      },
+      "surface-highest": {
+        "role": "neutral",
+        "displayName": "Track / Pressed",
+        "canonical": "#322f2b",
+        "tonalRamp": [
+          "#0a0908",
+          "#131211",
+          "#1b1a18",
+          "#201e1c",
+          "#242220",
+          "#2a2825",
+          "#322f2b",
+          "#4a463f"
+        ]
+      },
+      "sheet": {
+        "role": "neutral",
+        "displayName": "Sheet Ground",
+        "canonical": "#222120",
+        "tonalRamp": [
+          "#000000",
+          "#0a0908",
+          "#131211",
+          "#1b1a18",
+          "#222120",
+          "#2a2825",
+          "#322f2b",
+          "#4a463f"
+        ]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Muted Warm Grey",
+        "canonical": "#aba498",
+        "tonalRamp": [
+          "#221f1b",
+          "#38342d",
+          "#524d43",
+          "#6f695c",
+          "#8d8677",
+          "#aba498",
+          "#c8c2b8",
+          "#e6e2da"
+        ]
+      },
+      "text-faint": {
+        "role": "neutral",
+        "displayName": "Faint Warm Grey",
+        "canonical": "#756f64",
+        "tonalRamp": [
+          "#1a1815",
+          "#2c2a25",
+          "#413d36",
+          "#585349",
+          "#6b655a",
+          "#756f64",
+          "#9a9488",
+          "#c3bdb1"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Border",
+        "canonical": "#383530",
+        "tonalRamp": [
+          "#0f0e0d",
+          "#1b1a18",
+          "#26241f",
+          "#302d28",
+          "#383530",
+          "#4a463f",
+          "#635e54",
+          "#8a8478"
+        ]
+      },
+      "destructive": {
+        "role": "tertiary",
+        "displayName": "Alarm Red",
+        "canonical": "#c4463a",
+        "tonalRamp": [
+          "#280d0a",
+          "#421611",
+          "#66211a",
+          "#8c2f24",
+          "#a83a2f",
+          "#c4463a",
+          "#d97a70",
+          "#f0b6ae"
+        ]
+      },
+      "affirm-green": {
+        "role": "tertiary",
+        "displayName": "Affirm Green",
+        "canonical": "#5a9c52",
+        "tonalRamp": [
+          "#0f1f0d",
+          "#1a3517",
+          "#274f22",
+          "#376b30",
+          "#47843e",
+          "#5a9c52",
+          "#8bbd85",
+          "#c1dcbd"
+        ]
+      },
+      "chart-tide": {
+        "role": "tertiary",
+        "displayName": "Tide",
+        "canonical": "#4f9db0",
+        "tonalRamp": [
+          "#0c1f24",
+          "#14343c",
+          "#1d4e5a",
+          "#296b7b",
+          "#3a8598",
+          "#4f9db0",
+          "#84bdca",
+          "#bcdce3"
+        ]
+      },
+      "chart-moss": {
+        "role": "tertiary",
+        "displayName": "Moss",
+        "canonical": "#7fa86b",
+        "tonalRamp": [
+          "#16200f",
+          "#25361a",
+          "#375027",
+          "#4d6d37",
+          "#658a4d",
+          "#7fa86b",
+          "#a5c497",
+          "#cddfc4"
+        ]
+      },
+      "chart-dusk": {
+        "role": "tertiary",
+        "displayName": "Dusk",
+        "canonical": "#5e76c4",
+        "tonalRamp": [
+          "#101427",
+          "#1b2240",
+          "#283463",
+          "#384887",
+          "#4a5da6",
+          "#5e76c4",
+          "#93a3d8",
+          "#c6ceec"
+        ]
+      },
+      "chart-brass": {
+        "role": "tertiary",
+        "displayName": "Brass",
+        "canonical": "#d9a45a",
+        "tonalRamp": [
+          "#2b1e0c",
+          "#463215",
+          "#684b20",
+          "#8d662c",
+          "#b2823c",
+          "#d9a45a",
+          "#e7c294",
+          "#f4e0c7"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The stat hero on the Stats page. At most one per screen."
+      },
+      "headline": { "displayName": "Headline", "purpose": "Page titles." },
+      "title": { "displayName": "Title", "purpose": "Sheet and detail titles." },
+      "body": { "displayName": "Body", "purpose": "Running text at line-height 1.6." },
+      "label": {
+        "displayName": "Eyebrow",
+        "purpose": "Tracked uppercase kicker above a page title. The 0.32em tracking is a signature."
+      },
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "The HearthShelf lockup only: 'Hearth' in gold at 400, 'Shelf' in cream at 700."
+      },
+      "quote": {
+        "displayName": "Editorial Quote",
+        "purpose": "Pull-quotes and book copy. The only other place the serif appears."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Identifiers, timestamps, technical values."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card",
+        "value": "0 1px 0 rgba(255, 255, 255, 0.02)",
+        "purpose": "Dark-theme card edge. A top highlight standing in for a lifted edge; light theme uses 0 2px 8px rgba(60,50,40,0.08)."
+      },
+      {
+        "name": "lift",
+        "value": "0 18px 48px rgba(0, 0, 0, 0.55)",
+        "purpose": "Popovers, menus, sheets and tooltips. Light theme uses 0 18px 48px rgba(60,50,40,0.18)."
+      },
+      {
+        "name": "cover",
+        "value": "0 10px 28px rgba(0, 0, 0, 0.4)",
+        "purpose": "Tile artwork. Covers are physical objects on a shelf and cast accordingly."
+      },
+      {
+        "name": "ember-throw",
+        "value": "0 8px 24px color-mix(in oklab, var(--primary) 34%, transparent)",
+        "purpose": "The primary button only. A coloured glow rather than a grey shadow, so the button reads as lit by the same fire as the room."
+      },
+      {
+        "name": "app-glow",
+        "value": "radial-gradient(120% 80% at 50% -18%, color-mix(in oklab, var(--glow-accent) calc(var(--glow-strength) * 1%), transparent) 0%, transparent 62%)",
+        "purpose": "The signature atmospheric bloom behind the content column, tinted live by cover art. Strength is themed: 60 dark, 14 light, 0 flat/OLED."
+      },
+      {
+        "name": "glass",
+        "value": "backdrop-filter: blur(20px)",
+        "purpose": "The playbar and cover badges. The only blur in the system."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.2, 0.7, 0.3, 1)",
+        "purpose": "The system's single easing curve. Playbar reveal/hide, sheets, and every transform-based transition."
+      },
+      {
+        "name": "duration-press",
+        "value": "0.12s",
+        "purpose": "The scale(0.98) press feedback on buttons."
+      },
+      {
+        "name": "duration-state",
+        "value": "0.15s - 0.18s",
+        "purpose": "Background, colour and border transitions on hover and focus."
+      },
+      {
+        "name": "duration-panel",
+        "value": "0.35s",
+        "purpose": "Playbar translate and other panel-scale movement."
+      },
+      {
+        "name": "duration-atmosphere",
+        "value": "0.7s",
+        "purpose": "The app-glow background crossfade as cover art changes."
+      },
+      {
+        "name": "duration-car-fade",
+        "value": "0.5s",
+        "purpose": "Car-shell chrome fading out and waking back in."
+      }
+    ],
+    "breakpoints": [
+      { "name": "xl", "value": "1180px" },
+      { "name": "lg", "value": "860px" },
+      { "name": "md", "value": "820px" },
+      { "name": "sm", "value": "720px" },
+      { "name": "xs", "value": "640px" },
+      { "name": "2xs", "value": "420px" }
+    ],
+    "shellLevers": [
+      {
+        "name": "--sidebar-w",
+        "values": {
+          "rest": "248px",
+          "collapsed": "76px",
+          "car-mode": "124px",
+          "car-takeover": "single column"
+        },
+        "purpose": "The single lever the whole shell tracks. Glow, playbar and content column all read it."
+      },
+      {
+        "name": "--glow-strength",
+        "values": { "dark": "60", "light": "14", "flat": "0", "oled": "0" },
+        "purpose": "Themed intensity of the signature bloom. Flat/OLED removes the atmosphere entirely."
+      },
+      {
+        "name": "--tile",
+        "values": { "default": "170px" },
+        "purpose": "User-adjustable library cover size via the scale slider. Density is a preference, not a fixed choice."
+      }
+    ],
+    "themes": [
+      { "name": "dark", "selector": ".dark", "note": "The product default. The shell mounts with class='dark'." },
+      { "name": "light", "selector": "[data-theme='light']", "note": "Daytime option; the two brand anchors swap roles." },
+      { "name": "flat", "selector": "[data-theme='flat']", "note": "Pure black, no bloom (--glow-strength: 0)." },
+      { "name": "oled", "selector": "[data-theme='oled']", "note": "Alias of flat." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one emphatic control on a view. Ember ground with a coloured throw shadow, lit by the same fire as the room.",
+      "html": "<button class=\"ds-btn-primary\"><span class=\"ds-ico\"><svg width=\"21\" height=\"21\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M8 5v14l11-7z\"/></svg></span>Start listening</button>",
+      "css": ".ds-btn-primary { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; cursor: pointer; border: none; display: inline-flex; align-items: center; justify-content: center; gap: 9px; font-size: 15px; font-weight: 650; padding: 14px 26px; border-radius: 16px; background: #e0654a; color: #fffaf6; box-shadow: 0 8px 24px rgba(224, 101, 74, 0.34); transition: background 0.18s, transform 0.12s, box-shadow 0.18s; } .ds-btn-primary:hover { background: #e57a62; } .ds-btn-primary:active { transform: scale(0.98); } .ds-btn-primary:focus-visible { outline: 2px solid #e0654a; outline-offset: 3px; } .ds-btn-primary .ds-ico { display: inline-flex; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "The default control. Quiet 6% fill and hairline border so the primary action can be the only loud thing.",
+      "html": "<button class=\"ds-btn-ghost\"><span class=\"ds-ico\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M17 3H5a2 2 0 0 0-2 2v16l7-3 7 3V5a2 2 0 0 0-2-2z\"/></svg></span>Add to shelf</button>",
+      "css": ".ds-btn-ghost { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 9px; font-size: 14px; font-weight: 600; padding: 11px 20px; border-radius: 16px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08); color: #f4f1ea; transition: background 0.18s, transform 0.12s; } .ds-btn-ghost:hover { background: rgba(255, 255, 255, 0.1); } .ds-btn-ghost:active { transform: scale(0.98); } .ds-btn-ghost:focus-visible { outline: 2px solid #e0654a; outline-offset: 3px; } .ds-btn-ghost .ds-ico { display: inline-flex; }"
+    },
+    {
+      "name": "Filter Pill",
+      "kind": "chip",
+      "refersTo": "pill",
+      "description": "Library filter chip. Selection changes the border and text to ember but leaves the fill alone, keeping selected chips visually light.",
+      "html": "<div style=\"display:flex;gap:8px;flex-wrap:wrap\"><button class=\"ds-pill\"><span class=\"ds-ico\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M3 5h18l-7 8v6l-4 2v-8z\"/></svg></span>Unfinished</button><button class=\"ds-pill ds-pill-on\"><span class=\"ds-ico\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z\"/></svg></span>Fantasy</button></div>",
+      "css": ".ds-pill { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08); color: #f4f1ea; font-size: 13px; font-weight: 500; padding: 9px 16px; border-radius: 999px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.18s, border-color 0.18s; } .ds-pill .ds-ico { display: inline-flex; color: #aba498; } .ds-pill:hover { background: rgba(255, 255, 255, 0.1); } .ds-pill:focus-visible { outline: 2px solid #e0654a; outline-offset: 2px; } .ds-pill-on { border-color: rgba(224, 101, 74, 0.55); color: #e0654a; } .ds-pill-on .ds-ico { color: #e0654a; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Label, control, hint. Focus lifts the ground a tonal step and warms the border to ember - never a ring.",
+      "html": "<div class=\"ds-field\"><label for=\"ds-f1\">Server name</label><input id=\"ds-f1\" class=\"ds-fld\" type=\"text\" placeholder=\"The study\" /><span class=\"ds-hint\">Shown to everyone you invite.</span></div>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 7px; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; max-width: 320px; } .ds-field > label { font-size: 12.5px; font-weight: 600; color: #aba498; } .ds-hint { font-size: 12px; color: #756f64; } .ds-fld { width: 100%; box-sizing: border-box; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 10px 13px; color: #f4f1ea; font-family: inherit; font-size: 14px; outline: none; transition: border-color 0.15s, background 0.15s; } .ds-fld:focus { border-color: rgba(224, 101, 74, 0.55); background: #242220; } .ds-fld::placeholder { color: #756f64; }"
+    },
+    {
+      "name": "Navigation Row",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Sidebar row. Muted at rest, 6% fill on hover, ember text on a 15% ember wash when active.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item\" href=\"#\"><span class=\"ds-ico\"><svg width=\"21\" height=\"21\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M12 3 2 12h3v8h6v-5h2v5h6v-8h3z\"/></svg></span>Home</a><a class=\"ds-nav-item ds-nav-active\" href=\"#\"><span class=\"ds-ico\"><svg width=\"21\" height=\"21\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M4 4h5v16H4zm6 0h4v16h-4zm5.5.4 3.9 15.4 2-.5L17.5 4z\"/></svg></span>Library</a><a class=\"ds-nav-item\" href=\"#\"><span class=\"ds-ico\"><svg width=\"21\" height=\"21\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"7\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"m16.5 16.5 4 4\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"none\"/></svg></span>Search</a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; width: 220px; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; } .ds-nav-item { position: relative; display: flex; align-items: center; gap: 14px; padding: 11px 14px; border-radius: 12px; color: #aba498; font-size: 14px; font-weight: 500; cursor: pointer; background: transparent; border: none; width: 100%; text-align: left; text-decoration: none; box-sizing: border-box; transition: background 0.18s, color 0.18s; } .ds-nav-item .ds-ico { display: inline-flex; } .ds-nav-item:hover { background: rgba(255, 255, 255, 0.06); color: #f4f1ea; } .ds-nav-item:focus-visible { outline: 2px solid #e0654a; outline-offset: -2px; } .ds-nav-active { color: #e0654a; background: rgba(224, 101, 74, 0.15); }"
+    },
+    {
+      "name": "Car Nav Tile",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "The same nav row restacked for an in-car touchscreen: a 30px icon over a label, sized well beyond the AA minimum target.",
+      "html": "<div class=\"ds-car-nav\"><a class=\"ds-car-tile\" href=\"#\"><span class=\"ds-ico\"><svg width=\"30\" height=\"30\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M12 3 2 12h3v8h6v-5h2v5h6v-8h3z\"/></svg></span><span class=\"ds-car-label\">Home</span></a><a class=\"ds-car-tile ds-car-active\" href=\"#\"><span class=\"ds-ico\"><svg width=\"30\" height=\"30\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M8 5v14l11-7z\"/></svg></span><span class=\"ds-car-label\">Playing</span></a></div>",
+      "css": ".ds-car-nav { display: flex; flex-direction: column; gap: 8px; width: 124px; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; } .ds-car-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 16px 6px; border-radius: 18px; background: rgba(255, 255, 255, 0.05); color: #aba498; text-align: center; text-decoration: none; cursor: pointer; box-sizing: border-box; transition: background 0.18s, color 0.18s; } .ds-car-tile .ds-ico { display: inline-flex; } .ds-car-label { font-size: 12.5px; font-weight: 600; line-height: 1.15; } .ds-car-tile:hover { color: #f4f1ea; } .ds-car-active { color: #e0654a; background: rgba(224, 101, 74, 0.18); }"
+    },
+    {
+      "name": "Cover (typeset fallback)",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "The signature component. With no artwork a cover is never a grey box - it is a designed, typeset spine on a duotone wash, under the same diagonal specular every cover carries.",
+      "html": "<div class=\"ds-cover\" style=\"--cv:#4f9db0\"><div class=\"ds-cv-mono\">T</div><div class=\"ds-cv-body\"><div class=\"ds-cv-kicker\">Unabridged</div><div class=\"ds-cv-title\">The Tide Between Us</div><div class=\"ds-cv-rule\"></div><div class=\"ds-cv-author\">Marin Halloway</div></div><div class=\"ds-cv-shine\"></div><div class=\"ds-cover-badge\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z\"/></svg></div></div>",
+      "css": ".ds-cover { position: relative; width: 170px; aspect-ratio: 1/1; border-radius: 10px; overflow: hidden; isolation: isolate; display: flex; flex-direction: column; justify-content: flex-end; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4); font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; } .ds-cover::before { content: ''; position: absolute; inset: 0; z-index: 0; background: radial-gradient(130% 100% at 18% 8%, color-mix(in oklab, var(--cv) 78%, #fff 6%) 0%, transparent 55%), linear-gradient(155deg, color-mix(in oklab, var(--cv) 92%, #000 4%), color-mix(in oklab, var(--cv) 50%, #07060a) 100%); } .ds-cv-mono { position: absolute; right: -6%; bottom: -16%; z-index: 1; font-family: 'Libre Baskerville', Georgia, serif; font-size: 150px; font-weight: 700; line-height: 1; color: rgba(255, 255, 255, 0.09); } .ds-cv-body { position: relative; z-index: 2; padding: 14px; } .ds-cv-kicker { font-size: 8.5px; font-weight: 300; text-transform: uppercase; letter-spacing: 0.32em; color: rgba(255, 255, 255, 0.62); } .ds-cv-title { margin-top: 6px; font-family: 'Libre Baskerville', Georgia, serif; font-size: 15px; font-weight: 700; line-height: 1.2; color: #fff; } .ds-cv-rule { width: 26px; height: 1px; margin: 8px 0; background: rgba(255, 255, 255, 0.45); } .ds-cv-author { font-size: 10.5px; font-weight: 500; color: rgba(255, 255, 255, 0.72); } .ds-cv-shine { position: absolute; inset: 0; z-index: 3; background: linear-gradient(125deg, rgba(255, 255, 255, 0.1), transparent 38%); pointer-events: none; } .ds-cover-badge { position: absolute; top: 8px; right: 8px; z-index: 4; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: rgba(8, 7, 6, 0.62); backdrop-filter: blur(4px); color: #fff; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A surface one tonal step above the page. Depth comes from the step, not from a shadow.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-eyebrow\">Continue</div><h3 class=\"ds-card-title\">Three books in progress</h3><p class=\"ds-card-body\">Pick up where you left off, on any device you have signed in.</p></div>",
+      "css": ".ds-card { background: #2a2825; border-radius: 16px; padding: 16px; box-shadow: 0 1px 0 rgba(255, 255, 255, 0.02); font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; max-width: 340px; box-sizing: border-box; } .ds-eyebrow { font-size: 11px; font-weight: 300; text-transform: uppercase; letter-spacing: 0.32em; color: #aba498; } .ds-card-title { margin: 10px 0 6px; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; color: #f4f1ea; } .ds-card-body { margin: 0; font-size: 0.9rem; line-height: 1.6; color: #aba498; }"
+    },
+    {
+      "name": "Playbar",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "The only glass in the system: an 86% surface over a 20px blur with a hairline top border, pinned to the bottom of the content column.",
+      "html": "<div class=\"ds-playbar\"><div class=\"ds-pb-now\"><div class=\"ds-pb-cover\" style=\"--cv:#7fa86b\"></div><div class=\"ds-pb-meta\"><div class=\"ds-pb-title\">The Tide Between Us</div><div class=\"ds-pb-sub\">Marin Halloway - Chapter 12</div></div></div><div class=\"ds-pb-controls\"><button class=\"ds-icon-btn\" aria-label=\"Back 30 seconds\"><svg width=\"19\" height=\"19\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M12 5V1L7 6l5 5V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z\"/></svg></button><button class=\"ds-icon-btn ds-icon-btn-lg\" aria-label=\"Pause\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M6 4h4v16H6zm8 0h4v16h-4z\"/></svg></button><button class=\"ds-icon-btn\" aria-label=\"Forward 30 seconds\"><svg width=\"19\" height=\"19\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M12 5V1l5 5-5 5V7a6 6 0 1 0 6 6h2a8 8 0 1 1-8-8z\"/></svg></button></div></div>",
+      "css": ".ds-playbar { height: 84px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 20px; padding: 0 24px; background: color-mix(in oklab, #201e1c 86%, transparent); backdrop-filter: blur(20px); border-top: 1px solid rgba(255, 255, 255, 0.08); font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; box-sizing: border-box; min-width: 420px; } .ds-pb-now { display: flex; align-items: center; gap: 14px; min-width: 0; cursor: pointer; } .ds-pb-cover { width: 56px; height: 56px; border-radius: 8px; flex: none; background: linear-gradient(155deg, color-mix(in oklab, var(--cv) 92%, #000 4%), color-mix(in oklab, var(--cv) 50%, #07060a) 100%); } .ds-pb-meta { min-width: 0; } .ds-pb-title { font-size: 14px; font-weight: 600; color: #f4f1ea; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ds-pb-sub { font-size: 12px; color: #aba498; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ds-pb-controls { display: flex; align-items: center; gap: 10px; } .ds-icon-btn { width: 42px; height: 42px; border-radius: 50%; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08); color: #f4f1ea; display: grid; place-items: center; cursor: pointer; transition: background 0.18s, transform 0.12s; } .ds-icon-btn:hover { background: rgba(255, 255, 255, 0.1); } .ds-icon-btn:active { transform: scale(0.98); } .ds-icon-btn:focus-visible { outline: 2px solid #e0654a; outline-offset: 2px; } .ds-icon-btn-lg { width: 50px; height: 50px; }"
+    },
+    {
+      "name": "Wordmark",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "The brand lockup and the only place Hearth Gold appears. 'Hearth' is gold at 400; 'Shelf' flips between cream on dark and ink on light.",
+      "html": "<div class=\"ds-wordmark\"><span class=\"ds-wm-lt\">Hearth</span><span class=\"ds-wm-bd\">Shelf</span></div>",
+      "css": ".ds-wordmark { font-family: 'Libre Baskerville', Georgia, serif; font-size: 1.0625rem; letter-spacing: normal; line-height: 1; } .ds-wm-lt { font-weight: 400; color: #bd863f; } .ds-wm-bd { font-weight: 700; color: #f0e6d6; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Fireside Listening Room",
+    "overview": "A warm room at night with one fire in it, furnished for listening. Everything in this system follows from that single image. The fire is literal: a radial-gradient bloom (.app-glow) sits fixed behind the content column, tinted live by the current cover art, and it is the only real light source in the interface. Surfaces are warm near-neutrals stepped up from an ink base (#1b1a18) - R >= G >= B by a hair, never navy, never muddy brown - so the room reads as firelight on plaster rather than as a dark-mode inversion of a white app. Dark is home; light is a daytime option, not the default.\n\nThe room is furnished for one activity. Cover art is the only saturated colour most screens contain, and the chrome around it is deliberately quiet: fills at 6% white, hairlines at 8%, muted warm-grey type. Controls are soft to the touch - generous 16px card radii, a 0.98 press-scale on every button, 150-180ms transitions - so the interface feels physically pressable rather than clicked. Type is a two-voice pairing: Inter carries every functional surface, and Libre Baskerville appears only where the product turns editorial (the wordmark, pull-quotes, book copy), which keeps the serif meaningful instead of decorative.\n\nThe system spans an unusually wide range for one world: a listener's library at one end, a 25-section server admin panel at the other, and a large-touchscreen car shell in between. All three use the same tokens. Admin density is allowed to be dense; it is not allowed to become a different visual world.",
+    "keyCharacteristics": [
+      "Warm near-neutral surfaces on an ink base, never navy or brown",
+      "One live light source: a cover-tinted radial bloom behind the content",
+      "Cover art supplies the colour; chrome stays at 6% fill and 8% hairline",
+      "Soft-touch controls: 16px radii, press-scale feedback, 150-180ms easing",
+      "Two type voices - Inter functional, Libre Baskerville editorial",
+      "Four themes off one token set: dark (home), light, flat/OLED, plus a car shell"
+    ],
+    "rules": [
+      {
+        "name": "The Two Warms Rule",
+        "body": "Ember Coral is functional; Hearth Gold is brand. A control tinted gold is a bug, and a wordmark tinted coral is a bug. They are close in hue on purpose - that is what makes the discipline necessary.",
+        "section": "colors"
+      },
+      {
+        "name": "The Cover-Supplies-Colour Rule",
+        "body": "Saturated colour on a library screen comes from artwork, not from UI. If a new component needs colour to be understood, prefer the glow, a surface step, or type weight before reaching for a hue.",
+        "section": "colors"
+      },
+      {
+        "name": "The Accent-Is-Not-Accent Rule",
+        "body": "In shadcn's token convention --accent is a neutral hover surface (#322f2b), not the brand accent. Interactive colour is --primary / --ring. See Do's and Don'ts for the live inconsistency this has already caused.",
+        "section": "colors"
+      },
+      {
+        "name": "The Rare Serif Rule",
+        "body": "Libre Baskerville appears in the wordmark, pull-quotes, and book prose. It never sets a heading, a button, or a label. Its scarcity is the point.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tracked Kicker Rule",
+        "body": "The eyebrow's 0.32em tracking and 300 weight are load-bearing - it is the one place this system is overtly stylish. Keep it wide, keep it light, keep it uppercase.",
+        "section": "typography"
+      },
+      {
+        "name": "The Single-Lever Rule",
+        "body": "Left-edge geometry is derived from --sidebar-w. Anything that hardcodes 248px will desynchronise the moment the rail collapses or the car shell mounts.",
+        "section": "layout"
+      },
+      {
+        "name": "The One Light Source Rule",
+        "body": "There is a single bloom, behind the content column, tinted by the artwork. Adding a second glow elsewhere on the page breaks the room.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Flat-Theme Rule",
+        "body": "Flat/OLED is not 'dark with darker colours' - it sets --glow-strength: 0 and removes the atmosphere entirely. Any new effect that depends on the bloom must still read with it switched off.",
+        "section": "elevation"
+      },
+      {
+        "name": "The No-Sharp-Corners Rule",
+        "body": "Nothing in this system has a 0px radius. The smallest corner is 10px, on cover art.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do use --primary / --ring (Ember Coral #e0654a) for every interactive and stateful colour.",
+      "Do reserve Hearth Gold (#bd863f) for the wordmark alone.",
+      "Do derive left-edge geometry from --sidebar-w, never from a literal 248px.",
+      "Do keep the scale(0.98) press on every new actionable control.",
+      "Do design new surfaces against all four themes - dark, light, flat/OLED, and the car shell - since flat sets --glow-strength: 0 and removes the bloom.",
+      "Do give every cover a typeset fallback rather than an empty placeholder.",
+      "Do honour the 4px spacing cadence and the five-step radius scale.",
+      "Do use cubic-bezier(0.2, 0.7, 0.3, 1) for motion; it is the system's only easing curve.",
+      "Do let cover art carry the colour on library surfaces."
+    ],
+    "donts": [
+      "Don't use --accent for interactive colour. In this system --accent is a neutral hover surface (#322f2b dark / #e7dcc9 light). KNOWN DEFECT: the ported shell in src/styles/design.css reads var(--accent) for .btn-primary, .nav-item.active, .pill.on, .fld:focus and the cover-size slider, so those render warm-grey instead of ember. Do not copy this pattern into new components - use --primary. Fixing the existing rules is tracked work, not settled intent.",
+      "Don't add a second glow. There is one light source, behind the content column.",
+      "Don't set headings, buttons or labels in Libre Baskerville.",
+      "Don't reduce the eyebrow's 0.32em tracking toward a conventional value.",
+      "Don't introduce navy or brown surfaces. Warm near-neutrals only - R >= G >= B by a hair.",
+      "Don't use a 0px radius anywhere; 10px is the tightest corner in the system.",
+      "Don't use chart colours as UI colours.",
+      "Don't load a font from a CDN - every face is self-hosted and offline-safe.",
+      "Don't add overflow to body; the shell is a fixed grid that scrolls its own content pane.",
+      "Don't let admin density drift into a second visual world. /config and /admin may be dense, but they use these tokens."
+    ]
+  }
+}

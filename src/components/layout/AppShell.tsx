@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
+import { usePlayer } from '@/player/PlayerProvider'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { AppBar } from '@/components/layout/AppBar'
 import { MobileNav } from '@/components/layout/MobileNav'
@@ -31,6 +32,7 @@ import { UpdateBanner } from '@/components/common/UpdateBanner'
  */
 export function AppShell() {
   const { pathname } = useLocation()
+  const nowPlaying = usePlayer()
   // The full-screen player and the ebook reader are immersive: no app bar,
   // no bottom nav.
   //
@@ -76,7 +78,9 @@ export function AppShell() {
   // Drive the connection to the active server for the whole shell.
   useConnectActiveServer()
   // Apply appearance settings (theme via data-theme, accent CSS vars) globally.
-  useApplySettings()
+  // The playing item feeds accentMode 'dynamic', where the accent follows the
+  // current book's cover hue instead of the user's fixed pick.
+  useApplySettings(nowPlaying.now?.itemId ?? null)
   // Sync settings per-key with the active server so they follow the user across
   // devices.
   useSettingsSync()

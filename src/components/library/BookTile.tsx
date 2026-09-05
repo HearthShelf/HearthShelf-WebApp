@@ -66,7 +66,7 @@ export function BookTile({
   return (
     <div
       className={'book fade-in' + (compact ? ' compact' : '') + (selected ? ' sel' : '')}
-      data-cv={tintFor(title ?? 'Untitled')}
+      data-cv={tintFor(item.id)}
       onClick={onClick}
     >
       <Cover

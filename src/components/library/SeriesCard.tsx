@@ -27,7 +27,7 @@ export function SeriesCard({ series, selectionActive = false, gap }: SeriesCardP
   const shown = books.slice(0, 4)
   const extra = books.length - shown.length
   const author = books[0]?.media.metadata.authorName || ''
-  const cv = tintFor(books[0]?.media.metadata.title ?? series.name)
+  const cv = tintFor(books[0]?.id ?? series.name)
 
   // Series overall progress = average of per-book fractions; finished count is
   // the number of books marked finished. A finished book counts as a full 1 -

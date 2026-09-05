@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { coverHue } from '@hearthshelf/core'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { Icon } from '@/components/common/Icon'
 
@@ -18,25 +19,20 @@ interface CoverProps {
   overlay?: React.ReactNode
 }
 
-// Warm fallback tints, picked deterministically from the title so each book's
-// typeset placeholder is stable and distinct (real cover art always wins).
-const FALLBACK_TINTS = [
-  '#3f7d8c',
-  '#c4663a',
-  '#5e76c4',
-  '#4f9db0',
-  '#b85c4a',
-  '#7fa86b',
-  '#9b6fb8',
-  '#2f9d8f',
-  '#b07a3c',
-  '#c8487e',
-]
-
-export function tintFor(title: string): string {
-  let h = 0
-  for (let i = 0; i < title.length; i++) h = (h * 31 + title.charCodeAt(i)) >>> 0
-  return FALLBACK_TINTS[h % FALLBACK_TINTS.length]
+/**
+ * A stable tint for a book, person or series, used by the typeset placeholder
+ * and the cover glow when real artwork is missing (real cover art always wins).
+ *
+ * Delegates to core's `coverHue` so a given seed produces the same colour on
+ * every surface - see DESIGN.shared.md, "The One Cover Palette Rule". This was
+ * a web-local tint list seeded on the title, which meant the same book rendered
+ * one colour here and a different one on mobile.
+ *
+ * Seeds: books use the item id (matching mobile); people and series, which have
+ * no cover item of their own, keep seeding on their name.
+ */
+export function tintFor(seed: string): string {
+  return coverHue(seed)
 }
 
 /**
@@ -67,7 +63,10 @@ export function Cover({
   // cover that mounted during that brief null state stuck on the fallback.
   useEffect(() => setImgOk(Boolean(src)), [src])
 
-  const tint = tintFor(title)
+  // Seeded on the item id, not the title, so a book is the same colour here as
+  // it is on mobile and in the car (DESIGN.shared.md, "The One Cover Palette
+  // Rule"). Falls back to the title for the rare caller with no id.
+  const tint = tintFor(itemId || title)
   const initial = (title || '?').trim()[0]
 
   return (

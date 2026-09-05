@@ -352,7 +352,7 @@ export function ConfigUserDetail({ userId }: { userId: string }) {
               <div className="chart-card" style={{ marginTop: 0 }}>
                 <div className="ml-list">
                   {topBooks.map((b, i) => (
-                    <div className="ml-row" key={b.id} data-cv={tintFor(b.title)}>
+                    <div className="ml-row" key={b.id} data-cv={tintFor(b.id)}>
                       <span className="ml-rank">{i + 1}</span>
                       <Cover itemId={b.id} title={b.title} fs={4} />
                       <div className="ml-meta">
