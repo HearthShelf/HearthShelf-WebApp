@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
-import { useUser } from '@clerk/clerk-react'
+import { useUser } from '@/auth/useAuth'
 import { useQuery } from '@tanstack/react-query'
 import { Wordmark } from '@/components/Wordmark'
 import { Avatar } from '@/components/common/Avatar'

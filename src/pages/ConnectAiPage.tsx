@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useAuth } from '@clerk/clerk-react'
+import { useAuth } from '@/auth/useAuth'
+import { getBearerToken } from '@/auth/bearerToken'
 import { useSearchParams } from 'react-router-dom'
 import { Loader2, AlertCircle } from 'lucide-react'
 import { MCP_ORIGIN } from '@/lib/config'
@@ -13,7 +14,7 @@ import { MCP_ORIGIN } from '@/lib/config'
  * redirects here; this route sits behind RequireAuth, so by the time we render,
  * Clerk has signed the user in (or signed them up) and returned them here.
  *
- * All we do is hand the MCP Worker a Clerk session token by auto-POSTing a form
+ * All we do is hand the MCP Worker a session token by auto-POSTing a form
  * to `mcp_callback`. The Worker verifies it, shows its own consent screen, and
  * completes the OAuth grant. The token travels in a POST BODY, never a query
  * string, so it stays out of history, logs and referrers.
@@ -26,11 +27,10 @@ import { MCP_ORIGIN } from '@/lib/config'
  * it - it arrives as a query param, so treating it as trusted would let any
  * link harvest a session token.
  */
-const JWT_TEMPLATE = 'hearthshelf'
 
 export function ConnectAiPage() {
   const [params] = useSearchParams()
-  const { getToken, isLoaded } = useAuth()
+  const { isLoaded } = useAuth()
   const formRef = useRef<HTMLFormElement>(null)
   const [token, setToken] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -54,7 +54,7 @@ export function ConnectAiPage() {
     let cancelled = false
     void (async () => {
       try {
-        const t = await getToken({ template: JWT_TEMPLATE })
+        const t = await getBearerToken()
         if (cancelled) return
         if (!t) {
           setError('Could not get a session token. Try signing in again.')
@@ -68,7 +68,7 @@ export function ConnectAiPage() {
     return () => {
       cancelled = true
     }
-  }, [isLoaded, state, callbackOk, getToken])
+  }, [isLoaded, state, callbackOk])
 
   // Submit as soon as the token lands.
   useEffect(() => {

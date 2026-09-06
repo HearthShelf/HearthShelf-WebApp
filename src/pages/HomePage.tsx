@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, Fragment, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueries, useQuery, type UseQueryOptions } from '@tanstack/react-query'
-import { useUser } from '@clerk/clerk-react'
+import { useUser } from '@/auth/useAuth'
 import {
   continueSeriesShelf,
   ignoredItemIds,

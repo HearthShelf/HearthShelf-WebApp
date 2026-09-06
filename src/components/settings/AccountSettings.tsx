@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useUser } from '@clerk/clerk-react'
-import { useQuery } from '@tanstack/react-query'
+import { useUser } from '@/auth/useAuth'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getMe } from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
@@ -15,6 +15,7 @@ import { useProviderAvatarSync } from '@/hooks/useProviderAvatarSync'
 import {
   deleteServerAvatar,
   probeAvatarSource,
+  uploadAvatar,
   type AvatarProbeResult,
   type AvatarSyncFailReason,
   type AvatarSyncResult,
@@ -93,6 +94,8 @@ export function AccountSettings() {
   const [syncBlocked, setSyncBlocked] = useState(false)
   const [removing, setRemoving] = useState(false)
 
+  const queryClient = useQueryClient()
+
   const { data: me } = useQuery({
     queryKey: ['me', target?.serverUrl],
     queryFn: () => getMe(target!),
@@ -120,10 +123,19 @@ export function AccountSettings() {
     setUploading(true)
     setUploadErr(null)
     try {
-      await user.setProfileImage({ file })
-      // Push the new provider photo to the connected server so other users see it.
-      await user.reload().catch(() => {})
-      void syncProviderPhoto()
+      // Straight to the connected server's own store, as a real upload - it is
+      // where other users are served from, and an upload outranks any photo
+      // synced from whoever signed you in.
+      if (!target || !me?.id) {
+        setUploadErr('Connect to a server before changing your photo.')
+        return
+      }
+      const result = await uploadAvatar(target, me.id, file)
+      if (!result.ok) {
+        setUploadErr('Photo upload failed. Try a smaller image.')
+        return
+      }
+      await queryClient.invalidateQueries({ queryKey: ['me', target.serverUrl] })
     } catch {
       setUploadErr('Photo upload failed. Try a smaller image.')
     } finally {

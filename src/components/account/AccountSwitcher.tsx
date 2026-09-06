@@ -8,7 +8,7 @@
  * the sidebar, a drawer section on mobile), and we fill it with rows.
  */
 import { useState, useCallback } from 'react'
-import { useUser } from '@clerk/clerk-react'
+import { useUser } from '@/auth/useAuth'
 import { Icon } from '@/components/common/Icon'
 import { Avatar } from '@/components/common/Avatar'
 import { PinEntryOverlay } from '@/components/account/PinEntryOverlay'
@@ -71,7 +71,9 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
           setPinFor(account)
           return false
         }
-        // locked_out / gone / error: fall back to a real sign-in.
+        // needs_sign_in / locked_out / gone / error: fall back to a real
+        // sign-in. needs_sign_in is the common one now - the account is
+        // remembered here but has no live session in this browser yet.
         await loginWithPassword()
         return false
       } finally {

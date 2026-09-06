@@ -13,7 +13,7 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { useUser } from '@clerk/clerk-react'
+import { useUser } from '@/auth/useAuth'
 import { Icon } from '@/components/common/Icon'
 import { isCarBrowser } from '@/hooks/useCarMode'
 import { useDeviceSettings } from '@/store/deviceSettings'

@@ -1,5 +1,5 @@
 import { Link, Outlet } from 'react-router-dom'
-import { UserButton } from '@clerk/clerk-react'
+import { UserMenu } from '@/components/auth/UserMenu'
 import { Wordmark } from '@/components/Wordmark'
 import { MiniPlayer } from '@/player/MiniPlayer'
 import { useAdminMe } from '@/hooks/useAdminMe'
@@ -40,7 +40,7 @@ export function AppLayout() {
           <Link to="/account" className="t-muted text-[13px] hover:text-foreground">
             Account
           </Link>
-          <UserButton afterSignOutUrl="/sign-in" />
+          <UserMenu />
         </div>
       </header>
       <main className="flex-1 px-5 py-8">

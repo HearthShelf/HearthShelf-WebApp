@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useSearchParams, Navigate } from 'react-router-dom'
-import { UserProfile, useClerk } from '@clerk/clerk-react'
+import { ProfilePanel } from '@/components/auth/ProfilePanel'
+import { useAuth } from '@/auth/useAuth'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Loader2, Sparkles, Check } from 'lucide-react'
 import { useIsMobile } from '@/hooks/useMediaQuery'
@@ -100,8 +101,7 @@ const NAV: { label: string; items: { id: Section; icon: string; label: string }[
  *    with quick-open (sets active) and unlink, plus link-a-server.
  *  - Subscription: the user's plan, read from the control plane's entitlement
  *    seam. Billing isn't wired yet, so Pro is a "coming soon" upsell.
- *  - Profile & sign-in: Clerk's own UserProfile (email, password, devices,
- *    connected accounts), skinned to the dark shell.
+ *  - Profile & sign-in: username, passkeys and two-factor (see ProfilePanel).
  */
 const SECTIONS = NAV.flatMap((g) => g.items.map((i) => i.id))
 const DEFAULT_SECTION: Section = 'servers'
@@ -365,7 +365,7 @@ function PlanLine({ on, children }: { on?: boolean; children: React.ReactNode })
 }
 
 function Profile() {
-  const { signOut } = useClerk()
+  const { signOut } = useAuth()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -392,9 +392,7 @@ function Profile() {
         <Icon name="manage_accounts" />
         <h2>HearthShelf Account</h2>
       </div>
-      {/* Clerk owns identity: email, password, security, connected accounts,
-          active devices. Skinned to the dark shell via clerkAppearance. */}
-      <UserProfile routing="hash" />
+      <ProfilePanel />
 
       <div className="mt-8 rounded-xl border border-destructive/30 bg-card p-6">
         <p className="t-eyebrow text-destructive">Danger zone</p>

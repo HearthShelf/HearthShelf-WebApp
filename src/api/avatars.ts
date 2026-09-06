@@ -117,6 +117,55 @@ export async function syncProviderAvatar(
   }
 }
 
+/**
+ * Upload a photo the user picked, straight to the connected server's store as a
+ * real ('upload') avatar.
+ *
+ * This replaces pushing the file to the identity provider's CDN and syncing it
+ * back. The server's own store is the better home for it: it is where OTHER
+ * users are served from anyway, an 'upload' outranks any synced provider photo,
+ * and the photo is no longer tied to whoever signs people in.
+ *
+ * Re-encoded to a small square webp client-side, same as the sync path, so the
+ * server receives one predictable shape.
+ */
+export async function uploadAvatar(
+  t: AbsTarget,
+  absUserId: string,
+  file: Blob,
+): Promise<AvatarSyncResult> {
+  const token = getAbsToken(t.serverId)
+  if (!token) return { ok: false, reason: 'no_token' }
+
+  const objectUrl = URL.createObjectURL(file)
+  let encoded: Awaited<ReturnType<typeof toSquareWebp>>
+  try {
+    encoded = await toSquareWebp(objectUrl)
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+  if (!encoded.ok) return encoded
+
+  try {
+    const res = await fetch(`${origin(t)}${HS_ENDPOINTS.avatar(encodeURIComponent(absUserId))}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': encoded.blob.type || 'image/webp',
+        Authorization: `Bearer ${token}`,
+        // No X-Avatar-Source: 'upload' is the server's default, and a deliberate
+        // upload must outrank a synced provider photo.
+        Accept: 'application/json',
+      },
+      body: encoded.blob,
+    })
+    if (!res.ok) return { ok: false, reason: 'request_failed' }
+    const data = (await res.json().catch(() => null)) as { ok?: boolean } | null
+    return data?.ok ? { ok: true } : { ok: false, reason: 'request_failed' }
+  } catch {
+    return { ok: false, reason: 'request_failed' }
+  }
+}
+
 export type AvatarProbeResult =
   | { state: 'stored' } // a 200: an upload or synced provider photo (no way to tell which from here)
   | { state: 'gravatar_redirect' } // a 302 to Gravatar

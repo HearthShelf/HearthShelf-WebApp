@@ -13,7 +13,7 @@
  * failure never surfaces an error to the user (they still have Gravatar/initials).
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useUser } from '@clerk/clerk-react'
+import { useUser } from '@/auth/useAuth'
 import { useQueryClient } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getMe } from '@/api/absLibrary'

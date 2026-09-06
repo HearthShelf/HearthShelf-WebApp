@@ -1,13 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { SignIn } from '@clerk/clerk-react'
+import { SignInForm } from '@/components/auth/SignInForm'
 import { Wordmark } from '@/components/Wordmark'
 import { notify } from '@/lib/notify'
 
 /**
- * Sign-in lives inside app.hs.com (not Clerk's hosted accounts.* pages), so the
- * whole account experience stays on our domain and in our shell. Clerk's
- * embedded <SignIn /> renders the form; routing="path" lets it own /sign-in/*.
+ * Sign-in lives inside app.hs.com, so the whole account experience stays on our
+ * domain and in our shell.
  *
  * Query params drive a one-time confirmation toast so arriving here never feels
  * like a dead-end: `signed_out=1` (deliberate sign-out), `reason=expired`
@@ -38,7 +37,7 @@ export function SignInPage() {
         <img src="/flame.png" alt="" className="w-[4em]" />
         <Wordmark style={{ fontSize: '3em' }} />
       </div>
-      <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" fallbackRedirectUrl="/" />
+      <SignInForm redirectUrl={params.get('redirect_url') || '/'} />
     </div>
   )
 }

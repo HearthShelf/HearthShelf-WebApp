@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useUser } from '@clerk/clerk-react'
+import { useUser } from '@/auth/useAuth'
 import { useQuery } from '@tanstack/react-query'
 import { useActiveLibrary, libraryIcon } from '@/hooks/useActiveLibrary'
 import { useActiveServer } from '@/hooks/useActiveServer'
@@ -116,6 +116,7 @@ function MobileDrawer({
       setPinFor(account)
       return false
     }
+    // needs_sign_in / locked_out / gone / error: fall back to a real sign-in.
     await loginWithPassword()
     return false
   }

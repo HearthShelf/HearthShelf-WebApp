@@ -1,23 +1,16 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { ClerkProvider } from '@clerk/clerk-react'
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query'
 import { RouterProvider } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { router } from '@/router'
-import { ClerkTokenBridge } from '@/auth/ClerkTokenBridge'
-import { clerkAppearance } from '@/auth/clerkAppearance'
+import { AuthTokenBridge } from '@/auth/AuthTokenBridge'
 import { notify } from '@/lib/notify'
 import { SessionExpiredError } from '@/api/controlPlane'
 import { initSentry, Sentry } from '@/lib/sentry'
 import './styles/index.css'
 
 initSentry()
-
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
-if (!PUBLISHABLE_KEY) {
-  throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY')
-}
 
 // Surface failures instead of letting them die silently. Session-expiry is
 // handled by its own flow (redirect + message), so we don't double-toast it.
@@ -34,19 +27,13 @@ const queryClient = new QueryClient({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {/* Toaster sits OUTSIDE ClerkProvider so notifications still render even if
-        Clerk fails to initialize (e.g. a config/network problem). */}
     <Toaster theme="dark" position="bottom-right" richColors closeButton />
-    <ClerkProvider
-      publishableKey={PUBLISHABLE_KEY}
-      afterSignOutUrl="/sign-in?signed_out=1"
-      appearance={clerkAppearance}
-    >
-      {/* Keeps the control-plane API client pointed at Clerk's token getter. */}
-      <ClerkTokenBridge />
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </ClerkProvider>
+    {/* The auth client is a module singleton (auth/client.ts), so there is no
+        provider to mount - only the bridge that points the control-plane API
+        client at the current session token. */}
+    <AuthTokenBridge />
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
   </StrictMode>,
 )
