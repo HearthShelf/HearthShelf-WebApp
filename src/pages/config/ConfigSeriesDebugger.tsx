@@ -130,7 +130,7 @@ function RosterCard({ report }: { report: SeriesDebugReport }) {
     <section className="cfg-card" style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
         <h3 style={{ margin: 0, flex: 1 }}>2 · Audible roster</h3>
-        <span style={{ color: 'var(--text-muted)', fontSize: 12.5 }}>
+        <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
           {report.roster.rawCount} children → {report.roster.keptCount} real books
           {droppedCount ? ` · ${droppedCount} dropped` : ''}
         </span>
@@ -256,7 +256,7 @@ function MatchRow({ match, series }: { match: SeriesDebugMatch; series: string }
                 key={i}
                 style={{ display: 'flex', gap: 10, alignItems: 'baseline', padding: '4px 2px' }}
               >
-                <code style={{ width: 74, flex: 'none', fontSize: 11.5 }}>{a.signal}</code>
+                <code style={{ width: 74, flex: 'none', fontSize: 12 }}>{a.signal}</code>
                 <span style={{ width: 84, flex: 'none' }}>
                   {a.outcome === 'matched' ? (
                     <Pill tone="good">matched</Pill>
@@ -266,7 +266,7 @@ function MatchRow({ match, series }: { match: SeriesDebugMatch; series: string }
                     <Pill tone="warn">{a.outcome}</Pill>
                   )}
                 </span>
-                <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>{a.detail}</span>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{a.detail}</span>
               </div>
             ))}
           </td>
@@ -291,7 +291,7 @@ function MatchingCard({ report }: { report: SeriesDebugReport }) {
     <section className="cfg-card" style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
         <h3 style={{ margin: 0, flex: 1 }}>3 · Ownership matching</h3>
-        <span style={{ color: 'var(--text-muted)', fontSize: 12.5 }}>
+        <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
           {owned} owned · {results.length - owned} missing · library holds {report.ownedCount}
         </span>
       </div>
@@ -369,7 +369,7 @@ function OwnedCard({ report }: { report: SeriesDebugReport }) {
                     <span style={{ color: 'var(--text-faint)' }}>none</span>
                   )}
                 </td>
-                <td style={{ color: 'var(--text-muted)', fontSize: 12.5 }}>
+                <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>
                   {o.eligibleFor.join(', ')}
                 </td>
                 <td>
@@ -444,7 +444,7 @@ function StoredCard({
                         <div style={{ fontWeight: 600 }}>{d.title || '—'}</div>
                         <code style={{ fontSize: 11, color: 'var(--text-faint)' }}>{d.asin}</code>
                       </td>
-                      <td style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
+                      <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                         {d.kind === 'only-live' && 'In the live roster but not stored (new book)'}
                         {d.kind === 'only-stored' &&
                           'Stored but gone from the live roster (delisted)'}
@@ -516,7 +516,7 @@ export function ConfigSeriesDebugger() {
           style={{ marginBottom: 'var(--s4)', display: 'flex', alignItems: 'center', gap: 10 }}
         >
           <Icon name="info" style={{ color: 'var(--accent)' }} />
-          <span style={{ fontSize: 13.5 }}>{toast}</span>
+          <span style={{ fontSize: 14 }}>{toast}</span>
         </div>
       )}
 

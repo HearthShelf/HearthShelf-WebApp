@@ -145,7 +145,11 @@ export function AddClubBooksDialog({
         <div className="modal-body club-add-body">
           {seriesId ? (
             <>
-              <button type="button" className="pill club-add-back" onClick={() => setSeriesId(null)}>
+              <button
+                type="button"
+                className="pill club-add-back"
+                onClick={() => setSeriesId(null)}
+              >
                 <Icon name="arrow_back" /> Back to search
               </button>
               {series.isLoading ? (

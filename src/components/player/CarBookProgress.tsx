@@ -105,9 +105,7 @@ export function CarBookProgress({
                   ? ratio
                   : member.isFinished
                     ? 1
-                    : member.currentTime != null &&
-                        member.duration != null &&
-                        member.duration > 0
+                    : member.currentTime != null && member.duration != null && member.duration > 0
                       ? Math.max(0, Math.min(1, member.currentTime / member.duration))
                       : 0
               return (

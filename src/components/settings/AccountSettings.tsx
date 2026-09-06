@@ -11,7 +11,7 @@ import { Toggle } from '@/components/settings/controls'
 import { isCarBrowser } from '@/hooks/useCarMode'
 import { useVisualViewportSize } from '@/hooks/useVisualViewportSize'
 import { useSettingsStore } from '@/store/settingsStore'
-import { useClerkAvatarSync } from '@/hooks/useClerkAvatarSync'
+import { useProviderAvatarSync } from '@/hooks/useProviderAvatarSync'
 import {
   deleteServerAvatar,
   probeAvatarSource,
@@ -24,19 +24,19 @@ import type { AbsTarget } from '@/api/absLibrary'
 function syncFailMessage(reason: AvatarSyncFailReason): string {
   switch (reason) {
     case 'no_photo':
-      return 'No Clerk photo to sync yet.'
+      return 'No sign-in photo to sync yet.'
     case 'fetch_failed':
-      return "Couldn't download your Clerk photo. Try again in a moment."
+      return "Couldn't download your sign-in photo. Try again in a moment."
     case 'encode_failed':
-      return "Couldn't process your Clerk photo. Try a different photo in your account settings."
+      return "Couldn't process your sign-in photo. Try a different photo in your account settings."
     case 'no_token':
-      return "Not signed in to this server. Reconnect and try again."
+      return 'Not signed in to this server. Reconnect and try again.'
     case 'no_abs_user':
       return "Couldn't confirm your account on this server. Try again in a moment."
     case 'request_failed':
       return "Couldn't reach this server. Try again in a moment."
     case 'server_skipped':
-      return 'A custom photo is set on this server. Remove it to use your Clerk photo instead.'
+      return 'A custom photo is set on this server. Remove it to use your sign-in photo instead.'
     default:
       return 'Nothing to sync.'
   }
@@ -53,7 +53,7 @@ function probeLabel(probe: AvatarProbeResult | 'loading' | null): string {
   if (probe === 'loading') return 'checking...'
   switch (probe.state) {
     case 'stored':
-      return 'a stored photo (upload or synced Clerk copy)'
+      return 'a stored photo (upload or synced sign-in copy)'
     case 'gravatar_redirect':
       return 'your Gravatar'
     case 'none':
@@ -79,12 +79,12 @@ export function AccountSettings() {
   const useSharedSettings = useSettingsStore((s) => s.useSharedSettings)
   const setSetting = useSettingsStore((s) => s.set)
   // Cache-busts our own avatar <img> whenever the Gravatar preference changes -
-  // the server's resolved photo can flip (Gravatar <-> Clerk/initials) without
+  // the server's resolved photo can flip (Gravatar <-> sign-in photo/initials) without
   // the URL changing, and the GET route caches for 5 minutes.
   const avatarVersion = useSettingsStore((s) => s.meta.useGravatar)
   // null = never chose, so the default (on) applies; only an explicit false is off.
   const gravatarOn = useGravatar !== false
-  const { sync: syncClerkPhoto, syncing, lastResult } = useClerkAvatarSync()
+  const { sync: syncProviderPhoto, syncing, lastResult } = useProviderAvatarSync()
 
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -121,9 +121,9 @@ export function AccountSettings() {
     setUploadErr(null)
     try {
       await user.setProfileImage({ file })
-      // Push the new Clerk photo to the connected server so other users see it.
+      // Push the new provider photo to the connected server so other users see it.
       await user.reload().catch(() => {})
-      void syncClerkPhoto()
+      void syncProviderPhoto()
     } catch {
       setUploadErr('Photo upload failed. Try a smaller image.')
     } finally {
@@ -136,7 +136,7 @@ export function AccountSettings() {
   const handleSyncPhoto = async () => {
     setSyncMsg(null)
     setSyncBlocked(false)
-    const result = await syncClerkPhoto()
+    const result = await syncProviderPhoto()
     setSyncMsg(result.ok ? 'Photo synced to this server.' : syncFailMessage(result.reason))
     setSyncBlocked(!result.ok && result.reason === 'server_skipped')
   }
@@ -151,7 +151,7 @@ export function AccountSettings() {
         return
       }
       setSyncBlocked(false)
-      const result = await syncClerkPhoto()
+      const result = await syncProviderPhoto()
       setSyncMsg(result.ok ? 'Photo synced to this server.' : syncFailMessage(result.reason))
     } finally {
       setRemoving(false)
@@ -225,16 +225,16 @@ export function AccountSettings() {
           <div className="cl-meta" style={{ flex: 1 }}>
             <div className="cl-t">Sync photo to your servers</div>
             <div className="cl-d">
-              Copy your sign-in photo to this server so other listeners see it on the
-              leaderboard and book pages.
+              Copy your sign-in photo to this server so other listeners see it on the leaderboard
+              and book pages.
             </div>
           </div>
-          <button className="btn-sm btn-ghost" onClick={handleSyncPhoto} disabled={syncing || !target}>
-            {syncing ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Icon name="sync" />
-            )}
+          <button
+            className="btn-sm btn-ghost"
+            onClick={handleSyncPhoto}
+            disabled={syncing || !target}
+          >
+            {syncing ? <Loader2 size={16} className="animate-spin" /> : <Icon name="sync" />}
             {syncing ? 'Syncing' : 'Sync'}
           </button>
         </div>
@@ -324,7 +324,7 @@ export function AccountSettings() {
       <AdvancedPanel
         target={target}
         absUserId={me?.id}
-        hasClerkPhoto={!!user.imageUrl}
+        hasProviderPhoto={!!user.imageUrl}
         lastResult={lastResult}
         avatarVersion={avatarVersion}
       />
@@ -335,13 +335,13 @@ export function AccountSettings() {
 function AdvancedPanel({
   target,
   absUserId,
-  hasClerkPhoto,
+  hasProviderPhoto,
   lastResult,
   avatarVersion,
 }: {
   target: AbsTarget | null
   absUserId: string | undefined
-  hasClerkPhoto: boolean
+  hasProviderPhoto: boolean
   lastResult: AvatarSyncResult | null
   avatarVersion: number | undefined
 }) {
@@ -413,7 +413,7 @@ function AdvancedPanel({
             <div className="cl-meta" style={{ flex: 1 }}>
               <div className="cl-t">Photo sync</div>
               <div className="cl-d">
-                Clerk photo: {hasClerkPhoto ? 'present' : 'none set'}
+                Sign-in photo: {hasProviderPhoto ? 'present' : 'none set'}
                 <br />
                 Last sync attempt: {syncResultLabel(lastResult)}
                 <br />
@@ -434,7 +434,7 @@ function AdvancedPanel({
               style={{
                 color: 'var(--text-muted)',
                 fontFamily: 'ui-monospace, monospace',
-                fontSize: 12.5,
+                fontSize: 13,
               }}
             >
               {__BUILD_COMMIT__} &middot;{' '}

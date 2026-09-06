@@ -101,7 +101,9 @@ export function ConfigLogs() {
       <div className="page-head">
         <div className="eyebrow">Admin</div>
         <h1 className="title-xl">Logs</h1>
-        {data && <p className="page-sub">AudiobookShelf + HearthShelf logs · {logs.length} lines</p>}
+        {data && (
+          <p className="page-sub">AudiobookShelf + HearthShelf logs · {logs.length} lines</p>
+        )}
       </div>
 
       {!data ? (

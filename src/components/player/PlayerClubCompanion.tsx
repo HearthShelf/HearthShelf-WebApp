@@ -504,76 +504,76 @@ export function PlayerClubCompanion({
             conversation off the screen. */}
         {!car && (
           <>
-        <button
-          type="button"
-          className={'pc-race' + (progressExpanded ? ' expanded' : '')}
-          onClick={() => setProgressExpanded((value) => !value)}
-          aria-expanded={progressExpanded}
-        >
-          <div className="pc-section-label">
-            <span>Overall book progress</span>
-            <span>{progressExpanded ? 'Hide details' : 'Show everyone'}</span>
-          </div>
-          <div className="pc-race-line">
-            <i
-              className="pc-race-fill"
-              style={{
-                width: `${Math.round(progressOf(position, duration, false) * 100)}%`,
-              }}
-            />
-            {progressRows.map((member) => {
-              const progress = memberProgress(member, meId, position, duration)
-              return (
-                <span
-                  className={'pc-racer' + (member.listeningNow ? ' listening' : '')}
-                  key={member.userId}
-                  style={{ left: `${progress * 100}%` }}
-                  title={`${member.username} · ${Math.round(progress * 100)}%`}
-                >
-                  <Avatar
-                    name={member.username || 'Reader'}
-                    target={target}
-                    userId={member.userId}
-                    size={28}
-                  />
-                </span>
-              )
-            })}
-          </div>
-          <div className="pc-race-footer">
-            <span>{detail.members.length} readers</span>
-            <Icon name={progressExpanded ? 'expand_less' : 'expand_more'} />
-          </div>
-        </button>
-
-        {progressExpanded && (
-          <div className="pc-progress-roster">
-            {progressRows.map((member) => renderMemberProgress(member))}
-          </div>
-        )}
-
-        <div className="pc-tabs" role="tablist" aria-label="Book Club sections">
-          {(
-            [
-              ['comments', 'forum', 'Comments', topNotes.length + detail.notes.locked.length],
-              ['queue', 'format_list_numbered', 'Queue', detail.queue.length],
-              ['members', 'group', 'Members', detail.members.length],
-            ] as const
-          ).map(([value, icon, label, count]) => (
             <button
               type="button"
-              role="tab"
-              aria-selected={tab === value}
-              className={tab === value ? 'on' : ''}
-              key={value}
-              onClick={() => setTab(value)}
+              className={'pc-race' + (progressExpanded ? ' expanded' : '')}
+              onClick={() => setProgressExpanded((value) => !value)}
+              aria-expanded={progressExpanded}
             >
-              <Icon name={icon} />
-              <span>{label}</span>
-              <b>{count}</b>
+              <div className="pc-section-label">
+                <span>Overall book progress</span>
+                <span>{progressExpanded ? 'Hide details' : 'Show everyone'}</span>
+              </div>
+              <div className="pc-race-line">
+                <i
+                  className="pc-race-fill"
+                  style={{
+                    width: `${Math.round(progressOf(position, duration, false) * 100)}%`,
+                  }}
+                />
+                {progressRows.map((member) => {
+                  const progress = memberProgress(member, meId, position, duration)
+                  return (
+                    <span
+                      className={'pc-racer' + (member.listeningNow ? ' listening' : '')}
+                      key={member.userId}
+                      style={{ left: `${progress * 100}%` }}
+                      title={`${member.username} · ${Math.round(progress * 100)}%`}
+                    >
+                      <Avatar
+                        name={member.username || 'Reader'}
+                        target={target}
+                        userId={member.userId}
+                        size={28}
+                      />
+                    </span>
+                  )
+                })}
+              </div>
+              <div className="pc-race-footer">
+                <span>{detail.members.length} readers</span>
+                <Icon name={progressExpanded ? 'expand_less' : 'expand_more'} />
+              </div>
             </button>
-          ))}
-        </div>
+
+            {progressExpanded && (
+              <div className="pc-progress-roster">
+                {progressRows.map((member) => renderMemberProgress(member))}
+              </div>
+            )}
+
+            <div className="pc-tabs" role="tablist" aria-label="Book Club sections">
+              {(
+                [
+                  ['comments', 'forum', 'Comments', topNotes.length + detail.notes.locked.length],
+                  ['queue', 'format_list_numbered', 'Queue', detail.queue.length],
+                  ['members', 'group', 'Members', detail.members.length],
+                ] as const
+              ).map(([value, icon, label, count]) => (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === value}
+                  className={tab === value ? 'on' : ''}
+                  key={value}
+                  onClick={() => setTab(value)}
+                >
+                  <Icon name={icon} />
+                  <span>{label}</span>
+                  <b>{count}</b>
+                </button>
+              ))}
+            </div>
           </>
         )}
 
@@ -596,9 +596,7 @@ export function PlayerClubCompanion({
                     <span>{formatTimestamp(nextLocked.timeSec - position)}</span>
                   </button>
                 ) : (
-                  <div className="pc-empty">
-                    No comments yet. Start the conversation below.
-                  </div>
+                  <div className="pc-empty">No comments yet. Start the conversation below.</div>
                 )
               ) : (
                 <div className="pc-discussion">

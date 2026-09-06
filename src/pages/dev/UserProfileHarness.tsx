@@ -16,12 +16,32 @@ const STUB_UI: MediaUI = {
 }
 
 const BOOKS = [
-  { libraryItemId: 'li1', title: 'A Wizard of Earthsea', finishedAt: Date.parse('2026-03-04'), alsoMine: true },
-  { libraryItemId: 'li2', title: 'The Tombs of Atuan', finishedAt: Date.parse('2026-04-11'), alsoMine: true },
-  { libraryItemId: 'li3', title: 'The Farthest Shore', finishedAt: Date.parse('2026-05-19'), alsoMine: false },
+  {
+    libraryItemId: 'li1',
+    title: 'A Wizard of Earthsea',
+    finishedAt: Date.parse('2026-03-04'),
+    alsoMine: true,
+  },
+  {
+    libraryItemId: 'li2',
+    title: 'The Tombs of Atuan',
+    finishedAt: Date.parse('2026-04-11'),
+    alsoMine: true,
+  },
+  {
+    libraryItemId: 'li3',
+    title: 'The Farthest Shore',
+    finishedAt: Date.parse('2026-05-19'),
+    alsoMine: false,
+  },
   { libraryItemId: 'li4', title: 'Tehanu', finishedAt: Date.parse('2026-06-02'), alsoMine: false },
   { libraryItemId: 'li5', title: 'Piranesi', finishedAt: Date.parse('2026-07-21'), alsoMine: true },
-  { libraryItemId: 'li6', title: 'The Left Hand of Darkness', finishedAt: Date.parse('2026-08-01'), alsoMine: false },
+  {
+    libraryItemId: 'li6',
+    title: 'The Left Hand of Darkness',
+    finishedAt: Date.parse('2026-08-01'),
+    alsoMine: false,
+  },
 ]
 
 const BASE: HSProfileResponse = {
@@ -70,7 +90,11 @@ const VARIANTS: { id: string; label: string; profile: HSProfileResponse }[] = [
     label: 'Last listened',
     profile: {
       ...BASE,
-      listening: { ...BASE.listening!, isLive: false, lastListenedAt: Date.now() - 1000 * 60 * 60 * 52 },
+      listening: {
+        ...BASE.listening!,
+        isLive: false,
+        lastListenedAt: Date.now() - 1000 * 60 * 60 * 52,
+      },
     },
   },
   {

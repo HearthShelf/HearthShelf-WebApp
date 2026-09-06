@@ -217,12 +217,7 @@ export function CarPlayerHarness() {
             markers={MARKERS}
             onOpenClub={() => setOpenClubSignal((n) => n + 1)}
           />
-          <CarCommentAlert
-            markers={MARKERS}
-            position={pos}
-            rate={rate}
-            suppressed={clubChatOpen}
-          />
+          <CarCommentAlert markers={MARKERS} position={pos} rate={rate} suppressed={clubChatOpen} />
           {returnAt !== null && (
             <div className="car-return-pill">
               <ReturnPositionPill

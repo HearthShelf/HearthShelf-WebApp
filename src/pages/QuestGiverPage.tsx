@@ -673,7 +673,7 @@ export function QuestGiverPage() {
                     ? 'Only books you already own.'
                     : scope === 'external'
                       ? rmabEnabled
-                        ? "Skips your library entirely - only titles you can request via ReadMeABook, or buy on Audible."
+                        ? 'Skips your library entirely - only titles you can request via ReadMeABook, or buy on Audible.'
                         : 'Skips your library entirely - only titles to buy on Audible.'
                       : rmabEnabled
                         ? 'Your books, plus titles you can request via ReadMeABook or buy on Audible.'

@@ -28,6 +28,7 @@ import { useActiveServer } from '@/hooks/useActiveServer'
 import { useIgnoredAsins } from '@/hooks/useIgnoredBooks'
 import { useSettingsStore } from '@/store/settingsStore'
 import { Icon } from '@/components/common/Icon'
+import { BandError } from '@/components/common/BandError'
 
 export function ReleaseCountdownBanner() {
   const navigate = useNavigate()
@@ -35,7 +36,11 @@ export function ReleaseCountdownBanner() {
   const windowDays = useSettingsStore((s) => s.notifyPrefs.countdownWindowDays)
   const ignoredAsins = useIgnoredAsins()
 
-  const { data: subscriptions } = useQuery({
+  const {
+    data: subscriptions,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: subscriptionKeys.list(target?.serverId ?? ''),
     queryFn: () => getSubscriptions(target!),
     enabled: Boolean(target),
@@ -80,6 +85,8 @@ export function ReleaseCountdownBanner() {
     now,
   )
 
+  if (isError) return <BandError label="What you're following" onRetry={() => refetch()} />
+
   if (upcoming.length === 0) return null
 
   const soonest = upcoming[0]
@@ -87,18 +94,17 @@ export function ReleaseCountdownBanner() {
   const extra = upcoming.length - 1
 
   return (
-    <div
+    // A real <button>: it carries focus, Enter and Space for free, where the
+    // previous role="link" div had to hand-roll them (and wrongly fired on
+    // Space, which links do not do).
+    <button
+      type="button"
       className="rc-banner is-link"
-      role="link"
-      tabIndex={0}
       title="See everything you're following"
       onClick={() => navigate('/upcoming')}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') navigate('/upcoming')
-      }}
     >
       {soonest.coverArtUrl ? (
-        <img className="rc-cover" src={soonest.coverArtUrl} alt="" />
+        <img className="rc-cover" src={soonest.coverArtUrl} alt="" loading="lazy" />
       ) : (
         <div className="rc-cover" style={{ background: 'var(--c-highest)' }} />
       )}
@@ -114,6 +120,6 @@ export function ReleaseCountdownBanner() {
             : (soonest.author ?? soonest.seriesTitle ?? 'Coming soon')}
         </div>
       </div>
-    </div>
+    </button>
   )
 }

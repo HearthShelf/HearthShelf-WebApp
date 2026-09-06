@@ -71,7 +71,7 @@ function SecretReveal({ value }: { value: string }) {
         style={{
           flex: 1,
           fontFamily: 'var(--font-mono)',
-          fontSize: 12.5,
+          fontSize: 13,
           wordBreak: 'break-all',
           userSelect: 'all',
         }}
@@ -356,8 +356,7 @@ export function ConfigServiceAccounts() {
     )
   }, [usersData, serviceUsername, trackedIds])
 
-  const isOwnedRoot = (u: ABSAdminUser) =>
-    serviceUsername != null && u.username === serviceUsername
+  const isOwnedRoot = (u: ABSAdminUser) => serviceUsername != null && u.username === serviceUsername
 
   if (!target) return <LoadingSpinner className="py-12" label="Connecting..." />
 
@@ -486,7 +485,9 @@ export function ConfigServiceAccounts() {
                         >
                           <span className="av">{initials(u.username)}</span>
                           <span style={{ fontWeight: 600 }}>{u.username}</span>
-                          <span className="tag-pill admin">{owned ? 'HearthShelf' : 'Service'}</span>
+                          <span className="tag-pill admin">
+                            {owned ? 'HearthShelf' : 'Service'}
+                          </span>
                         </div>
                       </td>
                       <td className="num">{u.lastSeen ? fmtSessDate(u.lastSeen).day : 'never'}</td>

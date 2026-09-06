@@ -80,6 +80,17 @@ export const ACCENT_PRESETS: AccentPreset[] = [
 ]
 
 // Readable ink/cream over an accent hex, chosen by relative luminance.
+//
+// The threshold is where the two candidates tie on WCAG contrast against the
+// same background, i.e. where (L+0.05)^2 == 1.05 * (L_ink + 0.05). For the
+// #1a1509 ink that lands at ~0.196 - well below the midpoint you would guess,
+// because dark ink outperforms white over any mid-tone. A higher threshold
+// silently hands white text to every mid-tone accent: the ember (L 0.256) took
+// white at 3.43:1 and failed WCAG AA, where ink gives 5.31:1. Raising this
+// value re-breaks contrast for every accent a user can pick, not just the
+// default one.
+const ON_COLOR_CROSSOVER = 0.196
+
 export function onColor(hex: string): string {
   const h = hex.replace('#', '')
   const r = parseInt(h.slice(0, 2), 16) / 255
@@ -87,7 +98,7 @@ export function onColor(hex: string): string {
   const b = parseInt(h.slice(4, 6), 16) / 255
   const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4))
   const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
-  return L > 0.42 ? '#1a1509' : '#fff'
+  return L > ON_COLOR_CROSSOVER ? '#1a1509' : '#fff'
 }
 
 // An Auto-queue rule with its enabled flag. The array order is the priority.

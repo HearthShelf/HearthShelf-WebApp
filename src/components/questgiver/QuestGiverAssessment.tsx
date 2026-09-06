@@ -5,11 +5,7 @@ import { qgAssess } from '@/api/absQuestGiver'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useMediaProgress } from '@/hooks/useMediaProgress'
 import { useQuestGiverEnabled } from '@/hooks/useQuestGiver'
-import {
-  qgAssessmentContext,
-  type QgAssessment,
-  type QgAssessmentTarget,
-} from '@hearthshelf/core'
+import { qgAssessmentContext, type QgAssessment, type QgAssessmentTarget } from '@hearthshelf/core'
 import { Icon } from '@/components/common/Icon'
 import { Modal } from '@/components/common/Modal'
 

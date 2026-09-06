@@ -456,7 +456,7 @@ export function UploadPage() {
                         placeholder="Title"
                         disabled={submitting || it.status === 'success'}
                         onChange={(e) => patchItem(it.index, { title: e.target.value })}
-                        style={{ padding: '6px 10px', fontSize: 13.5 }}
+                        style={{ padding: '6px 10px', fontSize: 14 }}
                       />
                       {!isPodcast && (
                         <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
@@ -466,7 +466,7 @@ export function UploadPage() {
                             placeholder="Author"
                             disabled={submitting || it.status === 'success'}
                             onChange={(e) => patchItem(it.index, { author: e.target.value })}
-                            style={{ padding: '6px 10px', fontSize: 12.5 }}
+                            style={{ padding: '6px 10px', fontSize: 13 }}
                           />
                           <input
                             className="fld"
@@ -474,7 +474,7 @@ export function UploadPage() {
                             placeholder="Series (optional)"
                             disabled={submitting || it.status === 'success'}
                             onChange={(e) => patchItem(it.index, { series: e.target.value })}
-                            style={{ padding: '6px 10px', fontSize: 12.5 }}
+                            style={{ padding: '6px 10px', fontSize: 13 }}
                           />
                         </div>
                       )}

@@ -1,11 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { formatDuration } from '@hearthshelf/core'
-import {
-  getCompletions,
-  COMPLETIONS_PAGE_SIZE,
-  type CompletionsPage,
-} from '@/api/absCompletions'
+import { getCompletions, COMPLETIONS_PAGE_SIZE, type CompletionsPage } from '@/api/absCompletions'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useRatings, useSetRating } from '@/hooks/useRatings'
 import { Cover, tintFor } from '@/components/shared/Cover'
@@ -85,8 +81,8 @@ export function FinishedBooksPage() {
           <Icon name="database_off" />
           <h3>This server can't provide it</h3>
           <p>
-            Your finished-books history needs read access to the AudiobookShelf database. Ask
-            your admin to map it, and this page will fill in.
+            Your finished-books history needs read access to the AudiobookShelf database. Ask your
+            admin to map it, and this page will fill in.
           </p>
         </div>
       ) : rows.length === 0 ? (
@@ -149,7 +145,11 @@ export function FinishedBooksPage() {
           </div>
           {hasNextPage && (
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
-              <button className="pill" disabled={isFetchingNextPage} onClick={() => fetchNextPage()}>
+              <button
+                className="pill"
+                disabled={isFetchingNextPage}
+                onClick={() => fetchNextPage()}
+              >
                 {isFetchingNextPage ? 'Loading...' : 'Show more'}
               </button>
             </div>

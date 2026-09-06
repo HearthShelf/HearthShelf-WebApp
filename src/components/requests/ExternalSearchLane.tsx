@@ -30,7 +30,7 @@ function ResultTile({
   return (
     <div className="req-tile" onClick={canRequest ? () => onOpen(result) : undefined}>
       {result.coverArtUrl ? (
-        <img className="cover" src={result.coverArtUrl} alt="" />
+        <img className="cover" src={result.coverArtUrl} alt="" loading="lazy" />
       ) : (
         <div className="cover" style={{ background: 'var(--c-highest)' }} />
       )}

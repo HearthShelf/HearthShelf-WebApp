@@ -181,8 +181,8 @@ export function BulkPermissionsModal({
       {error && <p className="form-err">{error}</p>}
 
       <p className="hint" style={{ marginTop: 0 }}>
-        The settings below replace the account type, enabled state, and full permission set of
-        every selected user: {users.map((u) => u.username).join(', ')}
+        The settings below replace the account type, enabled state, and full permission set of every
+        selected user: {users.map((u) => u.username).join(', ')}
       </p>
       {rootCount > 0 && (
         <p className="hint" style={{ color: 'var(--primary)' }}>

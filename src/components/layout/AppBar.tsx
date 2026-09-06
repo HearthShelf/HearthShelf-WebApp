@@ -21,6 +21,8 @@ import { NotificationBell } from '@/components/notifications/NotificationBell'
 function LibrarySwitcher() {
   const { server: activeServer, servers, setActiveServer } = useActiveServer()
   const { libraries, active, activeId, select } = useActiveLibrary()
+  const unifiedHome = useSettingsStore((s) => s.unifiedHome)
+  const setSetting = useSettingsStore((s) => s.set)
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
@@ -114,6 +116,29 @@ function LibrarySwitcher() {
                   {l.id === activeId && <Icon name="check" className="check" />}
                 </button>
               ))}
+              {/* Scope lives with the libraries it scopes, not on Home's header. */}
+              {libraries.length > 1 && (
+                <>
+                  <div className="lm-sep" />
+                  <button
+                    className={'lm-item' + (unifiedHome ? ' on' : '')}
+                    onClick={() => {
+                      setSetting('unifiedHome', !unifiedHome)
+                      setOpen(false)
+                    }}
+                    aria-pressed={unifiedHome}
+                  >
+                    <span className="lib-ico">
+                      <Icon name="hub" fill={unifiedHome} />
+                    </span>
+                    <span className="lm-meta">
+                      <span className="lm-name">Show all at once</span>
+                      <span className="lm-sub">Combine every library on Home</span>
+                    </span>
+                    {unifiedHome && <Icon name="check" className="check" />}
+                  </button>
+                </>
+              )}
             </>
           )}
         </div>

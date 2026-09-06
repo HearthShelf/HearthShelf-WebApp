@@ -198,7 +198,7 @@ export function ConfigLibraries() {
           style={{ marginBottom: 'var(--s4)', display: 'flex', alignItems: 'center', gap: 10 }}
         >
           <Icon name="info" style={{ color: 'var(--accent)' }} />
-          <span style={{ fontSize: 13.5 }}>{toast}</span>
+          <span style={{ fontSize: 14 }}>{toast}</span>
         </div>
       )}
 

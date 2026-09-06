@@ -10,12 +10,7 @@ import {
   statsKeys,
   type ListeningStatsFull,
 } from '@/api/absStats'
-import {
-  getLeaderboard,
-  getCompare,
-  socialKeys,
-  type LeaderboardResponse,
-} from '@/api/absSocial'
+import { getLeaderboard, getCompare, socialKeys, type LeaderboardResponse } from '@/api/absSocial'
 import {
   activeDays as computeActiveDays,
   dayOfWeekTotals,
@@ -51,7 +46,18 @@ const DOW_MODES: { id: DowMode; label: string }[] = [
   { id: 'average', label: 'Average' },
 ]
 const MONTH_LABELS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ]
 
 // Heads every section: icon + title (matches the design's section-head markup).
@@ -554,7 +560,10 @@ export function StatsPage() {
         <div className="chart-card" style={{ marginTop: 'var(--s6)' }}>
           <SectionHead icon="calendar_month" title="This year" />
           <div className="heatmap-wrap">
-            <div className="heatmap-months" style={{ gridTemplateColumns: `repeat(${yearHeat.weeks}, 1fr)` }}>
+            <div
+              className="heatmap-months"
+              style={{ gridTemplateColumns: `repeat(${yearHeat.weeks}, 1fr)` }}
+            >
               {yearHeat.monthCols.map((m) => (
                 <span key={m.col} style={{ gridColumn: m.col + 1 }}>
                   {m.label}
@@ -936,10 +945,8 @@ function GoalCard({
   const ahead = done - expected
   let pace: { text: string; tone: 'good' | 'behind' | 'done' }
   if (done >= goal) pace = { text: 'Goal reached - nice work!', tone: 'done' }
-  else if (ahead >= 0.5)
-    pace = { text: `${Math.round(ahead)} ahead of schedule`, tone: 'good' }
-  else if (ahead <= -0.5)
-    pace = { text: `${Math.round(-ahead)} behind schedule`, tone: 'behind' }
+  else if (ahead >= 0.5) pace = { text: `${Math.round(ahead)} ahead of schedule`, tone: 'good' }
+  else if (ahead <= -0.5) pace = { text: `${Math.round(-ahead)} behind schedule`, tone: 'behind' }
   else pace = { text: 'Right on pace', tone: 'good' }
 
   return (
@@ -1058,7 +1065,10 @@ function HighlightsSection({ highlights }: { highlights: HSStatsHighlights }) {
       headline: highlights.mostReRead.title || 'Untitled',
       sub: `${highlights.mostReRead.completions}x finished`,
       book: highlights.mostReRead.libraryItemId
-        ? { itemId: highlights.mostReRead.libraryItemId, title: highlights.mostReRead.title || 'Untitled' }
+        ? {
+            itemId: highlights.mostReRead.libraryItemId,
+            title: highlights.mostReRead.title || 'Untitled',
+          }
         : null,
       icon: 'replay',
     })
@@ -1072,12 +1082,7 @@ function HighlightsSection({ highlights }: { highlights: HSStatsHighlights }) {
         {cards.map((c) => (
           <div className="badge-card" key={c.key}>
             {c.book ? (
-              <Cover
-                itemId={c.book.itemId}
-                title={c.book.title}
-                fs={3}
-                className="badge-cover"
-              />
+              <Cover itemId={c.book.itemId} title={c.book.title} fs={3} className="badge-cover" />
             ) : (
               <div className="badge-ico">
                 <Icon name={c.icon ?? 'workspace_premium'} />
@@ -1116,10 +1121,15 @@ function MonthCard({ months }: { months: HSStatsMonth[] }) {
   return (
     <div className="chart-card" style={{ marginTop: 'var(--s6)' }}>
       <SectionHead icon="calendar_view_month" title="By month" />
-      <div className="chart-sub">Averages across {months.length} {months.length === 1 ? 'month' : 'months'} of history</div>
+      <div className="chart-sub">
+        Averages across {months.length} {months.length === 1 ? 'month' : 'months'} of history
+      </div>
       <div className="month-avgs">
         <div className="month-avg">
-          <div className="month-avg-num">{avgHours.toFixed(1)}<u>h</u></div>
+          <div className="month-avg-num">
+            {avgHours.toFixed(1)}
+            <u>h</u>
+          </div>
           <div className="month-avg-cap">Avg hours / month</div>
         </div>
         <div className="month-avg">

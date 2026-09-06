@@ -1,16 +1,18 @@
 /**
- * Profile-photo URLs + the Clerk-photo copy into a connected server's store.
+ * Profile-photo URLs + the provider-photo copy into a connected server's store.
  *
- * The hosted front door shows the signed-in user's own photo straight from Clerk
- * (freshest, no round-trip). But OTHER users - on the leaderboard and finished-by
- * chips - can't be reached through Clerk, so their photos must be served by the
- * connected server's HearthShelf backend at GET /hs/avatars/:userId (uploaded ->
- * Gravatar -> synced Clerk photo -> initials, ranked server-side).
+ * The hosted front door shows the signed-in user's own photo straight from the
+ * identity provider (freshest, no round-trip). But OTHER users - on the
+ * leaderboard and finished-by chips - can't be reached that way, so their photos
+ * must be served by the connected server's HearthShelf backend at
+ * GET /hs/avatars/:userId (uploaded -> Gravatar -> synced provider photo ->
+ * initials, ranked server-side).
  *
- * For a user's SSO photo to reach that chain, we copy the bytes into the server's
- * store with PUT /hs/avatars/:userId and the header X-Avatar-Source: clerk, so it
- * ranks as a synced photo (below a real upload, never overwriting one). We reach
- * the backend exactly like absSocial.ts: the server origin + per-server ABS bearer.
+ * For a user's provider photo to reach that chain, we copy the bytes into the
+ * server's store with PUT /hs/avatars/:userId and the header
+ * X-Avatar-Source: sso, so it ranks as a synced photo (below a real upload,
+ * never overwriting one). We reach the backend exactly like absSocial.ts: the
+ * server origin + per-server ABS bearer.
  */
 import { getAbsToken } from '@/lib/absTokens'
 import { HS_ENDPOINTS } from '@hearthshelf/core'
@@ -32,7 +34,7 @@ export function serverAvatarUrl(t: AbsTarget, userId: string, version?: number |
 export type AvatarSyncResult = { ok: true } | { ok: false; reason: AvatarSyncFailReason }
 
 export type AvatarSyncFailReason =
-  | 'no_photo' // Clerk has no imageUrl to copy
+  | 'no_photo' // the provider has no photo URL to copy
   | 'fetch_failed' // couldn't fetch imageUrl (network/CORS/non-2xx)
   | 'encode_failed' // fetched but couldn't decode/re-encode it
   | 'no_token' // no ABS bearer for this server
@@ -40,7 +42,7 @@ export type AvatarSyncFailReason =
   | 'request_failed' // the PUT itself failed (network/non-2xx)
   | 'server_skipped' // server kept an existing manual upload
 
-// Fetch a remote image URL (Clerk's CDN) and re-encode it to a small square webp,
+// Fetch a remote image URL (the provider's CDN) and re-encode it to a small square webp,
 // matching what the backend expects (a client-resized ~256px square).
 async function toSquareWebp(
   imageUrl: string,
@@ -79,13 +81,13 @@ async function toSquareWebp(
 }
 
 /**
- * Copy a user's Clerk photo into a connected server's avatar store as a synced
- * ('clerk') photo. Best-effort: resolves `{ok:true}` only on a confirmed store,
+ * Copy a user's provider photo into a connected server's avatar store as a
+ * synced ('sso') photo. Best-effort: resolves `{ok:true}` only on a confirmed store,
  * `{ok:false, reason}` on any failure OR when the server kept an existing manual
  * upload (skipped). The `absUserId` must be the user's ABS id ON THAT server
- * (from getMe), not the Clerk id - the store keys by ABS user id.
+ * (from getMe), not the provider's account id - the store keys by ABS user id.
  */
-export async function syncClerkAvatar(
+export async function syncProviderAvatar(
   t: AbsTarget,
   absUserId: string,
   imageUrl: string,
@@ -100,7 +102,7 @@ export async function syncClerkAvatar(
       headers: {
         'Content-Type': encoded.blob.type || 'image/webp',
         Authorization: `Bearer ${token}`,
-        'X-Avatar-Source': 'clerk',
+        'X-Avatar-Source': 'sso',
         Accept: 'application/json',
       },
       body: encoded.blob,
@@ -116,7 +118,7 @@ export async function syncClerkAvatar(
 }
 
 export type AvatarProbeResult =
-  | { state: 'stored' } // a 200: an upload or synced Clerk photo (no way to tell which from here)
+  | { state: 'stored' } // a 200: an upload or synced provider photo (no way to tell which from here)
   | { state: 'gravatar_redirect' } // a 302 to Gravatar
   | { state: 'none' } // a 404 - the client falls back to initials
   | { state: 'unknown'; detail: string } // network error or unexpected status
@@ -142,9 +144,9 @@ export async function probeAvatarSource(t: AbsTarget, userId: string): Promise<A
 }
 
 /**
- * Clear a user's stored avatar on a connected server (upload or synced Clerk
+ * Clear a user's stored avatar on a connected server (upload or synced provider
  * copy alike). Used to break a stuck `server_skipped` state where an old manual
- * upload is blocking the Clerk photo from syncing. Returns false on any failure.
+ * upload is blocking the provider photo from syncing. Returns false on any failure.
  */
 export async function deleteServerAvatar(t: AbsTarget, absUserId: string): Promise<boolean> {
   const token = getAbsToken(t.serverId)

@@ -315,7 +315,8 @@ export async function getSearchProviders(t: AbsTarget): Promise<{
 // for the sections in this block, keyed per server so a switch re-fetches.
 export const adminSectionKeys = {
   sessions: (serverId: string, page: number) => ['admin', serverId, 'sessions', page] as const,
-  userStats: (serverId: string, userId: string) => ['admin', serverId, 'user-stats', userId] as const,
+  userStats: (serverId: string, userId: string) =>
+    ['admin', serverId, 'user-stats', userId] as const,
   userSessions: (serverId: string, userId: string, page: number) =>
     ['admin', serverId, 'user-sessions', userId, page] as const,
   userProgress: (serverId: string, userId: string) =>

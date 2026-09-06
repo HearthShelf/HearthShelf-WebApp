@@ -90,7 +90,9 @@ function ScheduleField({
           onBlur={(e) => onChange(e.target.value.trim())}
         />
       )}
-      {locked && <p className="field-hint">Set by environment - edit the env var to change this.</p>}
+      {locked && (
+        <p className="field-hint">Set by environment - edit the env var to change this.</p>
+      )}
     </div>
   )
 }
@@ -423,11 +425,14 @@ export function ConfigBackups() {
                   defaultValue={hsConfig.keep}
                   onBlur={(e) => {
                     const n = parseInt(e.target.value, 10)
-                    if (Number.isFinite(n) && n > 0 && n !== hsConfig.keep) patchHsConfig({ keep: n })
+                    if (Number.isFinite(n) && n > 0 && n !== hsConfig.keep)
+                      patchHsConfig({ keep: n })
                   }}
                 />
                 {hsConfig.env.keep && (
-                  <p className="field-hint">Set by environment - edit the env var to change this.</p>
+                  <p className="field-hint">
+                    Set by environment - edit the env var to change this.
+                  </p>
                 )}
               </div>
               {hsConfig.offBoxPath && (
@@ -539,7 +544,9 @@ export function ConfigBackups() {
                                     const r = await restoreHsBackup(target, b.id)
                                     await hsQ.refetch()
                                     if (r.crossServer)
-                                      show('Restored from a different server - some links may need attention')
+                                      show(
+                                        'Restored from a different server - some links may need attention',
+                                      )
                                   },
                                   'HearthShelf data restored',
                                 ),
@@ -604,7 +611,8 @@ export function ConfigBackups() {
                   )
                 }
               >
-                <Icon name="archive" /> {busy === 'archive-dl' ? 'Building...' : 'Download full archive'}
+                <Icon name="archive" />{' '}
+                {busy === 'archive-dl' ? 'Building...' : 'Download full archive'}
               </button>
               <input
                 ref={archiveFileRef}
@@ -627,7 +635,9 @@ export function ConfigBackups() {
                             const r = await restoreArchive(target, f, 'replace')
                             await Promise.all([absQ.refetch(), hsQ.refetch()])
                             if (r.crossServer)
-                              show('Restored from a different server - some links may need attention')
+                              show(
+                                'Restored from a different server - some links may need attention',
+                              )
                           },
                           'Archive restored',
                         ),

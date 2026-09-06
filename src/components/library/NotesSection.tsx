@@ -76,7 +76,9 @@ export function NotesSection({
   // Top-level notes + their one level of replies, newest top-level first.
   const threads = useMemo(() => {
     const notes = data?.notes ?? []
-    const topLevel = notes.filter((n) => n.parentId === '').sort((a, b) => b.createdAt - a.createdAt)
+    const topLevel = notes
+      .filter((n) => n.parentId === '')
+      .sort((a, b) => b.createdAt - a.createdAt)
     const repliesByParent = new Map<string, HSNote[]>()
     for (const n of notes) {
       if (n.parentId === '') continue
@@ -101,7 +103,16 @@ export function NotesSection({
           onChange={(e) => setDraft(e.target.value)}
           maxLength={2000}
         />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginTop: 8,
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
+        >
           <div style={{ display: 'flex', gap: 6 }}>
             <button
               type="button"
@@ -173,8 +184,8 @@ export function NotesSection({
       {(data.hiddenAhead ?? 0) > 0 && (
         <div className="banner info" style={{ marginTop: 'var(--s3)' }}>
           <Icon name="visibility_off" />
-          {data.hiddenAhead} {data.hiddenAhead === 1 ? 'note is' : 'notes are'} hidden ahead of
-          your position, to avoid spoilers.
+          {data.hiddenAhead} {data.hiddenAhead === 1 ? 'note is' : 'notes are'} hidden ahead of your
+          position, to avoid spoilers.
         </div>
       )}
     </>
@@ -210,7 +221,13 @@ function NoteLine({
   const mine = note.userId === meId
   return (
     <div className="bm-row" style={{ alignItems: 'flex-start', gap: 10 }}>
-      <Avatar name={note.username} target={target} userId={note.userId} size={28} className="hs-avatar" />
+      <Avatar
+        name={note.username}
+        target={target}
+        userId={note.userId}
+        size={28}
+        className="hs-avatar"
+      />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
           <span className="bm-n" style={{ fontWeight: 600 }}>
@@ -222,7 +239,10 @@ function NoteLine({
             </span>
           )}
           {note.safe && (
-            <span className="badge-pill abridged" title="Marked spoiler-free - shown to everyone early">
+            <span
+              className="badge-pill abridged"
+              title="Marked spoiler-free - shown to everyone early"
+            >
               Safe
             </span>
           )}
@@ -231,7 +251,7 @@ function NoteLine({
             {note.timeSec != null && <> · {formatTimestamp(note.timeSec)}</>}
           </span>
         </div>
-        <div style={{ marginTop: 4, fontSize: 13.5, whiteSpace: 'pre-wrap' }}>{note.body}</div>
+        <div style={{ marginTop: 4, fontSize: 14, whiteSpace: 'pre-wrap' }}>{note.body}</div>
         <div style={{ display: 'flex', gap: 14, marginTop: 6 }}>
           {onReply && (
             <button className="read-more" onClick={onReply} style={{ fontSize: 12 }}>
@@ -278,9 +298,17 @@ function NoteThread({
 }) {
   return (
     <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: 10, marginBottom: 10 }}>
-      <NoteLine note={note} meId={meId} target={target} onDelete={onDelete} onReply={onToggleReply} />
+      <NoteLine
+        note={note}
+        meId={meId}
+        target={target}
+        onDelete={onDelete}
+        onReply={onToggleReply}
+      />
       {replies.length > 0 && (
-        <div style={{ marginLeft: 38, marginTop: 6, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div
+          style={{ marginLeft: 38, marginTop: 6, display: 'flex', flexDirection: 'column', gap: 8 }}
+        >
           {replies.map((r) => (
             <NoteLine key={r.id} note={r} meId={meId} target={target} onDelete={onDelete} />
           ))}

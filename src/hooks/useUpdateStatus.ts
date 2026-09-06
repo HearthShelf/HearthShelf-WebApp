@@ -17,10 +17,12 @@ import { useActiveServer } from '@/hooks/useActiveServer'
  *  compareSemver so both ends agree on "outdated". */
 export function compareSemver(a: string, b: string): number {
   const norm = (s: string) =>
-    (String(s)
-      .trim()
-      .replace(/^v/i, '')
-      .match(/^\d+(\.\d+){0,2}/)?.[0] ?? '')
+    (
+      String(s)
+        .trim()
+        .replace(/^v/i, '')
+        .match(/^\d+(\.\d+){0,2}/)?.[0] ?? ''
+    )
       .split('.')
       .map(Number)
   const pa = norm(a)

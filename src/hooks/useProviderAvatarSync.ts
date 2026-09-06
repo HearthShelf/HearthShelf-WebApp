@@ -1,14 +1,15 @@
 /**
- * Keeps a connected server's copy of the signed-in user's Clerk photo current.
+ * Keeps a connected server's copy of the signed-in user's provider photo current.
  *
- * The server serves OTHER users their photo from its own store, so a user's SSO
- * photo has to be copied there (see api/avatars.ts). This hook does that copy:
- *   - silently on load / server switch, but only when the Clerk imageUrl CHANGED
- *     since the last sync (a fingerprint in localStorage), so it's near-free; and
+ * The server serves OTHER users their photo from its own store, so the photo has
+ * to be copied there (see api/avatars.ts). This hook does that copy:
+ *   - silently on load / server switch, but only when the provider's photo URL
+ *     CHANGED since the last sync (a fingerprint in localStorage), so it's
+ *     near-free; and
  *   - on demand via the returned sync() for a "Sync photo" button.
  *
- * There is no polling and no Clerk webhook - a changed photo propagates the next
- * time the app loads or the user taps the button. Best-effort throughout: a
+ * There is no polling and no provider webhook - a changed photo propagates the
+ * next time the app loads or the user taps the button. Best-effort throughout: a
  * failure never surfaces an error to the user (they still have Gravatar/initials).
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -16,15 +17,19 @@ import { useUser } from '@clerk/clerk-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getMe } from '@/api/absLibrary'
-import { syncClerkAvatar, type AvatarSyncResult } from '@/api/avatars'
+import { syncProviderAvatar, type AvatarSyncResult } from '@/api/avatars'
 
-// Fingerprint of the last Clerk imageUrl we synced to a given server, so an
+// Fingerprint of the last provider photo URL we synced to a given server, so an
 // unchanged photo doesn't re-upload on every load. Keyed by server id.
+//
+// The storage key still says `clerk` on purpose: it is a per-browser cache key,
+// and changing it would make every existing browser think the photo is new and
+// re-upload it once. Harmless either way, but there is nothing to gain.
 function fpKey(serverId: string): string {
   return `hs:clerk-avatar-fp:${serverId}`
 }
 
-export function useClerkAvatarSync(): {
+export function useProviderAvatarSync(): {
   sync: () => Promise<AvatarSyncResult>
   syncing: boolean
   /**
@@ -62,14 +67,14 @@ export function useClerkAvatarSync(): {
       inFlight.current = true
       setSyncing(true)
       try {
-        // The store keys by ABS user id on THIS server, not the Clerk id.
+        // The store keys by ABS user id on THIS server, not the provider's id.
         const me = await getMe(target)
         if (!me?.id) {
           const result: AvatarSyncResult = { ok: false, reason: 'no_abs_user' }
           setLastResult(result)
           return result
         }
-        const result = await syncClerkAvatar(target, me.id, imageUrl)
+        const result = await syncProviderAvatar(target, me.id, imageUrl)
         // Record the fingerprint whenever the server accepted the request path
         // (a skip because a manual upload wins is also "done" - but we only stamp
         // on a real store so a later upload-removal re-syncs).

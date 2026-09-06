@@ -324,7 +324,7 @@ export function ConfigApiKeys() {
             className="fld"
             style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: 12.5,
+              fontSize: 13,
               wordBreak: 'break-all',
               userSelect: 'all',
             }}

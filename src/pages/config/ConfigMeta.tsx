@@ -153,7 +153,7 @@ export function ConfigMeta() {
               onChange={(e) => setRenameVal(e.target.value)}
             />
           </div>
-          <p style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
             Renaming updates every item using "{renaming}".
           </p>
         </Modal>

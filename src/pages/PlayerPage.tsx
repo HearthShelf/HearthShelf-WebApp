@@ -328,7 +328,7 @@ function QueuePanel({
             padding: '8px 4px 12px',
           }}
         >
-          <span style={{ fontSize: 11.5, lineHeight: 1.4, color: 'var(--text-muted)' }}>
+          <span style={{ fontSize: 12, lineHeight: 1.4, color: 'var(--text-muted)' }}>
             {QUEUE_MODE_SUB[queueMode]}
           </span>
           {queueMode === 'auto' && (
@@ -752,9 +752,7 @@ export function PlayerPage() {
   // most recently in progress. The queue store hydrates locally first, so using
   // its head while this query is pending races the resume request and loads the
   // first queued book on a hard refresh.
-  const resumeId = inProgressPending
-    ? null
-    : (resumeBook?.id ?? queueHead?.libraryItemId ?? null)
+  const resumeId = inProgressPending ? null : (resumeBook?.id ?? queueHead?.libraryItemId ?? null)
   // Hold the loading state while the in-progress query settles. This keeps a
   // hydrated queue entry from briefly becoming (and then remaining) Now Playing.
   const resolving =
@@ -1362,7 +1360,7 @@ export function PlayerPage() {
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
                 Read in browser
               </div>
-              <div style={{ fontSize: 12.5, maxWidth: 280, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 13, maxWidth: 280, lineHeight: 1.5 }}>
                 Open this book in the in-browser reader. Jump to where the audio is from inside the
                 reader.
               </div>

@@ -95,6 +95,7 @@ export function StartClubBookPromptProvider({ children }: { children: ReactNode 
 
 export function useStartClubBookPrompt(): StartPromptCtx {
   const ctx = useContext(Ctx)
-  if (!ctx) throw new Error('useStartClubBookPrompt must be used within StartClubBookPromptProvider')
+  if (!ctx)
+    throw new Error('useStartClubBookPrompt must be used within StartClubBookPromptProvider')
   return ctx
 }

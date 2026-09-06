@@ -154,6 +154,10 @@ export function absMediaUrl(t: AbsTarget, path: string): string | null {
  */
 export function playDeviceInfo(): ABSDeviceInfo & { clientVersion: string } {
   return isCarModeActive()
-    ? { deviceId: 'hearthshelf-web-car', clientName: 'HearthShelf Web (Car)', clientVersion: '0.1.0' }
+    ? {
+        deviceId: 'hearthshelf-web-car',
+        clientName: 'HearthShelf Web (Car)',
+        clientVersion: '0.1.0',
+      }
     : { deviceId: 'hearthshelf-web', clientName: 'HearthShelf', clientVersion: '0.1.0' }
 }

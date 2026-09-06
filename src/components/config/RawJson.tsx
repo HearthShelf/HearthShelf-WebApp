@@ -36,7 +36,7 @@ export function RawJson({ label, value }: { label: string; value: unknown }) {
         >
           <Icon name={open ? 'expand_less' : 'expand_more'} /> {label}
         </button>
-        <span style={{ color: 'var(--text-faint)', fontSize: 11.5 }}>
+        <span style={{ color: 'var(--text-faint)', fontSize: 12 }}>
           {(text.length / 1024).toFixed(1)} KB
         </span>
         <button className="btn-sm btn-ghost" onClick={() => void copy()}>
@@ -50,7 +50,7 @@ export function RawJson({ label, value }: { label: string; value: unknown }) {
             marginBottom: 0,
             maxHeight: 460,
             overflow: 'auto',
-            fontSize: 11.5,
+            fontSize: 12,
             lineHeight: 1.5,
             background: 'var(--bg-sunken, rgba(0,0,0,.18))',
             borderRadius: 8,

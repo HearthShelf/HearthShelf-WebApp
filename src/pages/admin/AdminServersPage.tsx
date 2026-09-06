@@ -12,7 +12,12 @@ import {
   ShieldX,
   Mail,
 } from 'lucide-react'
-import { fetchAdminServers, fetchAdminServer, deregisterServer, type AdminServer } from '@/api/controlPlane'
+import {
+  fetchAdminServers,
+  fetchAdminServer,
+  deregisterServer,
+  type AdminServer,
+} from '@/api/controlPlane'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { notify } from '@/lib/notify'
@@ -114,9 +119,12 @@ export function AdminServersPage() {
     if (emailFilter !== 'all') rows = rows.filter((s) => emailTier(s.email_relay) === emailFilter)
     return [...rows].sort((a, b) => {
       if (sortKey === 'name') return (a.name || a.url).localeCompare(b.name || b.url)
-      if (sortKey === 'cert') return CERT_SORT_RANK[certTier(a.cert)] - CERT_SORT_RANK[certTier(b.cert)]
-      return b.email_relay.sent_this_window / (b.email_relay.monthly_cap || 1) -
+      if (sortKey === 'cert')
+        return CERT_SORT_RANK[certTier(a.cert)] - CERT_SORT_RANK[certTier(b.cert)]
+      return (
+        b.email_relay.sent_this_window / (b.email_relay.monthly_cap || 1) -
         a.email_relay.sent_this_window / (a.email_relay.monthly_cap || 1)
+      )
     })
   }, [data, certFilter, emailFilter, sortKey])
 

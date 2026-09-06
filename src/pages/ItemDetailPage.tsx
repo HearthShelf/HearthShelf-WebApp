@@ -223,9 +223,8 @@ export function ItemDetailPage() {
 
   // Where the listener is right now: live player position when this book is the
   // one playing, otherwise the last saved position for this item.
-  const isPlayingThis =
-    player.now?.itemId === data.id && player.now?.serverId === target.serverId
-  const listenPos = isPlayingThis ? player.positionSec : progress?.currentTime ?? 0
+  const isPlayingThis = player.now?.itemId === data.id && player.now?.serverId === target.serverId
+  const listenPos = isPlayingThis ? player.positionSec : (progress?.currentTime ?? 0)
   // The chapter containing listenPos. Past the last chapter's end we fall back to
   // the last chapter (matches the mobile player). -1 when there's no progress yet.
   const currentChapterIdx =
@@ -452,7 +451,12 @@ export function ItemDetailPage() {
                   icon="reorder"
                   label="Add to queue"
                   onClick={() => {
-                    addToQueue({ libraryItemId: data.id, title, author, duration: duration || undefined })
+                    addToQueue({
+                      libraryItemId: data.id,
+                      title,
+                      author,
+                      duration: duration || undefined,
+                    })
                     show(`Added "${title}" to queue`)
                   }}
                 />

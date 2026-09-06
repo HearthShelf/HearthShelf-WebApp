@@ -40,7 +40,9 @@ export function AvatarStack({
   if (!users.length) return null
   const shown = users.slice(0, max)
   const extra = users.length - shown.length
-  const names = users.map((u) => `${u.username}${u.status === 'reading' ? ' (reading)' : ''}`).join(', ')
+  const names = users
+    .map((u) => `${u.username}${u.status === 'reading' ? ' (reading)' : ''}`)
+    .join(', ')
   // The in-progress dot scales with the avatar but stays legible on small tiles.
   const dot = Math.max(6, Math.round(size * 0.32))
 

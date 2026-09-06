@@ -98,8 +98,14 @@ export function ServiceAccountHealth({
             : 'The saved credential no longer works and could not be restored automatically. Reset it, or supply a new one below.'}
         </div>
 
-        <div style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', marginTop: 'var(--s3)' }}>
-          <button className="btn btn-primary" disabled={reset.isPending} onClick={() => reset.mutate()}>
+        <div
+          style={{ display: 'flex', gap: 'var(--s2)', flexWrap: 'wrap', marginTop: 'var(--s3)' }}
+        >
+          <button
+            className="btn btn-primary"
+            disabled={reset.isPending}
+            onClick={() => reset.mutate()}
+          >
             <Icon name="key" /> {reset.isPending ? 'Resetting…' : 'Reset service credential'}
           </button>
           <button className="btn-sm btn-ghost" onClick={() => setShowManual((v) => !v)}>

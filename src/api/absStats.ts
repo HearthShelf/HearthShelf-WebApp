@@ -154,8 +154,7 @@ export async function getStatsHistory(
 
 export const statsKeys = {
   hsStats: (serverId: string) => ['abs-stats', 'hs', serverId] as const,
-  history: (serverId: string, range: string) =>
-    ['abs-stats', 'history', serverId, range] as const,
+  history: (serverId: string, range: string) => ['abs-stats', 'history', serverId, range] as const,
 }
 
 const HISTORY_UNAVAILABLE: HSStatsHistory = { available: false, days: [] }
@@ -205,7 +204,11 @@ function mapHighlightBook(
   b: { title?: string; durationSec?: number; libraryItemId?: string | null } | null | undefined,
 ): { title: string; durationSec: number; libraryItemId: string | null } | null {
   if (!b || typeof b.durationSec !== 'number') return null
-  return { title: b.title ?? '', durationSec: b.durationSec, libraryItemId: b.libraryItemId ?? null }
+  return {
+    title: b.title ?? '',
+    durationSec: b.durationSec,
+    libraryItemId: b.libraryItemId ?? null,
+  }
 }
 
 function mapHighlightPerson(

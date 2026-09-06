@@ -71,7 +71,10 @@ export function ServerHealthAlert({
                 fix is to let HearthShelf mint a fresh one from your current admin session:
               </p>
               {health.state === 'broken' && !health.canSelfHeal && (
-                <p className="sr-d" style={{ marginBottom: 'var(--s3)', color: 'var(--text-muted)' }}>
+                <p
+                  className="sr-d"
+                  style={{ marginBottom: 'var(--s3)', color: 'var(--text-muted)' }}
+                >
                   Automatic recovery isn’t possible here (the service account’s saved password no
                   longer matches), so <strong>Fix now</strong> re-mints the credential from your
                   session instead.

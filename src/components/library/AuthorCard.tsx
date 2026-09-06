@@ -46,6 +46,7 @@ export function AuthorCard({ author, onOpen }: AuthorCardProps) {
             className="author-photo"
             src={photoSrc}
             alt={author.name}
+            loading="lazy"
             onError={() => setImgErr(true)}
           />
         ) : (

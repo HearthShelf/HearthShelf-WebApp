@@ -2,8 +2,8 @@
  * Home's dashboard band: an "Up next" queue peek beside the listening streak.
  * Two small cards - the left opens the player's queue, the right goes to Stats.
  *
- * The streak card calls out a streak on the line (a run going, but nothing
- * listened today) since that's the one moment the number is actionable.
+ * The streak card notes when nothing has been listened today. It states the
+ * fact rather than pressing - a twice-a-week listener should not be nudged.
  */
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -79,7 +79,7 @@ export function DashboardRow() {
           <span>days</span>
         </div>
         {streakAtRisk ? (
-          <div className="dash-cap">streak on the line - listen today to keep it</div>
+          <div className="dash-cap">nothing today yet</div>
         ) : (
           <div className="dash-stat" style={{ marginTop: 8 }}>
             <Icon name="schedule" />

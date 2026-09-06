@@ -240,85 +240,89 @@ function EmailForm({
           </div>
         </div>
       ) : (
-      <div className="cfg-card">
-        <Field label="SMTP host">
-          <input
-            className="fld"
-            placeholder="smtp.example.com"
-            value={host}
-            onChange={(e) => setHost(e.target.value)}
-          />
-        </Field>
-        <Field label="Port">
-          <input
-            className="fld"
-            inputMode="numeric"
-            placeholder="465"
-            value={port}
-            onChange={(e) => setPort(e.target.value.replace(/[^0-9]/g, ''))}
-          />
-        </Field>
-        <div className="cfg-line">
-          <Icon name="lock" style={{ color: 'var(--text-muted)' }} />
-          <div className="cl-meta" style={{ flex: 1 }}>
-            <div className="cl-t">Use TLS</div>
-            <div className="cl-d">Secure connection (recommended for port 465).</div>
+        <div className="cfg-card">
+          <Field label="SMTP host">
+            <input
+              className="fld"
+              placeholder="smtp.example.com"
+              value={host}
+              onChange={(e) => setHost(e.target.value)}
+            />
+          </Field>
+          <Field label="Port">
+            <input
+              className="fld"
+              inputMode="numeric"
+              placeholder="465"
+              value={port}
+              onChange={(e) => setPort(e.target.value.replace(/[^0-9]/g, ''))}
+            />
+          </Field>
+          <div className="cfg-line">
+            <Icon name="lock" style={{ color: 'var(--text-muted)' }} />
+            <div className="cl-meta" style={{ flex: 1 }}>
+              <div className="cl-t">Use TLS</div>
+              <div className="cl-d">Secure connection (recommended for port 465).</div>
+            </div>
+            <button
+              className={secure ? 'toggle on' : 'toggle'}
+              aria-pressed={secure}
+              onClick={() => setSecure((v) => !v)}
+            >
+              <i />
+            </button>
           </div>
-          <button
-            className={secure ? 'toggle on' : 'toggle'}
-            aria-pressed={secure}
-            onClick={() => setSecure((v) => !v)}
-          >
-            <i />
-          </button>
+          <Field label="Username">
+            <input
+              className="fld"
+              placeholder="user@example.com"
+              value={user}
+              onChange={(e) => setUser(e.target.value)}
+            />
+          </Field>
+          <Field label="Password">
+            <input
+              className="fld"
+              type="password"
+              placeholder={settings.host ? 'Leave blank to keep current' : ''}
+              value={pass}
+              onChange={(e) => setPass(e.target.value)}
+            />
+          </Field>
+          <Field label="From address">
+            <input
+              className="fld"
+              placeholder="library@example.com"
+              value={fromAddress}
+              onChange={(e) => setFromAddress(e.target.value)}
+            />
+          </Field>
+          <Field label="Test recipient">
+            <input
+              className="fld"
+              placeholder="you@example.com"
+              value={testAddress}
+              onChange={(e) => setTestAddress(e.target.value)}
+            />
+          </Field>
+          <div className="cfg-line" style={{ gap: 8, justifyContent: 'flex-end' }}>
+            {testMsg && (
+              <span style={{ color: 'var(--text-muted)', fontSize: 13, marginRight: 'auto' }}>
+                {testMsg}
+              </span>
+            )}
+            <button
+              className="btn-sm"
+              disabled={testing || !testAddress}
+              onClick={() => void test()}
+            >
+              <Icon name="send" /> {testing ? 'Sending...' : 'Send test'}
+            </button>
+            <button className="btn-sm btn-green" disabled={saving} onClick={() => void save()}>
+              {saved ? <Icon name="check" /> : <Icon name="save" />} {saved ? 'Saved' : 'Save'}
+            </button>
+          </div>
         </div>
-        <Field label="Username">
-          <input
-            className="fld"
-            placeholder="user@example.com"
-            value={user}
-            onChange={(e) => setUser(e.target.value)}
-          />
-        </Field>
-        <Field label="Password">
-          <input
-            className="fld"
-            type="password"
-            placeholder={settings.host ? 'Leave blank to keep current' : ''}
-            value={pass}
-            onChange={(e) => setPass(e.target.value)}
-          />
-        </Field>
-        <Field label="From address">
-          <input
-            className="fld"
-            placeholder="library@example.com"
-            value={fromAddress}
-            onChange={(e) => setFromAddress(e.target.value)}
-          />
-        </Field>
-        <Field label="Test recipient">
-          <input
-            className="fld"
-            placeholder="you@example.com"
-            value={testAddress}
-            onChange={(e) => setTestAddress(e.target.value)}
-          />
-        </Field>
-        <div className="cfg-line" style={{ gap: 8, justifyContent: 'flex-end' }}>
-          {testMsg && (
-            <span style={{ color: 'var(--text-muted)', fontSize: 12.5, marginRight: 'auto' }}>
-              {testMsg}
-            </span>
-          )}
-          <button className="btn-sm" disabled={testing || !testAddress} onClick={() => void test()}>
-            <Icon name="send" /> {testing ? 'Sending...' : 'Send test'}
-          </button>
-          <button className="btn-sm btn-green" disabled={saving} onClick={() => void save()}>
-            {saved ? <Icon name="check" /> : <Icon name="save" />} {saved ? 'Saved' : 'Save'}
-          </button>
-        </div>
-      </div>
       )}
 
       <EreaderDevices devices={devices} onChange={saveDevices} />

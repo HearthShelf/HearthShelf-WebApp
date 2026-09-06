@@ -149,11 +149,7 @@ function HardcoverSettings() {
             </summary>
             <div className="cl-d" style={{ marginTop: 'var(--s2)' }}>
               Create a personal access token at{' '}
-              <a
-                href="https://hardcover.app/account/api"
-                target="_blank"
-                rel="noreferrer noopener"
-              >
+              <a href="https://hardcover.app/account/api" target="_blank" rel="noreferrer noopener">
                 hardcover.app/account/api
               </a>{' '}
               and paste it here, then HearthShelf will sync books you mark finished to your

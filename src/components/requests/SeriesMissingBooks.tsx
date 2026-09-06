@@ -92,7 +92,7 @@ function MissingRow({
     >
       <div className="sl-num">{num}</div>
       {book.coverArtUrl ? (
-        <img className="sl-cover" src={book.coverArtUrl} alt="" />
+        <img className="sl-cover" src={book.coverArtUrl} alt="" loading="lazy" />
       ) : (
         <div className="sl-cover" style={{ background: 'var(--c-highest)' }} />
       )}

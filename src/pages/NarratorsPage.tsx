@@ -167,7 +167,7 @@ export function NarratorsPage() {
           <div className={'toolbar2' + (anySelected ? ' sel-bar' : '')}>
             <span className="count-badge">{people.length} narrators</span>
             {!anySelected && (
-              <span className="text-faint" style={{ fontSize: 12.5 }}>
+              <span className="text-faint" style={{ fontSize: 13 }}>
                 Hover a card to select, edit, or merge
               </span>
             )}
@@ -246,6 +246,7 @@ export function NarratorsPage() {
                                 objectFit: 'cover',
                                 flex: 'none',
                               }}
+                              loading="lazy"
                             />
                           ) : (
                             <span

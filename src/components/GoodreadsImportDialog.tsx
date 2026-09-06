@@ -42,9 +42,7 @@ export function GoodreadsImportDialog({ onClose }: { onClose: () => void }) {
   const [rows, setRows] = useState<ReviewRow[] | null>(null)
   const [matching, setMatching] = useState(false)
   const [matchProgress, setMatchProgress] = useState<{ done: number; total: number } | null>(null)
-  const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(
-    null,
-  )
+  const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [backfillAbs, setBackfillAbs] = useState(true)
   const [hideMatched, setHideMatched] = useState(false)
@@ -255,16 +253,20 @@ export function GoodreadsImportDialog({ onClose }: { onClose: () => void }) {
                   'Ready to import.'
                 )}
               </div>
-              <div style={{ display: 'flex', gap: 'var(--s3)', marginTop: 'var(--s3)', flexWrap: 'wrap' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 'var(--s3)',
+                  marginTop: 'var(--s3)',
+                  flexWrap: 'wrap',
+                }}
+              >
                 {unresolvedCount > 0 && (
                   <button className="btn-sm" onClick={stubAllUnresolved}>
                     Save unresolved as history only
                   </button>
                 )}
-                <label
-                  className="btn-sm"
-                  style={{ cursor: 'pointer', background: 'var(--fill)' }}
-                >
+                <label className="btn-sm" style={{ cursor: 'pointer', background: 'var(--fill)' }}>
                   <input
                     type="checkbox"
                     checked={hideMatched}
@@ -294,7 +296,12 @@ export function GoodreadsImportDialog({ onClose }: { onClose: () => void }) {
             </div>
             <label
               className="cfg-line"
-              style={{ gap: 10, marginTop: 'var(--s4)', cursor: 'pointer', alignItems: 'flex-start' }}
+              style={{
+                gap: 10,
+                marginTop: 'var(--s4)',
+                cursor: 'pointer',
+                alignItems: 'flex-start',
+              }}
             >
               <input
                 type="checkbox"
@@ -310,13 +317,20 @@ export function GoodreadsImportDialog({ onClose }: { onClose: () => void }) {
                   {matchedCount
                     ? ` ${matchedCount} book${matchedCount === 1 ? '' : 's'} will update.`
                     : ''}{' '}
-                  Listening time, streaks, and the heatmap can&rsquo;t be filled
-                  in&mdash;Goodreads doesn&rsquo;t record how long you listened.
+                  Listening time, streaks, and the heatmap can&rsquo;t be filled in&mdash;Goodreads
+                  doesn&rsquo;t record how long you listened.
                 </div>
               </div>
             </label>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', marginTop: 'var(--s3)' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--s3)',
+                marginTop: 'var(--s3)',
+              }}
+            >
               <button
                 className="btn-sm btn-green"
                 disabled={unresolvedCount > 0 || commit.isPending}
@@ -327,8 +341,8 @@ export function GoodreadsImportDialog({ onClose }: { onClose: () => void }) {
               {unresolvedCount > 0 && !commit.isPending && (
                 <span className="cl-d">
                   Resolve or skip the remaining {unresolvedCount} book
-                  {unresolvedCount === 1 ? '' : 's'} first, or use &ldquo;Save unresolved as
-                  history only&rdquo; above.
+                  {unresolvedCount === 1 ? '' : 's'} first, or use &ldquo;Save unresolved as history
+                  only&rdquo; above.
                 </span>
               )}
             </div>
@@ -350,7 +364,8 @@ function ImportProgressBar({
   label: string
   progress: { done: number; total: number } | null
 }) {
-  const pct = progress && progress.total > 0 ? Math.min(100, (progress.done / progress.total) * 100) : 0
+  const pct =
+    progress && progress.total > 0 ? Math.min(100, (progress.done / progress.total) * 100) : 0
   return (
     <div className="cfg-card" style={{ marginTop: 'var(--s3)' }}>
       <div className="cl-d" style={{ marginBottom: progress ? 8 : 0 }}>
@@ -407,11 +422,17 @@ function GoodreadsReviewRow({
   const editable = !r.resolved
 
   return (
-    <div className="cfg-line" style={{ flexWrap: 'wrap', alignItems: editable ? 'flex-start' : 'center' }}>
+    <div
+      className="cfg-line"
+      style={{ flexWrap: 'wrap', alignItems: editable ? 'flex-start' : 'center' }}
+    >
       <Icon
         name={r.resolvedLibraryItemId ? 'check_circle' : 'help'}
         fill={Boolean(r.resolvedLibraryItemId)}
-        style={{ color: r.resolvedLibraryItemId ? '#5a9c52' : 'var(--text-muted)', marginTop: editable ? 2 : 0 }}
+        style={{
+          color: r.resolvedLibraryItemId ? '#5a9c52' : 'var(--text-muted)',
+          marginTop: editable ? 2 : 0,
+        }}
       />
       <div className="cl-meta" style={{ flex: 1, minWidth: 200 }}>
         <div className="cl-t">{r.title}</div>
@@ -462,9 +483,15 @@ function GoodreadsReviewRow({
                     overflowY: 'auto',
                   }}
                 >
-                  {isFetching && <div className="cl-d" style={{ padding: '8px 10px' }}>Searching...</div>}
+                  {isFetching && (
+                    <div className="cl-d" style={{ padding: '8px 10px' }}>
+                      Searching...
+                    </div>
+                  )}
                   {!isFetching && results?.length === 0 && (
-                    <div className="cl-d" style={{ padding: '8px 10px' }}>No matches found.</div>
+                    <div className="cl-d" style={{ padding: '8px 10px' }}>
+                      No matches found.
+                    </div>
                   )}
                   {!isFetching &&
                     results?.map((res) => (

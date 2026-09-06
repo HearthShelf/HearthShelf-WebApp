@@ -49,9 +49,7 @@ export function ListeningHero({
   username: string
   onOpen: (itemId: string) => void
 }) {
-  const pct = Math.round(
-    Math.min(Math.max(listen.progress || 0, 0), 1) * 100,
-  )
+  const pct = Math.round(Math.min(Math.max(listen.progress || 0, 0), 1) * 100)
   const remaining = Math.max(listen.durationSec - listen.currentTimeSec, 0)
 
   return (
@@ -281,7 +279,11 @@ export function FinishedShelf({
               <div className="b-meta">
                 <div className="b-title">{b.title || 'Untitled'}</div>
                 <div className="b-author">
-                  {b.alsoMine ? <span className="badge-pill">Both read</span> : yearOf(b.finishedAt)}
+                  {b.alsoMine ? (
+                    <span className="badge-pill">Both read</span>
+                  ) : (
+                    yearOf(b.finishedAt)
+                  )}
                 </div>
               </div>
             </div>

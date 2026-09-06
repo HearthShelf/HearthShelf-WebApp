@@ -121,7 +121,10 @@ export function ItemEditModal({ target, item, chapters, onClose }: ItemEditModal
     return (value: EditForm[K] | ((cur: EditForm[K]) => EditForm[K])) =>
       setForm((cur) => ({
         ...cur,
-        [key]: typeof value === 'function' ? (value as (c: EditForm[K]) => EditForm[K])(cur[key]) : value,
+        [key]:
+          typeof value === 'function'
+            ? (value as (c: EditForm[K]) => EditForm[K])(cur[key])
+            : value,
       }))
   }
 
@@ -542,7 +545,7 @@ function ToolsTab({ target, itemId }: { target: AbsTarget; itemId: string }) {
         <Icon name="save_as" />
         <h2>Embed metadata</h2>
       </div>
-      <p style={{ fontSize: 13.5, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+      <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
         Write the current title, author, and cover back into the audio files so other players read
         them too. Runs as a background task.
       </p>

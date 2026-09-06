@@ -67,7 +67,8 @@ export function UpdateBanner() {
     )
   }
 
-  const icon = tone === 'danger' ? 'gpp_maybe' : tone === 'warn' ? 'security_update_warning' : 'system_update'
+  const icon =
+    tone === 'danger' ? 'gpp_maybe' : tone === 'warn' ? 'security_update_warning' : 'system_update'
   const lead =
     tone === 'danger'
       ? 'A critical HearthShelf update is available'

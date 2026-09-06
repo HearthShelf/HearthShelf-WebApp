@@ -65,7 +65,7 @@ export function UpcomingDestinationModal({
     <Modal title="Open in" onClose={onClose}>
       <div className="ud-head">
         {item.cover ? (
-          <img className="ud-cover" src={item.cover} alt="" />
+          <img className="ud-cover" src={item.cover} alt="" loading="lazy" />
         ) : (
           <div className="ud-cover up-cover-ph" />
         )}

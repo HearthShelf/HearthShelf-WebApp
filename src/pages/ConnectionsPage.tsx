@@ -73,9 +73,7 @@ export function ConnectionsPage() {
       await withdrawAppServer(id, serverId)
       await queryClient.invalidateQueries({ queryKey: ['app-installations'] })
     } catch {
-      setProblem(
-        `Could not reach ${serverName(serverId)}, so ${appName} still has access there.`,
-      )
+      setProblem(`Could not reach ${serverName(serverId)}, so ${appName} still has access there.`)
     } finally {
       setBusy(null)
     }

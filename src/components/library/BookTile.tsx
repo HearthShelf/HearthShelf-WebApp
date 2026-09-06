@@ -64,10 +64,23 @@ export function BookTile({
   }
 
   return (
+    // Not a <button>: the tile contains its own play / mark-finished buttons,
+    // and nesting buttons is invalid. role + tabIndex + key handling give the
+    // same keyboard and screen-reader behaviour without the nesting.
     <div
       className={'book fade-in' + (compact ? ' compact' : '') + (selected ? ' sel' : '')}
       data-cv={tintFor(item.id)}
+      role="button"
+      tabIndex={0}
+      aria-label={title ?? 'Untitled'}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick()
+        }
+      }}
     >
       <Cover
         itemId={item.id}

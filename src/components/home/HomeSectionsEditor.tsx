@@ -25,6 +25,7 @@ import {
 import { Icon } from '@/components/common/Icon'
 import { usePointerReorder } from '@/hooks/usePointerReorder'
 import { useSettingsStore } from '@/store/settingsStore'
+import { useQuestGiverEnabled, useDiscoverEnabled } from '@/hooks/useQuestGiver'
 
 /** How each section presents itself here: its Home icon + label, and a one-line
  *  reminder of what the band actually shows. */
@@ -49,14 +50,14 @@ export const HOME_SECTION_META: Record<
     hint: 'Books you have started',
   },
   'continue-series': {
-    label: 'Continue Series',
+    label: 'Next in your series',
     icon: 'auto_stories',
-    hint: 'The next book in series you are reading',
+    hint: 'The book that comes after the one you just finished',
   },
   questgiver: {
-    label: 'Picked by QuestGiver',
+    label: 'Chosen for you',
     icon: 'auto_awesome',
-    hint: 'Your latest QuestGiver picks',
+    hint: 'Picks matched to what you have been listening to',
   },
   recommended: {
     label: 'Recommended for you',
@@ -69,9 +70,9 @@ export const HOME_SECTION_META: Record<
     hint: 'Rows built from your favorite genres, authors and narrators',
   },
   'series-next': {
-    label: 'Finish the series',
+    label: 'Still on the shelf',
     icon: 'auto_stories',
-    hint: 'Unplayed books in series you have started',
+    hint: 'Books from your series that you have not opened yet',
   },
   recent: {
     label: 'Back to your library',
@@ -81,7 +82,7 @@ export const HOME_SECTION_META: Record<
   'recently-added': {
     label: 'Recently Added',
     icon: 'schedule',
-    hint: 'The newest books on your server',
+    hint: 'The newest books on the shelves',
   },
 }
 
@@ -95,6 +96,17 @@ export function HomeSectionsEditor({ onDone }: HomeSectionsEditorProps) {
   const setSetting = useSettingsStore((s) => s.set)
 
   const hiddenCount = sections.filter((s) => !s.on).length
+
+  // A section whose feature the host has turned off will never render, however
+  // the reader arranges it. Say so on the row instead of letting them toggle
+  // something that silently does nothing forever.
+  const qgOn = useQuestGiverEnabled()
+  const discoverOn = useDiscoverEnabled()
+  const unavailable = (id: HomeSectionId): boolean => {
+    if (id === 'questgiver') return !qgOn
+    if (id === 'recommended-picks' || id === 'recommended') return !discoverOn
+    return false
+  }
 
   const reorder = (from: number, to: number) => {
     const next = sections.slice()
@@ -120,7 +132,9 @@ export function HomeSectionsEditor({ onDone }: HomeSectionsEditorProps) {
         <div style={{ flex: 1 }}>
           <div className="hs-edit-t">Arrange your home</div>
           <div className="hs-edit-d">
-            {hiddenCount > 0 ? `${hiddenCount} hidden` : 'Drag to reorder, tap the eye to hide'}
+            {hiddenCount > 0
+              ? `${hiddenCount} hidden`
+              : 'Drag or use the arrows to reorder, tap the eye to hide'}
           </div>
         </div>
         <button type="button" className="pill" onClick={reset}>
@@ -139,6 +153,10 @@ export function HomeSectionsEditor({ onDone }: HomeSectionsEditorProps) {
           dragging={dragIndex === i}
           over={overIndex === i && dragIndex !== i}
           recCount={recCount}
+          unavailable={unavailable(sec.id)}
+          index={i}
+          total={sections.length}
+          onMove={(to) => reorder(i, to)}
           onToggle={() => toggle(sec.id)}
           onSetCount={(n) => setSetting('homeRecShelfCount', n)}
         />
@@ -150,6 +168,10 @@ export function HomeSectionsEditor({ onDone }: HomeSectionsEditorProps) {
 interface SectionRowProps {
   section: HomeSectionPref
   rowProps: ReturnType<ReturnType<typeof usePointerReorder>['getRowProps']>
+  unavailable: boolean
+  index: number
+  total: number
+  onMove: (to: number) => void
   dragging: boolean
   over: boolean
   recCount: number
@@ -163,6 +185,10 @@ function SectionRow({
   dragging,
   over,
   recCount,
+  unavailable,
+  index,
+  total,
+  onMove,
   onToggle,
   onSetCount,
 }: SectionRowProps) {
@@ -170,7 +196,7 @@ function SectionRow({
   const { style, ...rest } = rowProps
   // The picks block's count stepper doubles as an off switch, so a 0 count reads
   // as hidden here even though the eye is still on.
-  const off = !section.on || (section.id === 'recommended-picks' && recCount === 0)
+  const off = !section.on || unavailable || (section.id === 'recommended-picks' && recCount === 0)
 
   return (
     <div
@@ -183,11 +209,34 @@ function SectionRow({
       }}
     >
       <div className="hs-row-main">
-        <Icon name="drag_indicator" style={{ color: 'var(--text-muted)' }} />
+        {/* Dragging is pointer-only, so the same move is offered as buttons -
+            otherwise keyboard users can hide sections but never reorder them. */}
+        <span className="hs-move" onPointerDown={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className="hs-move-btn"
+            disabled={index === 0}
+            aria-label={`Move ${meta.label} up`}
+            onClick={() => onMove(index - 1)}
+          >
+            <Icon name="keyboard_arrow_up" />
+          </button>
+          <button
+            type="button"
+            className="hs-move-btn"
+            disabled={index === total - 1}
+            aria-label={`Move ${meta.label} down`}
+            onClick={() => onMove(index + 1)}
+          >
+            <Icon name="keyboard_arrow_down" />
+          </button>
+        </span>
         <Icon name={meta.icon} style={{ color: off ? 'var(--text-faint)' : 'var(--primary)' }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="hs-row-t">{meta.label}</div>
-          <div className="hs-row-d">{meta.hint}</div>
+          <div className="hs-row-d">
+            {unavailable ? 'Not turned on for this library' : meta.hint}
+          </div>
         </div>
         {/* Stop the pointer-down from starting a drag when toggling. */}
         <span onPointerDown={(e) => e.stopPropagation()}>
@@ -196,6 +245,7 @@ function SectionRow({
             className="hs-eye"
             onClick={onToggle}
             title={section.on ? 'Hide this section' : 'Show this section'}
+            aria-label={`${section.on ? 'Hide' : 'Show'} ${meta.label}`}
             aria-pressed={section.on}
           >
             <Icon name={section.on ? 'visibility' : 'visibility_off'} />
@@ -204,11 +254,7 @@ function SectionRow({
       </div>
 
       {section.id === 'recommended-picks' && (
-        <RecCountStepper
-          count={recCount}
-          disabled={!section.on}
-          onChange={onSetCount}
-        />
+        <RecCountStepper count={recCount} disabled={!section.on} onChange={onSetCount} />
       )}
     </div>
   )

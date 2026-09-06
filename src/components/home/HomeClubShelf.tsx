@@ -9,18 +9,23 @@ import { getClubs, clubsKeys } from '@/api/absClubs'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { Cover } from '@/components/shared/Cover'
 import { SectionHead } from '@/components/common/SectionHead'
+import { BandError } from '@/components/common/BandError'
 
 export function HomeClubShelf() {
   const navigate = useNavigate()
   const { target } = useActiveServer()
 
-  const { data } = useQuery({
+  const { data, isError, refetch } = useQuery({
     // No libraryItemId: the server returns just the clubs this reader is in.
     queryKey: clubsKeys.list(target?.serverId ?? '', ''),
     queryFn: () => getClubs(target!),
     enabled: Boolean(target),
     staleTime: 5 * 60 * 1000,
   })
+
+  // A failed fetch and "no clubs" used to render identically. Only stay silent
+  // when the server actually answered.
+  if (isError) return <BandError label="Your book clubs" onRetry={() => refetch()} />
 
   const clubs = data?.enabled ? data.mine : []
   if (clubs.length === 0) return null

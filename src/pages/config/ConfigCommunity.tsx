@@ -118,8 +118,8 @@ export function ConfigCommunity() {
         </div>
         <div className="banner info" style={{ marginTop: 'var(--s4)' }}>
           <Icon name="info" />
-          Real-time presence is more sensitive than a historical reading list, so this ships off
-          by default. {sharingListening ? 'Currently on' : 'Currently off'} for anyone who hasn't
+          Real-time presence is more sensitive than a historical reading list, so this ships off by
+          default. {sharingListening ? 'Currently on' : 'Currently off'} for anyone who hasn't
           chosen for themselves.
         </div>
       </div>
@@ -187,9 +187,8 @@ function TelemetrySection() {
   const save = useMutation({
     mutationFn: (enabled: boolean) => setTelemetryEnabled(target!, enabled),
     onSuccess: (next: { enabled: boolean; canEdit: boolean }) => {
-      qc.setQueryData<TelemetryConfig | undefined>(
-        hostedKeys.telemetry(target!.serverId),
-        (cur) => (cur ? { ...cur, enabled: next.enabled } : cur),
+      qc.setQueryData<TelemetryConfig | undefined>(hostedKeys.telemetry(target!.serverId), (cur) =>
+        cur ? { ...cur, enabled: next.enabled } : cur,
       )
       show(next.enabled ? 'Thanks - anonymous stats are on' : 'Anonymous stats turned off')
     },

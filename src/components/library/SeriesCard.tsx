@@ -45,7 +45,12 @@ export function SeriesCard({ series, selectionActive = false, gap }: SeriesCardP
   const href = ui.seriesHref?.(series.id) ?? `/series/${series.id}`
 
   return (
-    <div className="series-card" data-cv={cv} onClick={() => !selectionActive && navigate(href)}>
+    <button
+      type="button"
+      className="series-card"
+      data-cv={cv}
+      onClick={() => !selectionActive && navigate(href)}
+    >
       <div className="series-stack">
         {shown.map((b) => (
           <Cover key={b.id} itemId={b.id} title={b.media.metadata.title ?? 'Untitled'} fs={7} />
@@ -78,6 +83,6 @@ export function SeriesCard({ series, selectionActive = false, gap }: SeriesCardP
           </div>
         )}
       </div>
-    </div>
+    </button>
   )
 }

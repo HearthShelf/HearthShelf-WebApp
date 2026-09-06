@@ -32,7 +32,7 @@ function EnvLockTag() {
         display: 'inline-flex',
         alignItems: 'center',
         gap: 4,
-        fontSize: 11.5,
+        fontSize: 12,
         fontWeight: 600,
         color: 'var(--text-muted)',
         marginLeft: 8,

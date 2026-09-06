@@ -33,7 +33,9 @@ async function hsJson<T>(t: AbsTarget, path: string, options: RequestInit = {}):
     headers: {
       Accept: 'application/json',
       ...authHeaders(t),
-      ...(options.body && typeof options.body === 'string' ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.body && typeof options.body === 'string'
+        ? { 'Content-Type': 'application/json' }
+        : {}),
       ...options.headers,
     },
   })

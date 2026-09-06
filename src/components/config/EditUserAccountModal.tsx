@@ -75,7 +75,11 @@ export function EditUserAccountModal({
         {linkedToHosted && !emailUnlocked ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input className="fld" value={email} disabled style={{ flex: 1 }} />
-            <button className="btn-sm btn-ghost" type="button" onClick={() => setEmailUnlocked(true)}>
+            <button
+              className="btn-sm btn-ghost"
+              type="button"
+              onClick={() => setEmailUnlocked(true)}
+            >
               <Icon name="warning" /> Change anyway
             </button>
           </div>

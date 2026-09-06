@@ -66,7 +66,7 @@ function RequestRow({
   return (
     <div className="req-row">
       {cover ? (
-        <img className="cover" src={cover} alt="" />
+        <img className="cover" src={cover} alt="" loading="lazy" />
       ) : (
         <div className="cover" style={{ background: 'var(--c-highest)' }} />
       )}
@@ -165,9 +165,7 @@ export function RequestsPage() {
     ...RMAB_GROUPS,
   ]
   const countFor = (id: Tab): number =>
-    id === 'all'
-      ? Math.max(0, (counts?.all ?? 0) - (counts?.cancelled ?? 0))
-      : (counts?.[id] ?? 0)
+    id === 'all' ? Math.max(0, (counts?.all ?? 0) - (counts?.cancelled ?? 0)) : (counts?.[id] ?? 0)
 
   return (
     <div className="page fade-in">

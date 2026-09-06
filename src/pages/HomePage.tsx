@@ -111,17 +111,10 @@ function ResumeHero({ book, progress }: HeroProps) {
         <div className="eyebrow" style={{ marginBottom: 6 }}>
           Jump back in
         </div>
-        <h2
-          style={{
-            fontSize: 30,
-            fontWeight: 700,
-            letterSpacing: '-0.02em',
-            margin: '0 0 8px',
-          }}
-        >
-          {title}
-        </h2>
-        <div style={{ color: 'var(--text-muted)', fontSize: 14.5, marginBottom: 14 }}>
+        {/* var(--fs-h1) is the documented Headline step; this was an
+            off-ladder 30px sitting between Title (25) and Headline (34). */}
+        <h2 className="hero-resume-title">{title}</h2>
+        <div style={{ color: 'var(--text-muted)', fontSize: 15, marginBottom: 14 }}>
           {md.authorName}
           {md.narratorName && ` · Narrated by ${md.narratorName}`}
         </div>
@@ -163,10 +156,23 @@ function CalmHero({ book, progress }: HeroProps) {
   const pct = progress?.progress ?? 0
 
   return (
+    // Contains its own cover and play buttons, so role + key handling rather
+    // than a <button> root. On mobile this IS the resume affordance, which was
+    // previously keyboard-dead.
     <div
       className="hero-calm"
       data-cv={tintFor(title)}
+      role="button"
+      tabIndex={0}
+      aria-label={`Resume ${title}`}
       onClick={() => ui.playItem(book.id, { openPlayer: true })}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          ui.playItem(book.id, { openPlayer: true })
+        }
+      }}
     >
       <Cover
         itemId={book.id}
@@ -187,6 +193,7 @@ function CalmHero({ book, progress }: HeroProps) {
       </div>
       <button
         className="hc-play"
+        aria-label={`Play ${title}`}
         onClick={(e) => {
           e.stopPropagation()
           ui.playItem(book.id, { openPlayer: true })
@@ -207,12 +214,13 @@ export function HomePage() {
   const { toast, show } = useToast()
 
   const unifiedPref = useSettingsStore((s) => s.unifiedHome)
-  const setSetting = useSettingsStore((s) => s.set)
   // The user's arrangement drives which bands render and in what order.
   const homeSections = useSettingsStore((s) => s.homeSections)
   const recShelfCount = useSettingsStore((s) => s.homeRecShelfCount)
   // Arrange mode replaces the shelves with draggable section rows (covers off).
   const [editing, setEditing] = useState(false)
+  // The Home settings popover (shelf size + a way into arrange mode).
+  const [tuneOpen, setTuneOpen] = useState(false)
   // Unified home only does something with more than one library; below that it
   // is the same single-library Home, so we never branch on it.
   const unified = unifiedPref && libraries.length > 1
@@ -226,6 +234,15 @@ export function HomePage() {
   }
   // Mobile is always compact - the Comfy hero and the toggle are desktop-only.
   const compact = isMobile || heroStyle === 'compact'
+
+  // Dismiss the settings popover on any outside click, matching the sidebar's
+  // account menu. The wrapper stops propagation so clicks inside it survive.
+  useEffect(() => {
+    if (!tuneOpen) return
+    const close = () => setTuneOpen(false)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [tuneOpen])
 
   // The page renders inside <ActiveServerMediaUI>, so target is connected by the
   // time we render. Guard defensively anyway.
@@ -478,41 +495,66 @@ export function HomePage() {
               )}
             </p>
           ) : (
-            <p className="page-sub">Nothing in progress yet</p>
+            <p className="page-sub">Nothing on the go right now</p>
           )}
         </div>
         {!isMobile && !editing && (
-          <div className="hero-switch">
+          // One quiet affordance instead of four. Home is a reading surface, so
+          // the controls that shape it live one tap away rather than sitting at
+          // equal weight with the reader's own name.
+          <div className="home-tune-wrap" onClick={(e) => e.stopPropagation()}>
             <button
-              className="pill"
-              onClick={() => setEditing(true)}
-              title="Arrange the sections on your home screen"
+              className={'icon-btn' + (tuneOpen ? ' on' : '')}
+              onClick={() => setTuneOpen((o) => !o)}
+              aria-label="Home settings"
+              aria-expanded={tuneOpen}
+              title="Home settings"
             >
-              <Icon name="edit" /> Arrange
+              <Icon name="tune" />
             </button>
-            {libraries.length > 1 && (
-              <button
-                className={'pill' + (unifiedPref ? ' on' : '')}
-                onClick={() => setSetting('unifiedHome', !unifiedPref)}
-                title="Show Home across every library at once"
-              >
-                <Icon name="hub" /> All libraries
-              </button>
+            {tuneOpen && (
+              <div className="p-pop home-tune-pop">
+                <div className="pop-head">
+                  <Icon name="tune" /> Home settings
+                  <button
+                    className="pop-x"
+                    onClick={() => setTuneOpen(false)}
+                    aria-label="Close Home settings"
+                  >
+                    <Icon name="close" style={{ fontSize: 18 }} />
+                  </button>
+                </div>
+
+                <div className="pop-label">Shelf size</div>
+                <div className="seg seg-full">
+                  <button
+                    className={heroStyle === 'comfy' ? 'on' : ''}
+                    onClick={() => chooseHero('comfy')}
+                    aria-pressed={heroStyle === 'comfy'}
+                  >
+                    Comfy
+                  </button>
+                  <button
+                    className={heroStyle === 'compact' ? 'on' : ''}
+                    onClick={() => chooseHero('compact')}
+                    aria-pressed={heroStyle === 'compact'}
+                  >
+                    Compact
+                  </button>
+                </div>
+
+                <div className="pop-divider" />
+                <button
+                  className="btn btn-ghost home-tune-arrange"
+                  onClick={() => {
+                    setTuneOpen(false)
+                    setEditing(true)
+                  }}
+                >
+                  <Icon name="edit" /> Arrange your shelves
+                </button>
+              </div>
             )}
-            <div className="seg">
-              <button
-                className={heroStyle === 'comfy' ? 'on' : ''}
-                onClick={() => chooseHero('comfy')}
-              >
-                Comfy
-              </button>
-              <button
-                className={heroStyle === 'compact' ? 'on' : ''}
-                onClick={() => chooseHero('compact')}
-              >
-                Compact
-              </button>
-            </div>
           </div>
         )}
       </div>
@@ -523,12 +565,31 @@ export function HomePage() {
       {isLoading && <LoadingSpinner className="py-12" label="Loading shelves..." />}
       {isError && <ErrorState message="Could not load your shelves." onRetry={refetch} />}
 
-      {nothing && (
-        <div className="sg-empty">
-          <Icon name="auto_stories" />
-          <p>Your library is quiet for now. Start a book to see it here.</p>
-        </div>
-      )}
+      {nothing &&
+        (libraries.length === 0 ? (
+          // No libraries at all: the host is still setting things up. Say that
+          // without naming servers or scans - the listener has no model for
+          // either, and a dead end here is the worst first impression we ship.
+          <div className="quiet-shelf">
+            <div className="eyebrow">Your shelf</div>
+            <h2 className="quiet-shelf-h">The shelves are still going up</h2>
+            <p className="quiet-shelf-sub">
+              Nothing has been put out yet. Check back in a little while - whoever set this up is
+              still filling it.
+            </p>
+          </div>
+        ) : (
+          <div className="quiet-shelf">
+            <div className="eyebrow">Your shelf</div>
+            <h2 className="quiet-shelf-h">Nothing on the go yet</h2>
+            <p className="quiet-shelf-sub">
+              Pick something off the shelf and it will be waiting here whenever you come back.
+            </p>
+            <button className="btn btn-primary" onClick={() => navigate('/library')}>
+              <Icon name="auto_stories" fill /> Browse the library
+            </button>
+          </div>
+        ))}
 
       {editing ? (
         <HomeSectionsEditor onDone={() => setEditing(false)} />
@@ -562,7 +623,7 @@ export function HomePage() {
               return (
                 <div key={sec.id}>
                   {aiPreview && (
-                    <ShelfSection icon="auto_awesome" title={aiPreview.intro}>
+                    <ShelfSection icon="auto_awesome" title={aiPreview.intro} tier="suggested">
                       {aiPreview.items.map(renderTile)}
                     </ShelfSection>
                   )}
@@ -587,7 +648,7 @@ export function HomePage() {
                 <ShelfSection
                   key={sec.id}
                   icon={SHELF_ICONS['continue-series'] ?? 'auto_stories'}
-                  title="Continue Series"
+                  title="Next in your series"
                 >
                   {continueSeries.map(({ series, nextBook }) => {
                     const p = progressById.get(nextBook.id)
@@ -646,6 +707,9 @@ export function HomePage() {
                       icon={shelf.icon}
                       title={shelf.label}
                       onMore={() => navigate('/discover')}
+                      // A machine-built row is a suggestion, not one of the
+                      // reader's own shelves; the head steps down to say so.
+                      tier={isGeneratedRecShelf(shelf.id) ? 'suggested' : 'primary'}
                     >
                       {shelf.items.map(renderTile)}
                     </ShelfSection>
@@ -657,7 +721,9 @@ export function HomePage() {
       )}
 
       {toast && (
-        <div className="p-toast">
+        // aria-live so confirmations ("Marked finished") reach a screen reader;
+        // they were previously visual-only.
+        <div className="p-toast" role="status" aria-live="polite">
           <Icon name="check_circle" fill /> {toast}
         </div>
       )}
@@ -670,16 +736,18 @@ function ShelfSection({
   icon,
   title,
   onMore,
+  tier,
   children,
 }: {
   icon?: string
   title: string
   onMore?: () => void
+  tier?: 'primary' | 'suggested'
   children: ReactNode
 }) {
   return (
     <div className="section">
-      <SectionHead icon={icon} title={title} onMore={onMore} />
+      <SectionHead icon={icon} title={title} onMore={onMore} tier={tier} />
       <div className="shelf-row">{children}</div>
     </div>
   )

@@ -126,9 +126,7 @@ export function ConnectAppPage() {
   return (
     <Centered>
       <h1 className="mb-1 text-xl font-medium">Connect an app</h1>
-      <p className="mb-5 text-sm text-neutral-400">
-        Enter the code the app showed you.
-      </p>
+      <p className="mb-5 text-sm text-neutral-400">Enter the code the app showed you.</p>
 
       {!pending && (
         <form

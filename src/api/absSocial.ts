@@ -117,7 +117,10 @@ export async function getCommunityConfig(t: AbsTarget): Promise<CommunityConfig>
 export async function setCommunityConfig(
   t: AbsTarget,
   patch: Partial<
-    Pick<CommunityConfig, 'defaultShare' | 'defaultShareListening' | 'notesEnabled' | 'clubsEnabled'>
+    Pick<
+      CommunityConfig,
+      'defaultShare' | 'defaultShareListening' | 'notesEnabled' | 'clubsEnabled'
+    >
   >,
 ): Promise<CommunityConfig> {
   const token = getAbsToken(t.serverId)
@@ -416,9 +419,14 @@ function mapCompareStats(r: RawCompareStats | null | undefined): HSCompareStats 
     booksFinished: r?.booksFinished ?? 0,
     secondsListened: r?.secondsListened ?? 0,
     activeDays: typeof r?.activeDays === 'number' ? r.activeDays : null,
-    avgPerActiveDaySec: typeof r?.avgPerActiveDaySec === 'number' ? r.avgPerActiveDaySec : undefined,
+    avgPerActiveDaySec:
+      typeof r?.avgPerActiveDaySec === 'number' ? r.avgPerActiveDaySec : undefined,
     booksThisYear:
-      r?.booksThisYear === null ? null : typeof r?.booksThisYear === 'number' ? r.booksThisYear : undefined,
+      r?.booksThisYear === null
+        ? null
+        : typeof r?.booksThisYear === 'number'
+          ? r.booksThisYear
+          : undefined,
   }
 }
 

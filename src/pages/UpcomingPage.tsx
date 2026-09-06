@@ -177,7 +177,7 @@ function UpCard({
   return (
     <article className={'up-card' + (arrived ? ' arrived' : '')} onClick={onClick}>
       {cover ? (
-        <img className="up-mini-cover" src={cover} alt="" />
+        <img className="up-mini-cover" src={cover} alt="" loading="lazy" />
       ) : (
         <div className="up-mini-cover up-cover-ph" />
       )}
@@ -265,7 +265,7 @@ function SeriesRow({
   return (
     <div className="up-series-row" onClick={() => onOpen(next)}>
       {cover ? (
-        <img className="up-series-cover" src={cover} alt="" />
+        <img className="up-series-cover" src={cover} alt="" loading="lazy" />
       ) : (
         <div className="up-series-cover up-cover-ph" />
       )}
@@ -350,7 +350,9 @@ export function UpcomingPage() {
   const releases: Release[] = [
     ...books
       .filter((s) => !s.available)
-      .filter((s) => !(s.asin && ignoredAsins.some((a) => a.toLowerCase() === s.asin!.toLowerCase())))
+      .filter(
+        (s) => !(s.asin && ignoredAsins.some((a) => a.toLowerCase() === s.asin!.toLowerCase())),
+      )
       .map((s) => ({
         key: s.id,
         title: s.title,
@@ -457,9 +459,7 @@ export function UpcomingPage() {
                       title={r.title}
                       author={r.author}
                       cover={r.cover}
-                      when={
-                        mon && day ? { top: mon, bottom: day } : { top: 'DATE', bottom: 'TBD' }
-                      }
+                      when={mon && day ? { top: mon, bottom: day } : { top: 'DATE', bottom: 'TBD' }}
                       onClick={() => setDest(toTarget(r))}
                       ignoreBusy={ignoreBusy}
                       onIgnore={r.asin ? () => ignore.mutate(r.asin!) : undefined}

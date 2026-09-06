@@ -477,11 +477,7 @@ export async function refreshRemembered(handles: string[]): Promise<RememberedSn
 
 /** A scope an app can request. Mirrors @hearthshelf/core's AppScope. */
 export type AppScope =
-  | 'library:read'
-  | 'library:write'
-  | 'progress:read'
-  | 'progress:write'
-  | 'admin'
+  'library:read' | 'library:write' | 'progress:read' | 'progress:write' | 'admin'
 
 export interface AppSummary {
   app_id: string

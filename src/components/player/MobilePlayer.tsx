@@ -656,7 +656,7 @@ export function MobilePlayer({
                 <i />
                 <i />
               </span>
-              <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: '0.02em' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.02em' }}>
                 {isPlaying ? 'Playing' : 'Paused'}
               </span>
             </div>
@@ -730,7 +730,7 @@ export function MobilePlayer({
               alignItems: 'center',
               justifyContent: 'space-between',
               fontFamily: 'var(--font-mono)',
-              fontSize: 11.5,
+              fontSize: 12,
               color: 'var(--text-muted)',
               marginBottom: 7,
             }}
@@ -878,7 +878,7 @@ export function MobilePlayer({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
-              fontSize: 9.5,
+              fontSize: 10,
               fontWeight: 300,
               letterSpacing: '0.26em',
               textTransform: 'uppercase',
@@ -889,7 +889,7 @@ export function MobilePlayer({
           </div>
           <div
             className="mp-clamp1"
-            style={{ fontSize: 13.5, fontWeight: 600, marginTop: 2, color: 'var(--text)' }}
+            style={{ fontSize: 14, fontWeight: 600, marginTop: 2, color: 'var(--text)' }}
           >
             {hasNext ? next.title : 'Stops after this book'}
           </div>
@@ -943,7 +943,7 @@ export function MobilePlayer({
               padding: '0 20px 14px',
             }}
           >
-            <span style={{ fontSize: 11.5, lineHeight: 1.4, color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: 12, lineHeight: 1.4, color: 'var(--text-muted)' }}>
               {MODE_SUB[queueMode]}
             </span>
             {queueMode === 'auto' && (
@@ -984,12 +984,12 @@ export function MobilePlayer({
                 />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="mp-clamp1" style={{ fontSize: 13.5, fontWeight: 600 }}>
+                <div className="mp-clamp1" style={{ fontSize: 14, fontWeight: 600 }}>
                   {title}
                 </div>
                 <div
                   className="mp-clamp1"
-                  style={{ fontSize: 11.5, color: 'var(--accent)', fontWeight: 600, marginTop: 1 }}
+                  style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600, marginTop: 1 }}
                 >
                   Now playing
                 </div>
@@ -1087,12 +1087,12 @@ export function MobilePlayer({
                       style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
                       onClick={() => jumpTo(b.libraryItemId)}
                     >
-                      <div className="mp-clamp1" style={{ fontSize: 13.5, fontWeight: 600 }}>
+                      <div className="mp-clamp1" style={{ fontSize: 14, fontWeight: 600 }}>
                         {b.title}
                       </div>
                       <div
                         className="mp-clamp1"
-                        style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 1 }}
+                        style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}
                       >
                         {b.author}
                       </div>
@@ -1180,7 +1180,7 @@ export function MobilePlayer({
                     style={{ fontSize: 22, color: 'var(--text-muted)' }}
                   />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14.5, fontWeight: 600 }}>{copy.label}</div>
+                    <div style={{ fontSize: 15, fontWeight: 600 }}>{copy.label}</div>
                     <div
                       style={{
                         fontSize: 12,
@@ -1214,7 +1214,7 @@ export function MobilePlayer({
                 gap: 8,
                 padding: '14px 4px 6px',
                 color: 'var(--text-muted)',
-                fontSize: 11.5,
+                fontSize: 12,
                 lineHeight: 1.5,
               }}
             >
@@ -1244,7 +1244,7 @@ export function MobilePlayer({
                 borderRadius: 999,
                 padding: '7px 14px',
                 fontFamily: 'var(--font)',
-                fontSize: 12.5,
+                fontSize: 13,
                 fontWeight: 600,
                 cursor: 'pointer',
               }}
@@ -1258,7 +1258,7 @@ export function MobilePlayer({
             <div
               style={{
                 padding: '0 20px 8px',
-                fontSize: 11.5,
+                fontSize: 12,
                 lineHeight: 1.4,
                 color: 'var(--text-muted)',
               }}
@@ -1322,7 +1322,7 @@ export function MobilePlayer({
                     <div
                       style={{
                         padding: '10px 8px 4px',
-                        fontSize: 10.5,
+                        fontSize: 11,
                         letterSpacing: '0.1em',
                         textTransform: 'uppercase',
                         color: 'var(--text-faint)',
@@ -1380,7 +1380,7 @@ export function MobilePlayer({
                 <div
                   style={{
                     flex: 1,
-                    fontSize: 13.5,
+                    fontSize: 14,
                     fontWeight: i === ci ? 600 : 500,
                     color: i === ci ? 'var(--text)' : 'var(--text-muted)',
                   }}
@@ -1391,7 +1391,7 @@ export function MobilePlayer({
                 <span
                   style={{
                     fontFamily: 'var(--font-mono)',
-                    fontSize: 11.5,
+                    fontSize: 12,
                     color: 'var(--text-faint)',
                   }}
                 >

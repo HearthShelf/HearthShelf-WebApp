@@ -291,7 +291,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
       <div className="series-hero-meta">
         <div className="eyebrow">Series</div>
         <h1 className="title-xl">{series.name}</h1>
-        <div style={{ color: 'var(--text-muted)', fontSize: 14.5, margin: '8px 0 18px' }}>
+        <div style={{ color: 'var(--text-muted)', fontSize: 15, margin: '8px 0 18px' }}>
           {author && `${author} · `}
           {books.length} {books.length === 1 ? 'book' : 'books'} · {totalHours.toFixed(0)}h total
           {completion.missingCount > 0 && ` · ${completion.missingCount} not in library`}

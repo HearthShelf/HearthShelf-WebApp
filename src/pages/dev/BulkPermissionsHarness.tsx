@@ -24,7 +24,10 @@ export function BulkPermissionsHarness() {
   const [last, setLast] = useState<string>('')
 
   return (
-    <div className="dark" style={{ minHeight: '100vh', background: 'var(--background)', padding: 40 }}>
+    <div
+      className="dark"
+      style={{ minHeight: '100vh', background: 'var(--background)', padding: 40 }}
+    >
       <button className="btn-sm btn-accent" onClick={() => setOpen(true)}>
         Open bulk modal
       </button>

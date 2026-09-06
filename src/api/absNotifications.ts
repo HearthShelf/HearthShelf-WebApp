@@ -94,10 +94,7 @@ export function deleteAllNotifications(target: AbsTarget): Promise<void> {
  * description, and opening the wrong book is worse than not resolving one.
  * Best-effort: every failure returns null so callers fall back.
  */
-export async function findOwnedItemByAsin(
-  target: AbsTarget,
-  asin: string,
-): Promise<string | null> {
+export async function findOwnedItemByAsin(target: AbsTarget, asin: string): Promise<string | null> {
   const wanted = asin.trim().toLowerCase()
   if (!wanted) return null
   try {

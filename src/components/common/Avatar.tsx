@@ -67,7 +67,8 @@ export function Avatar({
   // Resolve the source: the server-stored photo wins whenever we have a
   // target + userId; Clerk's imageUrl is only a fallback for pre-connection
   // contexts (the account switcher); otherwise initials only.
-  const src = (target && userId ? serverAvatarUrl(target, userId, version) : null) || imageUrl || null
+  const src =
+    (target && userId ? serverAvatarUrl(target, userId, version) : null) || imageUrl || null
 
   // Track load state per source identity. When `src` changes the <img> remounts
   // (keyed), so a stale success never bleeds onto a new src.

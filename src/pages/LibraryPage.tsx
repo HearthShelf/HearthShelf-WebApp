@@ -1120,7 +1120,7 @@ export function LibraryPage() {
               <>
                 <div className={'toolbar2' + (personAnySelected ? ' sel-bar' : '')}>
                   {canUpdate && !personAnySelected && !isMobile && (
-                    <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
+                    <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                       Hover to select, edit, or merge
                     </span>
                   )}
@@ -1151,7 +1151,7 @@ export function LibraryPage() {
                     </button>
                   )}
                   <div className="tb-spacer" />
-                  <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>Sort</span>
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Sort</span>
                   <div className="seg">
                     {(['Name', 'Books'] as const).map((o) => (
                       <button

@@ -142,6 +142,7 @@ export function ItemCoverTab({
                     objectFit: 'cover',
                     display: 'block',
                   }}
+                  loading="lazy"
                 />
               </button>
             ))}

@@ -21,11 +21,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
-import {
-  getServerDismissals,
-  addServerDismissal,
-  removeServerDismissal,
-} from '@/api/absDismissals'
+import { getServerDismissals, addServerDismissal, removeServerDismissal } from '@/api/absDismissals'
 import type { Dismissals } from '@hearthshelf/core'
 
 const EMPTY: Dismissals = { seriesIds: [], itemIds: [], rosterAsins: [] }

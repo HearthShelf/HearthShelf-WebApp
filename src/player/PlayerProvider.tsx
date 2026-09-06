@@ -463,9 +463,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         .then((res) => {
           // Don't stomp an in-flight Manual edit; Auto is server-authoritative.
           if (useQueueStore.getState().mode === 'manual') return
-          useQueueStore
-            .getState()
-            .adoptServer(res.items, res.manual, res.playlistId, res.updatedAt)
+          useQueueStore.getState().adoptServer(res.items, res.manual, res.playlistId, res.updatedAt)
         })
         .catch(() => {
           // Best-effort; the nightly job backstops.

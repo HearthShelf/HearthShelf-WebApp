@@ -25,8 +25,19 @@ type Pop = 'speed' | 'sleep' | 'chapters' | 'volume' | null
  *    requestPanel store, so the expand button just opens /player.
  */
 export function MiniPlayer() {
-  const { now, close, playing, positionSec, togglePlay, seekTo, skip, rate, setRate, volume, setVolume } =
-    usePlayer()
+  const {
+    now,
+    close,
+    playing,
+    positionSec,
+    togglePlay,
+    seekTo,
+    skip,
+    rate,
+    setRate,
+    volume,
+    setVolume,
+  } = usePlayer()
 
   // Swipe-to-dismiss: drag the bar horizontally; past the threshold on release it
   // dismisses (which stops playback). Tracked in a ref during the gesture and

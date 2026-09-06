@@ -175,10 +175,10 @@ export function RecentListens({
             <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Icon name="schedule" style={{ color: 'var(--primary)', fontSize: 15 }} />
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--primary)' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary)' }}>
                   {formatTimestamp(r.timeListening)} listened
                 </span>
-                <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                   {live
                     ? `Now · ${dt.time}`
                     : r.kind === 'pending'
@@ -192,7 +192,7 @@ export function RecentListens({
               {chapterLabel && (
                 <div
                   style={{
-                    fontSize: 11.5,
+                    fontSize: 12,
                     color: 'var(--text-muted)',
                     marginTop: 2,
                     whiteSpace: 'nowrap',

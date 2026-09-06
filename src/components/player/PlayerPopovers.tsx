@@ -218,7 +218,7 @@ export function SleepPopover({ ctl, onClose }: { ctl: SleepCtl; onClose: () => v
         <span
           style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: 12.5,
+            fontSize: 13,
             color: ctl.rewindSec > 0 ? 'var(--text)' : 'var(--text-muted)',
             minWidth: 44,
             textAlign: 'right',
@@ -284,7 +284,7 @@ export function SleepPopover({ ctl, onClose }: { ctl: SleepCtl; onClose: () => v
           <span
             style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: 12.5,
+              fontSize: 13,
               color: 'var(--text-muted)',
               width: 30,
               textAlign: 'right',

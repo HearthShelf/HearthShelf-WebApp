@@ -12,9 +12,15 @@ import {
   type ABSUserMediaProgress,
 } from '@/api/absAdmin'
 import { getLinkedAbsUserIds, hostedKeys } from '@/api/absHosted'
-import { EditUserAccountModal, type EditUserAccountValues } from '@/components/config/EditUserAccountModal'
+import {
+  EditUserAccountModal,
+  type EditUserAccountValues,
+} from '@/components/config/EditUserAccountModal'
 import { ChangePasswordModal } from '@/components/config/ChangePasswordModal'
-import { EditPermissionsModal, type EditPermissionsValues } from '@/components/config/EditPermissionsModal'
+import {
+  EditPermissionsModal,
+  type EditPermissionsValues,
+} from '@/components/config/EditPermissionsModal'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import {
   fmtSessDate,
@@ -242,11 +248,7 @@ export function ConfigUserDetail({ userId }: { userId: string }) {
             ['email', 'Email', user.email ?? '—'],
             ['toggle_on', 'Status', user.isActive ? 'Active' : 'Disabled'],
             ['lock', 'Locked', user.isLocked ? 'Yes' : 'No'],
-            [
-              'link',
-              'hearthshelf.com account',
-              linkedToHosted ? 'Connected' : 'Not connected',
-            ],
+            ['link', 'hearthshelf.com account', linkedToHosted ? 'Connected' : 'Not connected'],
             ['schedule', 'Last seen', seen ? `${seen.day} · ${seen.time}` : 'never'],
             ['calendar_today', 'Created', fmtSessDate(user.createdAt).day],
           ] as [string, string, string][]
@@ -257,7 +259,12 @@ export function ConfigUserDetail({ userId }: { userId: string }) {
               <div className="cl-t">{label}</div>
             </div>
             <span
-              style={{ color: label === 'hearthshelf.com account' && linkedToHosted ? 'var(--primary)' : 'var(--text-muted)' }}
+              style={{
+                color:
+                  label === 'hearthshelf.com account' && linkedToHosted
+                    ? 'var(--primary)'
+                    : 'var(--text-muted)',
+              }}
             >
               {value}
             </span>
@@ -332,10 +339,17 @@ export function ConfigUserDetail({ userId }: { userId: string }) {
               <div className="t-cap">This week</div>
             </div>
             <div className="tile">
-              <div className="t-ico" style={hs.todaySec > 0 ? {
-                background: 'color-mix(in oklab, var(--accent) 22%, transparent)',
-                color: 'var(--accent)',
-              } : undefined}>
+              <div
+                className="t-ico"
+                style={
+                  hs.todaySec > 0
+                    ? {
+                        background: 'color-mix(in oklab, var(--accent) 22%, transparent)',
+                        color: 'var(--accent)',
+                      }
+                    : undefined
+                }
+              >
                 <Icon name="today" fill={hs.todaySec > 0} />
               </div>
               <div className="t-num">{formatDuration(hs.todaySec)}</div>
@@ -602,8 +616,8 @@ function SessionRow({
                 <div className="sd-row">
                   <span className="sd-k">Saved position</span>
                   <span className="sd-v">
-                    {formatTimestamp(progress.currentTime)} ·{' '}
-                    {Math.round(progress.progress * 100)}% complete
+                    {formatTimestamp(progress.currentTime)} · {Math.round(progress.progress * 100)}%
+                    complete
                   </span>
                 </div>
                 <div className="sd-row">
@@ -657,7 +671,9 @@ function SessionRow({
           <div className="t-actions" style={{ marginTop: 10 }}>
             <button
               className="btn-sm btn-ghost"
-              onClick={() => void ui.playItem(s.libraryItemId, { autoplay: true, startAtSec: leftOff })}
+              onClick={() =>
+                void ui.playItem(s.libraryItemId, { autoplay: true, startAtSec: leftOff })
+              }
             >
               <Icon name="play_arrow" /> Play from {formatTimestamp(leftOff)}
             </button>

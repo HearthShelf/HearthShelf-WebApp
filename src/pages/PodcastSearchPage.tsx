@@ -110,7 +110,13 @@ export function PodcastSearchPage() {
           {results.map((p) => (
             <div className="pod-result" key={p.id}>
               {p.cover ? (
-                <img className="pr-cover" src={p.cover} alt="" style={{ objectFit: 'cover' }} />
+                <img
+                  className="pr-cover"
+                  src={p.cover}
+                  alt=""
+                  style={{ objectFit: 'cover' }}
+                  loading="lazy"
+                />
               ) : (
                 <span className="pr-cover" />
               )}

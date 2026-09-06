@@ -342,9 +342,7 @@ export function ConfigHosted() {
             getHealth={() => getServiceHealth(target)}
             onReset={() => resetServiceCredential(target)}
             onOverride={(b) => overrideServiceCredential(target, b)}
-            onChanged={() =>
-              qc.invalidateQueries({ queryKey: hostedKeys.status(target.serverId) })
-            }
+            onChanged={() => qc.invalidateQueries({ queryKey: hostedKeys.status(target.serverId) })}
           />
         )}
 

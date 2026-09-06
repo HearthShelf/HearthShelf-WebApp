@@ -5,12 +5,7 @@ import type { QueueMode, AutoRuleId } from '@/store/queueStore'
 import { useQueueStore } from '@/store/queueStore'
 import { useDismissalsStore } from '@/store/dismissalsStore'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
-import {
-  getPlaylistsList,
-  getAllLibraryItems,
-  getSeriesList,
-  itemCoverUrl,
-} from '@/api/absLibrary'
+import { getPlaylistsList, getAllLibraryItems, getSeriesList, itemCoverUrl } from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
 import { SetRow, Seg } from '@/components/settings/controls'
 import { ManualQueueEditor } from '@/components/player/ManualQueueEditor'
@@ -315,6 +310,7 @@ function IgnoredAndSetAside() {
                 width={32}
                 height={32}
                 style={{ borderRadius: 6, objectFit: 'cover', flex: 'none' }}
+                loading="lazy"
               />
             ) : (
               <Icon name={r.kind === 'series' ? 'collections_bookmark' : 'menu_book'} />

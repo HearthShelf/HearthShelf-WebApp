@@ -107,6 +107,7 @@ export function PersonCard({
               className="pc-photo"
               src={photoSrc}
               alt={person.name}
+              loading="lazy"
               onError={() => setImgErr(true)}
             />
           ) : (

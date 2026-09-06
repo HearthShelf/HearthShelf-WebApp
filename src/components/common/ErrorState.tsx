@@ -1,20 +1,25 @@
-import { AlertTriangle } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
+import { Icon } from '@/components/common/Icon'
 
 interface ErrorStateProps {
   message?: string
   onRetry?: () => void
 }
 
+/**
+ * The house error state. Built on the shell's tokens and Material Symbols so a
+ * failure still reads as this product; it previously mixed Tailwind role
+ * classes, a lucide glyph and the shadcn Button into pages that use none of
+ * those.
+ */
 export function ErrorState({ message, onRetry }: ErrorStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-      <AlertTriangle className="size-8 text-destructive" />
-      <p className="text-sm text-muted-foreground">{message ?? 'Something went wrong.'}</p>
+    <div className="hs-error" role="alert">
+      <Icon name="cloud_off" />
+      <p>{message ?? 'Something went wrong.'}</p>
       {onRetry && (
-        <Button variant="secondary" size="sm" onClick={onRetry}>
-          Try again
-        </Button>
+        <button className="btn-sm btn-ghost" onClick={onRetry}>
+          <Icon name="refresh" /> Try again
+        </button>
       )}
     </div>
   )

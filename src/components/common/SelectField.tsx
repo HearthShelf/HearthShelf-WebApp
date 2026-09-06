@@ -92,9 +92,7 @@ export function SelectField({
 
   useEffect(() => {
     if (!open || active < 0) return
-    listRef.current
-      ?.querySelector(`[data-index="${active}"]`)
-      ?.scrollIntoView({ block: 'nearest' })
+    listRef.current?.querySelector(`[data-index="${active}"]`)?.scrollIntoView({ block: 'nearest' })
   }, [open, active])
 
   const commit = (index: number) => {
