@@ -76,6 +76,18 @@ export async function createAuth(env: Env) {
 
     database: { dialect: new D1Dialect({ database: env.AUTH_DB }), type: 'sqlite' },
 
+    advanced: {
+      database: {
+        // D1 refuses the sqlite_master introspection Better Auth uses to
+        // self-check the schema on startup - it comes back SQLITE_AUTH, and the
+        // failure is fatal, so every request 500s. Our schema is generated from
+        // this exact plugin set and applied as a migration (see
+        // migrations/0001_better_auth.sql), so the check has nothing to tell us
+        // that the migration does not already guarantee.
+        validateSchema: false,
+      },
+    },
+
     // Kept for the two migrated accounts that have a password. New accounts are
     // steered to passkeys; nothing in the UI needs to offer this.
     emailAndPassword: {
