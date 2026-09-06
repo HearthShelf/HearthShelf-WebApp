@@ -39,7 +39,16 @@ service = "hearthshelf-log-collector"
 CP_ISSUER = "https://api.hearthshelf.com"
 # Clerk's JWKS endpoint for verifying session tokens. The host is the Frontend
 # API domain (encoded in the publishable key); change per Clerk instance.
+# Kept during cutover so a browser still holding a Clerk session keeps working;
+# remove once every session has rolled over to the auth service below.
 CLERK_JWKS_URL = "https://clerk.hearthshelf.com/.well-known/jwks.json"
+# HearthShelf's own accounts service (passkeys, social, magic links, codes, 2FA).
+BETTER_AUTH_URL = "https://auth.hearthshelf.com"
+# Which provider to verify a session against FIRST. Both are tried either way -
+# the other is the fallback - so this only decides which is attempted first, and
+# no user is signed out by flipping it. Set to "better-auth" once the clients
+# are shipped; then drop CLERK_JWKS_URL and the Clerk secret.
+AUTH_PROVIDER = "clerk"
 # Grant assertion lifetime in seconds (short = revocation via expiry).
 GRANT_TTL_SECONDS = "300"
 # Pairing code lifetime in seconds.
