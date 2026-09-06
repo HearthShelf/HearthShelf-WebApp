@@ -48,7 +48,8 @@ export default {
     }
 
     if (url.pathname.startsWith('/api/auth/')) {
-      const res = await createAuth(env).handler(req)
+      const auth = await createAuth(env)
+      const res = await auth.handler(req)
       const headers = new Headers(res.headers)
       for (const [k, v] of Object.entries(cors)) headers.set(k, v)
       return new Response(res.body, { status: res.status, headers })

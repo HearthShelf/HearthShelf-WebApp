@@ -31,6 +31,7 @@ import { D1Dialect } from 'kysely-d1'
 import { bearer, emailOTP, magicLink, twoFactor, username } from 'better-auth/plugins'
 import { passkey } from '@better-auth/passkey'
 import { expo } from '@better-auth/expo'
+import { getAppleClientSecret } from './appleSecret'
 import { sendMail, templates } from './email'
 import type { Env } from './types'
 
@@ -60,7 +61,11 @@ function allTrustedOrigins(env: Env): string[] {
  * Constructed per-request rather than once at module scope because the D1
  * binding lives on `env`, which Workers hand us per invocation.
  */
-export function createAuth(env: Env) {
+export async function createAuth(env: Env) {
+  // Minted per request from the .p8 when no pre-signed secret is set, so there
+  // is no six-month rotation to remember. See ./appleSecret.ts.
+  const appleClientSecret = await getAppleClientSecret(env)
+
   const mail = (to: string, subject: string, text: string) =>
     sendMail({ apiKey: env.RESEND_API_KEY, from: env.EMAIL_FROM, to, subject, text })
 
@@ -97,8 +102,8 @@ export function createAuth(env: Env) {
       // `sub` and its Private Relay addresses are issued per team, so a new team
       // would hand us a different subject for the same human and orphan the
       // seeded link for every relay user.
-      ...(env.APPLE_CLIENT_ID && env.APPLE_CLIENT_SECRET
-        ? { apple: { clientId: env.APPLE_CLIENT_ID, clientSecret: env.APPLE_CLIENT_SECRET } }
+      ...(env.APPLE_CLIENT_ID && appleClientSecret
+        ? { apple: { clientId: env.APPLE_CLIENT_ID, clientSecret: appleClientSecret } }
         : {}),
       ...(env.DISCORD_CLIENT_ID && env.DISCORD_CLIENT_SECRET
         ? { discord: { clientId: env.DISCORD_CLIENT_ID, clientSecret: env.DISCORD_CLIENT_SECRET } }
@@ -163,4 +168,4 @@ export function createAuth(env: Env) {
   })
 }
 
-export type Auth = ReturnType<typeof createAuth>
+export type Auth = Awaited<ReturnType<typeof createAuth>>

@@ -34,8 +34,18 @@ export interface Env {
   RESEND_API_KEY: string
   GOOGLE_CLIENT_ID?: string
   GOOGLE_CLIENT_SECRET?: string
+  /** Apple SERVICES ID (the web sign-in identifier), not the app bundle id. */
   APPLE_CLIENT_ID?: string
+  /** A pre-signed Apple client secret. Optional override - when unset, one is
+   *  minted per request from the .p8 below, which is the preferred path since
+   *  Apple caps a signed secret at six months and this has nothing to expire. */
   APPLE_CLIENT_SECRET?: string
+  /** The Apple .p8 private key, base64-encoded (a PEM's newlines do not survive
+   *  every secret-setting path cleanly). With the team + key id, this lets the
+   *  Worker sign its own client secret. */
+  APPLE_PRIVATE_KEY_B64?: string
+  APPLE_TEAM_ID?: string
+  APPLE_KEY_ID?: string
   DISCORD_CLIENT_ID?: string
   DISCORD_CLIENT_SECRET?: string
 }

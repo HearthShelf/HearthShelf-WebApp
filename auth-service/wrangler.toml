@@ -22,7 +22,7 @@ workers_dev = false
 [[d1_databases]]
 binding = "AUTH_DB"
 database_name = "hearthshelf-auth"
-database_id = "PLACEHOLDER_RUN_D1_CREATE"
+database_id = "8c2c3559-ab26-42c7-9c0e-014a85f0d34c"
 migrations_dir = "migrations"
 
 [vars]
@@ -53,7 +53,16 @@ EMAIL_FROM = "no-reply@hearthshelf.com"
 #                           if this breaks, magic link + OTP sign-in break with
 #                           it (passkeys and social keep working).
 #   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
-#   APPLE_CLIENT_ID  / APPLE_CLIENT_SECRET
+#   APPLE_CLIENT_ID       - the Apple SERVICES ID (web sign-in identifier), NOT
+#                           the app bundle id; the bundle id yields tokens Apple
+#                           rejects with a generic invalid_client.
+#   APPLE_PRIVATE_KEY_B64 - the .p8 private key, base64-encoded, plus
+#   APPLE_TEAM_ID / APPLE_KEY_ID
+#     ^ Apple issues no client secret - you sign one, and Apple caps it at six
+#       months. Rather than store a signed secret that silently expires, this
+#       Worker signs a short-lived one per request from the .p8 (src/appleSecret
+#       .ts). Nothing to rotate. APPLE_CLIENT_SECRET remains as a manual
+#       override if a pre-signed token is ever preferred.
 #     ^ MUST remain the SAME Apple developer team as before. Apple's `sub` and
 #       its Private Relay addresses are issued per team; a new team hands us a
 #       different subject for the same person and orphans every seeded relay
