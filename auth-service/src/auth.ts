@@ -30,6 +30,7 @@ import { betterAuth } from 'better-auth'
 import { D1Dialect } from 'kysely-d1'
 import { bearer, emailOTP, magicLink, twoFactor, username } from 'better-auth/plugins'
 import { passkey } from '@better-auth/passkey'
+import { expo } from '@better-auth/expo'
 import { sendMail, templates } from './email'
 import type { Env } from './types'
 
@@ -38,6 +39,19 @@ function trustedOrigins(env: Env): string[] {
     .split(',')
     .map((o) => o.trim().replace(/\/$/, ''))
     .filter(Boolean)
+}
+
+/**
+ * Origins allowed as OAuth/callback targets.
+ *
+ * The mobile app's deep-link scheme has to be trusted or every social sign-in
+ * and magic link from the phone is rejected as an open-redirect attempt - the
+ * callback lands on `hearthshelf://`, not an https origin. Kept separate from
+ * the CORS allowlist in index.ts, which must stay https-only: a custom scheme
+ * is not a browser origin and would be meaningless there.
+ */
+function allTrustedOrigins(env: Env): string[] {
+  return [...trustedOrigins(env), `${env.APP_SCHEME || 'hearthshelf'}://`]
 }
 
 /**
@@ -53,7 +67,7 @@ export function createAuth(env: Env) {
   return betterAuth({
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
-    trustedOrigins: trustedOrigins(env),
+    trustedOrigins: allTrustedOrigins(env),
 
     database: { dialect: new D1Dialect({ database: env.AUTH_DB }), type: 'sqlite' },
 
@@ -104,6 +118,10 @@ export function createAuth(env: Env) {
     },
 
     plugins: [
+      // Must come first: it rewrites cookies into a form the native client can
+      // store, and adds the deep-link handling the other plugins' callbacks use.
+      expo(),
+
       passkey({
         // Bound to the registrable domain the user sees, not this Worker's host.
         // A passkey is tied to its RP ID permanently and cannot be re-scoped.

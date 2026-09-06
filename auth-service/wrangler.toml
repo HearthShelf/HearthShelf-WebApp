@@ -38,6 +38,11 @@ TRUSTED_ORIGINS = "https://app.hearthshelf.com"
 PASSKEY_RP_ID = "hearthshelf.com"
 # Name shown in the OS passkey prompt.
 PASSKEY_RP_NAME = "HearthShelf"
+# The mobile app's deep-link scheme (must match app.config.js "scheme"). Trusted
+# as an OAuth callback target, or every social sign-in and magic link from the
+# phone is rejected as an open redirect - the callback lands on hearthshelf://,
+# not an https origin.
+APP_SCHEME = "hearthshelf"
 # From: address for OTP + magic-link mail.
 EMAIL_FROM = "no-reply@hearthshelf.com"
 
@@ -49,8 +54,14 @@ EMAIL_FROM = "no-reply@hearthshelf.com"
 #                           it (passkeys and social keep working).
 #   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
 #   APPLE_CLIENT_ID  / APPLE_CLIENT_SECRET
-#     ^ MUST remain the SAME Apple developer team as the Clerk setup. Apple's
-#       `sub` and Private Relay addresses are issued per team; a new team hands
-#       us a different subject for the same person and orphans every seeded
-#       relay user (see scripts/seed-legacy.mjs).
+#     ^ MUST remain the SAME Apple developer team as before. Apple's `sub` and
+#       its Private Relay addresses are issued per team; a new team hands us a
+#       different subject for the same person and orphans every seeded relay
+#       user (see scripts/seed-legacy.mjs).
+#
+#       NOTE: APPLE_CLIENT_SECRET is a SIGNED JWT, not a static string. Apple
+#       does not issue a client secret - you generate one from the team id, key
+#       id and .p8 private key, and it expires (6 months max). Better Auth's
+#       Apple provider takes the finished JWT, so minting and rotating it is an
+#       operational task, not something this Worker does. See README.
 #   DISCORD_CLIENT_ID / DISCORD_CLIENT_SECRET

@@ -18,6 +18,9 @@ export interface Env {
   PASSKEY_RP_ID: string
   /** Human-readable name shown in the OS passkey prompt. */
   PASSKEY_RP_NAME: string
+  /** The mobile app's deep-link scheme (matches app.config.js "scheme"), which
+   *  must be a trusted origin or OAuth callbacks from the phone are rejected. */
+  APP_SCHEME?: string
   /** From: address for OTP and magic-link mail. */
   EMAIL_FROM: string
 
