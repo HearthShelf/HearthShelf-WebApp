@@ -17,7 +17,7 @@ workers_dev = false
 #
 # Trust model (see ../ARCHITECTURE.md):
 #   - This Worker is an OAuth 2.1 RESOURCE SERVER + authorization server for MCP
-#     clients, with Clerk as the upstream identity provider.
+#     clients, with HearthShelf accounts as the upstream identity provider.
 #   - It reaches a user's box exactly as the SPA does: mint a short-TTL grant
 #     from the control plane, POST it to the box's /hs/hosted/connect, use the
 #     returned per-user ABS token. It stores NO long-lived ABS credential.
@@ -46,12 +46,17 @@ MCP_ISSUER = "https://mcp.hearthshelf.com"
 # Control-plane base URL - where we list a user's linked servers and mint the
 # short-TTL grants we redeem against a box. Same API the SPA calls.
 CONTROL_PLANE_URL = "https://api.hearthshelf.com"
-# Clerk's JWKS endpoint, for verifying the Clerk session token that authorizes
+# Legacy provider's JWKS endpoint, for verifying an old session token during
+# cutover. Tried as a fallback when AUTH_PROVIDER is 'better-auth'. Authorizes
 # an MCP connection. Host is the Frontend API domain; change per Clerk instance.
 CLERK_JWKS_URL = "https://clerk.hearthshelf.com/.well-known/jwks.json"
+# HearthShelf's own auth service, and which provider to try first. Both are
+# tried during cutover, so a browser holding an old session still completes an
+# MCP connection; flip AUTH_PROVIDER once every session has rolled over.
+BETTER_AUTH_URL = "https://auth.hearthshelf.com"
+AUTH_PROVIDER = "clerk"
 # Clerk Frontend API origin, used to bounce the user through a Clerk sign-in
 # during the OAuth authorize step.
-CLERK_ORIGIN = "https://clerk.hearthshelf.com"
 # The SPA origin - where we send the user to sign in and approve a connection.
 APP_ORIGIN = "https://app.hearthshelf.com"
 # Seconds to cache a redeemed per-user ABS token in the Durable Object. Kept

@@ -12,9 +12,9 @@
 import type { Env, LinkedServer, McpProps } from '../types'
 
 /**
- * The user's Clerk session token was rejected by the control plane. This is the
+ * The user's session token was rejected by the control plane. This is the
  * EXPECTED failure once a captured session token ages out (see McpProps.
- * clerkToken), so callers turn it into a "reconnect HearthShelf" message rather
+ * sessionToken), so callers turn it into a "reconnect HearthShelf" message rather
  * than leaking a raw 401 into a chat transcript.
  */
 export class CpAuthError extends Error {
@@ -33,7 +33,7 @@ async function cpFetch<T>(env: Env, props: McpProps, path: string, init?: Reques
     res = await fetch(`${base}${path}`, {
       ...init,
       headers: {
-        Authorization: `Bearer ${props.clerkToken}`,
+        Authorization: `Bearer ${props.sessionToken}`,
         Accept: 'application/json',
         ...init?.headers,
       },
@@ -46,7 +46,7 @@ async function cpFetch<T>(env: Env, props: McpProps, path: string, init?: Reques
   return (await res.json()) as T
 }
 
-/** List the servers this Clerk identity is linked to. */
+/** List the servers this identity is linked to. */
 export async function listServers(env: Env, props: McpProps): Promise<LinkedServer[]> {
   const data = await cpFetch<{ servers?: LinkedServer[] }>(env, props, '/servers')
   return data.servers ?? []

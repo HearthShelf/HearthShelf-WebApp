@@ -102,7 +102,7 @@ export function ConnectAiPage() {
       <p className="text-sm text-muted-foreground">Connecting {clientName} to HearthShelf...</p>
       <form ref={formRef} method="POST" action={callback} className="hidden">
         <input type="hidden" name="mcp_state" value={state} />
-        <input type="hidden" name="clerk_token" value={token ?? ''} />
+        <input type="hidden" name="session_token" value={token ?? ''} />
       </form>
     </Centered>
   )

@@ -6,10 +6,10 @@
  * user here. We:
  *
  *   1. Parse the authorization request (OAuthProvider does the OAuth 2.1 work).
- *   2. Bounce the user to the SPA to sign in with Clerk - the identity they
- *      already have. The SPA posts a Clerk session token back to /callback.
+ *   2. Bounce the user to the SPA to sign in - the identity they already
+ *      have. The SPA posts the session token back to /callback.
  *   3. Show a consent screen naming the client and the exact (read-only) access.
- *   4. On approval, complete the authorization, sealing the Clerk identity into
+ *   4. On approval, complete the authorization, sealing the identity into
  *      the grant's encrypted props.
  *
  * The user never types a token or edits a config file. That is the entire
@@ -23,7 +23,7 @@
 import { Hono } from 'hono'
 import type { AuthRequest } from '@cloudflare/workers-oauth-provider'
 import type { Env, McpProps } from './types'
-import { verifyClerk, AuthError } from './lib/clerk'
+import { verifyIdentity, AuthError } from './lib/identity'
 
 export const authorizeApp = new Hono<{ Bindings: Env }>()
 
@@ -59,9 +59,9 @@ function decodeState(state: string): AuthRequest {
 /**
  * GET /authorize - entry point for the MCP client's OAuth flow.
  *
- * We do not have a Clerk session here (this is a fresh browser hop from the MCP
+ * We do not have a session here (this is a fresh browser hop from the MCP
  * client), so we hand off to the SPA's connect page, which signs the user in and
- * POSTs a Clerk token back to /callback.
+ * POSTs the session token back to /callback.
  */
 authorizeApp.get('/authorize', async (c) => {
   let authReq: AuthRequest
@@ -74,7 +74,7 @@ authorizeApp.get('/authorize', async (c) => {
   const client = await c.env.OAUTH_PROVIDER.lookupClient(authReq.clientId)
   if (!client) return c.text('invalid_client', 400)
 
-  // Hand off to the SPA for Clerk sign-in. It returns the user here with a
+  // Hand off to the SPA for sign-in. It returns the user here with a
   // session token. `mcp_state` carries the OAuth request across the bounce.
   const handoff = new URL('/connect-ai', c.env.APP_ORIGIN)
   handoff.searchParams.set('mcp_state', encodeState(authReq))
@@ -84,14 +84,14 @@ authorizeApp.get('/authorize', async (c) => {
 })
 
 /**
- * POST /callback - the SPA posts the signed-in user's Clerk token here.
+ * POST /callback - the SPA posts the signed-in user's session token here.
  * Renders the consent screen. No grant exists yet; approval happens next.
  */
 authorizeApp.post('/callback', async (c) => {
   const form = await c.req.formData()
   const stateRaw = String(form.get('mcp_state') ?? '')
-  const clerkToken = String(form.get('clerk_token') ?? '')
-  if (!stateRaw || !clerkToken) return c.text('missing_state_or_token', 400)
+  const sessionToken = String(form.get('session_token') ?? '')
+  if (!stateRaw || !sessionToken) return c.text('missing_state_or_token', 400)
 
   let authReq: AuthRequest
   try {
@@ -102,7 +102,7 @@ authorizeApp.post('/callback', async (c) => {
 
   let identity
   try {
-    identity = await verifyClerk(c.env, clerkToken)
+    identity = await verifyIdentity(c.env, sessionToken)
   } catch (err) {
     if (err instanceof AuthError) return c.text('unauthorized', 401)
     throw err
@@ -127,7 +127,7 @@ authorizeApp.post('/callback', async (c) => {
       redirectHost,
       email: identity.email,
       state: stateRaw,
-      clerkToken,
+      sessionToken,
     }),
   )
 })
@@ -138,8 +138,8 @@ authorizeApp.post('/callback', async (c) => {
 authorizeApp.post('/approve', async (c) => {
   const form = await c.req.formData()
   const stateRaw = String(form.get('mcp_state') ?? '')
-  const clerkToken = String(form.get('clerk_token') ?? '')
-  if (!stateRaw || !clerkToken) return c.text('missing_state_or_token', 400)
+  const sessionToken = String(form.get('session_token') ?? '')
+  if (!stateRaw || !sessionToken) return c.text('missing_state_or_token', 400)
 
   let authReq: AuthRequest
   try {
@@ -152,7 +152,7 @@ authorizeApp.post('/approve', async (c) => {
   // request and the token in it is user-supplied like any other input.
   let identity
   try {
-    identity = await verifyClerk(c.env, clerkToken)
+    identity = await verifyIdentity(c.env, sessionToken)
   } catch (err) {
     if (err instanceof AuthError) return c.text('unauthorized', 401)
     throw err
@@ -160,10 +160,10 @@ authorizeApp.post('/approve', async (c) => {
   if (!identity.emailVerified) return c.text('email_not_verified', 403)
 
   const props: McpProps = {
-    clerkUserId: identity.userId,
+    userId: identity.userId,
     email: identity.email,
     username: identity.username,
-    clerkToken,
+    sessionToken,
   }
 
   const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
@@ -187,7 +187,7 @@ function consentPage(v: {
   redirectHost: string
   email: string
   state: string
-  clerkToken: string
+  sessionToken: string
 }): string {
   return `<!doctype html>
 <html lang="en">
@@ -251,7 +251,7 @@ function consentPage(v: {
 
     <form method="POST" action="/approve">
       <input type="hidden" name="mcp_state" value="${esc(v.state)}">
-      <input type="hidden" name="clerk_token" value="${esc(v.clerkToken)}">
+      <input type="hidden" name="session_token" value="${esc(v.sessionToken)}">
       <button type="submit">Connect</button>
     </form>
   </div>

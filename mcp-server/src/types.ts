@@ -18,10 +18,15 @@ export interface Env {
   MCP_ISSUER: string
   /** Control-plane base URL (server list + grant minting). */
   CONTROL_PLANE_URL: string
-  /** Clerk JWKS endpoint for verifying the session token. */
+  /** Clerk JWKS endpoint, for verifying a session from the legacy provider
+   *  during cutover. Unset once every session has rolled over. */
   CLERK_JWKS_URL: string
-  /** Clerk Frontend API origin. */
-  CLERK_ORIGIN: string
+  /** Which identity provider to verify sessions against first: 'clerk'
+   *  (default) or 'better-auth'. Both are tried during cutover so a browser
+   *  holding an old session still completes an MCP connection. */
+  AUTH_PROVIDER?: 'clerk' | 'better-auth'
+  /** Base URL of the Better Auth service. Unset = never tried. */
+  BETTER_AUTH_URL?: string
   /** SPA origin - where the user signs in and approves the connection. */
   APP_ORIGIN: string
   /** Seconds to cache a redeemed per-user ABS token. Defaults to 600. */
@@ -44,28 +49,27 @@ export interface Env {
  * the control plane and cached only in the Durable Object's memory.
  */
 export interface McpProps extends Record<string, unknown> {
-  /** Clerk user id (the control plane's `sub`). */
-  clerkUserId: string
+  /** Stable account id (the control plane's `sub`). */
+  userId: string
   /** Verified primary email - how a box matches the ABS user. */
   email: string
-  /** Clerk username, may be empty. */
+  /** Display username, may be empty. */
   username: string
   /**
-   * The Clerk session JWT captured at authorize time.
+   * The session token captured at authorize time.
    *
    * WHY THIS IS HERE: the control plane authenticates `/servers` and
-   * `/servers/:id/grant` with a Clerk bearer, and an MCP tool call happens long
+   * `/servers/:id/grant` with a bearer token, and an MCP tool call happens long
    * after the browser is gone - there is no live session to borrow. We carry the
    * token so the Worker can act as the user against the CP.
    *
-   * The obvious consequence: a Clerk session token expires (typically ~1 min for
-   * short-lived templates, longer for others), so this WILL go stale and tools
-   * must surface a re-connect prompt rather than a raw 401. See lib/controlPlane
-   * `CpAuthError`. Replacing this with a CP-issued long-lived MCP credential is
-   * the tracked follow-up; it needs a new control-plane endpoint, so it is
-   * deliberately out of scope for the skeleton.
+   * The obvious consequence: a session token expires, so this WILL go stale and
+   * tools must surface a re-connect prompt rather than a raw 401. See
+   * lib/controlPlane `CpAuthError`. Replacing this with a CP-issued long-lived
+   * MCP credential is the tracked follow-up; it needs a new control-plane
+   * endpoint, so it is deliberately out of scope for the skeleton.
    */
-  clerkToken: string
+  sessionToken: string
 }
 
 /** One linked server, as the control plane reports it. */
