@@ -36,6 +36,17 @@ const PROVIDERS = [
 ] as const
 
 export function SignInForm({ redirectUrl = '/' }: { redirectUrl?: string }) {
+  /**
+   * Where a provider should send the browser once it is done.
+   *
+   * MUST be absolute. A social sign-in leaves this origin entirely, comes back
+   * to the AUTH SERVICE's callback, and is redirected from there - so a bare
+   * "/" resolves against auth.hearthshelf.com and strands the user on the
+   * identity API instead of the app. Same for a magic link, which is opened
+   * from a mail client with no page context at all.
+   */
+  const absoluteReturnUrl = new URL(redirectUrl, window.location.origin).href
+
   const [step, setStep] = useState<Step>('choose')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
@@ -106,13 +117,13 @@ export function SignInForm({ redirectUrl = '/' }: { redirectUrl?: string }) {
   }
 
   const onSocial = (provider: string, label: string) => () =>
-    run(label, () => authClient.signIn.social({ provider, callbackURL: redirectUrl }))
+    run(label, () => authClient.signIn.social({ provider, callbackURL: absoluteReturnUrl }))
 
   function onMagicLink() {
     if (!email.trim()) return setError('Enter your email first')
     return run(
       'Magic link',
-      () => authClient.signIn.magicLink({ email: email.trim(), callbackURL: redirectUrl }),
+      () => authClient.signIn.magicLink({ email: email.trim(), callbackURL: absoluteReturnUrl }),
       () => setStep('magic-sent'),
     )
   }
