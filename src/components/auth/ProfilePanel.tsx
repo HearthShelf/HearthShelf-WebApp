@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { authClient } from '@/auth/client'
 import { useAuth } from '@/auth/useAuth'
 import { notify } from '@/lib/notify'
+import { SignInMethods } from '@/components/auth/SignInMethods'
 
 /**
  * Account identity management: username, passkeys, and two-factor.
@@ -9,16 +10,13 @@ import { notify } from '@/lib/notify'
  * Replaces the previous provider's drop-in profile widget. It is deliberately
  * narrower than that widget was, and the omissions are the point:
  *
- *  - No password section. Sign-in is passkeys, social, magic links and codes;
- *    the two migrated accounts that had a password use a magic link instead.
  *  - No email change. The email is how a self-hosted server matches a user to
  *    their AudiobookShelf account, so changing it is not a profile edit - it
  *    would silently orphan every linked server.
- *  - No connected-accounts list. Social identities are how people sign in, and
- *    unlinking the only one would lock them out.
  *
- * Passkeys ARE managed here, because that is the method we want people using
- * and it is useless if they cannot add one from the account page.
+ * Passkeys and linked sign-in methods ARE managed here: they are the only route
+ * back into an account, so a user who cannot manage them from this page has no
+ * way to recover from losing one.
  */
 interface Passkey {
   id: string
@@ -157,6 +155,8 @@ export function ProfilePanel() {
           </button>
         </div>
       </section>
+
+      <SignInMethods />
 
       <section className="rounded-xl border border-border bg-card p-6">
         <p className="t-eyebrow">Passkeys</p>

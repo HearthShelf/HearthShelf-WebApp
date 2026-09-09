@@ -186,7 +186,7 @@ export function AccountSettings() {
     <section>
       <div className="section-head">
         <Icon name="person" />
-        <h2>Account</h2>
+        <h2>This server</h2>
       </div>
 
       {/* Profile photo */}

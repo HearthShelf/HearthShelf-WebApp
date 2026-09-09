@@ -55,7 +55,7 @@ const NAV: { label: string; items: { id: Section; icon: string; label: string }[
   {
     label: 'You',
     items: [
-      { id: 'account', icon: 'person', label: 'Account' },
+      { id: 'account', icon: 'person', label: 'This server' },
       { id: 'appearance', icon: 'palette', label: 'Appearance' },
       { id: 'notifications', icon: 'notifications', label: 'Notifications' },
     ],
@@ -86,7 +86,7 @@ const NAV: { label: string; items: { id: Section; icon: string; label: string }[
   {
     label: 'HearthShelf',
     items: [
-      { id: 'profile', icon: 'manage_accounts', label: 'HearthShelf Account' },
+      { id: 'profile', icon: 'manage_accounts', label: 'Sign-in & security' },
       { id: 'servers', icon: 'dns', label: 'My servers' },
       { id: 'connections', icon: 'power', label: 'Connected apps' },
       { id: 'developer', icon: 'code', label: 'Developer' },
@@ -101,7 +101,11 @@ const NAV: { label: string; items: { id: Section; icon: string; label: string }[
  *    with quick-open (sets active) and unlink, plus link-a-server.
  *  - Subscription: the user's plan, read from the control plane's entitlement
  *    seam. Billing isn't wired yet, so Pro is a "coming soon" upsell.
- *  - Profile & sign-in: username, passkeys and two-factor (see ProfilePanel).
+ *  - Sign-in & security: the HearthShelf ACCOUNT - username, linked sign-in
+ *    methods, passkeys, two-factor (see ProfilePanel). Distinct from the
+ *    "This server" section, which edits your profile on ONE connected
+ *    AudiobookShelf server (photo, Gravatar, that server's permissions). Both
+ *    used to be called "Account", which is why they read as duplicates.
  */
 const SECTIONS = NAV.flatMap((g) => g.items.map((i) => i.id))
 const DEFAULT_SECTION: Section = 'servers'
@@ -390,7 +394,7 @@ function Profile() {
     <section>
       <div className="section-head">
         <Icon name="manage_accounts" />
-        <h2>HearthShelf Account</h2>
+        <h2>Sign-in &amp; security</h2>
       </div>
       <ProfilePanel />
 
