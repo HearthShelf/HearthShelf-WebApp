@@ -28,6 +28,12 @@ function corsHeaders(env: Env, origin: string | null): Record<string, string> {
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Max-Age': '86400',
+    // Without this the browser hides `set-auth-token` from page JS on a
+    // cross-origin response, so the app can never read the session token it
+    // needs for the control plane - every call then 401s and looks like an
+    // expired session. The bearer plugin sets this header itself on the
+    // responses it stamps; we must not clobber it (see below).
+    'Access-Control-Expose-Headers': 'set-auth-token',
     Vary: 'Origin',
   }
 }
@@ -51,7 +57,23 @@ export default {
       const auth = await createAuth(env)
       const res = await auth.handler(req)
       const headers = new Headers(res.headers)
-      for (const [k, v] of Object.entries(cors)) headers.set(k, v)
+      for (const [k, v] of Object.entries(cors)) {
+        // Merge rather than overwrite: the bearer plugin adds its own
+        // Access-Control-Expose-Headers, and replacing it would hide the very
+        // token header it just set.
+        if (k === 'Access-Control-Expose-Headers') {
+          const existing = headers.get(k)
+          const merged = new Set(
+            `${existing ?? ''},${v}`
+              .split(',')
+              .map((h) => h.trim())
+              .filter(Boolean),
+          )
+          headers.set(k, [...merged].join(', '))
+          continue
+        }
+        headers.set(k, v)
+      }
       return new Response(res.body, { status: res.status, headers })
     }
 

@@ -6,10 +6,16 @@
  * origin (api.hearthshelf.com), so that cookie never reaches it - the token has
  * to travel as an explicit `Authorization: Bearer`.
  *
- * The auth service's bearer plugin hands the token back in a `set-auth-token`
- * response header on sign-in, and `/api/auth/token` returns it on demand for a
- * session already established (a returning user who never signed in this page
- * load). We cache it in memory and fall back to that endpoint.
+ * The auth service's bearer plugin stamps a `set-auth-token` response header on
+ * any authenticated response, so `/api/auth/get-session` doubles as the way to
+ * obtain one for a session already established (a returning user who never
+ * signed in this page load). We cache it in memory.
+ *
+ * NOT `/api/auth/token` - that belongs to the `jwt` plugin, which this service
+ * does not run, and it returns a signed JWT rather than the session token the
+ * control plane resolves. Pointing here at an unregistered endpoint 404s, every
+ * control-plane call then 401s, and the app treats that as an expired session
+ * and bounces the user to sign-in - a successful sign-in looking like a failure.
  *
  * Deliberately memory-only, not localStorage: this token IS the session, and
  * putting it where any script on the origin can read it turns an XSS into a
@@ -46,21 +52,16 @@ export async function getBearerToken(): Promise<string | null> {
 
   inFlight = (async () => {
     try {
-      const res = await fetch(`${AUTH_SERVICE_URL.replace(/\/$/, '')}/api/auth/token`, {
+      const res = await fetch(`${AUTH_SERVICE_URL.replace(/\/$/, '')}/api/auth/get-session`, {
         credentials: 'include',
         headers: { Accept: 'application/json' },
       })
       if (!res.ok) return null
 
-      // Either shape is fine: the header is set by the bearer plugin, the body
-      // by the token endpoint itself.
-      const header = res.headers.get('set-auth-token')
-      if (header) {
-        cached = header
-        return cached
-      }
-      const body = (await res.json().catch(() => null)) as { token?: string } | null
-      cached = body?.token || null
+      // The bearer plugin stamps the token on the response of any authenticated
+      // request. A signed-out visitor gets a 200 with a null body and no
+      // header, which correctly yields null rather than an error.
+      cached = res.headers.get('set-auth-token')
       return cached
     } catch {
       return null

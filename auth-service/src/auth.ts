@@ -28,7 +28,7 @@
  */
 import { betterAuth } from 'better-auth'
 import { D1Dialect } from 'kysely-d1'
-import { bearer, emailOTP, magicLink, twoFactor, username } from 'better-auth/plugins'
+import { bearer, emailOTP, magicLink, multiSession, twoFactor, username } from 'better-auth/plugins'
 import { passkey } from '@better-auth/passkey'
 import { expo } from '@better-auth/expo'
 import { getAppleClientSecret } from './appleSecret'
@@ -190,6 +190,13 @@ export async function createAuth(env: Env) {
       // Lets non-browser clients (the mobile app, the MCP server's callback)
       // present the session as `Authorization: Bearer` instead of a cookie.
       bearer(),
+
+      // Holds several signed-in accounts in one browser, which is what the
+      // shared-device account switcher runs on (see the SPA's
+      // useAccountSwitch.ts). MUST stay paired with multiSessionClient() on the
+      // clients: without it here the client calls /multi-session/* and gets a
+      // 404, and the switcher silently cannot find any session to switch to.
+      multiSession(),
     ],
   })
 }
