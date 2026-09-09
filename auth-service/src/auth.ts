@@ -91,6 +91,22 @@ export async function createAuth(env: Env) {
         domain: env.COOKIE_DOMAIN || '.hearthshelf.com',
       },
 
+      // SameSite=None, because the app sets these cookies through a CROSS-SITE
+      // fetch: the sign-in POST goes from app.hearthshelf.com to this service,
+      // and a browser silently DISCARDS a SameSite=Lax cookie arriving on a
+      // cross-site subresource request. The OAuth state cookie is the casualty
+      // - it never gets stored, so when the provider redirects back the state
+      // check fails with "State not persisted correctly" and the user is
+      // returned to sign-in having done everything right.
+      //
+      // Safe here: the cookies stay Secure and HttpOnly, and the origins that
+      // may talk to this service are pinned in TRUSTED_ORIGINS rather than
+      // reflected, so None widens where a cookie may be SET, not who may use it.
+      defaultCookieAttributes: {
+        sameSite: 'none',
+        secure: true,
+      },
+
       database: {
         // D1 refuses the sqlite_master introspection Better Auth uses to
         // self-check the schema on startup - it comes back SQLITE_AUTH, and the
