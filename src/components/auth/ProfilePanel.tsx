@@ -3,9 +3,10 @@ import { authClient } from '@/auth/client'
 import { useAuth } from '@/auth/useAuth'
 import { notify } from '@/lib/notify'
 import { SignInMethods } from '@/components/auth/SignInMethods'
+import QRCode from 'qrcode'
 
 /**
- * Account identity management: username, passkeys, and two-factor.
+ * Account security management: passkeys and two-factor.
  *
  * Replaces the previous provider's drop-in profile widget. It is deliberately
  * narrower than that widget was, and the omissions are the point:
@@ -26,17 +27,22 @@ interface Passkey {
 
 export function ProfilePanel() {
   const { user } = useAuth()
-  const [username, setUsername] = useState('')
-  const [savingName, setSavingName] = useState(false)
   const [passkeys, setPasskeys] = useState<Passkey[] | null>(null)
   const [adding, setAdding] = useState(false)
+  const [namingPasskey, setNamingPasskey] = useState(false)
+  const [passkeyName, setPasskeyName] = useState('')
   const [totpUri, setTotpUri] = useState<string | null>(null)
+  const [totpQr, setTotpQr] = useState<string | null>(null)
   const [totpCode, setTotpCode] = useState('')
+  const [twoFactorPassword, setTwoFactorPassword] = useState('')
+  const [twoFactorMode, setTwoFactorMode] = useState<'enable' | 'disable' | null>(null)
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
+  const [backupCodes, setBackupCodes] = useState<string[]>([])
   const [twoFactorBusy, setTwoFactorBusy] = useState(false)
 
   useEffect(() => {
-    setUsername(user?.username ?? '')
-  }, [user?.username])
+    setTwoFactorEnabled(user?.twoFactorEnabled === true)
+  }, [user?.twoFactorEnabled])
 
   const loadPasskeys = useCallback(async () => {
     const res = await authClient.passkey.listUserPasskeys()
@@ -47,31 +53,19 @@ export function ProfilePanel() {
     void loadPasskeys().catch(() => setPasskeys([]))
   }, [loadPasskeys])
 
-  async function saveUsername() {
-    const next = username.trim()
-    if (!next || next === user?.username) return
-    setSavingName(true)
-    try {
-      const res = await authClient.updateUser({ username: next })
-      if (res?.error) {
-        notify.error(res.error.message || 'That username is taken')
-        return
-      }
-      notify.success('Username updated')
-    } finally {
-      setSavingName(false)
-    }
-  }
-
   async function addPasskey() {
+    const name = passkeyName.trim()
+    if (!name) return
     setAdding(true)
     try {
-      const res = await authClient.passkey.addPasskey()
+      const res = await authClient.passkey.addPasskey({ name })
       if (res?.error) {
         notify.error(res.error.message || 'Could not add a passkey on this device')
         return
       }
       notify.success('Passkey added')
+      setNamingPasskey(false)
+      setPasskeyName('')
       await loadPasskeys()
     } catch {
       // A cancelled browser prompt rejects; that is a choice, not a failure.
@@ -98,12 +92,32 @@ export function ProfilePanel() {
   async function startTwoFactor() {
     setTwoFactorBusy(true)
     try {
-      const res = await authClient.twoFactor.getTotpUri({ password: '' })
+      const res = await authClient.twoFactor.enable({
+        password: twoFactorPassword,
+        method: 'totp',
+        issuer: 'HearthShelf',
+      })
       if (res?.error) {
-        notify.error(res.error.message || 'Could not start two-factor setup')
+        notify.error(
+          res.error.message === 'Invalid password'
+            ? 'Enter your current password to continue'
+            : res.error.message || 'Could not start two-factor setup',
+        )
         return
       }
-      setTotpUri((res?.data as { totpURI?: string } | undefined)?.totpURI ?? null)
+      const data = res?.data as { totpURI?: string; backupCodes?: string[] } | undefined
+      const uri = data?.totpURI ?? null
+      setTotpUri(uri)
+      setBackupCodes(data?.backupCodes ?? [])
+      if (uri) {
+        setTotpQr(
+          await QRCode.toDataURL(uri, {
+            width: 200,
+            margin: 1,
+            color: { dark: '#1b1a18', light: '#fffaf6' },
+          }),
+        )
+      }
     } finally {
       setTwoFactorBusy(false)
     }
@@ -118,8 +132,30 @@ export function ProfilePanel() {
         return
       }
       setTotpUri(null)
+      setTotpQr(null)
       setTotpCode('')
+      setTwoFactorPassword('')
+      setTwoFactorMode(null)
+      setTwoFactorEnabled(true)
       notify.success('Two-factor is on')
+    } finally {
+      setTwoFactorBusy(false)
+    }
+  }
+
+  async function disableTwoFactor() {
+    setTwoFactorBusy(true)
+    try {
+      const res = await authClient.twoFactor.disable({ password: twoFactorPassword })
+      if (res?.error) {
+        notify.error(res.error.message || 'Could not turn off two-factor authentication')
+        return
+      }
+      setTwoFactorEnabled(false)
+      setTwoFactorMode(null)
+      setTwoFactorPassword('')
+      setBackupCodes([])
+      notify.success('Two-factor is off')
     } finally {
       setTwoFactorBusy(false)
     }
@@ -129,33 +165,6 @@ export function ProfilePanel() {
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="account-security-card">
-        <h3>Public name</h3>
-        <p className="t-muted mt-2 text-[13px]">
-          Choose the username other HearthShelf listeners see.
-        </p>
-
-        <label className="mt-4 block text-sm" htmlFor="account-username">
-          Username
-        </label>
-        <div className="mt-1 flex gap-2">
-          <input
-            id="account-username"
-            className="input flex-1"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoComplete="username"
-          />
-          <button
-            className="btn-secondary"
-            onClick={saveUsername}
-            disabled={savingName || !username.trim() || username.trim() === user.username}
-          >
-            Save
-          </button>
-        </div>
-      </section>
-
       <SignInMethods />
 
       <section className="account-security-card">
@@ -181,25 +190,62 @@ export function ProfilePanel() {
           </ul>
         )}
 
-        <button className="btn-primary mt-4" onClick={addPasskey} disabled={adding}>
-          Add a passkey
-        </button>
+        {namingPasskey ? (
+          <div className="account-inline-setup">
+            <label htmlFor="passkey-name">Name this passkey</label>
+            <p className="t-muted">Use a name you will recognize later, like “Kitchen iPad.”</p>
+            <div className="account-inline-field">
+              <input
+                id="passkey-name"
+                className="input"
+                placeholder="This device"
+                value={passkeyName}
+                onChange={(event) => setPasskeyName(event.target.value)}
+                autoFocus
+              />
+              <button
+                className="btn-primary"
+                onClick={() => void addPasskey()}
+                disabled={adding || !passkeyName.trim()}
+              >
+                {adding ? 'Adding…' : 'Create passkey'}
+              </button>
+              <button
+                className="btn-ghost"
+                onClick={() => {
+                  setNamingPasskey(false)
+                  setPasskeyName('')
+                }}
+                disabled={adding}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="btn-primary mt-4" onClick={() => setNamingPasskey(true)}>
+            Add a passkey
+          </button>
+        )}
       </section>
 
       <section className="account-security-card">
         <h3>Two-factor authentication</h3>
-        <p className="t-muted mt-2 text-[13px]">
-          Ask for a code from your authenticator app as well as your usual sign-in.
-        </p>
+        <div className="account-security-status">
+          <p className="t-muted">
+            Ask for a code from your authenticator app as well as your usual sign-in.
+          </p>
+          <span className={twoFactorEnabled ? 'connected' : ''}>
+            {twoFactorEnabled ? 'On' : 'Off'}
+          </span>
+        </div>
 
         {totpUri ? (
-          <>
-            <p className="t-muted mt-4 text-[13px]">
-              Scan this in your authenticator app, then enter the code it shows.
-            </p>
-            <code className="mt-2 block break-all rounded-md bg-muted p-3 text-[11px]">
-              {totpUri}
-            </code>
+          <div className="two-factor-setup">
+            <h4>Scan with your authenticator app</h4>
+            {totpQr && <img src={totpQr} alt="QR code for HearthShelf two-factor setup" />}
+            <a href={totpUri}>Open in an authenticator app</a>
+            <p className="t-muted">Then enter the six-digit code it shows.</p>
             <div className="mt-3 flex gap-2">
               <input
                 className="input flex-1 tracking-[0.4em]"
@@ -210,13 +256,59 @@ export function ProfilePanel() {
                 onChange={(e) => setTotpCode(e.target.value)}
               />
               <button className="btn-primary" onClick={confirmTwoFactor} disabled={twoFactorBusy}>
-                Confirm
+                {twoFactorBusy ? 'Checking…' : 'Turn on two-factor'}
               </button>
             </div>
-          </>
+          </div>
+        ) : twoFactorMode ? (
+          <div className="account-inline-setup">
+            <label htmlFor="two-factor-password">Current password</label>
+            <p className="t-muted">If you sign in without a password, leave this blank.</p>
+            <div className="account-inline-field">
+              <input
+                id="two-factor-password"
+                className="input"
+                type="password"
+                autoComplete="current-password"
+                value={twoFactorPassword}
+                onChange={(event) => setTwoFactorPassword(event.target.value)}
+              />
+              <button
+                className={twoFactorMode === 'disable' ? 'btn-danger' : 'btn-primary'}
+                onClick={() =>
+                  void (twoFactorMode === 'disable' ? disableTwoFactor() : startTwoFactor())
+                }
+                disabled={twoFactorBusy}
+              >
+                {twoFactorBusy ? 'Working…' : twoFactorMode === 'disable' ? 'Turn off' : 'Continue'}
+              </button>
+              <button
+                className="btn-ghost"
+                onClick={() => {
+                  setTwoFactorMode(null)
+                  setTwoFactorPassword('')
+                }}
+                disabled={twoFactorBusy}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : backupCodes.length > 0 ? (
+          <div className="two-factor-recovery">
+            <h4>Save your recovery codes</h4>
+            <p className="t-muted">Keep these somewhere safe. Each code can be used once.</p>
+            <code>{backupCodes.join('\n')}</code>
+            <button className="btn-secondary" onClick={() => setBackupCodes([])}>
+              I saved them
+            </button>
+          </div>
         ) : (
-          <button className="btn-secondary mt-4" onClick={startTwoFactor} disabled={twoFactorBusy}>
-            Set up two-factor
+          <button
+            className="btn-secondary mt-4"
+            onClick={() => setTwoFactorMode(twoFactorEnabled ? 'disable' : 'enable')}
+          >
+            {twoFactorEnabled ? 'Turn off two-factor' : 'Set up two-factor'}
           </button>
         )}
       </section>

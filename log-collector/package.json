@@ -13,15 +13,18 @@
     "db:migrate:remote": "wrangler d1 migrations apply hearthshelf-logs --remote"
   },
   "dependencies": {
-    "hono": "^4.13.4"
+    "hono": "^4.13.7"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260823.1",
-    "typescript": "^5.7.2",
-    "wrangler": "^4.125.0"
+    "@cloudflare/workers-types": "^5.20260908.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.130.0"
+  },
+  "overrides": {
+    "sharp": "0.35.4"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
-    "workerd@1.20260820.1": true
+    "workerd@1.20260908.1": true
   }
 }

@@ -26,6 +26,8 @@ export interface AuthUser {
   imageUrl?: string
   /** Account creation time, for "member since". */
   createdAt?: Date
+  /** Whether authenticator-based two-factor protection is enabled. */
+  twoFactorEnabled?: boolean
 
   // Aliases matching the previous provider's user shape, so the components that
   // render a name or email did not all need rewriting for a field rename. They
@@ -63,14 +65,18 @@ export function useAuth(): {
   const raw = session?.user
   const name = raw?.name ?? ''
   const email = raw?.email ?? ''
+  const legacyUsername = raw as { username?: string; displayUsername?: string } | undefined
   const user: AuthUser | null = raw
     ? {
         id: raw.id,
         email,
         name,
-        username: (raw as { username?: string }).username ?? undefined,
+        // The human-facing account name is canonical. The username plugin's
+        // normalized handle remains a legacy fallback, not a second profile.
+        username: name || legacyUsername?.displayUsername || legacyUsername?.username || undefined,
         imageUrl: raw.image ?? undefined,
         createdAt: raw.createdAt ? new Date(raw.createdAt) : undefined,
+        twoFactorEnabled: (raw as { twoFactorEnabled?: boolean }).twoFactorEnabled ?? undefined,
         fullName: name,
         firstName: name.split(' ')[0] ?? '',
         primaryEmailAddress: email ? { emailAddress: email } : null,

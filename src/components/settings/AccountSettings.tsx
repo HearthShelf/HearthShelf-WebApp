@@ -12,6 +12,8 @@ import { isCarBrowser } from '@/hooks/useCarMode'
 import { useVisualViewportSize } from '@/hooks/useVisualViewportSize'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useProviderAvatarSync } from '@/hooks/useProviderAvatarSync'
+import { authClient } from '@/auth/client'
+import { notify } from '@/lib/notify'
 import {
   deleteServerAvatar,
   probeAvatarSource,
@@ -20,7 +22,6 @@ import {
   type AvatarSyncFailReason,
   type AvatarSyncResult,
 } from '@/api/avatars'
-import type { AbsTarget } from '@/api/absLibrary'
 
 function syncFailMessage(reason: AvatarSyncFailReason): string {
   switch (reason) {
@@ -64,18 +65,9 @@ function probeLabel(probe: AvatarProbeResult | 'loading' | null): string {
   }
 }
 
-function fmtDay(d: Date | null | undefined): string {
-  if (!d) return '-'
-  return d.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
 export function AccountSettings() {
   const { user, isLoaded } = useUser()
-  const { server, servers, target } = useActiveServer()
+  const { target } = useActiveServer()
   const useGravatar = useSettingsStore((s) => s.useGravatar)
   const useSharedSettings = useSettingsStore((s) => s.useSharedSettings)
   const setSetting = useSettingsStore((s) => s.set)
@@ -85,14 +77,11 @@ export function AccountSettings() {
   const avatarVersion = useSettingsStore((s) => s.meta.useGravatar)
   // null = never chose, so the default (on) applies; only an explicit false is off.
   const gravatarOn = useGravatar !== false
-  const { sync: syncProviderPhoto, syncing, lastResult } = useProviderAvatarSync()
-
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadErr, setUploadErr] = useState<string | null>(null)
-  const [syncMsg, setSyncMsg] = useState<string | null>(null)
-  const [syncBlocked, setSyncBlocked] = useState(false)
-  const [removing, setRemoving] = useState(false)
+  const [displayName, setDisplayName] = useState('')
+  const [savingName, setSavingName] = useState(false)
 
   const queryClient = useQueryClient()
 
@@ -103,14 +92,16 @@ export function AccountSettings() {
     staleTime: 60_000,
   })
 
+  useEffect(() => {
+    setDisplayName(user?.fullName || '')
+  }, [user?.fullName])
+
   if (!isLoaded) return <LoadingSpinner className="py-12" label="Loading account..." />
   if (!user) return null
 
-  const displayName =
+  const currentDisplayName =
     user.fullName || user.username || user.primaryEmailAddress?.emailAddress || 'You'
   const email = user.primaryEmailAddress?.emailAddress ?? 'Not set'
-  const memberSince = fmtDay(user.createdAt)
-  const accountType = server?.role === 'admin' ? 'Administrator' : 'Listener'
 
   const handlePhotoClick = () => {
     setUploadErr(null)
@@ -145,42 +136,21 @@ export function AccountSettings() {
     }
   }
 
-  const handleSyncPhoto = async () => {
-    setSyncMsg(null)
-    setSyncBlocked(false)
-    const result = await syncProviderPhoto()
-    setSyncMsg(result.ok ? 'Photo synced to this server.' : syncFailMessage(result.reason))
-    setSyncBlocked(!result.ok && result.reason === 'server_skipped')
-  }
-
-  const handleRemoveCustomPhoto = async () => {
-    if (!target || !me?.id) return
-    setRemoving(true)
+  const saveDisplayName = async () => {
+    const next = displayName.trim()
+    if (!next || next === user.fullName) return
+    setSavingName(true)
     try {
-      const ok = await deleteServerAvatar(target, me.id)
-      if (!ok) {
-        setSyncMsg("Couldn't remove the custom photo. Try again in a moment.")
+      const res = await authClient.updateUser({ name: next })
+      if (res?.error) {
+        notify.error(res.error.message || 'That display name is not available')
         return
       }
-      setSyncBlocked(false)
-      const result = await syncProviderPhoto()
-      setSyncMsg(result.ok ? 'Photo synced to this server.' : syncFailMessage(result.reason))
+      notify.success('Display name updated')
     } finally {
-      setRemoving(false)
+      setSavingName(false)
     }
   }
-
-  // Permissions from the active server (update/delete/download/upload booleans)
-  const perms = me?.permissions ? Object.entries(me.permissions).filter(([, v]) => v === true) : []
-  const isAdmin = me?.type === 'admin' || me?.type === 'root'
-
-  const infoRows: [string, string, string][] = [
-    ['person', 'Display name', displayName],
-    ['email', 'Email', email],
-    ['badge', 'Access', accountType],
-    ['calendar_today', 'Member since', memberSince],
-    ['dns', 'Linked servers', servers.length === 1 ? '1 server' : `${servers.length} servers`],
-  ]
 
   return (
     <section>
@@ -190,7 +160,7 @@ export function AccountSettings() {
       </div>
 
       {/* Profile photo */}
-      <div className="set-group" style={{ marginBottom: 'var(--s4)' }}>
+      <div className="cfg-card">
         <div className="cfg-line">
           <Icon name="account_circle" style={{ color: 'var(--text-muted)' }} />
           <div className="cl-meta" style={{ flex: 1 }}>
@@ -207,7 +177,7 @@ export function AccountSettings() {
               <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-muted)' }} />
             ) : (
               <Avatar
-                name={displayName}
+                name={currentDisplayName}
                 target={target}
                 userId={me?.id}
                 version={avatarVersion}
@@ -232,41 +202,36 @@ export function AccountSettings() {
             {uploadErr}
           </div>
         )}
-        <div className="cfg-line">
-          <Icon name="sync" style={{ color: 'var(--text-muted)' }} />
-          <div className="cl-meta" style={{ flex: 1 }}>
-            <div className="cl-t">Sync photo to your servers</div>
-            <div className="cl-d">
-              Copy your sign-in photo to this server so other listeners see it on the leaderboard
-              and book pages.
-            </div>
+        <div className="cfg-line account-name-row">
+          <Icon name="person" style={{ color: 'var(--text-muted)' }} />
+          <label className="cl-meta" htmlFor="account-display-name">
+            <span className="cl-t">Display name</span>
+            <span className="cl-d">The name other HearthShelf listeners see.</span>
+          </label>
+          <div className="account-inline-field">
+            <input
+              id="account-display-name"
+              className="input"
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              autoComplete="name"
+            />
+            <button
+              className="btn-sm btn-ghost"
+              onClick={() => void saveDisplayName()}
+              disabled={savingName || !displayName.trim() || displayName.trim() === user.fullName}
+            >
+              {savingName ? 'Saving' : 'Save'}
+            </button>
           </div>
-          <button
-            className="btn-sm btn-ghost"
-            onClick={handleSyncPhoto}
-            disabled={syncing || !target}
-          >
-            {syncing ? <Loader2 size={16} className="animate-spin" /> : <Icon name="sync" />}
-            {syncing ? 'Syncing' : 'Sync'}
-          </button>
         </div>
-        {syncMsg && (
-          <div className="cfg-line" style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-            <Icon name="info" style={{ color: 'var(--text-muted)' }} />
-            {syncMsg}
-            {syncBlocked && (
-              <button
-                className="btn-sm btn-ghost"
-                onClick={handleRemoveCustomPhoto}
-                disabled={removing}
-                style={{ marginLeft: 'auto' }}
-              >
-                {removing ? <Loader2 size={16} className="animate-spin" /> : <Icon name="delete" />}
-                {removing ? 'Removing' : 'Remove custom photo'}
-              </button>
-            )}
+        <div className="cfg-line">
+          <Icon name="email" style={{ color: 'var(--text-muted)' }} />
+          <div className="cl-meta">
+            <div className="cl-t">Email</div>
           </div>
-        )}
+          <span className="account-row-value">{email}</span>
+        </div>
         <div className="cfg-line">
           <Icon name="public" style={{ color: 'var(--text-muted)' }} />
           <div className="cl-meta" style={{ flex: 1 }}>
@@ -277,19 +242,6 @@ export function AccountSettings() {
           </div>
           <Toggle on={gravatarOn} onChange={(v) => setSetting('useGravatar', v)} />
         </div>
-      </div>
-
-      {/* Account info */}
-      <div className="cfg-card">
-        {infoRows.map(([icon, label, value]) => (
-          <div className="cfg-line" key={label}>
-            <Icon name={icon} style={{ color: 'var(--text-muted)' }} />
-            <div className="cl-meta" style={{ flex: 1 }}>
-              <div className="cl-t">{label}</div>
-            </div>
-            <span style={{ color: 'var(--text-muted)' }}>{value}</span>
-          </div>
-        ))}
       </div>
 
       {/* Device sync */}
@@ -303,64 +255,38 @@ export function AccountSettings() {
           <div className="cl-meta" style={{ flex: 1 }}>
             <div className="cl-t">Use shared settings</div>
             <div className="cl-d">
-              Use the synced setting store on this device. Turn off to keep this device on local
-              cached settings.
+              Keep your HearthShelf settings the same on all of your devices.
             </div>
           </div>
           <Toggle on={useSharedSettings} onChange={(v) => setSetting('useSharedSettings', v)} />
         </div>
       </div>
-
-      {/* Server permissions (only shown when a server is linked and responding) */}
-      {me && (isAdmin || perms.length > 0) && (
-        <>
-          <div className="section-head" style={{ marginTop: 'var(--s6)' }}>
-            <Icon name="verified_user" />
-            <h2>Permissions</h2>
-          </div>
-          <div className="meta-chips">
-            {isAdmin && (
-              <span className="chip">
-                <Icon name="check" /> admin
-              </span>
-            )}
-            {perms.map(([k]) => (
-              <span className="chip" key={k}>
-                <Icon name="check" /> {k}
-              </span>
-            ))}
-          </div>
-        </>
-      )}
-
-      <AdvancedPanel
-        target={target}
-        absUserId={me?.id}
-        hasProviderPhoto={!!user.imageUrl}
-        lastResult={lastResult}
-        avatarVersion={avatarVersion}
-      />
     </section>
   )
 }
 
-function AdvancedPanel({
-  target,
-  absUserId,
-  hasProviderPhoto,
-  lastResult,
-  avatarVersion,
-}: {
-  target: AbsTarget | null
-  absUserId: string | undefined
-  hasProviderPhoto: boolean
-  lastResult: AvatarSyncResult | null
-  avatarVersion: number | undefined
-}) {
+export function AccountAdvancedSettings() {
+  const { user } = useUser()
+  const { target } = useActiveServer()
   const showAdvanced = useSettingsStore((s) => s.showAdvanced)
   const set = useSettingsStore((s) => s.set)
+  const avatarVersion = useSettingsStore((s) => s.meta.useGravatar)
+  const { sync: syncProviderPhoto, syncing, lastResult } = useProviderAvatarSync()
   const [copied, setCopied] = useState(false)
   const [probe, setProbe] = useState<AvatarProbeResult | 'loading' | null>(null)
+  const [syncMsg, setSyncMsg] = useState<string | null>(null)
+  const [syncBlocked, setSyncBlocked] = useState(false)
+  const [removing, setRemoving] = useState(false)
+  const { data: me } = useQuery({
+    queryKey: ['me', target?.serverUrl],
+    queryFn: () => getMe(target!),
+    enabled: !!target,
+    staleTime: 60_000,
+  })
+  const absUserId = me?.id
+  const hasProviderPhoto = !!user?.imageUrl
+  const perms = me?.permissions ? Object.entries(me.permissions).filter(([, value]) => value) : []
+  const isAdmin = me?.type === 'admin' || me?.type === 'root'
   // A stable stand-in for `lastResult`'s identity - see the effect's dep note.
   const lastResultKey = lastResult ? (lastResult.ok ? 'ok' : lastResult.reason) : 'none'
 
@@ -405,28 +331,53 @@ function AdvancedPanel({
     }
   }
 
+  const handleSyncPhoto = async () => {
+    setSyncMsg(null)
+    setSyncBlocked(false)
+    const result = await syncProviderPhoto()
+    setSyncMsg(result.ok ? 'Photo synced.' : syncFailMessage(result.reason))
+    setSyncBlocked(!result.ok && result.reason === 'server_skipped')
+  }
+
+  const handleRemoveCustomPhoto = async () => {
+    if (!target || !absUserId) return
+    setRemoving(true)
+    try {
+      const ok = await deleteServerAvatar(target, absUserId)
+      if (!ok) {
+        setSyncMsg("Couldn't remove the custom photo. Try again in a moment.")
+        return
+      }
+      setSyncBlocked(false)
+      const result = await syncProviderPhoto()
+      setSyncMsg(result.ok ? 'Photo synced.' : syncFailMessage(result.reason))
+    } finally {
+      setRemoving(false)
+    }
+  }
+
   return (
     <>
-      <div
-        className="cfg-line"
-        style={{ marginTop: 18, cursor: 'pointer' }}
+      <button
+        className="account-advanced-toggle"
         onClick={() => set('showAdvanced', !showAdvanced)}
+        aria-expanded={showAdvanced}
       >
         <Icon name="code" style={{ color: 'var(--text-muted)' }} />
         <div className="cl-meta" style={{ flex: 1 }}>
           <div className="cl-t">Advanced</div>
-          <div className="cl-d">Browser details for troubleshooting.</div>
+          <div className="cl-d">Server access and troubleshooting details.</div>
         </div>
         <Icon
           name={showAdvanced ? 'expand_less' : 'expand_more'}
           style={{ color: 'var(--text-muted)' }}
         />
-      </div>
+      </button>
 
       {showAdvanced && (
-        <div className="cfg-card" style={{ marginTop: 10 }}>
+        <div className="cfg-card account-advanced-card">
           <div className="cfg-line" style={{ alignItems: 'flex-start' }}>
-            <Icon name="account_circle" style={{ color: 'var(--text-muted)', marginTop: 2 }} />
+            <Icon name="sync" style={{ color: 'var(--text-muted)', marginTop: 2 }} />
             <div className="cl-meta" style={{ flex: 1 }}>
               <div className="cl-t">Photo sync</div>
               <div className="cl-d">
@@ -437,7 +388,45 @@ function AdvancedPanel({
                 Server currently serving: {probeLabel(probe)}
               </div>
             </div>
+            <button
+              className="btn-sm btn-ghost"
+              onClick={() => void handleSyncPhoto()}
+              disabled={syncing || !target}
+            >
+              {syncing ? <Loader2 size={16} className="animate-spin" /> : <Icon name="sync" />}
+              {syncing ? 'Syncing' : 'Sync'}
+            </button>
           </div>
+
+          {syncMsg && (
+            <div className="cfg-line account-advanced-message">
+              <Icon name="info" />
+              <span>{syncMsg}</span>
+              {syncBlocked && (
+                <button
+                  className="btn-sm btn-ghost"
+                  onClick={() => void handleRemoveCustomPhoto()}
+                  disabled={removing}
+                >
+                  {removing ? 'Removing' : 'Remove custom photo'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {me && (isAdmin || perms.length > 0) && (
+            <div className="cfg-line" style={{ alignItems: 'flex-start' }}>
+              <Icon name="verified_user" style={{ color: 'var(--text-muted)', marginTop: 2 }} />
+              <div className="cl-meta">
+                <div className="cl-t">Server permissions</div>
+                <div className="cl-d account-permission-list">
+                  {[isAdmin ? 'admin' : null, ...perms.map(([key]) => key)]
+                    .filter(Boolean)
+                    .join(', ')}
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="cfg-line">
             <Icon name="tag" style={{ color: 'var(--text-muted)' }} />

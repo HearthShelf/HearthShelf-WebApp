@@ -3254,6 +3254,189 @@
   background: var(--fill);
 }
 
+.account-name-row {
+  align-items: flex-start;
+}
+
+.account-inline-field {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.account-name-row .account-inline-field {
+  width: min(360px, 52%);
+}
+
+.account-inline-field .input {
+  min-width: 0;
+  flex: 1;
+}
+
+.account-row-value {
+  max-width: 52%;
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.account-inline-setup,
+.two-factor-setup,
+.two-factor-recovery {
+  margin-top: var(--s4);
+  padding: var(--s4);
+  border-radius: var(--r-row);
+  background: var(--fill);
+}
+
+.account-inline-setup > label,
+.two-factor-setup h4,
+.two-factor-recovery h4 {
+  display: block;
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.account-inline-setup > p,
+.two-factor-setup > p,
+.two-factor-recovery > p {
+  margin: var(--s1) 0 var(--s3);
+  font-size: 13px;
+}
+
+.account-security-status {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s4);
+  margin-top: var(--s2);
+}
+
+.account-security-status p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.account-security-status > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.account-security-status > span::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  content: '';
+}
+
+.account-security-status > span.connected {
+  color: var(--ok, #6bbf73);
+}
+
+.account-security-status > span.connected::before {
+  background: currentColor;
+}
+
+.two-factor-setup {
+  text-align: center;
+}
+
+.two-factor-setup img {
+  display: block;
+  width: 200px;
+  height: 200px;
+  margin: var(--s4) auto var(--s3);
+  border-radius: 10px;
+}
+
+.two-factor-setup > a {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+.two-factor-recovery code {
+  display: block;
+  margin: var(--s3) 0;
+  padding: var(--s3);
+  border-radius: 10px;
+  background: var(--c-low);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.account-delete-button {
+  background: var(--destructive) !important;
+  color: var(--destructive-foreground) !important;
+}
+
+.account-delete-button:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--destructive) 88%, white) !important;
+}
+
+.account-advanced-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s4);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-row);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-advanced-toggle:hover {
+  background: var(--fill);
+}
+
+.account-advanced-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.account-advanced-toggle .cl-t {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.account-advanced-toggle .cl-d {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.account-advanced-card {
+  margin-top: var(--s3);
+}
+
+.account-advanced-message {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.account-advanced-message > span {
+  flex: 1;
+}
+
+.account-permission-list {
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 560px) {
   .account-security-card {
     padding: var(--s4);
@@ -3269,6 +3452,24 @@
 
   .auth-password-icon {
     margin-bottom: var(--s3);
+  }
+
+  .account-name-row {
+    flex-wrap: wrap;
+  }
+
+  .account-name-row .account-inline-field {
+    width: 100%;
+    padding-left: calc(24px + var(--s3));
+  }
+
+  .account-inline-setup .account-inline-field {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .account-row-value {
+    max-width: 58%;
   }
 }
 @media (max-width: 760px) {

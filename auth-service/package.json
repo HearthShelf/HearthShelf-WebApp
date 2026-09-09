@@ -17,16 +17,23 @@
   },
   "dependencies": {
     "@better-auth/expo": "^1.7.3",
-    "@better-auth/passkey": "^1.7.2",
+    "@better-auth/passkey": "^1.7.3",
     "better-auth": "1.7.3",
-    "hono": "^4.13.4",
+    "hono": "^4.13.7",
     "jose": "^6.2.12",
-    "kysely": "^0.28.2",
+    "kysely": "^0.29.5",
     "kysely-d1": "^0.4.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260823.1",
-    "typescript": "^5.7.2",
-    "wrangler": "^4.125.0"
+    "@cloudflare/workers-types": "^5.20260908.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.130.0"
+  },
+  "overrides": {
+    "sharp": "0.35.4"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "workerd@1.20260908.1": true
   }
 }

@@ -27,7 +27,7 @@ import { IntegrationsSettings } from '@/components/settings/IntegrationsSettings
 import { AiConnectionSettings } from '@/components/settings/AiConnectionSettings'
 import { SearchSettings } from '@/components/settings/SearchSettings'
 import { CommunitySettings } from '@/components/settings/CommunitySettings'
-import { AccountSettings } from '@/components/settings/AccountSettings'
+import { AccountAdvancedSettings, AccountSettings } from '@/components/settings/AccountSettings'
 import { NotificationSettings } from '@/components/settings/NotificationSettings'
 import { SettingsSearch } from '@/components/settings/SettingsSearch'
 
@@ -407,7 +407,11 @@ function Account() {
             self-hosted server.
           </p>
           <div className="mt-4">
-            <Button variant="destructive" onClick={() => setDialogOpen(true)}>
+            <Button
+              variant="destructive"
+              className="account-delete-button"
+              onClick={() => setDialogOpen(true)}
+            >
               Delete my HearthShelf data
             </Button>
           </div>
@@ -426,6 +430,8 @@ function Account() {
           />
         )}
       </section>
+
+      <AccountAdvancedSettings />
     </div>
   )
 }

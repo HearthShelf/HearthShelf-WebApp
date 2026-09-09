@@ -11,20 +11,25 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@cloudflare/workers-oauth-provider": "^0.10.1",
+    "@cloudflare/workers-oauth-provider": "^0.10.3",
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "agents": "^0.20.1",
-    "hono": "^4.13.4",
-    "jose": "^5.9.6",
-    "zod": "^4.4.3"
+    "agents": "^0.22.0",
+    "hono": "^4.13.7",
+    "jose": "^6.2.12",
+    "zod": "^4.6.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260823.1",
-    "typescript": "^5.7.2",
-    "wrangler": "^4.125.0"
+    "@cloudflare/workers-types": "^5.20260908.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.130.0"
+  },
+  "overrides": {
+    "fast-uri": "3.1.6",
+    "qs": "6.16.0",
+    "sharp": "0.35.4"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
-    "workerd@1.20260820.1": true
+    "workerd@1.20260908.1": true
   }
 }

@@ -42,6 +42,7 @@ interface BetterAuthSession {
     email?: unknown
     emailVerified?: unknown
     username?: unknown
+    displayUsername?: unknown
     name?: unknown
   }
 }
@@ -99,11 +100,13 @@ export async function verifyBetterAuth(env: Env, token: string): Promise<AuthIde
   if (!emailVerified) throw new AuthError('email not verified')
 
   const username =
-    typeof user.username === 'string' && user.username
-      ? user.username
-      : typeof user.name === 'string'
-        ? user.name
-        : ''
+    typeof user.name === 'string' && user.name
+      ? user.name
+      : typeof user.displayUsername === 'string' && user.displayUsername
+        ? user.displayUsername
+        : typeof user.username === 'string'
+          ? user.username
+          : ''
 
   const identity: AuthIdentity = {
     subject,
