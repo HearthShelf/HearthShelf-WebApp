@@ -77,6 +77,20 @@ export async function createAuth(env: Env) {
     database: { dialect: new D1Dialect({ database: env.AUTH_DB }), type: 'sqlite' },
 
     advanced: {
+      // The session cookie has to be readable by the app, which lives on a
+      // DIFFERENT SUBDOMAIN (app.hearthshelf.com) from this service
+      // (auth.hearthshelf.com). Without a Domain attribute the browser scopes
+      // the cookie to the auth host alone, so the app sees no session and
+      // bounces every signed-in user straight back to the sign-in page - a
+      // sign-in that genuinely succeeded looks like it silently failed.
+      //
+      // COOKIE_DOMAIN is the registrable parent both hosts share. It must stay
+      // a parent of every origin in TRUSTED_ORIGINS.
+      crossSubDomainCookies: {
+        enabled: true,
+        domain: env.COOKIE_DOMAIN || '.hearthshelf.com',
+      },
+
       database: {
         // D1 refuses the sqlite_master introspection Better Auth uses to
         // self-check the schema on startup - it comes back SQLITE_AUTH, and the

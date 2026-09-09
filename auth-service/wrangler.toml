@@ -43,6 +43,10 @@ PASSKEY_RP_NAME = "HearthShelf"
 # phone is rejected as an open redirect - the callback lands on hearthshelf://,
 # not an https origin.
 APP_SCHEME = "hearthshelf"
+# Parent domain the session cookie is scoped to. The app runs on
+# app.hearthshelf.com and this service on auth.hearthshelf.com, so without this
+# the browser would never send the session cookie to the app.
+COOKIE_DOMAIN = ".hearthshelf.com"
 # From: address for OTP + magic-link mail.
 EMAIL_FROM = "no-reply@hearthshelf.com"
 

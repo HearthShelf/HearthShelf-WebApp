@@ -18,6 +18,10 @@ export interface Env {
   PASSKEY_RP_ID: string
   /** Human-readable name shown in the OS passkey prompt. */
   PASSKEY_RP_NAME: string
+  /** Parent domain the session cookie is scoped to, so the app on another
+   *  subdomain can read it (e.g. ".hearthshelf.com"). Must be a parent of every
+   *  origin in TRUSTED_ORIGINS. */
+  COOKIE_DOMAIN?: string
   /** The mobile app's deep-link scheme (matches app.config.js "scheme"), which
    *  must be a trusted origin or OAuth callbacks from the phone are rejected. */
   APP_SCHEME?: string
