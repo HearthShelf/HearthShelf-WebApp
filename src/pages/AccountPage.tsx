@@ -339,8 +339,8 @@ function Subscription() {
         <ul className="mt-5 grid gap-2.5">
           <PlanLine on>Browse your servers from anywhere</PlanLine>
           <PlanLine on>Sync progress across devices</PlanLine>
-          <PlanLine on={isPro}>Send invites through HearthShelf email</PlanLine>
-          <PlanLine on={isPro}>Premium web-only library features</PlanLine>
+          <PlanLine on>Send invites through HearthShelf email</PlanLine>
+          <PlanLine on={isPro}>Achivements</PlanLine>
         </ul>
 
         {!isPro && (

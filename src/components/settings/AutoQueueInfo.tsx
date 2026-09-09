@@ -35,10 +35,9 @@ export function AutoQueueInfo() {
     <div className="cfg-card" style={{ marginBottom: 0 }}>
       <button
         type="button"
-        className="btn-ghost"
+        className="btn-ghost auto-queue-disclosure"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}
       >
         <Icon name="info" />
         <span style={{ flex: 1, textAlign: 'left' }}>When does my queue update?</span>
@@ -103,7 +102,7 @@ export function RecomputeQueueButton({ onRecomputed }: { onRecomputed?: () => vo
   return (
     <button
       type="button"
-      className="btn-ghost"
+      className="btn-secondary"
       onClick={() => void recompute()}
       disabled={!target || busy}
       style={{ marginTop: 12 }}

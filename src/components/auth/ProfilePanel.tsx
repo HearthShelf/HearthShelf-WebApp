@@ -4,6 +4,7 @@ import { useAuth } from '@/auth/useAuth'
 import { notify } from '@/lib/notify'
 import { SignInMethods } from '@/components/auth/SignInMethods'
 import QRCode from 'qrcode'
+import { AccountInfoTip } from '@/components/settings/AccountInfoTip'
 
 /**
  * Account security management: passkeys and two-factor.
@@ -168,10 +169,10 @@ export function ProfilePanel() {
       <SignInMethods />
 
       <section className="account-security-card">
-        <h3>Passkeys</h3>
-        <p className="t-muted mt-2 text-[13px]">
-          Sign in with your face, fingerprint, or screen lock - no password, nothing to remember.
-        </p>
+        <div className="account-card-title">
+          <h3>Passkeys</h3>
+          <AccountInfoTip text="Sign in with your face, fingerprint, or screen lock. There is no password to remember." />
+        </div>
 
         {passkeys === null ? (
           <p className="t-muted mt-4 text-[13px]">Loading...</p>
@@ -230,11 +231,11 @@ export function ProfilePanel() {
       </section>
 
       <section className="account-security-card">
-        <h3>Two-factor authentication</h3>
+        <div className="account-card-title">
+          <h3>Two-factor authentication</h3>
+          <AccountInfoTip text="Ask for a code from your authenticator app as well as your usual sign-in." />
+        </div>
         <div className="account-security-status">
-          <p className="t-muted">
-            Ask for a code from your authenticator app as well as your usual sign-in.
-          </p>
           <span className={twoFactorEnabled ? 'connected' : ''}>
             {twoFactorEnabled ? 'On' : 'Off'}
           </span>

@@ -14,6 +14,7 @@ import { useSettingsStore } from '@/store/settingsStore'
 import { useProviderAvatarSync } from '@/hooks/useProviderAvatarSync'
 import { authClient } from '@/auth/client'
 import { notify } from '@/lib/notify'
+import { AccountInfoTip } from '@/components/settings/AccountInfoTip'
 import {
   deleteServerAvatar,
   probeAvatarSource,
@@ -163,9 +164,9 @@ export function AccountSettings() {
       <div className="cfg-card">
         <div className="cfg-line">
           <Icon name="account_circle" style={{ color: 'var(--text-muted)' }} />
-          <div className="cl-meta" style={{ flex: 1 }}>
+          <div className="cl-meta account-label-with-info" style={{ flex: 1 }}>
             <div className="cl-t">Profile photo</div>
-            <div className="cl-d">Used across HearthShelf. Click to change.</div>
+            <AccountInfoTip text="Used across HearthShelf. Click the photo to change it." />
           </div>
           <button
             className="acct-avatar-btn"
@@ -204,9 +205,9 @@ export function AccountSettings() {
         )}
         <div className="cfg-line account-name-row">
           <Icon name="person" style={{ color: 'var(--text-muted)' }} />
-          <label className="cl-meta" htmlFor="account-display-name">
+          <label className="cl-meta account-label-with-info" htmlFor="account-display-name">
             <span className="cl-t">Display name</span>
-            <span className="cl-d">The name other HearthShelf listeners see.</span>
+            <AccountInfoTip text="The name other HearthShelf listeners see." />
           </label>
           <div className="account-inline-field">
             <input
@@ -234,11 +235,9 @@ export function AccountSettings() {
         </div>
         <div className="cfg-line">
           <Icon name="public" style={{ color: 'var(--text-muted)' }} />
-          <div className="cl-meta" style={{ flex: 1 }}>
+          <div className="cl-meta account-label-with-info" style={{ flex: 1 }}>
             <div className="cl-t">Use Gravatar</div>
-            <div className="cl-d">
-              Show your Gravatar (linked to your email) when no photo is uploaded.
-            </div>
+            <AccountInfoTip text="Show your Gravatar, linked to your email, when no photo is uploaded." />
           </div>
           <Toggle on={gravatarOn} onChange={(v) => setSetting('useGravatar', v)} />
         </div>
@@ -252,11 +251,9 @@ export function AccountSettings() {
       <div className="cfg-card">
         <div className="cfg-line">
           <Icon name="sync" style={{ color: 'var(--text-muted)' }} />
-          <div className="cl-meta" style={{ flex: 1 }}>
+          <div className="cl-meta account-label-with-info" style={{ flex: 1 }}>
             <div className="cl-t">Use shared settings</div>
-            <div className="cl-d">
-              Keep your HearthShelf settings the same on all of your devices.
-            </div>
+            <AccountInfoTip text="Keep your HearthShelf settings the same on all of your devices." />
           </div>
           <Toggle on={useSharedSettings} onChange={(v) => setSetting('useSharedSettings', v)} />
         </div>
@@ -364,9 +361,9 @@ export function AccountAdvancedSettings() {
         aria-expanded={showAdvanced}
       >
         <Icon name="code" style={{ color: 'var(--text-muted)' }} />
-        <div className="cl-meta" style={{ flex: 1 }}>
+        <div className="cl-meta account-label-with-info" style={{ flex: 1 }}>
           <div className="cl-t">Advanced</div>
-          <div className="cl-d">Server access and troubleshooting details.</div>
+          <AccountInfoTip text="Server access and troubleshooting details." />
         </div>
         <Icon
           name={showAdvanced ? 'expand_less' : 'expand_more'}
@@ -430,11 +427,9 @@ export function AccountAdvancedSettings() {
 
           <div className="cfg-line">
             <Icon name="tag" style={{ color: 'var(--text-muted)' }} />
-            <div className="cl-meta" style={{ flex: 1 }}>
+            <div className="cl-meta account-label-with-info" style={{ flex: 1 }}>
               <div className="cl-t">Build</div>
-              <div className="cl-d">
-                Confirms the browser has this exact deploy, not a cached older one.
-              </div>
+              <AccountInfoTip text="Confirms the browser has this exact deploy, not a cached older one." />
             </div>
             <span
               style={{
@@ -455,11 +450,9 @@ export function AccountAdvancedSettings() {
 
           <div className="cfg-line">
             <Icon name="directions_car" style={{ color: 'var(--text-muted)' }} />
-            <div className="cl-meta" style={{ flex: 1 }}>
+            <div className="cl-meta account-label-with-info" style={{ flex: 1 }}>
               <div className="cl-t">Car browser detected</div>
-              <div className="cl-d">
-                Whether this browser's user-agent matches the car-mode pattern.
-              </div>
+              <AccountInfoTip text="Whether this browser matches HearthShelf's car-mode pattern." />
             </div>
             <span style={{ color: detected ? 'var(--ok, #6bbf73)' : 'var(--text-muted)' }}>
               {detected ? 'Yes' : 'No'}

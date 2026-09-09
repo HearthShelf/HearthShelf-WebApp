@@ -4,6 +4,7 @@ import { useAuth } from '@/auth/useAuth'
 import { notify } from '@/lib/notify'
 import { AppleIcon, DiscordIcon, GoogleIcon } from '@/components/auth/ProviderIcons'
 import { Icon } from '@/components/common/Icon'
+import { AccountInfoTip } from '@/components/settings/AccountInfoTip'
 
 /**
  * Every way this account can sign in, in one place: linked social accounts and
@@ -128,11 +129,9 @@ export function SignInMethods() {
         <span className="account-card-icon" aria-hidden="true">
           <Icon name="login" />
         </span>
-        <div>
+        <div className="account-card-title">
           <h3>Sign-in methods</h3>
-          <p className="t-muted">
-            Add a backup way to sign in so you can always get back to your HearthShelf account.
-          </p>
+          <AccountInfoTip text="Add a backup way to sign in so you can always get back to your HearthShelf account." />
         </div>
       </div>
 
@@ -192,12 +191,16 @@ export function SignInMethods() {
           <Icon name="password" />
         </span>
         <div className="auth-password-content">
-          <h4>{hasPassword ? 'Password' : 'Add a password'}</h4>
-          <p className="t-muted">
-            {hasPassword
-              ? 'Change it here whenever you need to.'
-              : 'Optional if you prefer passkeys or email codes.'}
-          </p>
+          <div className="account-card-title">
+            <h4>{hasPassword ? 'Password' : 'Add a password'}</h4>
+            <AccountInfoTip
+              text={
+                hasPassword
+                  ? 'Change it here whenever you need to.'
+                  : 'Optional if you prefer passkeys or email codes.'
+              }
+            />
+          </div>
           <div className="auth-password-fields">
             {hasPassword ? (
               <input
