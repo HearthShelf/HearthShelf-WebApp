@@ -110,7 +110,7 @@ export function AccountSettings() {
     user.fullName || user.username || user.primaryEmailAddress?.emailAddress || 'You'
   const email = user.primaryEmailAddress?.emailAddress ?? 'Not set'
   const memberSince = fmtDay(user.createdAt)
-  const accountType = server?.role === 'admin' ? 'Server admin' : 'HearthShelf account'
+  const accountType = server?.role === 'admin' ? 'Administrator' : 'Listener'
 
   const handlePhotoClick = () => {
     setUploadErr(null)
@@ -177,7 +177,7 @@ export function AccountSettings() {
   const infoRows: [string, string, string][] = [
     ['person', 'Display name', displayName],
     ['email', 'Email', email],
-    ['badge', 'Account type', accountType],
+    ['badge', 'Access', accountType],
     ['calendar_today', 'Member since', memberSince],
     ['dns', 'Linked servers', servers.length === 1 ? '1 server' : `${servers.length} servers`],
   ]
@@ -186,7 +186,7 @@ export function AccountSettings() {
     <section>
       <div className="section-head">
         <Icon name="person" />
-        <h2>This server</h2>
+        <h2>Account</h2>
       </div>
 
       {/* Profile photo */}

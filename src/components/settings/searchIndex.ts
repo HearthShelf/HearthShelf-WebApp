@@ -548,10 +548,10 @@ export const SETTINGS_INDEX: SettingEntry[] = [
 
   // ---- HearthShelf
   {
-    section: 'profile',
-    sectionLabel: 'HearthShelf Account',
-    icon: 'manage_accounts',
-    title: 'HearthShelf Account',
+    section: 'account',
+    sectionLabel: 'Account',
+    icon: 'person',
+    title: 'Sign-in and security',
     desc: 'Email, password, security, connected accounts, and active devices.',
     keywords: 'sign in login password email delete account security devices',
   },

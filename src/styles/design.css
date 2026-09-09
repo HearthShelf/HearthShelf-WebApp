@@ -3090,6 +3090,187 @@
   margin: 0;
   padding: 0;
 }
+
+/* ---- account ----------------------------------------------------------- */
+.account-settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s8);
+}
+
+.account-security-card {
+  padding: var(--s6);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  background: var(--card);
+}
+
+.account-security-card > h3,
+.account-card-heading h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.account-card-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+}
+
+.account-card-heading p,
+.auth-password-content > p {
+  margin-top: var(--s1);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.account-card-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  place-items: center;
+  border-radius: 11px;
+  background: color-mix(in oklab, var(--accent) 14%, var(--fill));
+  color: var(--accent);
+}
+
+.account-card-icon .ms {
+  font-size: 20px;
+}
+
+.auth-method-list {
+  display: grid;
+  gap: var(--s2);
+  margin-top: var(--s5);
+}
+
+.auth-method-row {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  gap: var(--s3);
+  padding: 10px 12px;
+  border-radius: var(--r-row);
+  background: var(--fill);
+}
+
+.auth-provider-mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  place-items: center;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--card) 82%, white 5%);
+  color: var(--text);
+}
+
+.auth-provider-mark svg {
+  width: 19px;
+  height: 19px;
+}
+
+.auth-method-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+
+.auth-method-copy strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.auth-method-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.auth-method-status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.auth-method-status.connected {
+  color: var(--ok, #6bbf73);
+}
+
+.auth-method-status.connected i {
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in oklab, currentColor 16%, transparent);
+}
+
+.auth-password-panel {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  margin-top: var(--s5);
+  padding-top: var(--s5);
+  border-top: 1px solid var(--border);
+}
+
+.auth-password-icon {
+  background: var(--fill);
+  color: var(--text-muted);
+}
+
+.auth-password-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.auth-password-content h4 {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.auth-password-fields {
+  display: grid;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+
+.auth-methods-loading {
+  display: grid;
+  gap: var(--s2);
+  margin-top: var(--s5);
+}
+
+.auth-methods-loading span {
+  height: 62px;
+  border-radius: var(--r-row);
+  background: var(--fill);
+}
+
+@media (max-width: 560px) {
+  .account-security-card {
+    padding: var(--s4);
+  }
+
+  .auth-method-row {
+    padding-inline: 10px;
+  }
+
+  .auth-password-panel {
+    display: block;
+  }
+
+  .auth-password-icon {
+    margin-bottom: var(--s3);
+  }
+}
 @media (max-width: 760px) {
   .settings-shell .config-wrap {
     padding: 0;

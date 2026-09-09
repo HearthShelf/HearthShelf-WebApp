@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { authClient } from '@/auth/client'
 import { useAuth } from '@/auth/useAuth'
 import { notify } from '@/lib/notify'
+import { AppleIcon, DiscordIcon, GoogleIcon } from '@/components/auth/ProviderIcons'
+import { Icon } from '@/components/common/Icon'
 
 /**
  * Every way this account can sign in, in one place: linked social accounts and
@@ -21,9 +23,9 @@ import { notify } from '@/lib/notify'
  * courtesy, not the enforcement.
  */
 const PROVIDERS = [
-  { id: 'google', label: 'Google' },
-  { id: 'apple', label: 'Apple' },
-  { id: 'discord', label: 'Discord' },
+  { id: 'google', label: 'Google', Icon: GoogleIcon },
+  { id: 'apple', label: 'Apple', Icon: AppleIcon },
+  { id: 'discord', label: 'Discord', Icon: DiscordIcon },
 ] as const
 
 /** `providerId` is the social provider, or 'credential' for a password. */
@@ -68,7 +70,7 @@ export function SignInMethods() {
       // shows the new entry instead.
       const res = await authClient.linkSocial({
         provider,
-        callbackURL: `${window.location.origin}/account/profile`,
+        callbackURL: `${window.location.origin}/account/account`,
       })
       if (res?.error) notify.error(res.error.message || `Could not connect ${provider}`)
     } catch (e) {
@@ -121,31 +123,49 @@ export function SignInMethods() {
   if (!user) return null
 
   return (
-    <section className="rounded-xl border border-border bg-card p-6">
-      <p className="t-eyebrow">Ways to sign in</p>
-      <p className="t-muted mt-2 text-[13px]">
-        Connect more than one, so losing access to any single account never locks you out of
-        HearthShelf.
-      </p>
+    <section className="account-security-card sign-in-methods">
+      <div className="account-card-heading">
+        <span className="account-card-icon" aria-hidden="true">
+          <Icon name="login" />
+        </span>
+        <div>
+          <h3>Sign-in methods</h3>
+          <p className="t-muted">
+            Add a backup way to sign in so you can always get back to your HearthShelf account.
+          </p>
+        </div>
+      </div>
 
       {accounts === null ? (
-        <p className="t-muted mt-4 text-[13px]">Loading...</p>
+        <div className="auth-methods-loading" aria-label="Loading sign-in methods">
+          <span />
+          <span />
+          <span />
+        </div>
       ) : (
-        <ul className="mt-4 flex flex-col gap-2">
+        <ul className="auth-method-list">
           {PROVIDERS.map((p) => {
             const existing = social.find((a) => a.providerId === p.id)
+            const ProviderIcon = p.Icon
             // Never offer to remove the only way in - the server would refuse
             // anyway, and a button that always errors is worse than no button.
             const isLast = totalMethods <= 1
             return (
-              <li key={p.id} className="flex items-center justify-between gap-3 text-sm">
-                <span>
-                  {p.label}
-                  {existing ? <span className="t-muted"> - connected</span> : null}
+              <li key={p.id} className="auth-method-row">
+                <span className={`auth-provider-mark auth-provider-${p.id}`} aria-hidden="true">
+                  <ProviderIcon />
+                </span>
+                <span className="auth-method-copy">
+                  <strong>{p.label}</strong>
+                  <span
+                    className={existing ? 'auth-method-status connected' : 'auth-method-status'}
+                  >
+                    <i /> {existing ? 'Connected' : 'Not connected'}
+                  </span>
                 </span>
                 {existing ? (
                   <button
-                    className="btn-link"
+                    className="btn-sm btn-ghost"
                     onClick={() => void unlink(existing)}
                     disabled={busy === existing.id || isLast}
                     title={isLast ? 'This is your only way to sign in' : undefined}
@@ -154,7 +174,7 @@ export function SignInMethods() {
                   </button>
                 ) : (
                   <button
-                    className="btn-link"
+                    className="btn-sm btn-ghost"
                     onClick={() => void link(p.id)}
                     disabled={busy === p.id}
                   >
@@ -167,39 +187,44 @@ export function SignInMethods() {
         </ul>
       )}
 
-      <div className="mt-6 border-t border-border pt-4">
-        <p className="text-sm">{hasPassword ? 'Change your password' : 'Add a password'}</p>
-        <p className="t-muted mt-1 text-[13px]">
-          {hasPassword
-            ? 'You can also sign in with a passkey, a link, or a code.'
-            : 'Optional - passkeys and email links work without one.'}
-        </p>
-        <div className="mt-3 flex flex-col gap-2">
-          {hasPassword ? (
+      <div className="auth-password-panel">
+        <span className="account-card-icon auth-password-icon" aria-hidden="true">
+          <Icon name="password" />
+        </span>
+        <div className="auth-password-content">
+          <h4>{hasPassword ? 'Password' : 'Add a password'}</h4>
+          <p className="t-muted">
+            {hasPassword
+              ? 'Change it here whenever you need to.'
+              : 'Optional if you prefer passkeys or email codes.'}
+          </p>
+          <div className="auth-password-fields">
+            {hasPassword ? (
+              <input
+                className="input"
+                type="password"
+                autoComplete="current-password"
+                placeholder="Current password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
+            ) : null}
             <input
               className="input"
               type="password"
-              autoComplete="current-password"
-              placeholder="Current password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
+              autoComplete="new-password"
+              placeholder={hasPassword ? 'New password' : 'Password'}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
             />
-          ) : null}
-          <input
-            className="input"
-            type="password"
-            autoComplete="new-password"
-            placeholder={hasPassword ? 'New password' : 'Password'}
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-          />
-          <button
-            className="btn-secondary self-start"
-            onClick={savePassword}
-            disabled={savingPassword || !newPassword || (hasPassword && !currentPassword)}
-          >
-            {hasPassword ? 'Change password' : 'Set password'}
-          </button>
+            <button
+              className="btn-secondary self-start"
+              onClick={savePassword}
+              disabled={savingPassword || !newPassword || (hasPassword && !currentPassword)}
+            >
+              {hasPassword ? 'Change password' : 'Set password'}
+            </button>
+          </div>
         </div>
       </div>
     </section>

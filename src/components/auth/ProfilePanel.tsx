@@ -129,10 +129,10 @@ export function ProfilePanel() {
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="rounded-xl border border-border bg-card p-6">
-        <p className="t-eyebrow">Profile</p>
+      <section className="account-security-card">
+        <h3>Public name</h3>
         <p className="t-muted mt-2 text-[13px]">
-          {user.email} - this is how your servers recognise you, so it cannot be changed here.
+          Choose the username other HearthShelf listeners see.
         </p>
 
         <label className="mt-4 block text-sm" htmlFor="account-username">
@@ -158,8 +158,8 @@ export function ProfilePanel() {
 
       <SignInMethods />
 
-      <section className="rounded-xl border border-border bg-card p-6">
-        <p className="t-eyebrow">Passkeys</p>
+      <section className="account-security-card">
+        <h3>Passkeys</h3>
         <p className="t-muted mt-2 text-[13px]">
           Sign in with your face, fingerprint, or screen lock - no password, nothing to remember.
         </p>
@@ -186,8 +186,8 @@ export function ProfilePanel() {
         </button>
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-6">
-        <p className="t-eyebrow">Two-factor</p>
+      <section className="account-security-card">
+        <h3>Two-factor authentication</h3>
         <p className="t-muted mt-2 text-[13px]">
           Ask for a code from your authenticator app as well as your usual sign-in.
         </p>

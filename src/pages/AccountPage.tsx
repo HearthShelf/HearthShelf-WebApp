@@ -47,7 +47,6 @@ type Section =
   | 'community'
   | 'account'
   | 'plan'
-  | 'profile'
   | 'connections'
   | 'developer'
 
@@ -55,7 +54,7 @@ const NAV: { label: string; items: { id: Section; icon: string; label: string }[
   {
     label: 'You',
     items: [
-      { id: 'account', icon: 'person', label: 'This server' },
+      { id: 'account', icon: 'person', label: 'Account' },
       { id: 'appearance', icon: 'palette', label: 'Appearance' },
       { id: 'notifications', icon: 'notifications', label: 'Notifications' },
     ],
@@ -86,7 +85,6 @@ const NAV: { label: string; items: { id: Section; icon: string; label: string }[
   {
     label: 'HearthShelf',
     items: [
-      { id: 'profile', icon: 'manage_accounts', label: 'Sign-in & security' },
       { id: 'servers', icon: 'dns', label: 'My servers' },
       { id: 'connections', icon: 'power', label: 'Connected apps' },
       { id: 'developer', icon: 'code', label: 'Developer' },
@@ -101,11 +99,9 @@ const NAV: { label: string; items: { id: Section; icon: string; label: string }[
  *    with quick-open (sets active) and unlink, plus link-a-server.
  *  - Subscription: the user's plan, read from the control plane's entitlement
  *    seam. Billing isn't wired yet, so Pro is a "coming soon" upsell.
- *  - Sign-in & security: the HearthShelf ACCOUNT - username, linked sign-in
- *    methods, passkeys, two-factor (see ProfilePanel). Distinct from the
- *    "This server" section, which edits your profile on ONE connected
- *    AudiobookShelf server (photo, Gravatar, that server's permissions). Both
- *    used to be called "Account", which is why they read as duplicates.
+ *  - Account: one user-facing HearthShelf identity. Hosted sign-in controls and
+ *    connected-library details live together; the implementation boundary is
+ *    not part of the navigation model.
  */
 const SECTIONS = NAV.flatMap((g) => g.items.map((i) => i.id))
 const DEFAULT_SECTION: Section = 'servers'
@@ -131,6 +127,10 @@ export function AccountPage({ menuMode = false }: { menuMode?: boolean }) {
   // both panes side by side.
   const mobileMenu = isMobile && menuMode
   const wrapMode = isMobile ? (mobileMenu ? ' cfg-menu' : ' cfg-detail') : ''
+
+  // Keep bookmarks and auth-provider callbacks from the former split page
+  // working while presenting a single Account destination from now on.
+  if (param === 'profile') return <Navigate to="/account/account" replace />
 
   const renderSection = () => {
     switch (section) {
@@ -173,11 +173,9 @@ export function AccountPage({ menuMode = false }: { menuMode?: boolean }) {
       case 'community':
         return <CommunitySettings />
       case 'account':
-        return <AccountSettings />
+        return <Account />
       case 'plan':
         return <Subscription />
-      case 'profile':
-        return <Profile />
       default:
         return <MyServers />
     }
@@ -368,7 +366,7 @@ function PlanLine({ on, children }: { on?: boolean; children: React.ReactNode })
   )
 }
 
-function Profile() {
+function Account() {
   const { signOut } = useAuth()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -391,39 +389,43 @@ function Profile() {
   }
 
   return (
-    <section>
-      <div className="section-head">
-        <Icon name="manage_accounts" />
-        <h2>Sign-in &amp; security</h2>
-      </div>
-      <ProfilePanel />
+    <div className="account-settings-stack">
+      <AccountSettings />
 
-      <div className="mt-8 rounded-xl border border-destructive/30 bg-card p-6">
-        <p className="t-eyebrow text-destructive">Danger zone</p>
-        <p className="t-muted mt-2 text-[13px]">
-          Permanently delete your HearthShelf account and everything tied to it: linked-server
-          pairings, plan info, remembered devices, and crash reports. This does not touch your own
-          self-hosted server.
-        </p>
-        <div className="mt-4">
-          <Button variant="destructive" onClick={() => setDialogOpen(true)}>
-            Delete my HearthShelf data
-          </Button>
+      <section>
+        <div className="section-head">
+          <Icon name="shield_person" />
+          <h2>Sign-in &amp; security</h2>
         </div>
-      </div>
+        <ProfilePanel />
 
-      {dialogOpen && (
-        <DeleteAccountDialog
-          busy={deleting}
-          error={deleteError}
-          onConfirm={handleConfirmDelete}
-          onCancel={() => {
-            if (deleting) return
-            setDialogOpen(false)
-            setDeleteError(null)
-          }}
-        />
-      )}
-    </section>
+        <div className="mt-8 rounded-xl border border-destructive/30 bg-card p-6">
+          <p className="t-eyebrow text-destructive">Danger zone</p>
+          <p className="t-muted mt-2 text-[13px]">
+            Permanently delete your HearthShelf account and everything tied to it: linked-server
+            pairings, plan info, remembered devices, and crash reports. This does not touch your own
+            self-hosted server.
+          </p>
+          <div className="mt-4">
+            <Button variant="destructive" onClick={() => setDialogOpen(true)}>
+              Delete my HearthShelf data
+            </Button>
+          </div>
+        </div>
+
+        {dialogOpen && (
+          <DeleteAccountDialog
+            busy={deleting}
+            error={deleteError}
+            onConfirm={handleConfirmDelete}
+            onCancel={() => {
+              if (deleting) return
+              setDialogOpen(false)
+              setDeleteError(null)
+            }}
+          />
+        )}
+      </section>
+    </div>
   )
 }
