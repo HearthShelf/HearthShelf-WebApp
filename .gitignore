@@ -38,3 +38,4 @@ pnpm-debug.log*
 # Local-only agent notes
 CLAUDE.local.md
 auth-service/tail.json
+auth-service/.schema*.sql
