@@ -116,8 +116,18 @@ export function SignInForm({ redirectUrl = '/' }: { redirectUrl?: string }) {
     })
   }
 
+  // No navigation of our own afterwards - and this is load-bearing. The auth
+  // client's own redirect hook sends the browser to the provider the moment
+  // the POST returns `{ url, redirect: true }`. If we ALSO set location.href
+  // (as the default completion does), ours wins the race: the user lands on
+  // "/", the auth gate finds no session, and they are bounced straight back
+  // here having never seen Google at all. That was the entire original bug.
   const onSocial = (provider: string, label: string) => () =>
-    run(label, () => authClient.signIn.social({ provider, callbackURL: absoluteReturnUrl }))
+    run(
+      label,
+      () => authClient.signIn.social({ provider, callbackURL: absoluteReturnUrl }),
+      () => {},
+    )
 
   function onMagicLink() {
     if (!email.trim()) return setError('Enter your email first')
