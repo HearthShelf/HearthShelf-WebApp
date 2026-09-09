@@ -94,11 +94,10 @@ for (const u of seed) {
     accountCount++
     // id is deterministic so re-running cannot create duplicate rows.
     const rowId = `legacy_${u.legacyId}_${link.provider}`
-    // `issuer` is REQUIRED and participates in the (issuer, accountId) unique
-    // index; Better Auth uses the provider id as the issuer for social logins.
+    // Better Auth matches a returning social login on (providerId, accountId).
     statements.push(
-      `insert into "account" ("id","issuer","accountId","providerId","userId","createdAt","updatedAt")
-       values (${q(rowId)}, ${q(link.provider)}, ${q(link.providerAccountId)}, ${q(link.provider)}, ${q(u.legacyId)}, ${q(created)}, ${q(now)})
+      `insert into "account" ("id","accountId","providerId","userId","createdAt","updatedAt")
+       values (${q(rowId)}, ${q(link.providerAccountId)}, ${q(link.provider)}, ${q(u.legacyId)}, ${q(created)}, ${q(now)})
        on conflict("id") do update set
          "accountId" = excluded."accountId",
          "updatedAt" = excluded."updatedAt";`,
