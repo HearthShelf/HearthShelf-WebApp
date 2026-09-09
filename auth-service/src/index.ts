@@ -9,6 +9,7 @@
  * would let any site drive a signed-in user's browser against this service.
  */
 import { createAuth } from './auth'
+import { describeError, reportError } from './logs'
 import type { Env } from './types'
 
 function allowed(env: Env): string[] {
@@ -54,8 +55,38 @@ export default {
     }
 
     if (url.pathname.startsWith('/api/auth/')) {
-      const auth = await createAuth(env)
-      const res = await auth.handler(req)
+      let res: Response
+      try {
+        const auth = await createAuth(env)
+        res = await auth.handler(req)
+      } catch (err) {
+        // A throw here is a startup or configuration fault, not a bad request:
+        // it fails EVERY call, not one. Reported rather than left to a 1101 in
+        // the dashboard that nobody is watching.
+        const { message, stack } = describeError(err)
+        await reportError(env, {
+          severity: 'error',
+          event: 'auth_handler_threw',
+          message,
+          detail: { path: url.pathname, stack },
+        })
+        return new Response(JSON.stringify({ error: 'auth_unavailable' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...cors },
+        })
+      }
+
+      // A 5xx from the handler itself is equally invisible otherwise. 4xx is
+      // ordinary traffic (a wrong code, an expired link) and stays unreported.
+      if (res.status >= 500) {
+        await reportError(env, {
+          severity: 'error',
+          event: 'auth_handler_5xx',
+          message: `${res.status} on ${url.pathname}`,
+          detail: { path: url.pathname, status: res.status },
+        })
+      }
+
       const headers = new Headers(res.headers)
       for (const [k, v] of Object.entries(cors)) {
         // Merge rather than overwrite: the bearer plugin adds its own
@@ -75,6 +106,15 @@ export default {
         headers.set(k, v)
       }
       return new Response(res.body, { status: res.status, headers })
+    }
+
+    // A person who lands on this host is lost - it is an identity API with no
+    // pages of its own, and a bare 404 reads as "HearthShelf is down". Send them
+    // to the app instead. Only browser navigations: an API client hitting a
+    // wrong path still gets an honest 404 rather than a confusing redirect.
+    if (req.method === 'GET' && (req.headers.get('Accept') ?? '').includes('text/html')) {
+      const appOrigin = allowed(env)[0] ?? 'https://app.hearthshelf.com'
+      return Response.redirect(appOrigin, 302)
     }
 
     return new Response('Not found', { status: 404, headers: cors })

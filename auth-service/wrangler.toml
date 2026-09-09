@@ -25,6 +25,14 @@ database_name = "hearthshelf-auth"
 database_id = "8c2c3559-ab26-42c7-9c0e-014a85f0d34c"
 migrations_dir = "migrations"
 
+# Service binding to the isolated log-collector Worker, so a failure in this
+# service lands in the same viewer as the rest of the fleet's. Worker-to-worker,
+# no public hop. Without it, a fatal here is only visible to whoever happens to
+# be running `wrangler tail` at the time.
+[[services]]
+binding = "LOG_COLLECTOR"
+service = "hearthshelf-log-collector"
+
 [vars]
 # Public origin of THIS Worker. Better Auth builds callback URLs from it.
 BETTER_AUTH_URL = "https://auth.hearthshelf.com"
@@ -51,6 +59,9 @@ COOKIE_DOMAIN = ".hearthshelf.com"
 EMAIL_FROM = "no-reply@hearthshelf.com"
 
 # Secrets (set via `wrangler secret put <NAME>`), never committed:
+#   LOG_INGEST_TOKEN      - shared token for the log-collector's internal ingest
+#                           route (the x-cp-forward header); same value as the
+#                           collector's own secret.
 #   BETTER_AUTH_SECRET    - session signing/encryption key. Rotating it signs
 #                           everyone out and voids pending magic links.
 #   RESEND_API_KEY        - mail delivery. Email is an AUTHENTICATION path here:

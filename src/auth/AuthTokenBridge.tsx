@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useAuth } from './useAuth'
 import { clearBearerToken, getBearerToken } from './bearerToken'
+import { authBreadcrumb, reportSessionExpired } from '@/lib/sentry'
 import { setAuthTokenGetter } from '@/lib/authToken'
 import { setSessionExpiredHandler } from '@/api/controlPlane'
 
@@ -24,9 +25,13 @@ export function AuthTokenBridge() {
     if (!isLoaded) return
     setAuthTokenGetter(() => getBearerToken())
     setSessionExpiredHandler(() => {
+      // Reported, not silent: this is the single symptom every auth
+      // misconfiguration produces, so its rate is the outage signal.
+      reportSessionExpired(window.location.pathname)
       clearBearerToken()
       void signOut({ redirectUrl: '/sign-in?reason=expired' })
     })
+    authBreadcrumb('auth bridge ready')
   }, [isLoaded, signOut])
 
   return null

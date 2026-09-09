@@ -1,4 +1,9 @@
 export interface Env {
+  /** Service binding to the isolated log-collector Worker, so a failure here is
+   *  visible in the same viewer as the rest of the fleet's. Absent in local dev;
+   *  callers treat it as optional and degrade to a no-op. */
+  LOG_COLLECTOR?: Fetcher
+
   /** The auth service's own identity database - users, sessions, accounts,
    *  passkeys, 2FA secrets. Deliberately SEPARATE from the control plane's DB:
    *  this Worker is the only thing that ever holds credential material. */
@@ -29,6 +34,9 @@ export interface Env {
   EMAIL_FROM: string
 
   // secrets (wrangler secret put)
+  /** Shared token for the log-collector's internal ingest route (the
+   *  x-cp-forward header). Same value as the collector's secret. */
+  LOG_INGEST_TOKEN?: string
   /** Better Auth's signing/encryption secret. Rotating it invalidates every
    *  active session and every pending magic link. */
   BETTER_AUTH_SECRET: string

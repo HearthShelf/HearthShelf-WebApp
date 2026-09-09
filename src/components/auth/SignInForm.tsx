@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { authClient } from '@/auth/client'
 import { rememberBearerToken } from '@/auth/bearerToken'
+import { authBreadcrumb } from '@/lib/sentry'
 import {
   AppleIcon,
   DiscordIcon,
@@ -56,16 +57,20 @@ export function SignInForm({ redirectUrl = '/' }: { redirectUrl?: string }) {
     if (busy) return
     setBusy(true)
     setError(null)
+    authBreadcrumb('sign-in attempt', { method: label })
     try {
       const res = await fn()
       const failure = res && 'error' in res ? res.error : null
       if (failure) {
+        authBreadcrumb('sign-in rejected', { method: label, message: failure.message })
         setError(failure.message || `${label} did not complete`)
         return
       }
+      authBreadcrumb('sign-in accepted', { method: label })
       if (onDone) onDone()
       else window.location.href = redirectUrl
     } catch (e) {
+      authBreadcrumb('sign-in threw', { method: label, message: (e as Error)?.message })
       setError((e as Error)?.message || `${label} failed`)
     } finally {
       setBusy(false)

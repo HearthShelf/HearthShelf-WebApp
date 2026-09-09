@@ -22,6 +22,8 @@
  * stolen session that outlives the tab. The cost is one fetch per page load,
  * which is the correct trade.
  */
+import { authBreadcrumb } from '@/lib/sentry'
+
 const AUTH_SERVICE_URL =
   (import.meta.env.VITE_AUTH_SERVICE_URL as string | undefined) ?? 'https://auth.hearthshelf.com'
 
@@ -56,14 +58,22 @@ export async function getBearerToken(): Promise<string | null> {
         credentials: 'include',
         headers: { Accept: 'application/json' },
       })
-      if (!res.ok) return null
+      if (!res.ok) {
+        authBreadcrumb('token fetch failed', { status: res.status })
+        return null
+      }
 
       // The bearer plugin stamps the token on the response of any authenticated
       // request. A signed-out visitor gets a 200 with a null body and no
       // header, which correctly yields null rather than an error.
       cached = res.headers.get('set-auth-token')
+      // A 200 with no header means either "signed out" (fine) or "the header is
+      // not exposed to us cross-origin" (a misconfiguration that silently
+      // breaks every authenticated call) - worth being able to tell apart.
+      if (!cached) authBreadcrumb('token fetch returned no set-auth-token header')
       return cached
-    } catch {
+    } catch (e) {
+      authBreadcrumb('token fetch threw', { message: (e as Error)?.message })
       return null
     } finally {
       inFlight = null
