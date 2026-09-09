@@ -42,6 +42,7 @@ export function useProviderAvatarSync(): {
 } {
   const { user, isLoaded } = useUser()
   const { target } = useActiveServer()
+  const imageUrl = user?.imageUrl ?? null
   const queryClient = useQueryClient()
   const [syncing, setSyncing] = useState(false)
   const [lastResult, setLastResult] = useState<AvatarSyncResult | null>(null)
@@ -51,8 +52,7 @@ export function useProviderAvatarSync(): {
   const run = useCallback(
     async (force: boolean): Promise<AvatarSyncResult> => {
       if (inFlight.current) return { ok: false, reason: 'request_failed' }
-      if (!isLoaded || !user || !target) return { ok: false, reason: 'no_abs_user' }
-      const imageUrl = user.imageUrl
+      if (!isLoaded || !target) return { ok: false, reason: 'no_abs_user' }
       if (!imageUrl) {
         const result: AvatarSyncResult = { ok: false, reason: 'no_photo' }
         setLastResult(result)
@@ -95,13 +95,28 @@ export function useProviderAvatarSync(): {
         setSyncing(false)
       }
     },
-    [isLoaded, user, target, queryClient],
+    [isLoaded, imageUrl, target, queryClient],
   )
 
   // Silent auto-sync on load / when the photo or active server changes.
+  //
+  // Keyed on the VALUES that matter, not on `run`. `run` is rebuilt whenever any
+  // of its deps change identity, and each auto-run sets a fresh `lastResult`
+  // object - so depending on `run` let a consumer that re-renders on
+  // `lastResult` (the Account page's Advanced panel) drive this in a loop:
+  // sync -> new lastResult -> re-render -> sync. That loop fired a cache-busted
+  // avatar request every iteration until the browser ran out of sockets
+  // (ERR_INSUFFICIENT_RESOURCES), starving every other request on the page -
+  // including the server connect, which left the app stuck on "Connecting...".
+  const ranFor = useRef<string | null>(null)
   useEffect(() => {
+    if (!isLoaded || !target || !imageUrl) return
+    const key = `${target.serverId}:${imageUrl}`
+    if (ranFor.current === key) return
+    ranFor.current = key
     void run(false)
-  }, [run])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, target?.serverId, imageUrl])
 
   const sync = useCallback(() => run(true), [run])
   return { sync, syncing, lastResult }

@@ -361,6 +361,8 @@ function AdvancedPanel({
   const set = useSettingsStore((s) => s.set)
   const [copied, setCopied] = useState(false)
   const [probe, setProbe] = useState<AvatarProbeResult | 'loading' | null>(null)
+  // A stable stand-in for `lastResult`'s identity - see the effect's dep note.
+  const lastResultKey = lastResult ? (lastResult.ok ? 'ok' : lastResult.reason) : 'none'
 
   // Probe the live GET route only while the panel is open, so it's not a
   // background request on every Account page visit. Re-probes whenever the
@@ -376,7 +378,10 @@ function AdvancedPanel({
     return () => {
       cancelled = true
     }
-  }, [showAdvanced, target, absUserId, avatarVersion, lastResult])
+    // `lastResult` is deliberately reduced to a primitive: it is a fresh object
+    // on every sync, so depending on it directly re-fired this probe forever.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAdvanced, target, absUserId, avatarVersion, lastResultKey])
 
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
   const detected = isCarBrowser()
