@@ -19260,3 +19260,151 @@ select.fld {
   opacity: 0.4;
   cursor: default;
 }
+
+/* =====================================================================
+   Sign-in
+   =====================================================================
+   The sign-in buttons stand alone: this page renders before the app shell,
+   so it cannot lean on any list or card context for its sizing. Every
+   method gets the same full-width pill with a fixed leading icon slot, so
+   the labels line up in a column no matter how wide the brand mark is.
+   ===================================================================== */
+
+.auth-btn {
+  font-family: inherit;
+  width: 100%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 13px 18px;
+  border-radius: var(--r-card);
+  border: 1px solid transparent;
+  color: var(--text);
+  background: var(--fill);
+  transition:
+    background 0.18s,
+    border-color 0.18s,
+    transform 0.12s,
+    box-shadow 0.18s;
+}
+
+/* The icon sits in a fixed-width slot and the label takes the rest, so
+   labels align down the column instead of centering per-button. */
+.auth-btn > svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+.auth-btn > span {
+  flex: 1;
+  text-align: center;
+  /* Balance the icon slot so the label is centered on the button, not on
+     the space left over beside the icon. */
+  margin-right: 32px;
+}
+
+.auth-btn:active {
+  transform: scale(0.985);
+}
+.auth-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.auth-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+}
+
+/* Passkey: the method we want people to reach for, so it wears the accent. */
+.auth-btn-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: 0 8px 24px color-mix(in oklab, var(--primary) 30%, transparent);
+}
+.auth-btn-primary:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--primary) 88%, #fff);
+}
+
+/* Everything else: a quiet outlined pill that lets the brand mark carry the
+   recognition rather than a colored fill per vendor. */
+.auth-btn-provider {
+  background: var(--fill);
+  border-color: var(--hairline);
+}
+.auth-btn-provider:hover:not(:disabled) {
+  background: var(--fill-strong);
+  border-color: color-mix(in oklab, var(--text) 22%, transparent);
+}
+
+/* The Apple mark is a solid silhouette with no color of its own, so it takes
+   the button's text color to stay legible in both themes. */
+.auth-btn-apple > svg {
+  color: var(--text);
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim, var(--muted-foreground));
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--hairline);
+}
+
+.auth-input {
+  font-family: inherit;
+  width: 100%;
+  font-size: 15px;
+  padding: 12px 14px;
+  border-radius: var(--r-card);
+  border: 1px solid var(--hairline);
+  background: var(--fill);
+  color: var(--text);
+}
+.auth-input::placeholder {
+  color: var(--muted-foreground);
+}
+.auth-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 22%, transparent);
+}
+
+.auth-link {
+  font-family: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  padding: 6px;
+  border-radius: 8px;
+}
+.auth-link:hover:not(:disabled) {
+  color: var(--text);
+}
+.auth-link:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* The later steps (magic link, codes) have no leading icon, so they center
+   their own label rather than balancing an icon slot that isn't there. */
+.auth-btn-plain {
+  justify-content: center;
+}

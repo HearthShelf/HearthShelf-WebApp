@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import { authClient } from '@/auth/client'
 import { rememberBearerToken } from '@/auth/bearerToken'
+import {
+  AppleIcon,
+  DiscordIcon,
+  GoogleIcon,
+  MailIcon,
+  PasskeyIcon,
+} from '@/components/auth/ProviderIcons'
 
 /**
  * The sign-in form.
@@ -22,9 +29,9 @@ import { rememberBearerToken } from '@/auth/bearerToken'
 type Step = 'choose' | 'email' | 'magic-sent' | 'otp' | 'two-factor'
 
 const PROVIDERS = [
-  { id: 'google', label: 'Continue with Google' },
-  { id: 'apple', label: 'Continue with Apple' },
-  { id: 'discord', label: 'Continue with Discord' },
+  { id: 'google', label: 'Continue with Google', Icon: GoogleIcon, className: '' },
+  { id: 'apple', label: 'Continue with Apple', Icon: AppleIcon, className: ' auth-btn-apple' },
+  { id: 'discord', label: 'Continue with Discord', Icon: DiscordIcon, className: '' },
 ] as const
 
 export function SignInForm({ redirectUrl = '/' }: { redirectUrl?: string }) {
@@ -136,21 +143,29 @@ export function SignInForm({ redirectUrl = '/' }: { redirectUrl?: string }) {
     <div className="flex w-full max-w-sm flex-col gap-3">
       {step === 'choose' && (
         <>
-          <button className="btn-primary" onClick={onPasskey} disabled={busy}>
-            Sign in with a passkey
+          <button className="auth-btn auth-btn-primary" onClick={onPasskey} disabled={busy}>
+            <PasskeyIcon />
+            <span>Sign in with a passkey</span>
           </button>
+          <div className="auth-divider">or</div>
           {PROVIDERS.map((p) => (
             <button
               key={p.id}
-              className="btn-secondary"
+              className={`auth-btn auth-btn-provider${p.className}`}
               onClick={onSocial(p.id, `${p.label} sign-in`)}
               disabled={busy}
             >
-              {p.label}
+              <p.Icon />
+              <span>{p.label}</span>
             </button>
           ))}
-          <button className="btn-secondary" onClick={() => setStep('email')} disabled={busy}>
-            Continue with email
+          <button
+            className="auth-btn auth-btn-provider"
+            onClick={() => setStep('email')}
+            disabled={busy}
+          >
+            <MailIcon />
+            <span>Continue with email</span>
           </button>
           {errorBanner}
         </>
@@ -163,7 +178,7 @@ export function SignInForm({ redirectUrl = '/' }: { redirectUrl?: string }) {
           </label>
           <input
             id="signin-email"
-            className="input"
+            className="auth-input"
             type="email"
             autoComplete="email"
             placeholder="you@example.com"
@@ -171,13 +186,17 @@ export function SignInForm({ redirectUrl = '/' }: { redirectUrl?: string }) {
             onChange={(e) => setEmail(e.target.value)}
           />
           {errorBanner}
-          <button className="btn-primary" onClick={onMagicLink} disabled={busy}>
+          <button
+            className="auth-btn auth-btn-primary auth-btn-plain"
+            onClick={onMagicLink}
+            disabled={busy}
+          >
             Email me a link
           </button>
-          <button className="btn-link" onClick={onSendCode} disabled={busy}>
+          <button className="auth-link" onClick={onSendCode} disabled={busy}>
             Prefer a code? Send one
           </button>
-          <button className="btn-link" onClick={back('choose')} disabled={busy}>
+          <button className="auth-link" onClick={back('choose')} disabled={busy}>
             Back to all sign-in options
           </button>
         </>
@@ -189,10 +208,14 @@ export function SignInForm({ redirectUrl = '/' }: { redirectUrl?: string }) {
             We sent a sign-in link to {email}. Open it in this browser and you are in.
           </p>
           {errorBanner}
-          <button className="btn-secondary" onClick={onSendCode} disabled={busy}>
+          <button
+            className="auth-btn auth-btn-provider auth-btn-plain"
+            onClick={onSendCode}
+            disabled={busy}
+          >
             Send a code instead
           </button>
-          <button className="btn-link" onClick={back('email')} disabled={busy}>
+          <button className="auth-link" onClick={back('email')} disabled={busy}>
             Use a different email
           </button>
         </>
@@ -207,7 +230,7 @@ export function SignInForm({ redirectUrl = '/' }: { redirectUrl?: string }) {
           </label>
           <input
             id="signin-code"
-            className="input tracking-[0.4em]"
+            className="auth-input tracking-[0.4em]"
             inputMode="numeric"
             maxLength={6}
             autoComplete="one-time-code"
@@ -217,13 +240,13 @@ export function SignInForm({ redirectUrl = '/' }: { redirectUrl?: string }) {
           />
           {errorBanner}
           <button
-            className="btn-primary"
+            className="auth-btn auth-btn-primary auth-btn-plain"
             onClick={step === 'otp' ? onVerifyCode : onVerifyTwoFactor}
             disabled={busy}
           >
             {step === 'otp' ? 'Sign in' : 'Verify'}
           </button>
-          <button className="btn-link" onClick={back('choose')} disabled={busy}>
+          <button className="auth-link" onClick={back('choose')} disabled={busy}>
             Back to all sign-in options
           </button>
         </>
