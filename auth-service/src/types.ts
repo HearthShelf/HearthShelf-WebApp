@@ -46,8 +46,20 @@ export interface Env {
   RESEND_API_KEY: string
   GOOGLE_CLIENT_ID?: string
   GOOGLE_CLIENT_SECRET?: string
+  /** Extra Google OAuth client IDs to ACCEPT as an id-token audience, comma
+   *  separated. Native sign-in mints its token against the platform client
+   *  (Android / iOS), so its `aud` is NOT GOOGLE_CLIENT_ID (the web client) and
+   *  verification rejects it unless that platform id is listed here. These are
+   *  public values - a Google client id ships inside every app bundle - and only
+   *  widen which audience is accepted, never which secret can mint one.
+   *  GOOGLE_CLIENT_ID stays first so the browser flow keeps using it. */
+  GOOGLE_NATIVE_CLIENT_IDS?: string
   /** Apple SERVICES ID (the web sign-in identifier), not the app bundle id. */
   APPLE_CLIENT_ID?: string
+  /** The iOS app BUNDLE ID (e.g. com.hearthshelf.mobile). Apple's native sheet
+   *  issues an id token whose `aud` is the bundle id rather than the services
+   *  id, so native Apple sign-in fails verification unless this is set. */
+  APPLE_APP_BUNDLE_ID?: string
   /** A pre-signed Apple client secret. Optional override - when unset, one is
    *  minted per request from the .p8 below, which is the preferred path since
    *  Apple caps a signed secret at six months and this has nothing to expire. */

@@ -27,6 +27,7 @@
  * migrated account.
  */
 import { betterAuth } from 'better-auth'
+import { createAuthMiddleware } from 'better-auth/api'
 import { D1Dialect } from 'kysely-d1'
 import { bearer, emailOTP, magicLink, multiSession, twoFactor, username } from 'better-auth/plugins'
 import { passkey } from '@better-auth/passkey'
@@ -65,6 +66,20 @@ export async function createAuth(env: Env) {
   // Minted per request from the .p8 when no pre-signed secret is set, so there
   // is no six-month rotation to remember. See ./appleSecret.ts.
   const appleClientSecret = await getAppleClientSecret(env)
+
+  // Every Google client id we will accept as an id-token audience. The web id
+  // leads: it is the one the browser redirect flow authorizes with, and Better
+  // Auth reads the head of the array for that. The extras exist only so a token
+  // minted by the OS account picker (whose `aud` is the Android or iOS client
+  // id) can pass verification.
+  const googleClientIds = [
+    env.GOOGLE_CLIENT_ID,
+    ...(env.GOOGLE_NATIVE_CLIENT_IDS || '').split(','),
+  ]
+    .map((id) => id?.trim())
+    .filter((id): id is string => !!id)
+    // A duplicate audience is harmless but makes the config confusing to read.
+    .filter((id, i, all) => all.indexOf(id) === i)
 
   const mail = (to: string, subject: string, text: string) =>
     sendMail({ apiKey: env.RESEND_API_KEY, from: env.EMAIL_FROM, to, subject, text })
@@ -138,14 +153,41 @@ export async function createAuth(env: Env) {
 
     socialProviders: {
       ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
-        ? { google: { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET } }
+        ? {
+            google: {
+              // An ARRAY, not a single id, because the phone signs in natively.
+              // The OS account picker mints its id token against the platform
+              // client (Android / iOS), so the token's `aud` is that client id
+              // and not the web one - and audience verification is exact, so a
+              // lone web id rejects every native sign-in. The web id stays FIRST
+              // because it is also the id the browser redirect flow authorizes
+              // with (getPrimaryClientId takes the head of the array); the rest
+              // only widen what may be presented for verification.
+              clientId: googleClientIds,
+              clientSecret: env.GOOGLE_CLIENT_SECRET,
+            },
+          }
         : {}),
       // Apple MUST stay on the same developer team as the Clerk setup. Apple's
       // `sub` and its Private Relay addresses are issued per team, so a new team
       // would hand us a different subject for the same human and orphan the
       // seeded link for every relay user.
       ...(env.APPLE_CLIENT_ID && appleClientSecret
-        ? { apple: { clientId: env.APPLE_CLIENT_ID, clientSecret: appleClientSecret } }
+        ? {
+            apple: {
+              clientId: env.APPLE_CLIENT_ID,
+              clientSecret: appleClientSecret,
+              // Native "Sign in with Apple" issues a token addressed to the app
+              // BUNDLE id, while the browser flow addresses the SERVICES id.
+              // Accept both, or one of the two flows always fails verification.
+              ...(env.APPLE_APP_BUNDLE_ID
+                ? {
+                    appBundleIdentifier: env.APPLE_APP_BUNDLE_ID,
+                    audience: [env.APPLE_CLIENT_ID, env.APPLE_APP_BUNDLE_ID],
+                  }
+                : {}),
+            },
+          }
         : {}),
       ...(env.DISCORD_CLIENT_ID && env.DISCORD_CLIENT_SECRET
         ? { discord: { clientId: env.DISCORD_CLIENT_ID, clientSecret: env.DISCORD_CLIENT_SECRET } }
@@ -162,6 +204,24 @@ export async function createAuth(env: Env) {
         enabled: true,
         trustedProviders: ['google', 'apple', 'discord'],
       },
+    },
+
+    // Hand the caller its own session token on every get-session, as the
+    // `set-auth-token` header. The bearer plugin only stamps that header on
+    // responses that SET a session cookie - i.e. the sign-in response - and a
+    // social sign-in's "response" is a redirect the app never gets to read.
+    // So an OAuth-established session had no way to obtain a bearer token for
+    // the control plane (a different origin, which the HttpOnly cookie never
+    // reaches): every control-plane call went out without one and 401'd, and a
+    // freshly signed-in user saw an empty server list and "not signed in".
+    // The value is the signed cookie the bearer plugin already accepts.
+    hooks: {
+      after: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== '/get-session') return
+        const name = ctx.context.authCookies.sessionToken.name
+        const value = ctx.getCookie(name)
+        if (value) ctx.setHeader('set-auth-token', value)
+      }),
     },
 
     plugins: [

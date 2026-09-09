@@ -58,6 +58,23 @@ COOKIE_DOMAIN = ".hearthshelf.com"
 # From: address for OTP + magic-link mail.
 EMAIL_FROM = "no-reply@hearthshelf.com"
 
+# Extra Google OAuth client ids accepted as an id-token AUDIENCE, comma
+# separated (Android, then iOS). Native sign-in uses the OS account picker,
+# which mints its id token against the platform client - so the token's `aud`
+# is one of these and not GOOGLE_CLIENT_ID (the web client). Audience checking
+# is exact, so without these every native sign-in fails verification.
+#
+# Committed rather than a secret: an OAuth client ID is public by design and
+# ships inside the app bundle. Only the client SECRET is confidential, and it
+# is not here. Listing an id widens what may be PRESENTED for verification,
+# never what can mint a token.
+GOOGLE_NATIVE_CLIENT_IDS = "177026646968-r13c46b7ia9dgvsbjoq8c7aom9137ust.apps.googleusercontent.com,177026646968-rprkhf1i7dbdcfqgf717dgp0d7g06f4l.apps.googleusercontent.com"
+
+# The iOS app bundle id. Apple's native sheet addresses its id token to the
+# BUNDLE id while the browser flow addresses the SERVICES id (APPLE_CLIENT_ID);
+# both must be accepted or one of the two flows always fails.
+APPLE_APP_BUNDLE_ID = "com.hearthshelf.mobile"
+
 # Secrets (set via `wrangler secret put <NAME>`), never committed:
 #   LOG_INGEST_TOKEN      - shared token for the log-collector's internal ingest
 #                           route (the x-cp-forward header); same value as the
