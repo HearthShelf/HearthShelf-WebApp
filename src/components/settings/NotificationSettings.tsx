@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { NotifyChannel, NotifyType } from '@hearthshelf/core'
 import { resolveChannels } from '@hearthshelf/core'
 import { Icon } from '@/components/common/Icon'
@@ -11,6 +13,20 @@ const CHANNEL_OPTIONS: { id: NotifyChannel; label: string }[] = [
   { id: 'email', label: 'Email' },
 ]
 
+const EMAIL_TYPE_LABELS: Record<NotifyType, string> = {
+  release: 'book update',
+  mention: 'mention',
+  clubInvite: 'book club invitation',
+  reaction: 'reaction',
+  reply: 'reply',
+  rating: 'finished-book rating',
+  lateNote: 'heard-part comment',
+}
+
+function notifyType(value: string | null): NotifyType | null {
+  return value && value in EMAIL_TYPE_LABELS ? (value as NotifyType) : null
+}
+
 /**
  * Delivery is global; each category sits under it.
  *
@@ -22,6 +38,9 @@ const CHANNEL_OPTIONS: { id: NotifyChannel; label: string }[] = [
 export function NotificationSettings() {
   const s = useSettingsStore()
   const prefs = s.notifyPrefs
+  const [params, setParams] = useSearchParams()
+  const requestedDisable = notifyType(params.get('disableEmail'))
+  const [justDisabled, setJustDisabled] = useState<NotifyType | null>(null)
 
   const setGlobal = (channel: NotifyChannel, on: boolean) => {
     const global = { ...prefs.global, [channel]: on }
@@ -48,6 +67,24 @@ export function NotificationSettings() {
       ...prefs,
       types: { ...prefs.types, [type]: { ...prefs.types[type], channels } },
     })
+  }
+
+  const clearDisableRequest = () => {
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.delete('disableEmail')
+        return next
+      },
+      { replace: true },
+    )
+  }
+
+  const disableRequestedEmail = () => {
+    if (!requestedDisable) return
+    setTypeChannel(requestedDisable, 'email', false)
+    setJustDisabled(requestedDisable)
+    clearDisableRequest()
   }
 
   // A channel switched off globally can't be turned on for one type - the
@@ -110,6 +147,37 @@ export function NotificationSettings() {
       <p className="t-muted mb-4 text-[13px]">
         Pick where HearthShelf reaches you, then choose what's worth reaching you about.
       </p>
+
+      {requestedDisable && (
+        <div className="email-optout-card" role="region" aria-label="Email preference shortcut">
+          <div className="email-optout-icon" aria-hidden="true">
+            <Icon name="unsubscribe" />
+          </div>
+          <div className="email-optout-copy">
+            <div className="sr-t">Turn off {EMAIL_TYPE_LABELS[requestedDisable]} emails?</div>
+            <div className="sr-d">
+              In-app and push alerts for this type will stay exactly as they are.
+            </div>
+          </div>
+          <div className="email-optout-actions">
+            <button className="btn btn-primary" onClick={disableRequestedEmail}>
+              Turn off these emails
+            </button>
+            <button className="btn" onClick={clearDisableRequest}>
+              Keep them on
+            </button>
+          </div>
+        </div>
+      )}
+
+      {justDisabled && (
+        <div className="email-optout-confirm" role="status">
+          <Icon name="check_circle" fill />
+          {EMAIL_TYPE_LABELS[justDisabled][0].toUpperCase() +
+            EMAIL_TYPE_LABELS[justDisabled].slice(1)}{' '}
+          emails are off. Your other notification choices did not change.
+        </div>
+      )}
 
       <div className="cn-label">Delivery</div>
       <div className="set-group">

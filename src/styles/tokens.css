@@ -148,7 +148,8 @@
   --accent: #322f2b;
   --accent-foreground: #f4f1ea;
 
-  --destructive: #e0654a;
+  /* Danger must never share the warm coral used for ordinary primary actions. */
+  --destructive: #c4463a;
   --destructive-foreground: #fffaf6;
 
   --border: #383530;

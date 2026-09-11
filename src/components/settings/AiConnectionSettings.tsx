@@ -6,18 +6,24 @@ import { MCP_URL } from '@/lib/config'
 /**
  * "Connect an AI app" - the setup surface for the HearthShelf MCP server.
  *
- * WHY THIS IS COPY-AND-GO RATHER THAN A TRUE ONE-CLICK BUTTON: AI clients do not
- * (as of writing) expose a deeplink that pre-fills a custom connector's URL.
- * Claude's documented path is Settings > Connectors > Add custom connector >
- * paste the URL. So the most we can remove is the *finding* and *typing*: this
- * puts the exact URL one click away on the clipboard and links straight to the
- * right settings screen. Everything after that - sign-in, consent, tokens - is
- * handled by OAuth and needs no user input.
+ * WHY THIS IS COPY-AND-GO RATHER THAN A TRUE ONE-CLICK BUTTON: neither Claude
+ * nor ChatGPT exposes a deeplink that pre-fills a custom connector's URL. For
+ * Claude this is not merely undocumented - its deeplink handler drops every
+ * query parameter outside a fixed allowlist, so a `?url=` would be silently
+ * discarded. Both apps' documented path is the same shape: open connector
+ * settings, add a custom connector, paste the URL. So the most we can remove is
+ * the *finding* and *typing*: this puts the exact URL one click away on the
+ * clipboard and links straight to the right settings screen. Everything after
+ * that - sign-in, consent, tokens - is handled by OAuth and needs no user input.
  *
  * If a client ever ships an install deeplink, this is the one place to add it.
+ * (Cursor and VS Code do have real install-link schemes, if those ever become
+ * clients worth listing here.)
  */
 
-const CLAUDE_CONNECTORS_URL = 'https://claude.ai/settings/connectors'
+// Claude moved off /settings/connectors; individual plans now use /customize.
+const CLAUDE_CONNECTORS_URL = 'https://claude.ai/customize/connectors'
+const CHATGPT_CONNECTORS_URL = 'https://chatgpt.com/#settings/Connectors'
 
 export function AiConnectionSettings() {
   const [copied, setCopied] = useState(false)
@@ -47,7 +53,8 @@ export function AiConnectionSettings() {
           <div className="cl-meta" style={{ flex: 1 }}>
             <div className="cl-t">Talk to an AI app about your books</div>
             <div className="cl-d">
-              Connect Claude (or any app that supports MCP) to your library, then ask things like
+              Connect Claude, ChatGPT or any other app that supports MCP to your library, then ask
+              things like
               "would I like this book?", "what should I read next?" or "do I already own this?". It
               can read your library, reading history and stats - it cannot change, delete or upload
               anything.
@@ -82,32 +89,88 @@ export function AiConnectionSettings() {
         </div>
       </div>
 
-      <div className="cfg-card" style={{ marginTop: '.75rem' }}>
-        <div className="cfg-line" style={{ alignItems: 'flex-start' }}>
-          <Icon name="checklist" style={{ color: 'var(--text-muted)' }} />
-          <div className="cl-meta" style={{ flex: 1 }}>
-            <div className="cl-t">Setting it up in Claude</div>
-            <div className="cl-d">
-              <ol style={{ margin: '.4rem 0 0', paddingLeft: '1.1rem', lineHeight: 1.8 }}>
-                <li>Copy the address above.</li>
-                <li>
-                  Open{' '}
-                  <a href={CLAUDE_CONNECTORS_URL} target="_blank" rel="noreferrer noopener">
-                    Claude's connector settings
-                  </a>
-                  .
-                </li>
-                <li>Choose "Add custom connector" and paste the address.</li>
-                <li>Sign in with HearthShelf and press Connect.</li>
-              </ol>
-              <p style={{ margin: '.7rem 0 0' }}>
-                Custom connectors need a Claude Pro, Max, Team or Enterprise plan. Other MCP-capable
-                apps work the same way with the same address.
-              </p>
-            </div>
+      <SetupCard
+        title="Setting it up in Claude"
+        steps={[
+          <>Copy the address above.</>,
+          <>
+            Open{' '}
+            <a href={CLAUDE_CONNECTORS_URL} target="_blank" rel="noreferrer noopener">
+              Claude's connector settings
+            </a>
+            .
+          </>,
+          <>Press "+" and choose "Add custom connector", then paste the address.</>,
+          <>Sign in with HearthShelf and press Connect.</>,
+        ]}
+        note="Works on every Claude plan, though the free plan allows only one custom connector. On a Team or Enterprise account an owner adds it for everyone under Add > Custom > Web."
+      />
+
+      <SetupCard
+        title="Setting it up in ChatGPT"
+        steps={[
+          <>Copy the address above.</>,
+          <>
+            Open{' '}
+            <a href={CHATGPT_CONNECTORS_URL} target="_blank" rel="noreferrer noopener">
+              ChatGPT's settings
+            </a>{' '}
+            and find Apps &amp; connectors.
+          </>,
+          <>In Advanced settings, turn on developer mode.</>,
+          <>Choose "Add custom connector" and paste the address.</>,
+          <>Sign in with HearthShelf and press Connect.</>,
+        ]}
+        note="ChatGPT calls this a beta feature and keeps it on the web version only - it will not appear in the phone or desktop apps. It is not available on the free plan, and some paid plans are still being rolled out, so the option may be missing even after you turn on developer mode."
+      />
+
+      {/* .cl-d only picks up its muted styling inside a .cfg-card, so set it here. */}
+      <p
+        style={{
+          margin: '.75rem .25rem 0',
+          fontSize: '.8125rem',
+          color: 'var(--text-muted)',
+        }}
+      >
+        Any other app that supports MCP works the same way, with the same address.
+      </p>
+    </section>
+  )
+}
+
+function SetupCard({
+  title,
+  steps,
+  note,
+}: {
+  title: string
+  steps: React.ReactNode[]
+  note: string
+}) {
+  return (
+    <div className="cfg-card" style={{ marginTop: '.75rem' }}>
+      <div className="cfg-line" style={{ alignItems: 'flex-start' }}>
+        <Icon name="checklist" style={{ color: 'var(--text-muted)' }} />
+        <div className="cl-meta" style={{ flex: 1 }}>
+          <div className="cl-t">{title}</div>
+          <div className="cl-d">
+            {/* listStyle is reset globally; these steps are only useful numbered. */}
+            <ol
+              style={{
+                margin: '.4rem 0 0',
+                paddingLeft: '1.4rem',
+                lineHeight: 1.8,
+                listStyle: 'decimal outside',
+              }}
+            >
+              {steps.map((step, i) => (
+                <li key={i}>{step}</li>
+              ))}
+            </ol>
+            <p style={{ margin: '.7rem 0 0' }}>{note}</p>
           </div>
         </div>
       </div>
-    </section>
+    </div>
   )
 }

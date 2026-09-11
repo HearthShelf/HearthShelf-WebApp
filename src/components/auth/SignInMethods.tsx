@@ -37,7 +37,11 @@ interface LinkedAccount {
   createdAt?: string | Date | null
 }
 
-export function SignInMethods() {
+export function SignInMethods({
+  onPasswordStatusChange,
+}: {
+  onPasswordStatusChange?: (hasPassword: boolean) => void
+}) {
   const { user } = useAuth()
   const [accounts, setAccounts] = useState<LinkedAccount[] | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -62,6 +66,10 @@ export function SignInMethods() {
   const social = linked.filter((a) => a.providerId !== 'credential')
   // What the server counts when it refuses the last unlink.
   const totalMethods = linked.length
+
+  useEffect(() => {
+    if (accounts !== null) onPasswordStatusChange?.(hasPassword)
+  }, [accounts, hasPassword, onPasswordStatusChange])
 
   async function link(provider: string) {
     setBusy(provider)

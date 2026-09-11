@@ -40,6 +40,7 @@ export function ProfilePanel() {
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [backupCodes, setBackupCodes] = useState<string[]>([])
   const [twoFactorBusy, setTwoFactorBusy] = useState(false)
+  const [hasPassword, setHasPassword] = useState<boolean | null>(null)
 
   useEffect(() => {
     setTwoFactorEnabled(user?.twoFactorEnabled === true)
@@ -94,14 +95,18 @@ export function ProfilePanel() {
     setTwoFactorBusy(true)
     try {
       const res = await authClient.twoFactor.enable({
-        password: twoFactorPassword,
+        // With allowPasswordless enabled, Better Auth ignores this for an
+        // account that has no credential and still verifies real passwords.
+        password: hasPassword ? twoFactorPassword : '',
         method: 'totp',
         issuer: 'HearthShelf',
       })
       if (res?.error) {
         notify.error(
           res.error.message === 'Invalid password'
-            ? 'Enter your current password to continue'
+            ? hasPassword
+              ? 'Enter your current password to continue'
+              : 'Could not verify this passwordless account. Refresh and try again.'
             : res.error.message || 'Could not start two-factor setup',
         )
         return
@@ -147,7 +152,9 @@ export function ProfilePanel() {
   async function disableTwoFactor() {
     setTwoFactorBusy(true)
     try {
-      const res = await authClient.twoFactor.disable({ password: twoFactorPassword })
+      const res = await authClient.twoFactor.disable({
+        password: hasPassword ? twoFactorPassword : '',
+      })
       if (res?.error) {
         notify.error(res.error.message || 'Could not turn off two-factor authentication')
         return
@@ -166,7 +173,7 @@ export function ProfilePanel() {
 
   return (
     <div className="flex flex-col gap-8">
-      <SignInMethods />
+      <SignInMethods onPasswordStatusChange={setHasPassword} />
 
       <section className="account-security-card">
         <div className="account-card-title">
@@ -183,7 +190,12 @@ export function ProfilePanel() {
             {passkeys.map((pk) => (
               <li key={pk.id} className="flex items-center justify-between gap-3 text-sm">
                 <span>{pk.name || 'Passkey'}</span>
-                <button className="btn-link" onClick={() => void removePasskey(pk.id)}>
+                <button
+                  type="button"
+                  className="btn-sm btn-ghost danger"
+                  onClick={() => void removePasskey(pk.id)}
+                  aria-label={`Remove ${pk.name || 'passkey'}`}
+                >
                   Remove
                 </button>
               </li>
@@ -261,10 +273,10 @@ export function ProfilePanel() {
               </button>
             </div>
           </div>
-        ) : twoFactorMode ? (
+        ) : twoFactorMode && hasPassword ? (
           <div className="account-inline-setup">
             <label htmlFor="two-factor-password">Current password</label>
-            <p className="t-muted">If you sign in without a password, leave this blank.</p>
+            <p className="t-muted">Enter your password to confirm this change.</p>
             <div className="account-inline-field">
               <input
                 id="two-factor-password"
@@ -307,9 +319,21 @@ export function ProfilePanel() {
         ) : (
           <button
             className="btn-secondary mt-4"
-            onClick={() => setTwoFactorMode(twoFactorEnabled ? 'disable' : 'enable')}
+            onClick={() => {
+              const mode = twoFactorEnabled ? 'disable' : 'enable'
+              if (hasPassword) setTwoFactorMode(mode)
+              else if (mode === 'disable') void disableTwoFactor()
+              else void startTwoFactor()
+            }}
+            disabled={twoFactorBusy || hasPassword === null}
           >
-            {twoFactorEnabled ? 'Turn off two-factor' : 'Set up two-factor'}
+            {hasPassword === null
+              ? 'Checking account…'
+              : twoFactorBusy
+                ? 'Working…'
+                : twoFactorEnabled
+                  ? 'Turn off two-factor'
+                  : 'Set up two-factor'}
           </button>
         )}
       </section>

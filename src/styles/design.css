@@ -3472,11 +3472,18 @@
 
 .account-delete-button {
   background: var(--destructive) !important;
+  border: 1px solid color-mix(in oklab, var(--destructive) 78%, black) !important;
   color: var(--destructive-foreground) !important;
+  box-shadow: 0 6px 18px color-mix(in oklab, var(--destructive) 34%, transparent) !important;
 }
 
 .account-delete-button:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--destructive) 88%, white) !important;
+  background: color-mix(in oklab, var(--destructive) 88%, black) !important;
+}
+
+.account-delete-button:focus-visible {
+  outline: 2px solid var(--destructive-foreground);
+  outline-offset: 3px;
 }
 
 .account-advanced-toggle {
@@ -7622,6 +7629,75 @@
 }
 .set-row-both .sr-extra {
   flex: 1 0 100%;
+}
+
+.email-optout-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s4);
+  margin: 0 0 var(--s6);
+  padding: var(--s5);
+  background: color-mix(in srgb, var(--primary) 8%, var(--c-high));
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--hairline));
+  border-radius: var(--r-card);
+}
+
+.email-optout-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 13%, transparent);
+  border-radius: var(--r-pill);
+}
+
+.email-optout-copy .sr-t {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.email-optout-copy .sr-d {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.email-optout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--s2);
+}
+
+.email-optout-actions .btn-primary {
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.email-optout-confirm {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin: 0 0 var(--s6);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 680px) {
+  .email-optout-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .email-optout-actions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
+  .email-optout-actions .btn {
+    flex: 1;
+  }
 }
 
 /* Per-type delivery channel chips. Multi-select, so each is a checkbox rather
@@ -19782,9 +19858,8 @@ select.fld {
    Sign-in
    =====================================================================
    The sign-in buttons stand alone: this page renders before the app shell,
-   so it cannot lean on any list or card context for its sizing. Every
-   method gets the same full-width pill with a fixed leading icon slot, so
-   the labels line up in a column no matter how wide the brand mark is.
+   so it cannot lean on any list or card context for its sizing. The preferred
+   passkey action spans the form; alternative providers share a compact row.
    ===================================================================== */
 
 .auth-btn {
@@ -19857,6 +19932,26 @@ select.fld {
   border-color: color-mix(in oklab, var(--text) 22%, transparent);
 }
 
+/* Social providers stay immediately visible without turning the page into a
+   five-row menu. Their equal sizing also keeps any one provider from reading
+   as preferred over another. */
+.auth-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.auth-btn-icon {
+  min-height: 56px;
+  justify-content: center;
+  padding: 0;
+}
+
+.auth-btn-icon > svg {
+  width: 22px;
+  height: 22px;
+}
+
 /* The Apple mark is a solid silhouette with no color of its own, so it takes
    the button's text color to stay legible in both themes. */
 .auth-btn-apple > svg {
@@ -19918,6 +20013,20 @@ select.fld {
 .auth-link:disabled {
   opacity: 0.55;
   cursor: default;
+}
+
+.auth-email-link {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.auth-email-link > svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* The later steps (magic link, codes) have no leading icon, so they center

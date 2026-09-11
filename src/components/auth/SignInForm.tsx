@@ -173,25 +173,28 @@ export function SignInForm({ redirectUrl = '/' }: { redirectUrl?: string }) {
             <PasskeyIcon />
             <span>Sign in with a passkey</span>
           </button>
-          <div className="auth-divider">or</div>
-          {PROVIDERS.map((p) => (
-            <button
-              key={p.id}
-              className={`auth-btn auth-btn-provider${p.className}`}
-              onClick={onSocial(p.id, `${p.label} sign-in`)}
-              disabled={busy}
-            >
-              <p.Icon />
-              <span>{p.label}</span>
-            </button>
-          ))}
+          <div className="auth-divider">or continue with</div>
+          <div className="auth-provider-grid">
+            {PROVIDERS.map((p) => (
+              <button
+                key={p.id}
+                className={`auth-btn auth-btn-provider auth-btn-icon${p.className}`}
+                onClick={onSocial(p.id, `${p.label} sign-in`)}
+                disabled={busy}
+                aria-label={p.label}
+                title={p.label}
+              >
+                <p.Icon />
+              </button>
+            ))}
+          </div>
           <button
-            className="auth-btn auth-btn-provider"
+            className="auth-link auth-email-link"
             onClick={() => setStep('email')}
             disabled={busy}
           >
             <MailIcon />
-            <span>Continue with email</span>
+            <span>Use email instead</span>
           </button>
           {errorBanner}
         </>

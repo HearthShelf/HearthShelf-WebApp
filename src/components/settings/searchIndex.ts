@@ -498,8 +498,8 @@ export const SETTINGS_INDEX: SettingEntry[] = [
     sectionLabel: 'AI apps',
     icon: 'smart_toy',
     title: 'Connect an AI app',
-    desc: 'Talk to Claude or another AI app about your books.',
-    keywords: 'ai claude mcp connector chatgpt assistant recommend chat',
+    desc: 'Talk to Claude, ChatGPT or another AI app about your books.',
+    keywords: 'ai claude mcp connector chatgpt openai assistant recommend chat',
   },
   {
     section: 'aiApps',
@@ -507,7 +507,15 @@ export const SETTINGS_INDEX: SettingEntry[] = [
     icon: 'smart_toy',
     title: 'Connection address',
     desc: 'The address you paste into an AI app.',
-    keywords: 'ai mcp url server address copy claude connector',
+    keywords: 'ai mcp url server address copy claude chatgpt connector',
+  },
+  {
+    section: 'aiApps',
+    sectionLabel: 'AI apps',
+    icon: 'checklist',
+    title: 'Setting it up in ChatGPT',
+    desc: 'Turn on developer mode, then add a custom connector.',
+    keywords: 'ai chatgpt openai mcp connector developer mode setup steps',
   },
 
   // ---- Integrations

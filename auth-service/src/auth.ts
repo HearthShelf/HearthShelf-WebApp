@@ -33,7 +33,7 @@ import { bearer, emailOTP, magicLink, multiSession, twoFactor, username } from '
 import { passkey } from '@better-auth/passkey'
 import { expo } from '@better-auth/expo'
 import { getAppleClientSecret } from './appleSecret'
-import { sendMail, templates } from './email'
+import { sendMail, templates, type RenderedEmail, type SignInDetails } from './email'
 import type { Env } from './types'
 
 function trustedOrigins(env: Env): string[] {
@@ -56,6 +56,50 @@ function allTrustedOrigins(env: Env): string[] {
   return [...trustedOrigins(env), `${env.APP_SCHEME || 'hearthshelf'}://`]
 }
 
+function deviceName(request?: Request): string | undefined {
+  const ua = request?.headers.get('user-agent') || ''
+  if (!ua) return undefined
+  const browser = /Edg\//.test(ua)
+    ? 'Edge'
+    : /Chrome\//.test(ua)
+      ? 'Chrome'
+      : /Firefox\//.test(ua)
+        ? 'Firefox'
+        : /Safari\//.test(ua)
+          ? 'Safari'
+          : 'Browser'
+  const platform = /iPhone|iPad/.test(ua)
+    ? 'iPhone or iPad'
+    : /Android/.test(ua)
+      ? 'Android device'
+      : /Windows/.test(ua)
+        ? 'Windows'
+        : /Mac OS X/.test(ua)
+          ? 'Mac'
+          : /Linux/.test(ua)
+            ? 'Linux'
+            : ''
+  return platform ? `${browser} on ${platform}` : browser
+}
+
+function signInDetails(request?: Request): SignInDetails {
+  const cf = request?.cf as Record<string, unknown> | undefined
+  const location = [cf?.city, cf?.region, cf?.country]
+    .filter((value): value is string => typeof value === 'string' && Boolean(value))
+    .join(', ')
+  return {
+    device: deviceName(request),
+    ...(location ? { location } : {}),
+    ip: request?.headers.get('cf-connecting-ip') || undefined,
+    time:
+      new Date().toLocaleString('en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: 'UTC',
+      }) + ' UTC',
+  }
+}
+
 /**
  * Build the auth instance for a request.
  *
@@ -72,17 +116,16 @@ export async function createAuth(env: Env) {
   // Auth reads the head of the array for that. The extras exist only so a token
   // minted by the OS account picker (whose `aud` is the Android or iOS client
   // id) can pass verification.
-  const googleClientIds = [
-    env.GOOGLE_CLIENT_ID,
-    ...(env.GOOGLE_NATIVE_CLIENT_IDS || '').split(','),
-  ]
+  const googleClientIds = [env.GOOGLE_CLIENT_ID, ...(env.GOOGLE_NATIVE_CLIENT_IDS || '').split(',')]
     .map((id) => id?.trim())
     .filter((id): id is string => !!id)
     // A duplicate audience is harmless but makes the config confusing to read.
     .filter((id, i, all) => all.indexOf(id) === i)
 
-  const mail = (to: string, subject: string, text: string) =>
-    sendMail({ apiKey: env.RESEND_API_KEY, from: env.EMAIL_FROM, to, subject, text })
+  const mail = (to: string, email: RenderedEmail) =>
+    sendMail({ apiKey: env.RESEND_API_KEY, from: env.EMAIL_FROM, to, ...email })
+  const appOrigin = trustedOrigins(env)[0] || env.BETTER_AUTH_URL
+  const securityUrl = `${appOrigin}/account/account`
 
   return betterAuth({
     baseURL: env.BETTER_AUTH_URL,
@@ -139,7 +182,12 @@ export async function createAuth(env: Env) {
       enabled: true,
       requireEmailVerification: true,
       sendResetPassword: async ({ user, url }) => {
-        await mail(user.email, 'Reset your HearthShelf password', templates.magicLink(url))
+        await mail(user.email, templates.resetPassword(url))
+      },
+      onPasswordReset: async ({ user }) => {
+        // The password operation already succeeded. A mail outage must not turn
+        // that success into an error response or tempt the user to retry it.
+        await mail(user.email, templates.passwordChanged(securityUrl)).catch(() => {})
       },
     },
 
@@ -147,7 +195,32 @@ export async function createAuth(env: Env) {
       sendOnSignUp: true,
       autoSignInAfterVerification: true,
       sendVerificationEmail: async ({ user, url }) => {
-        await mail(user.email, 'Confirm your email for HearthShelf', templates.magicLink(url))
+        await mail(user.email, templates.verificationLink(url))
+      },
+    },
+
+    databaseHooks: {
+      session: {
+        create: {
+          after: async (session, context) => {
+            // A successful session is the reliable cross-provider sign-in edge:
+            // passkeys, social, magic links and passwords all pass through it.
+            // The alert is best-effort so delivery can never break the sign-in.
+            try {
+              const user = await env.AUTH_DB.prepare('SELECT email FROM user WHERE id = ? LIMIT 1')
+                .bind(session.userId)
+                .first<{ email: string }>()
+              if (user?.email) {
+                await mail(
+                  user.email,
+                  templates.newSignIn(securityUrl, signInDetails(context?.request)),
+                )
+              }
+            } catch {
+              // Security mail is secondary to preserving the completed sign-in.
+            }
+          },
+        },
       },
     },
 
@@ -239,22 +312,25 @@ export async function createAuth(env: Env) {
 
       twoFactor({
         issuer: 'HearthShelf',
+        // Social- and passkey-only accounts have no password to re-enter.
+        // Better Auth still requires one when a credential account exists.
+        allowPasswordless: true,
         otpOptions: {
           sendOTP: async ({ user, otp }) => {
-            await mail(user.email, 'Your HearthShelf verification code', templates.otp(otp, 'sign-in'))
+            await mail(user.email, templates.otp(otp, 'sign-in'))
           },
         },
       }),
 
       emailOTP({
         sendVerificationOTP: async ({ email, otp, type }) => {
-          await mail(email, 'Your HearthShelf code', templates.otp(otp, type))
+          await mail(email, templates.otp(otp, type))
         },
       }),
 
       magicLink({
         sendMagicLink: async ({ email, url }) => {
-          await mail(email, 'Sign in to HearthShelf', templates.magicLink(url))
+          await mail(email, templates.magicLink(url))
         },
       }),
 
