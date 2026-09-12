@@ -7,7 +7,8 @@
       "namespace": "android_app",
       "package_name": "com.hearthshelf.mobile",
       "sha256_cert_fingerprints": [
-        "A7:CA:98:A1:F4:A3:57:93:89:B3:83:6B:30:5B:88:F5:CF:C7:EA:0D:85:E9:CB:BE:03:03:62:8D:D4:94:0A:4E"
+        "A7:CA:98:A1:F4:A3:57:93:89:B3:83:6B:30:5B:88:F5:CF:C7:EA:0D:85:E9:CB:BE:03:03:62:8D:D4:94:0A:4E",
+        "FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C"
       ]
     }
   },
@@ -19,7 +20,8 @@
       "namespace": "android_app",
       "package_name": "com.hearthshelf.mobile",
       "sha256_cert_fingerprints": [
-        "A7:CA:98:A1:F4:A3:57:93:89:B3:83:6B:30:5B:88:F5:CF:C7:EA:0D:85:E9:CB:BE:03:03:62:8D:D4:94:0A:4E"
+        "A7:CA:98:A1:F4:A3:57:93:89:B3:83:6B:30:5B:88:F5:CF:C7:EA:0D:85:E9:CB:BE:03:03:62:8D:D4:94:0A:4E",
+        "FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C"
       ]
     }
   }
