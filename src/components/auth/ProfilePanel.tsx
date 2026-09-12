@@ -3,6 +3,7 @@ import { authClient } from '@/auth/client'
 import { useAuth } from '@/auth/useAuth'
 import { notify } from '@/lib/notify'
 import { SignInMethods } from '@/components/auth/SignInMethods'
+import { ActiveSessions } from '@/components/auth/ActiveSessions'
 import QRCode from 'qrcode'
 import { AccountInfoTip } from '@/components/settings/AccountInfoTip'
 
@@ -174,6 +175,8 @@ export function ProfilePanel() {
   return (
     <div className="flex flex-col gap-8">
       <SignInMethods onPasswordStatusChange={setHasPassword} />
+
+      <ActiveSessions />
 
       <section className="account-security-card">
         <div className="account-card-title">

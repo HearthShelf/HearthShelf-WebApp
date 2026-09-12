@@ -66,6 +66,14 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   {
     section: 'account',
     sectionLabel: 'Account',
+    icon: 'devices',
+    title: 'Where you are signed in',
+    desc: 'Every device signed in to your account, and a way to sign them out.',
+    keywords: 'sessions devices sign out logout security revoke active session suspicious',
+  },
+  {
+    section: 'account',
+    sectionLabel: 'Account',
     icon: 'person',
     title: 'Permissions',
     desc: 'What this account is allowed to do on the server.',

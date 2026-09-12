@@ -106,6 +106,26 @@ function signInDetails(request?: Request): SignInDetails {
  * Constructed per-request rather than once at module scope because the D1
  * binding lives on `env`, which Workers hand us per invocation.
  */
+/**
+ * Force a magic link's post-verification redirect onto a web origin.
+ *
+ * Returns the url unchanged when the callback is already http(s) - which is
+ * every current client - so this only catches a stale build or a mistake.
+ */
+function webSafeCallback(url: string, appOrigin: string): string {
+  try {
+    const parsed = new URL(url)
+    const cb = parsed.searchParams.get('callbackURL')
+    if (!cb) return url
+    if (/^https?:\/\//i.test(cb)) return url
+    parsed.searchParams.set('callbackURL', appOrigin)
+    return parsed.toString()
+  } catch {
+    // An unparseable url is not something to guess at; send it as-is.
+    return url
+  }
+}
+
 export async function createAuth(env: Env) {
   // Minted per request from the .p8 when no pre-signed secret is set, so there
   // is no six-month rotation to remember. See ./appleSecret.ts.
@@ -330,7 +350,19 @@ export async function createAuth(env: Env) {
 
       magicLink({
         sendMagicLink: async ({ email, url }) => {
-          await mail(email, templates.magicLink(url))
+          // Rewrite a custom-scheme callback to the web app before the link is
+          // sent.
+          //
+          // A magic link is opened from a MAIL CLIENT, which may well be on a
+          // different device than the one that asked for it - a laptop, say.
+          // `hearthshelf://` resolves to nothing there, so the verify endpoint
+          // 302s to a scheme the browser cannot follow and the page simply
+          // never loads: no error, no content, nothing to report. An old mobile
+          // build sent exactly that, and the only symptom was a dead link.
+          //
+          // The scheme stays trusted for OAuth, where the app IS the thing
+          // being returned to - this rewrite is specific to email.
+          await mail(email, templates.magicLink(webSafeCallback(url, appOrigin)))
         },
       }),
 
