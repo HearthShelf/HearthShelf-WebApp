@@ -18,14 +18,12 @@ export function ServerHealthAlert({
   serverName,
   onReset,
   onGoToConnect,
-  onGoToLogs,
   onSnooze,
 }: {
   health: HSServiceHealth
   serverName?: string | null
   onReset: () => Promise<{ ok: true; status: string }>
   onGoToConnect: () => void
-  onGoToLogs: () => void
   onSnooze: () => void
 }) {
   const [msg, setMsg] = useState<string | null>(null)
@@ -106,9 +104,6 @@ export function ServerHealthAlert({
               </button>
               <button className="btn" onClick={onGoToConnect}>
                 <Icon name="hub" /> Open Connect
-              </button>
-              <button className="btn-sm btn-ghost" onClick={onGoToLogs}>
-                <Icon name="terminal" /> View logs
               </button>
               <button
                 className="btn-sm btn-ghost"

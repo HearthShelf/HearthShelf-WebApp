@@ -51,10 +51,6 @@ export function ServerHealthWatcher() {
         setSnoozed(true)
         navigate('/config/connect')
       }}
-      onGoToLogs={() => {
-        setSnoozed(true)
-        navigate('/config/logs')
-      }}
       onSnooze={() => setSnoozed(true)}
     />
   )

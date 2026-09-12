@@ -35,7 +35,6 @@ import { ConnectBoxPage } from '@/pages/ConnectBoxPage'
 import { ConnectAppPage } from '@/pages/ConnectAppPage'
 import { AppStorePage } from '@/pages/AppStorePage'
 import { ConnectAiPage } from '@/pages/ConnectAiPage'
-import { InfraLogsPage } from '@/pages/InfraLogsPage'
 import { ConfigShell, ConfigIndexRedirect } from '@/pages/config/ConfigShell'
 import { AdminLayout } from '@/pages/admin/AdminLayout'
 import { AdminServersPage } from '@/pages/admin/AdminServersPage'
@@ -196,10 +195,8 @@ export const router = createBrowserRouter([
           { path: 'admins', element: <AdminAdminsPage /> },
           { path: 'apps', element: <AdminAppsPage /> },
           { path: 'audit', element: <AdminAuditPage /> },
-          { path: 'logs', element: <InfraLogsPage /> },
         ],
       },
-      { path: '/infra-logs', element: <Navigate to="/admin/logs" replace /> },
       // Old server-scoped deep links -> clean equivalents.
       { path: '/server/:serverId', element: <Navigate to="/" replace /> },
     ],

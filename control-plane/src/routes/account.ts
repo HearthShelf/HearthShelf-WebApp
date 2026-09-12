@@ -26,7 +26,6 @@ import {
   deleteAllDeviceHandlesForUser,
   writeAudit,
 } from '../lib/db'
-import { deleteLogsByUser, forwardLog } from '../lib/logs'
 import { deleteClerkUser, ClerkApiError } from '../lib/clerkApi'
 import { uuid } from '../lib/ids'
 
@@ -54,19 +53,9 @@ account.post('/account/delete', async (c) => {
     deleteAllDeviceHandlesForUser(c.env, user.userId),
   ])
 
-  // Best-effort: crash reports are diagnostic, not account-blocking. A failure
-  // here is logged but must never stop the deletion from completing.
-  const logResult = await deleteLogsByUser(c.env, user.userId)
-  if (logResult === null) {
-    c.executionCtx?.waitUntil(
-      forwardLog(c.env, {
-        source: 'cp',
-        severity: 'warn',
-        event: 'account_delete_logs_purge_failed',
-        detail: { userId: user.userId },
-      }),
-    )
-  }
+  // Crash reports used to be purged from our own log store here. That store is
+  // gone - reports now go to the error dashboard, which keeps them for a fixed
+  // retention window and expires them on its own. Nothing to purge.
 
   await writeAudit(c.env, {
     id: uuid(),

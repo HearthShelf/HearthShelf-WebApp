@@ -24,7 +24,6 @@ import { releases } from './routes/releases'
 import { telemetry } from './routes/telemetry'
 import { refreshLatestRelease, refreshLatestMobileRelease } from './lib/releases'
 import { email } from './routes/email'
-import { logs } from './routes/logs'
 import { admin } from './routes/admin'
 import { accounts } from './routes/accounts'
 import { account } from './routes/account'
@@ -64,7 +63,6 @@ app.route('/', wellKnown)
 app.route('/', pairing)
 app.route('/', servers)
 app.route('/', email)
-app.route('/', logs)
 app.route('/', admin)
 app.route('/', accounts)
 app.route('/', account)

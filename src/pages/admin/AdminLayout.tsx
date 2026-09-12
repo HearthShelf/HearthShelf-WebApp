@@ -16,7 +16,6 @@ const TABS = [
   { to: '/admin/admins', label: 'Admins' },
   { to: '/admin/apps', label: 'Apps' },
   { to: '/admin/audit', label: 'Audit log' },
-  { to: '/admin/logs', label: 'Infra logs' },
 ]
 
 export function AdminLayout() {

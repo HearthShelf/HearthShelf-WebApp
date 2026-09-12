@@ -214,68 +214,6 @@ interface InviteResponse {
   role: 'admin' | 'user'
 }
 
-export type LogSource = 'vps' | 'cp' | 'box' | 'mobile'
-
-export interface InfraLog {
-  id: number
-  ts: number
-  source: LogSource
-  severity: 'warn' | 'error'
-  event: string
-  server_id: string | null
-  message: string | null
-  detail: string | null
-  ip: string | null
-}
-
-export interface LogQueryParams {
-  source?: LogSource
-  severity?: 'warn' | 'error'
-  server_id?: string
-  /** Only logs at or after this Unix-ms time. */
-  since?: number
-  /** Keyset paging: only logs older than this id. */
-  before_id?: number
-  limit?: number
-}
-
-/**
- * Fetch infra logs (platform operators only). The control plane proxies to the
- * isolated log collector. Throws ApiError(403) for non-operators so the page can
- * show a clean "not authorized" state; ApiError(503) when the collector is down.
- */
-export async function fetchInfraLogs(params: LogQueryParams = {}): Promise<InfraLog[]> {
-  const q = new URLSearchParams()
-  if (params.source) q.set('source', params.source)
-  if (params.severity) q.set('severity', params.severity)
-  if (params.server_id) q.set('server_id', params.server_id)
-  if (params.since) q.set('since', String(params.since))
-  if (params.before_id) q.set('before_id', String(params.before_id))
-  if (params.limit) q.set('limit', String(params.limit))
-  const qs = q.toString()
-  const data = await request<{ logs: InfraLog[] }>(`/logs${qs ? `?${qs}` : ''}`)
-  return data.logs
-}
-
-/** Delete a single log row by id (platform operators only). */
-export async function deleteInfraLog(id: number): Promise<{ deleted: number }> {
-  return request<{ deleted: number }>(`/logs/${id}`, { method: 'DELETE' })
-}
-
-/**
- * Bulk-delete logs, honoring the same filters as the viewer so "Clear" removes
- * exactly the rows on screen. With no filters, clears the entire log table.
- */
-export async function clearInfraLogs(
-  filters: Pick<LogQueryParams, 'source' | 'severity' | 'server_id'> = {},
-): Promise<{ deleted: number }> {
-  const q = new URLSearchParams()
-  if (filters.source) q.set('source', filters.source)
-  if (filters.severity) q.set('severity', filters.severity)
-  if (filters.server_id) q.set('server_id', filters.server_id)
-  const qs = q.toString()
-  return request<{ deleted: number }>(`/logs${qs ? `?${qs}` : ''}`, { method: 'DELETE' })
-}
 
 // --- platform admin -------------------------------------------------------
 //

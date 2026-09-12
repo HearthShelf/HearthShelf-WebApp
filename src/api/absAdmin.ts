@@ -532,7 +532,8 @@ export async function uploadBackup(t: AbsTarget, file: File): Promise<void> {
 }
 
 // --- Logs -------------------------------------------------------------------
-// Log fetching now lives in the unified ConfigLogs page (via useAdminDataSource).
+// Infra-log fetching was removed with the admin log viewer; server errors now
+// go to the error dashboard instead.
 // Re-export the shared type for any remaining importer.
 export type { ABSLogEntry } from '@hearthshelf/core'
 

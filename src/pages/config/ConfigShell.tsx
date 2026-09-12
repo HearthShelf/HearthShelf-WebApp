@@ -19,7 +19,6 @@ import { ConfigUserDetail } from '@/pages/config/ConfigUserDetail'
 import { ConfigLibraries } from '@/pages/config/ConfigLibraries'
 import { ConfigSessions } from '@/pages/config/ConfigSessions'
 import { ConfigBackups } from '@/pages/config/ConfigBackups'
-import { ConfigLogs } from '@/pages/config/ConfigLogs'
 import { ConfigJobs } from '@/pages/config/ConfigJobs'
 import { ConfigQueueDebugger } from '@/pages/config/ConfigQueueDebugger'
 import { ConfigSeriesDebugger } from '@/pages/config/ConfigSeriesDebugger'
@@ -159,7 +158,6 @@ function ConfigShellBody({ menuMode = false }: { menuMode?: boolean }) {
         { id: 'sessions', icon: 'graphic_eq', label: 'Listening Sessions' },
         { id: 'backups', icon: 'cloud_sync', label: 'Backups' },
         { id: 'tasks', icon: 'schedule', label: 'Tasks' },
-        { id: 'logs', icon: 'terminal', label: 'Logs' },
       ],
     },
     {
@@ -224,8 +222,6 @@ function ConfigShellBody({ menuMode = false }: { menuMode?: boolean }) {
         return <ConfigSessions />
       case 'backups':
         return <ConfigBackups />
-      case 'logs':
-        return <ConfigLogs />
       case 'tasks':
         return <ConfigJobs />
       case 'queue-debug':
