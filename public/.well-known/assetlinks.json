@@ -1,6 +1,20 @@
 [
   {
-    "relation": ["delegate_permission/common.handle_all_urls"],
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.hearthshelf.mobile",
+      "sha256_cert_fingerprints": [
+        "A7:CA:98:A1:F4:A3:57:93:89:B3:83:6B:30:5B:88:F5:CF:C7:EA:0D:85:E9:CB:BE:03:03:62:8D:D4:94:0A:4E"
+      ]
+    }
+  },
+  {
+    "relation": [
+      "delegate_permission/common.get_login_creds"
+    ],
     "target": {
       "namespace": "android_app",
       "package_name": "com.hearthshelf.mobile",
