@@ -57,6 +57,9 @@ export interface Env {
    * Optional; defaults to https://app.hearthshelf.com when unset.
    */
   APP_ORIGINS?: string
+  /** GlitchTip DSN for this service's project (hs-control-plane). Unset = no
+   *  reporting, which is a valid local-dev state. */
+  GLITCHTIP_DSN?: string
 
   // secrets (wrangler secret put)
   /** Private signing key as a JSON JWK string (EdDSA / Ed25519). */

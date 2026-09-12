@@ -167,7 +167,7 @@ export function SignInMethods({
                   <span
                     className={existing ? 'auth-method-status connected' : 'auth-method-status'}
                   >
-                    <i /> {existing ? 'Connected' : 'Not connected'}
+                    {existing ? 'Connected' : 'Not connected'}
                   </span>
                 </span>
                 {existing ? (
