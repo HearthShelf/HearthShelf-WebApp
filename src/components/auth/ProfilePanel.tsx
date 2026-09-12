@@ -8,7 +8,8 @@ import QRCode from 'qrcode'
 import { AccountInfoTip } from '@/components/settings/AccountInfoTip'
 
 /**
- * Account security management: passkeys and two-factor.
+ * Account security management: sign-in methods, active sessions, passkeys, and
+ * two-factor.
  *
  * Replaces the previous provider's drop-in profile widget. It is deliberately
  * narrower than that widget was, and the omissions are the point:
@@ -20,6 +21,10 @@ import { AccountInfoTip } from '@/components/settings/AccountInfoTip'
  * Passkeys and linked sign-in methods ARE managed here: they are the only route
  * back into an account, so a user who cannot manage them from this page has no
  * way to recover from losing one.
+ *
+ * This is also the page the security emails link to ("Review account security"),
+ * so anything those emails tell the reader to do has to be possible here -
+ * signing other devices out included. See ./ActiveSessions.tsx.
  */
 interface Passkey {
   id: string

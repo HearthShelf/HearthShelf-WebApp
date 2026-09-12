@@ -54,17 +54,22 @@ function deviceLabel(ua: string | null | undefined): string {
         : /Safari\//.test(ua)
           ? 'Safari'
           : 'Browser'
-  const platform = /iPhone|iPad/.test(ua)
-    ? 'iPhone or iPad'
-    : /Android/.test(ua)
-      ? 'Android device'
-      : /Windows/.test(ua)
-        ? 'Windows'
-        : /Mac OS X/.test(ua)
-          ? 'Mac'
-          : /Linux/.test(ua)
-            ? 'Linux'
-            : ''
+  // The email says "iPhone or iPad" because it has a wide table to say it in.
+  // Here the label shares a phone-width row with a sign-out button, so name the
+  // device the UA actually reports instead of hedging across both.
+  const platform = /iPad/.test(ua)
+    ? 'iPad'
+    : /iPhone/.test(ua)
+      ? 'iPhone'
+      : /Android/.test(ua)
+        ? 'Android'
+        : /Windows/.test(ua)
+          ? 'Windows'
+          : /Mac OS X/.test(ua)
+            ? 'Mac'
+            : /Linux/.test(ua)
+              ? 'Linux'
+              : ''
   return platform ? `${browser} on ${platform}` : browser
 }
 
@@ -76,10 +81,32 @@ function deviceIcon(ua: string | null | undefined): string {
   return 'computer'
 }
 
+/**
+ * Relative "last used" wording.
+ *
+ * A full timestamp ("Sep 10, 2026, 9:14 PM") is the longest thing in the row and
+ * wraps onto three lines on a phone. For the question this list answers - is
+ * this session mine, and is it recent? - "2 days ago" is both shorter and easier
+ * to judge. The exact time stays available in the row's `title` tooltip.
+ */
 function when(value: string | Date | null | undefined): string | null {
   if (!value) return null
   const date = value instanceof Date ? value : new Date(value)
   if (Number.isNaN(date.getTime())) return null
+  const mins = Math.round((Date.now() - date.getTime()) / 60000)
+  if (mins < 2) return 'just now'
+  if (mins < 60) return mins + ' minutes ago'
+  const hours = Math.round(mins / 60)
+  if (hours < 24) return hours === 1 ? '1 hour ago' : hours + ' hours ago'
+  const days = Math.round(hours / 24)
+  if (days < 30) return days === 1 ? 'yesterday' : days + ' days ago'
+  return date.toLocaleDateString(undefined, { dateStyle: 'medium' })
+}
+
+function exactly(value: string | Date | null | undefined): string | undefined {
+  if (!value) return undefined
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return undefined
   return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 }
 
@@ -164,15 +191,13 @@ export function ActiveSessions() {
       ) : sorted.length === 0 ? (
         <p className="t-muted mt-4 text-[13px]">No other devices are signed in.</p>
       ) : (
-        <ul className="auth-method-list">
+        <ul className="auth-method-list session-list">
           {sorted.map((row) => {
             const isCurrent = row.token === currentToken
-            const seen = when(row.updatedAt) || when(row.createdAt)
-            const detail = [row.ipAddress || null, seen ? 'last used ' + seen : null]
-              .filter(Boolean)
-              .join(' - ')
+            const stamp = row.updatedAt || row.createdAt
+            const seen = when(stamp)
             return (
-              <li key={row.id} className="auth-method-row">
+              <li key={row.id} className="auth-method-row" title={exactly(stamp)}>
                 <span className="auth-provider-mark" aria-hidden="true">
                   <Icon name={deviceIcon(row.userAgent)} />
                 </span>
@@ -181,8 +206,9 @@ export function ActiveSessions() {
                   <span
                     className={isCurrent ? 'auth-method-status connected' : 'auth-method-status'}
                   >
-                    {isCurrent ? 'This device' : detail || 'Signed in'}
+                    {isCurrent ? 'This device' : seen ? 'Last used ' + seen : 'Signed in'}
                   </span>
+                  {row.ipAddress ? <span className="session-ip">{row.ipAddress}</span> : null}
                 </span>
                 {isCurrent ? null : (
                   <button

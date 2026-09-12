@@ -3231,6 +3231,21 @@
   box-shadow: 0 0 0 3px color-mix(in oklab, currentColor 16%, transparent);
 }
 
+/* The IP is a secondary identifier: quieter than the recency line above it, and
+   never the reason a row wraps. */
+.session-list .session-ip {
+  color: var(--text-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The device name is the one thing that must stay readable, so the sign-out
+   control gives up its width first rather than squeezing the text column. */
+.session-list .btn-ghost.danger {
+  flex: none;
+  padding-inline: 10px;
+}
+
 .auth-password-panel {
   display: flex;
   align-items: flex-start;
