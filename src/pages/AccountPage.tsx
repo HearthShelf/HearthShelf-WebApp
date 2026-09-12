@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useSearchParams, Navigate } from 'react-router-dom'
 import { ProfilePanel } from '@/components/auth/ProfilePanel'
-import { useAuth } from '@/auth/useAuth'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Loader2, Sparkles, Check } from 'lucide-react'
 import { useIsMobile } from '@/hooks/useMediaQuery'
@@ -11,6 +10,7 @@ import { fetchMyPlan, deleteMyAccount, ApiError, type Plan } from '@/api/control
 import { ServerRow } from '@/components/ServerRow'
 import { LinkServerDialog } from '@/components/LinkServerDialog'
 import { DeleteAccountDialog } from '@/components/DeleteAccountDialog'
+import { authClient } from '@/auth/client'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/common/Icon'
 import { PlaybackSettings } from '@/components/settings/PlaybackSettings'
@@ -367,17 +367,36 @@ function PlanLine({ on, children }: { on?: boolean; children: React.ReactNode })
 }
 
 function Account() {
-  const { signOut } = useAuth()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  // Deletion now ends in an emailed confirmation rather than an immediate
+  // sign-out, so the dialog has to say the link is on its way.
+  const [deleteSent, setDeleteSent] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   async function handleConfirmDelete() {
     setDeleting(true)
     setDeleteError(null)
     try {
+      // Our data first, the sign-in identity second. The bearer token that
+      // authenticates the purge IS this identity, so deleting it first would
+      // strand the purge half-done with no way to authenticate a retry.
       await deleteMyAccount()
-      await signOut({ redirectUrl: '/sign-in?reason=deleted' })
+      // The control plane cannot delete the identity - it holds no admin
+      // credential for the auth service - so the account itself is deleted here,
+      // with the user's own session. The auth service emails a confirmation
+      // link; the account goes when that link is opened.
+      const res = await authClient.deleteUser({ callbackURL: '/sign-in?reason=deleted' })
+      if (res?.error) {
+        setDeleting(false)
+        setDeleteError(
+          res.error.message ||
+            'Your HearthShelf data was deleted, but we could not start deleting your sign-in. Please contact support.',
+        )
+        return
+      }
+      setDeleteSent(true)
+      setDeleting(false)
     } catch (err) {
       setDeleting(false)
       setDeleteError(
@@ -420,12 +439,14 @@ function Account() {
         {dialogOpen && (
           <DeleteAccountDialog
             busy={deleting}
+            sent={deleteSent}
             error={deleteError}
             onConfirm={handleConfirmDelete}
             onCancel={() => {
               if (deleting) return
               setDialogOpen(false)
               setDeleteError(null)
+              setDeleteSent(false)
             }}
           />
         )}

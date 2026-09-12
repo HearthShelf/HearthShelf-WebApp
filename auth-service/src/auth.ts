@@ -34,6 +34,7 @@ import { passkey } from '@better-auth/passkey'
 import { expo } from '@better-auth/expo'
 import { getAppleClientSecret } from './appleSecret'
 import { sendMail, templates, type RenderedEmail, type SignInDetails } from './email'
+import { reportError } from './logs'
 import type { Env } from './types'
 
 function trustedOrigins(env: Env): string[] {
@@ -208,6 +209,36 @@ export async function createAuth(env: Env) {
         // The password operation already succeeded. A mail outage must not turn
         // that success into an error response or tempt the user to retry it.
         await mail(user.email, templates.passwordChanged(securityUrl)).catch(() => {})
+      },
+    },
+
+    user: {
+      deleteUser: {
+        enabled: true,
+        // Gate deletion on the address on file. Deletion is irreversible and
+        // takes the sign-in identity with it, so possession of an unlocked
+        // device must not be enough on its own - the person must also hold the
+        // email account. Without this callback Better Auth deletes immediately.
+        sendDeleteAccountVerification: async ({ user, url }) => {
+          // Same deep-link trap as magic links: the confirm URL carries a
+          // callbackURL, and a `hearthshelf://` value renders the link dead in
+          // any desktop browser (it 302s to a scheme the browser cannot follow,
+          // so the page silently never loads). Rewrite it to the web app.
+          await mail(user.email, templates.deleteAccount(webSafeCallback(url, appOrigin)))
+        },
+        // Runs once the account is actually gone. Best-effort: the identity is
+        // already deleted by this point, so a failure here must not turn a
+        // completed deletion into an error the user is told to retry - it would
+        // fail again, with nothing left to authenticate. Anything left behind is
+        // keyed to an id that can no longer sign in.
+        afterDelete: async (user) => {
+          await reportError(env, {
+            severity: 'warn',
+            event: 'account_deleted',
+            message: 'account deleted',
+            detail: { userId: user.id },
+          }).catch(() => {})
+        },
       },
     },
 

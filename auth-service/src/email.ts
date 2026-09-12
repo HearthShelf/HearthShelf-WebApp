@@ -230,6 +230,34 @@ export const templates = {
       ].join('\n'),
     }),
 
+  /**
+   * Confirm an account deletion before it happens.
+   *
+   * Deletion is irreversible and takes the sign-in identity with it, so it is
+   * gated on a link sent to the address on file: someone who has walked up to
+   * an unlocked phone cannot delete the account without also holding the email.
+   */
+  deleteAccount: (url: string): RenderedEmail =>
+    shell({
+      subject: 'Confirm deleting your HearthShelf account',
+      preheader: 'Confirm you want to permanently delete your HearthShelf account.',
+      title: 'Delete your account?',
+      body: `<p style="margin:0;">You asked to permanently delete your HearthShelf account. This removes your sign-in identity, your linked-server pairings, and your remembered devices.</p><p style="margin:12px 0 0;font-size:14px;color:${FAINT};">This cannot be undone, and it does not touch the books on your own server. If you did not ask for this, ignore this email and nothing will happen.</p>`,
+      action: { label: 'Delete my account', url },
+      text: [
+        'Delete your HearthShelf account?',
+        '',
+        'You asked to permanently delete your HearthShelf account. This removes your',
+        'sign-in identity, your linked-server pairings, and your remembered devices.',
+        'It cannot be undone, and it does not touch the books on your own server.',
+        '',
+        'Confirm here:',
+        url,
+        '',
+        'If you did not ask for this, ignore this email and nothing will happen.',
+      ].join('\n'),
+    }),
+
   newSignIn: (securityUrl: string, details: SignInDetails): RenderedEmail => {
     const rows = [
       ['Device', details.device],

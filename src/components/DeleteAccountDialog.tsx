@@ -12,11 +12,14 @@ const CONFIRM_WORD = 'DELETE'
  */
 export function DeleteAccountDialog({
   busy,
+  sent,
   error,
   onConfirm,
   onCancel,
 }: {
   busy: boolean
+  /** True once the confirmation email is away - deletion finishes from the link. */
+  sent?: boolean
   error: string | null
   onConfirm: () => void
   onCancel: () => void
@@ -60,7 +63,14 @@ export function DeleteAccountDialog({
           </p>
         </div>
 
-        <label className="mt-4 block">
+        {sent ? (
+          <p className="mt-4 text-[14px] text-card-foreground">
+            Check your email. We sent a link that finishes deleting your account - until you open
+            it, your sign-in still works.
+          </p>
+        ) : null}
+
+        <label className="mt-4 block" hidden={sent}>
           <span className="t-muted text-[12px]">
             Type <strong className="text-card-foreground">{CONFIRM_WORD}</strong> to confirm
           </span>
@@ -80,11 +90,13 @@ export function DeleteAccountDialog({
 
         <div className="mt-6 flex justify-end gap-2">
           <Button variant="ghost" onClick={onCancel} disabled={busy}>
-            Cancel
+            {sent ? 'Close' : 'Cancel'}
           </Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={!canConfirm}>
-            {busy ? 'Deleting...' : 'Delete everything'}
-          </Button>
+          {sent ? null : (
+            <Button variant="destructive" onClick={onConfirm} disabled={!canConfirm}>
+              {busy ? 'Deleting...' : 'Delete everything'}
+            </Button>
+          )}
         </div>
       </div>
     </div>
