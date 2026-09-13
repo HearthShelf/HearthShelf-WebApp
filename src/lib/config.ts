@@ -1,9 +1,23 @@
 /**
  * Runtime config for the SPA. The control-plane base URL is injected at build
- * time via Vite env (VITE_CONTROL_PLANE_URL); falls back to the local wrangler
- * dev port so `npm run dev` against a local Worker just works.
+ * time via Vite env (VITE_CONTROL_PLANE_URL).
+ *
+ * THE DEFAULT IS PRODUCTION, and that is the whole point. It used to fall back
+ * to the local wrangler dev port, which meant any build made without that env
+ * var shipped `http://127.0.0.1:8788` to real users: every control-plane call
+ * then hit the VIEWER'S OWN MACHINE. Nothing loaded, the account appeared to
+ * have no servers, and profile photos vanished - all at once, with the only
+ * clue a "failed to fetch 127.0.0.1:8788" in the corner.
+ *
+ * It failed silently at home because a laptop that had run `npm run dev` often
+ * DOES have something on that port. The damage only showed up away from it.
+ *
+ * A missing env var must degrade to the real service, never to localhost. Local
+ * dev opts IN by setting the var (see .env.development.local), the same way
+ * MCP_ORIGIN below has always worked.
  */
-export const CONTROL_PLANE_URL = import.meta.env.VITE_CONTROL_PLANE_URL || 'http://127.0.0.1:8788'
+export const CONTROL_PLANE_URL =
+  import.meta.env.VITE_CONTROL_PLANE_URL || 'https://api.hearthshelf.com'
 
 /**
  * Origin of the MCP server (the AI-connector Worker). Overridable via
