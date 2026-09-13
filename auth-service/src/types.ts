@@ -10,6 +10,9 @@ export interface Env {
   BETTER_AUTH_URL: string
   /** Comma-separated origins allowed to call this service with credentials
    *  (the SPA, plus localhost during dev). Pinned - never reflected. */
+  /** Comma-separated native app origins allowed for passkeys: Android's
+   *  `android:apk-key-hash:<hash>` values and the iOS associated domain. */
+  APP_PASSKEY_ORIGINS?: string
   TRUSTED_ORIGINS: string
   /** WebAuthn Relying Party ID. MUST be the registrable domain the user sees in
    *  the browser (hearthshelf.com), NOT this Worker's host - a passkey is bound

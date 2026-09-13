@@ -19992,6 +19992,23 @@ select.fld {
   background: var(--hairline);
 }
 
+.auth-terms {
+  margin: 10px 0 0;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-dim, var(--muted-foreground));
+}
+.auth-terms a {
+  /* --primary, NOT --accent: in this theme `accent` is a dark SURFACE colour
+     (#322f2b), so links styled with it were near-invisible on the card. */
+  color: var(--primary);
+  text-decoration: none;
+}
+.auth-terms a:hover {
+  text-decoration: underline;
+}
+
 .auth-input {
   font-family: inherit;
   width: 100%;

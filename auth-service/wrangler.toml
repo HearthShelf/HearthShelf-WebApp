@@ -30,6 +30,11 @@ migrations_dir = "migrations"
 BETTER_AUTH_URL = "https://auth.hearthshelf.com"
 # Credentialed-CORS allowlist. Pinned; never reflected. Add localhost for dev.
 TRUSTED_ORIGINS = "https://app.hearthshelf.com"
+# Native app origins for passkeys. A phone does not present an https:// origin:
+# Android sends android:apk-key-hash:<base64url SHA-256 of the signing cert>,
+# iOS sends the associated domain. Both Android certs are listed because release
+# builds are Play-signed and every sideloaded/emulator build uses the debug key.
+APP_PASSKEY_ORIGINS = "android:apk-key-hash:p8qYofSjV5OJs4NrMFuI9c_H6g2F6cu-AwNijdSUCk4,android:apk-key-hash:-sYXRdwJA3hvue3mKpYrOZ9zSPC7b4mbgzJmdZEDO5w,https://hearthshelf.com"
 # WebAuthn Relying Party ID. MUST be the registrable domain the user sees in the
 # browser, NOT this Worker's hostname. A passkey is bound to its RP ID for life:
 # set this to auth.hearthshelf.com and every credential registered under it is

@@ -57,6 +57,20 @@ function allTrustedOrigins(env: Env): string[] {
   return [...trustedOrigins(env), `${env.APP_SCHEME || 'hearthshelf'}://`]
 }
 
+/**
+ * Origins a passkey ceremony can legitimately come from on a phone.
+ *
+ * Not URLs: Android identifies the calling app by the hash of its signing
+ * certificate, and iOS by the associated domain. Configured rather than
+ * hardcoded so a new signing key is an env change, not a deploy of this file.
+ */
+function appOrigins(env: Env): string[] {
+  return (env.APP_PASSKEY_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean)
+}
+
 function deviceName(request?: Request): string | undefined {
   const ua = request?.headers.get('user-agent') || ''
   if (!ua) return undefined
@@ -358,7 +372,17 @@ export async function createAuth(env: Env) {
         // A passkey is tied to its RP ID permanently and cannot be re-scoped.
         rpID: env.PASSKEY_RP_ID,
         rpName: env.PASSKEY_RP_NAME,
-        origin: trustedOrigins(env),
+        // A phone does NOT present a https:// origin. Android sends
+        // `android:apk-key-hash:<base64url SHA-256 of the signing cert>` and iOS
+        // sends the app's associated domain, and verification compares the
+        // origin in the signed credential against this list - so a native
+        // passkey is rejected unless the app's own origin is here, however
+        // correct everything else is.
+        //
+        // Both Android certificates are listed for the same reason both are in
+        // assetlinks.json: release builds are signed by Play, and every
+        // sideloaded or emulator build by the debug key.
+        origin: [...trustedOrigins(env), ...appOrigins(env)],
       }),
 
       twoFactor({

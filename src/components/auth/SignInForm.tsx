@@ -280,6 +280,22 @@ export function SignInForm({ redirectUrl = '/' }: { redirectUrl?: string }) {
           </button>
         </>
       )}
+
+      {/* Every method on this form CREATES the account on first use - there is
+          no separate sign-up path - so this is the only place the terms can be
+          disclosed before someone is signed up. The phone app has said so all
+          along; the web never did. */}
+      <p className="auth-terms">
+        By continuing you agree to the{' '}
+        <a href="https://hearthshelf.com/terms" target="_blank" rel="noopener noreferrer">
+          Terms
+        </a>{' '}
+        &amp;{' '}
+        <a href="https://hearthshelf.com/privacy" target="_blank" rel="noopener noreferrer">
+          Privacy Policy
+        </a>
+        .
+      </p>
     </div>
   )
 }
