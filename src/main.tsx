@@ -8,7 +8,7 @@ import { AuthTokenBridge } from '@/auth/AuthTokenBridge'
 import { notify } from '@/lib/notify'
 import { ApiError, SessionExpiredError } from '@/api/controlPlane'
 import { isHostedOutage } from '@/api/absHosted'
-import { initSentry, Sentry } from '@/lib/sentry'
+import { initSentry, reportMissingSessionToken, Sentry } from '@/lib/sentry'
 import './styles/index.css'
 
 initSentry()
@@ -26,6 +26,12 @@ function reportError(err: unknown, meta: Record<string, unknown> | undefined) {
   // and a crash report would only bury the real ones.
   if (err instanceof ApiError && err.status === 403) return
   if (isHostedOutage(err)) return
+  // request() turns a 401 on a request that carried a token into
+  // SessionExpiredError, so this one went out with no token at all.
+  if (err instanceof ApiError && err.status === 401) {
+    reportMissingSessionToken(window.location.pathname)
+    return
+  }
   Sentry.captureException(err)
 }
 

@@ -88,6 +88,27 @@ export function reportSessionExpired(path: string): void {
   })
 }
 
+let reportedMissingToken = false
+
+/**
+ * Report that the control plane turned away a request sent with no session
+ * token, from inside the signed-in app.
+ *
+ * The app only reaches these calls after the accounts service says the user is
+ * signed in, so a missing token there means the token could not be obtained -
+ * the same kind of misconfiguration reportSessionExpired watches for. One
+ * warning per page load keeps it visible without an error per failed request.
+ */
+export function reportMissingSessionToken(path: string): void {
+  if (!DSN || reportedMissingToken) return
+  reportedMissingToken = true
+  Sentry.captureMessage('Control plane request sent without a session token', {
+    level: 'warning',
+    tags: { auth_flow: 'missing_token' },
+    extra: { path },
+  })
+}
+
 /** Tag the current user so an issue can be traced to an account. */
 export function setSentryUser(userId: string | null): void {
   if (!DSN) return
