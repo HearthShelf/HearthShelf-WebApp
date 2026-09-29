@@ -214,12 +214,11 @@ interface InviteResponse {
   role: 'admin' | 'user'
 }
 
-
 // --- platform admin -------------------------------------------------------
 //
 // The control plane gates all of these to the platform_admins D1 table (the same
-// roster that gates the infra log viewer). Non-admins get ApiError(403) so a page
-// can show a clean "not authorized" state; an absent/expired session is 401.
+// roster that gates the infra log viewer). Non-admins get ApiError(403); an
+// absent/expired session is 401.
 
 export interface AdminMe {
   clerk_user_id: string
@@ -228,10 +227,17 @@ export interface AdminMe {
 }
 
 /** Resolve whether the signed-in user is a platform admin (and their role). The
- *  control plane is the real gate; this just drives UI routing. Throws
- *  ApiError(403) when authenticated but not an admin. */
-export async function fetchAdminMe(): Promise<AdminMe> {
-  return request<AdminMe>('/admin/me')
+ *  control plane is the real gate; this just drives UI routing. Returns null for
+ *  a signed-in user who is not an admin: every nav shell asks this on every page
+ *  load, so the control plane's 403 is the normal answer for almost everyone,
+ *  not a failure to toast or report. */
+export async function fetchAdminMe(): Promise<AdminMe | null> {
+  try {
+    return await request<AdminMe>('/admin/me')
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 403) return null
+    throw e
+  }
 }
 
 export interface AdminServer {

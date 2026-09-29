@@ -6,7 +6,7 @@ import { Toaster } from 'sonner'
 import { router } from '@/router'
 import { AuthTokenBridge } from '@/auth/AuthTokenBridge'
 import { notify } from '@/lib/notify'
-import { SessionExpiredError } from '@/api/controlPlane'
+import { ApiError, SessionExpiredError } from '@/api/controlPlane'
 import { initSentry, Sentry } from '@/lib/sentry'
 import './styles/index.css'
 
@@ -17,6 +17,10 @@ initSentry()
 function reportQueryError(err: unknown) {
   if (err instanceof SessionExpiredError) return
   notify.error(notify.fromError(err, 'Could not reach HearthShelf'))
+
+  // Answers rather than faults: the toast (or the page) already tells the user,
+  // and a crash report would only bury the real ones.
+  if (err instanceof ApiError && err.status === 403) return
   Sentry.captureException(err)
 }
 

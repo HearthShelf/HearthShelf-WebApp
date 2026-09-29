@@ -1,6 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { ArrowLeft, Loader2, ShieldAlert, ShieldCheck } from 'lucide-react'
-import { ApiError } from '@/api/controlPlane'
 import { useAdminMe } from '@/hooks/useAdminMe'
 import { cn } from '@/lib/cn'
 
@@ -19,9 +18,7 @@ const TABS = [
 ]
 
 export function AdminLayout() {
-  const { data, isLoading, error } = useAdminMe()
-
-  const forbidden = error instanceof ApiError && error.status === 403
+  const { data, isLoading } = useAdminMe()
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -46,7 +43,7 @@ export function AdminLayout() {
           <Loader2 className="animate-spin" size={18} />
           <span className="t-body">Checking access...</span>
         </Panel>
-      ) : forbidden || !data ? (
+      ) : !data ? (
         <Panel>
           <ShieldAlert size={18} className="text-muted-foreground" />
           <span className="t-body">
