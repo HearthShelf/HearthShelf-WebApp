@@ -47,6 +47,17 @@ export class HostedError extends Error {
   }
 }
 
+/**
+ * The box answered, but something beyond it could not be reached: the connect
+ * domain's broker is down, its probe could not run, or the box itself dropped
+ * off the network. These say nothing about the web app or the user's server settings,
+ * and the pages that hit them already explain it in place.
+ */
+export function isHostedOutage(err: unknown): boolean {
+  if (!(err instanceof HostedError)) return false
+  return err.code === 'broker_unreachable' || err.code === 'probe_failed' || err.code === 'network'
+}
+
 function origin(t: AbsTarget): string {
   return t.serverUrl.replace(/\/$/, '')
 }

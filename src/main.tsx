@@ -7,6 +7,7 @@ import { router } from '@/router'
 import { AuthTokenBridge } from '@/auth/AuthTokenBridge'
 import { notify } from '@/lib/notify'
 import { ApiError, SessionExpiredError } from '@/api/controlPlane'
+import { isHostedOutage } from '@/api/absHosted'
 import { initSentry, Sentry } from '@/lib/sentry'
 import './styles/index.css'
 
@@ -14,19 +15,25 @@ initSentry()
 
 // Surface failures instead of letting them die silently. Session-expiry is
 // handled by its own flow (redirect + message), so we don't double-toast it.
-function reportQueryError(err: unknown) {
+// A caller that shows its own message sets `meta: { handlesOwnErrors: true }`.
+function reportError(err: unknown, meta: Record<string, unknown> | undefined) {
   if (err instanceof SessionExpiredError) return
-  notify.error(notify.fromError(err, 'Could not reach HearthShelf'))
+  if (meta?.handlesOwnErrors !== true) {
+    notify.error(notify.fromError(err, 'Could not reach HearthShelf'))
+  }
 
   // Answers rather than faults: the toast (or the page) already tells the user,
   // and a crash report would only bury the real ones.
   if (err instanceof ApiError && err.status === 403) return
+  if (isHostedOutage(err)) return
   Sentry.captureException(err)
 }
 
 const queryClient = new QueryClient({
-  queryCache: new QueryCache({ onError: reportQueryError }),
-  mutationCache: new MutationCache({ onError: reportQueryError }),
+  queryCache: new QueryCache({ onError: (err, query) => reportError(err, query.meta) }),
+  mutationCache: new MutationCache({
+    onError: (err, _vars, _result, mutation) => reportError(err, mutation.meta),
+  }),
 })
 
 createRoot(document.getElementById('root')!).render(

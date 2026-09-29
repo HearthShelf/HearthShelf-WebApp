@@ -16,7 +16,7 @@ import {
   resetServiceCredential,
   overrideServiceCredential,
   hostedKeys,
-  HostedError,
+  isHostedOutage,
   type PairResult,
   type PortCheckResult,
 } from '@/api/absHosted'
@@ -139,15 +139,16 @@ export function ConfigHosted() {
   const [checkUnavailable, setCheckUnavailable] = useState(false)
   const testPort = useMutation({
     mutationFn: (_source: 'auto' | 'manual') => checkPort(target!),
+    // This page explains every failure itself, and an automatic check that fails
+    // is meant to stay quiet - so skip the app-wide error toast.
+    meta: { handlesOwnErrors: true },
     onSuccess: (r) => {
       setPortResult(r)
       setCheckUnavailable(false)
     },
     onError: (err, source) => {
       // A broker/infra failure means "check unavailable", not "unreachable".
-      const code = err instanceof HostedError ? err.code : ''
-      const brokerDown =
-        code === 'broker_unreachable' || code === 'probe_failed' || code === 'network'
+      const brokerDown = isHostedOutage(err)
       if (brokerDown) setCheckUnavailable(true)
       if (source === 'manual') {
         show(
