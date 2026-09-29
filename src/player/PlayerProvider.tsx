@@ -35,6 +35,7 @@ import {
   getSyncState,
 } from '@/player/syncState'
 import { recordLocalSession, flushPendingProgress } from '@/player/pendingProgress'
+import { absMediaUrl } from '@/api/absClient'
 
 /** Auto-dismiss the player after this long continuously PAUSED, to release the
  *  open ABS session and the tab's audio graph (memory watchdog, not a session
@@ -46,7 +47,7 @@ const IDLE_DISMISS_MS = 6 * 60 * 60 * 1000
 const QUEUE_RECOMPUTE_COOLDOWN_SEC = 120
 
 /**
- * App-level playback. One <audio> element lives here (via useAudioPlayer), so a
+ * App-level playback. The <audio> elements live here (via useAudioPlayer), so a
  * book keeps playing as the user navigates between pages. The item page and the
  * docked mini-player both drive and read THIS single player.
  *
@@ -236,9 +237,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     })()
   }, [target, play])
 
+  // Re-tokenize a track's URL right before it loads: a long book reaches later
+  // tracks hours after it was opened, by which time the token baked into
+  // `track.url` may have been replaced.
+  const serverId = now?.serverId
+  const serverUrl = now?.serverUrl
+  const resolveUrl = useCallback(
+    (track: AbsTrack) =>
+      track.path && serverId && serverUrl ? absMediaUrl({ serverId, serverUrl }, track.path) : null,
+    [serverId, serverUrl],
+  )
+
   const player = useAudioPlayer({
     // Empty until something is playing; the hook tolerates an empty track set.
     tracks: now?.tracks ?? [],
+    resolveUrl,
     totalDurationSec: now?.totalDurationSec ?? 0,
     startAtSec: now?.startAtSec ?? 0,
     autoplayOnLoad: now?.autoplay ?? false,

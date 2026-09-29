@@ -15,6 +15,8 @@ import {
   AbsError,
 } from './absClient'
 import { getAbsToken } from '@/lib/absTokens'
+import { inoFromContentUrl, partsFitSession, trackIndexForPosition } from '@/lib/bookParts'
+import { getBookParts, prepareBookPart } from './absParts'
 import type {
   ABSBookMetadata,
   ABSBookMedia,
@@ -366,6 +368,10 @@ export interface AbsTrack {
   durationSec: number
   /** Tokenized URL the <audio> element streams. Null if not connected. */
   url: string | null
+  /** Server-relative path behind `url`. When set, the player re-tokenizes it
+   *  right before loading, so a track reached hours into a book never carries a
+   *  token that expired meanwhile. */
+  path?: string
 }
 
 export interface AbsChapter {
@@ -568,8 +574,10 @@ export async function syncLocalSessions(t: AbsTarget, sessions: LocalSession[]):
 
 export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsItemDetail> {
   // Metadata comes from the item endpoint; playable tracks + true duration come
-  // from a play session (ABS only exposes streamable tracks there).
-  const [r, session] = await Promise.all([
+  // from a play session (ABS only exposes streamable tracks there). The quick-
+  // start parts list (HearthShelf servers only) is asked for alongside, so it
+  // adds no wait of its own.
+  const [r, session, parts] = await Promise.all([
     absGet<RawItemDetail>(
       t,
       `/api/items/${encodeURIComponent(itemId)}?expanded=1&include=progress`,
@@ -578,20 +586,55 @@ export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsIt
       deviceInfo: playDeviceInfo(),
       supportedMimeTypes: PLAY_MIME,
     }).catch(() => null),
+    getBookParts(t, itemId),
   ])
   const md = r.media?.metadata
-  const tracks: AbsTrack[] = (session?.audioTracks ?? []).map((tr) => ({
+  const sessionTracks = session?.audioTracks ?? []
+  let tracks: AbsTrack[] = sessionTracks.map((tr) => ({
     ino: String(tr.index),
     index: tr.index,
     startOffsetSec: tr.startOffset ?? 0,
     durationSec: tr.duration ?? 0,
     // contentUrl is "/api/items/{id}/file/{ino}"; add the auth token for <audio>.
     url: absMediaUrl(t, tr.contentUrl),
+    path: tr.contentUrl,
   }))
   // Prefer the session's chapters/duration (authoritative); fall back to the
   // item endpoint's chapters when no session (e.g. a book with no audio).
   const rawChapters = session?.chapters ?? r.media?.chapters ?? []
   const durationSec = session?.duration ?? tracks.reduce((s, tr) => s + tr.durationSec, 0)
+  // A very long single-file book: play the server's small parts instead of the
+  // one huge file (phones and car browsers stall on its index). Same book
+  // timeline, same play session - only the audio source changes.
+  if (
+    parts &&
+    partsFitSession(parts, {
+      durationSec,
+      trackCount: sessionTracks.length,
+      trackIno: inoFromContentUrl(sessionTracks[0]?.contentUrl),
+    })
+  ) {
+    tracks = parts.parts.map((p, i) => ({
+      ino: `part-${p.index}`,
+      index: i + 1,
+      startOffsetSec: p.start,
+      durationSec: p.duration,
+      url: absMediaUrl(t, p.url),
+      path: p.url,
+    }))
+    // Get the part we'd resume in ready now, so pressing play doesn't wait for it.
+    const resumeAt = r.userMediaProgress?.isFinished
+      ? 0
+      : (r.userMediaProgress?.currentTime ?? session?.currentTime ?? 0)
+    const resumePart =
+      parts.parts[
+        trackIndexForPosition(
+          parts.parts.map((p) => p.start),
+          resumeAt,
+        )
+      ]
+    prepareBookPart(t, itemId, resumePart.index)
+  }
   const firstSeries = md?.series?.[0]
   return {
     id: r.id,
