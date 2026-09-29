@@ -31,16 +31,35 @@ defaultApp.get('/', (c) =>
   ),
 )
 
-export default new OAuthProvider({
-  apiRoute: '/mcp',
-  // McpAgent.serve returns the handler for the Streamable HTTP transport. The
-  // OAuth layer has already validated the token by the time this runs.
-  apiHandler: HearthShelfMCP.serve('/mcp', { binding: 'MCP_OBJECT' }) as never,
-  defaultHandler: defaultApp as never,
-  authorizeEndpoint: '/authorize',
-  tokenEndpoint: '/token',
-  // Dynamic client registration is what lets a user press "Connect" in Claude
-  // without anyone pre-registering a client id. This is the one-click path.
-  clientRegistrationEndpoint: '/register',
-  scopesSupported: ['library:read'],
-})
+// Every token is bound to one canonical resource: the URL MCP clients connect
+// to. It comes from MCP_ISSUER rather than a literal so `wrangler dev` with a
+// local issuer binds tokens to the local URL. env only exists per request, so
+// the provider is built on the first one and reused.
+let provider: OAuthProvider<Env> | undefined
+
+function getProvider(env: Env): OAuthProvider<Env> {
+  provider ??= new OAuthProvider<Env>({
+    apiRoute: '/mcp',
+    // McpAgent.serve returns the handler for the Streamable HTTP transport. The
+    // OAuth layer has already validated the token by the time this runs.
+    apiHandler: HearthShelfMCP.serve('/mcp', { binding: 'MCP_OBJECT' }) as never,
+    defaultHandler: defaultApp as never,
+    authorizeEndpoint: '/authorize',
+    tokenEndpoint: '/token',
+    // Dynamic client registration is what lets a user press "Connect" in Claude
+    // without anyone pre-registering a client id. This is the one-click path.
+    clientRegistrationEndpoint: '/register',
+    scopesSupported: ['library:read'],
+    resourceMetadata: {
+      resource: `${env.MCP_ISSUER}/mcp`,
+      scopes_supported: ['library:read'],
+    },
+  })
+  return provider
+}
+
+export default {
+  fetch(request, env, ctx) {
+    return getProvider(env).fetch(request, env, ctx)
+  },
+} satisfies ExportedHandler<Env>

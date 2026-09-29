@@ -31,7 +31,16 @@ export function initSentry(): void {
   Sentry.init({
     dsn: DSN,
     environment: 'production',
-    sendDefaultPii: false,
+    // No personal data beyond what a crash report needs. Every one of these
+    // defaults to "collect" in the SDK, so each is switched off explicitly:
+    // no IP address inferred for events or sessions, no cookies, and of the
+    // request headers only the browser and the page the user came from.
+    dataCollection: {
+      userInfo: false,
+      cookies: false,
+      httpHeaders: { request: { allow: ['User-Agent', 'Referer'] }, response: false },
+      httpBodies: [],
+    },
     maxBreadcrumbs: 50,
     // Default integrations, deliberately. An earlier `integrations: []` turned
     // off Breadcrumbs and GlobalHandlers, which meant a report arrived with no
