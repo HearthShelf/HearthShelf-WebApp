@@ -105,7 +105,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
   // list, the completion denominator, and the progress track together.
   const ignoredAsins = useIgnoredAsins()
   const missing = audible?.seriesAsin
-    ? missingSeriesBooks(audible.books, ownedBooks, ignoredAsins)
+    ? missingSeriesBooks(audible.books, ownedBooks, ignoredAsins, series.name)
     : []
   // A book that isn't out yet isn't a gap in the collection - nobody could own
   // it. Counting it as missing would permanently cap a fully-caught-up series
@@ -168,11 +168,17 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
   let done = 0
   let sum = 0
   let totalHours = 0
+  // Weighted by each book's own length: averaging per-book fractions across the
+  // series total undercounts a long omnibus next to short books.
+  let listenedHours = 0
   for (const b of books) {
     const p = progressById.get(b.id)
     if (p?.isFinished) done++
-    sum += p?.isFinished ? 1 : (p?.progress ?? 0)
-    totalHours += (b.media.duration ?? 0) / 3600
+    const frac = p?.isFinished ? 1 : (p?.progress ?? 0)
+    sum += frac
+    const hours = (b.media.duration ?? 0) / 3600
+    totalHours += hours
+    listenedHours += hours * frac
   }
   const completion = seriesCompletion({
     ownedProgressSum: sum,
@@ -180,9 +186,6 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
     missingCount: missingReleased.length,
   })
   const pct = completion.pct
-  // Listened hours are an owned-books figure; scale by owned progress, not the
-  // full-series percentage.
-  const listenedHours = books.length ? totalHours * (sum / books.length) : 0
 
   // Next up = first unfinished in reading order, else the first book.
   const nextUpIdx = books.findIndex((b) => !progressById.get(b.id)?.isFinished)

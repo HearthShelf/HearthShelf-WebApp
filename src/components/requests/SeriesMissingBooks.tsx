@@ -164,7 +164,7 @@ export function SeriesMissingBooks({
   })
 
   if (!data?.seriesAsin) return null
-  const missing = missingSeriesBooks(data.books, ownedBooks, ignoredAsins)
+  const missing = missingSeriesBooks(data.books, ownedBooks, ignoredAsins, seriesName)
   if (missing.length === 0) return null
   // One `now` for the whole render so every row's countdown agrees.
   const now = Date.now()
