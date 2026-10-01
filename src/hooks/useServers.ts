@@ -52,6 +52,8 @@ export function useLinkServer() {
     mutationFn: ({ code, displayName }: { code: string; displayName?: string }) =>
       redeemPairingCode(code, displayName),
     onSuccess: () => qc.invalidateQueries({ queryKey: SERVERS_KEY }),
+    // LinkServerDialog shows the error itself; without this it toasted twice.
+    meta: { handlesOwnErrors: true },
   })
 }
 

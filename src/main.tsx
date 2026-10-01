@@ -13,6 +13,15 @@ import './styles/index.css'
 
 initSentry()
 
+// Control-plane refusals caused by what the user typed, such as a mistyped,
+// used or expired pairing code. The toast explains them; they are not faults.
+const USER_MISTAKE_CODES = new Set([
+  'invalid_code',
+  'code_already_used',
+  'code_expired',
+  'rate_limited',
+])
+
 // Surface failures instead of letting them die silently. Session-expiry is
 // handled by its own flow (redirect + message), so we don't double-toast it.
 // A caller that shows its own message sets `meta: { handlesOwnErrors: true }`.
@@ -25,6 +34,7 @@ function reportError(err: unknown, meta: Record<string, unknown> | undefined) {
   // Answers rather than faults: the toast (or the page) already tells the user,
   // and a crash report would only bury the real ones.
   if (err instanceof ApiError && err.status === 403) return
+  if (err instanceof ApiError && USER_MISTAKE_CODES.has(err.message)) return
   if (isHostedOutage(err)) return
   // request() turns a 401 on a request that carried a token into
   // SessionExpiredError, so this one went out with no token at all.
