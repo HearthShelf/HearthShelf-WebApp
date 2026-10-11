@@ -12,8 +12,10 @@ import {
   seriesCompletion,
   isUpcoming,
 } from '@hearthshelf/core'
-import type { OwnedSeriesBook } from '@hearthshelf/core'
-import { SeriesMissingBooks } from '@/components/requests/SeriesMissingBooks'
+import type { HSAudibleSeriesBook, OwnedSeriesBook } from '@hearthshelf/core'
+import { MissingRow, SERIES_MISSING_ANCHOR } from '@/components/requests/SeriesMissingBooks'
+import { RequestConfirmModal } from '@/components/requests/RequestConfirmModal'
+import { useRmabEnabled } from '@/hooks/useRmab'
 import { FollowSeriesButton } from '@/components/requests/FollowSeriesButton'
 import { IgnoreSeriesButton } from '@/components/requests/IgnoreSeriesButton'
 import { QuestGiverAssessment } from '@/components/questgiver/QuestGiverAssessment'
@@ -26,9 +28,10 @@ import { StarRating } from '@/components/common/StarRating'
 import { useMediaUI } from '@/components/shared/MediaUIContext'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useToast } from '@/hooks/useToast'
-import { orderBooks } from '@/lib/seriesOrder'
+import { orderBooks, seriesSeqLabel, interleaveMissing } from '@/lib/seriesOrder'
 import { Cover, tintFor } from '@/components/shared/Cover'
 import { Icon } from '@/components/common/Icon'
+import { SeqNum } from '@/components/shared/SeqNum'
 import { BookContextMenu } from '@/components/library/BookContextMenu'
 import { BatchEditModal } from '@/components/library/BatchEditModal'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
@@ -91,7 +94,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
     sequence: seriesSeqFromName(b.media.metadata.seriesName),
   }))
 
-  // Full Audible roster for the series (cached; SeriesMissingBooks reuses it).
+  // Full Audible roster for the series (cached).
   // The unowned gap enlarges the completion denominator so the % and the segment
   // track measure against the whole series, not just what's owned.
   const { data: audible } = useQuery({
@@ -114,6 +117,8 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
   const now = Date.now()
   const missingReleased = missing.filter((b) => !(b.upcoming ?? isUpcoming(b, now)))
   const upcomingCount = missing.length - missingReleased.length
+  const canRequest = useRmabEnabled()
+  const [confirm, setConfirm] = useState<HSAudibleSeriesBook | null>(null)
   // A series has no cover of its own. Stand it up with the first roster book
   // that has artwork - an absolute Audible URL, so it still renders in the
   // Following list without a server or ABS token to resolve it against.
@@ -194,6 +199,25 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
   })
   const pct = completion.pct
 
+  // The "N not in library" count jumps to the list of those books, so the number
+  // always leads somewhere.
+  const missingLink = completion.missingCount > 0 && (
+    <>
+      {' · '}
+      <button
+        type="button"
+        className="series-gap-link"
+        onClick={() =>
+          document
+            .getElementById(SERIES_MISSING_ANCHOR)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      >
+        {completion.missingCount} not in library
+      </button>
+    </>
+  )
+
   // Next up = first unfinished in reading order, else the first book.
   const nextUpIdx = books.findIndex((b) => !progressById.get(b.id)?.isFinished)
   const nextUp = nextUpIdx === -1 ? books[0] : books[nextUpIdx]
@@ -206,8 +230,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
         <span className="sp-pct">{Math.round(pct * 100)}%</span>
         <span className="sp-cap">
           {done} of {completion.totalCount} finished · {listenedHours.toFixed(0)}h of{' '}
-          {totalHours.toFixed(0)}h
-          {completion.missingCount > 0 && ` · ${completion.missingCount} not in library`}
+          {totalHours.toFixed(0)}h{missingLink}
           {upcomingCount > 0 && ` · ${upcomingCount} coming soon`}
         </span>
       </div>
@@ -304,7 +327,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
         <div style={{ color: 'var(--text-muted)', fontSize: 15, margin: '8px 0 18px' }}>
           {author && `${author} · `}
           {books.length} {books.length === 1 ? 'book' : 'books'} · {totalHours.toFixed(0)}h total
-          {completion.missingCount > 0 && ` · ${completion.missingCount} not in library`}
+          {missingLink}
           {upcomingCount > 0 && ` · ${upcomingCount} coming soon`}
         </div>
 
@@ -393,7 +416,21 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
           </div>
         )}
         <div className="series-list">
-          {books.map((b, i) => {
+          {interleaveMissing(books, selected.size === 0 ? missing : []).map((row, i) => {
+            if (row.kind === 'missing') {
+              return (
+                <MissingRow
+                  key={row.book.asin}
+                  id={row.book === missing[0] ? SERIES_MISSING_ANCHOR : undefined}
+                  book={row.book}
+                  num={i + 1}
+                  now={now}
+                  canRequest={canRequest}
+                  onRequest={setConfirm}
+                />
+              )
+            }
+            const b = row.book
             const m = b.media.metadata
             const p = progressById.get(b.id)
             const fin = p?.isFinished
@@ -429,7 +466,7 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
                       <Icon name="check" fill style={{ opacity: isSel ? 1 : 0 }} />
                     </button>
                   ) : (
-                    <div className="sl-num">{i + 1}</div>
+                    <SeqNum label={seriesSeqLabel(b) || String(i + 1)} />
                   )}
                   <Cover itemId={b.id} title={m.title ?? 'Untitled'} fs={6} className="sl-cover" />
                   <div className="sl-meta">
@@ -482,17 +519,17 @@ function SeriesDetail({ series, target }: { series: AbsSeries; target: AbsTarget
               </BookContextMenu>
             )
           })}
-          {selected.size === 0 && (
-            <SeriesMissingBooks
-              target={target}
-              seriesId={series.id}
-              seriesName={series.name}
-              ownedBooks={ownedBooks}
-              startSeq={books.length}
-            />
-          )}
         </div>
       </div>
+
+      {confirm && (
+        <RequestConfirmModal
+          target={target}
+          book={confirm}
+          canRequest={canRequest}
+          onClose={() => setConfirm(null)}
+        />
+      )}
 
       {batchEditing && (
         <BatchEditModal

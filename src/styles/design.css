@@ -1928,6 +1928,21 @@
   font-size: 13px;
   color: var(--text-muted);
 }
+/* The "N not in library" count in a series summary: jumps to those books. */
+.series-gap-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.series-gap-link:hover,
+.series-gap-link:focus-visible {
+  color: var(--accent);
+}
 .sp-track {
   display: flex;
   gap: 3px;
@@ -2757,6 +2772,11 @@
   color: var(--text-muted);
   text-align: center;
   font-variant-numeric: tabular-nums;
+}
+.sl-num.long {
+  font-size: 12px;
+  white-space: nowrap;
+  letter-spacing: -0.02em;
 }
 .sl-cover {
   width: 64px;
