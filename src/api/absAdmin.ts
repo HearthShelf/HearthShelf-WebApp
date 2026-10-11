@@ -10,7 +10,7 @@
  * Field shapes verified against audiobookshelf 2.35.1 controllers/serializers.
  */
 import { absGet, absPost, absPatch, absDelete, absMediaUrl, AbsError } from '@/api/absClient'
-import type { AbsTarget } from '@/api/absLibrary'
+import { progressFraction, type AbsTarget } from '@/api/absLibrary'
 import { getAbsToken } from '@/lib/absTokens'
 import type {
   ABSUserPermissions,
@@ -436,7 +436,7 @@ export async function getUserMediaProgress(
     libraryItemId: p.libraryItemId ?? '',
     episodeId: p.episodeId ?? null,
     duration: p.duration ?? 0,
-    progress: p.progress ?? 0,
+    progress: progressFraction(p),
     currentTime: p.currentTime ?? 0,
     isFinished: Boolean(p.isFinished),
     hideFromContinueListening: Boolean(p.hideFromContinueListening),

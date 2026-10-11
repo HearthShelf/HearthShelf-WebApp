@@ -700,9 +700,12 @@ export async function saveProgress(
   currentTimeSec: number,
   durationSec: number,
 ): Promise<void> {
+  // ABS keeps `progress` apart from `currentTime` and leaves it untouched unless
+  // it is sent, so send both or every reader of the fraction sees a stale value.
   await absPatch(t, `/api/me/progress/${encodeURIComponent(itemId)}`, {
     currentTime: currentTimeSec,
     duration: durationSec,
+    ...(durationSec > 0 && { progress: Math.min(1, Math.max(0, currentTimeSec / durationSec)) }),
   })
 }
 
@@ -772,10 +775,32 @@ export async function getMediaProgress(t: AbsTarget): Promise<MediaProgress[]> {
   return (data.mediaProgress ?? []).map((p) => ({
     libraryItemId: p.libraryItemId,
     duration: p.duration ?? 0,
-    progress: p.progress ?? 0,
+    progress: progressFraction(p),
     currentTime: p.currentTime ?? 0,
     isFinished: Boolean(p.isFinished),
   }))
+}
+
+/**
+ * How far through an item a progress row is, 0..1, from its live position.
+ *
+ * ABS stores `progress` separately from `currentTime` and only rewrites it when a
+ * writer sends a `progress` value. A position-only update (another client's
+ * PATCH) moves `currentTime` and leaves `progress` where it was, so a book 18h in
+ * could still report the fraction from where its session started. The position
+ * is what every writer keeps current, so derive from it whenever it is usable.
+ */
+export function progressFraction(p: {
+  duration?: number
+  progress?: number
+  currentTime?: number
+  isFinished?: boolean
+}): number {
+  if (p.isFinished) return 1
+  const duration = p.duration ?? 0
+  const position = p.currentTime ?? 0
+  if (duration > 0 && position > 0) return Math.min(1, position / duration)
+  return Math.min(1, Math.max(0, p.progress ?? 0))
 }
 
 // --- listening stats (/api/me/listening-stats) ------------------------------
