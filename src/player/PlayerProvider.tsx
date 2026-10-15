@@ -63,6 +63,9 @@ export interface NowPlaying {
   narrator?: string
   coverUrl: string | null
   tracks: AbsTrack[]
+  /** The original file(s) when `tracks` are the server's quick-start parts.
+   *  Playback switches to these if a part fails to load. */
+  fallbackTracks?: AbsTrack[]
   chapters: AbsChapter[]
   totalDurationSec: number
   startAtSec: number
@@ -225,6 +228,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           author: d.author,
           coverUrl: d.coverUrl,
           tracks: d.tracks,
+          fallbackTracks: d.fallbackTracks,
           chapters: d.chapters,
           totalDurationSec: d.durationSec,
           startAtSec: d.progress?.currentTimeSec ?? 0,
@@ -248,10 +252,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [serverId, serverUrl],
   )
 
+  // A quick-start part failed to load (server could not cut it, the box is too
+  // old, a proxy timed out on a cold part, ...). Switch this book to its
+  // original file at the same spot, the way the phone app plays it, instead of
+  // leaving the player stuck. One-way: fallbackTracks is dropped after the swap.
+  const onLoadFailed = useCallback(
+    ({ positionSec, wantPlay }: { positionSec: number; wantPlay: boolean }) => {
+      setNow((cur) => {
+        if (!cur?.fallbackTracks?.length) return cur
+        return {
+          ...cur,
+          tracks: cur.fallbackTracks,
+          fallbackTracks: undefined,
+          startAtSec: positionSec,
+          autoplay: wantPlay,
+        }
+      })
+    },
+    [],
+  )
+
   const player = useAudioPlayer({
     // Empty until something is playing; the hook tolerates an empty track set.
     tracks: now?.tracks ?? [],
     resolveUrl,
+    onLoadFailed,
     totalDurationSec: now?.totalDurationSec ?? 0,
     startAtSec: now?.startAtSec ?? 0,
     autoplayOnLoad: now?.autoplay ?? false,

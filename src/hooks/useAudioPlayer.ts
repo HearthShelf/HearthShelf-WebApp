@@ -51,7 +51,15 @@ interface UsePlayerArgs {
    *  short-lived and a long book reaches later tracks hours in). Falls back to
    *  the track's own `url` when omitted or when it returns null. */
   resolveUrl?: (track: AbsTrack) => string | null
+  /** The active track failed: the element errored, or its metadata never
+   *  arrived within LOAD_TIMEOUT_MS. Lets the caller swap to another source
+   *  (e.g. the original file instead of the server's quick-start parts). */
+  onLoadFailed?: (failure: { trackIndex: number; positionSec: number; wantPlay: boolean }) => void
 }
+
+// How long a track may take to deliver its metadata before it counts as failed.
+// Generous: a cold quick-start part is cut on the server on first request.
+const LOAD_TIMEOUT_MS = 25_000
 
 /** Find the track index covering a global position (clamps to first/last track). */
 function trackIndexForPosition(tracks: AbsTrack[], pos: number): number {
@@ -79,7 +87,13 @@ export function useAudioPlayer({
   seekBackwardSec = 15,
   seekForwardSec = 30,
   resolveUrl,
+  onLoadFailed,
 }: UsePlayerArgs) {
+  const onLoadFailedRef = useRef(onLoadFailed)
+  onLoadFailedRef.current = onLoadFailed
+  // Whether the listener wants sound right now (a play was asked for and not
+  // paused since), so a source swap after a failure resumes only when it should.
+  const wantPlayRef = useRef(false)
   // Latest resolveUrl, read at load time without re-subscribing anything.
   const resolveUrlRef = useRef(resolveUrl)
   resolveUrlRef.current = resolveUrl
@@ -184,7 +198,10 @@ export function useAudioPlayer({
     ) => {
       const seq = ++loadSeqRef.current
       seekedRef.current = false
+      let timer: ReturnType<typeof setTimeout> | undefined
+      wantPlayRef.current = autoplay
       const apply = () => {
+        clearTimeout(timer)
         if (seq !== loadSeqRef.current || el !== audioRef.current) return
         el.currentTime = Math.max(0, Math.min(localOffsetSec, el.duration || localOffsetSec))
         el.playbackRate = rateRef.current
@@ -197,8 +214,20 @@ export function useAudioPlayer({
           })
         }
       }
-      if (el.readyState >= 1) apply()
-      else el.addEventListener('loadedmetadata', apply, { once: true })
+      if (el.readyState >= 1) {
+        apply()
+        return
+      }
+      el.addEventListener('loadedmetadata', apply, { once: true })
+      timer = setTimeout(() => {
+        if (seq !== loadSeqRef.current || el !== audioRef.current || el.readyState >= 1) return
+        el.removeEventListener('loadedmetadata', apply)
+        onLoadFailedRef.current?.({
+          trackIndex: currentTrackRef.current,
+          positionSec: positionRef.current,
+          wantPlay: wantPlayRef.current,
+        })
+      }, LOAD_TIMEOUT_MS)
     },
     [],
   )
@@ -317,6 +346,7 @@ export function useAudioPlayer({
     const playWhenSeeked = () => {
       const audio = audioRef.current
       if (!audio) return
+      wantPlayRef.current = true
       // The track failed to load (e.g. the server was still preparing it, or the
       // connection dropped): reload it where we are instead of retrying a dead
       // element forever.
@@ -435,6 +465,7 @@ export function useAudioPlayer({
       // car widget don't flicker, and let 'ended' move on to the next track.
       const audio = e.currentTarget as HTMLAudioElement
       if (audio.ended && currentTrackRef.current < tracks.length - 1) return
+      wantPlayRef.current = false
       setPlaying(false)
       save(true)
     }
@@ -457,6 +488,11 @@ export function useAudioPlayer({
     const onError = (e: Event) => {
       if (isActive(e)) {
         setPlaying(false)
+        onLoadFailedRef.current?.({
+          trackIndex: currentTrackRef.current,
+          positionSec: positionRef.current,
+          wantPlay: wantPlayRef.current,
+        })
         return
       }
       // The standby failed to load: forget it, the boundary will load normally.

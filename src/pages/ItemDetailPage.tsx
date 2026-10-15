@@ -261,6 +261,7 @@ export function ItemDetailPage() {
         narrator: playable.narrator,
         coverUrl: playable.coverUrl,
         tracks: playable.tracks,
+        fallbackTracks: playable.fallbackTracks,
         chapters: playable.chapters,
         totalDurationSec: playable.durationSec,
         startAtSec: start,

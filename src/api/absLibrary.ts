@@ -395,6 +395,10 @@ export interface AbsItemDetail {
   durationSec: number
   coverUrl: string | null
   tracks: AbsTrack[]
+  /** The book's original file(s) when `tracks` are the server's quick-start
+   *  parts. The player switches to these if a part fails to load, so a broken
+   *  or slow parts cache never stops the book from playing. */
+  fallbackTracks?: AbsTrack[]
   chapters: AbsChapter[]
   /** Saved position for this user, if any. */
   progress: { currentTimeSec: number; isFinished: boolean } | null
@@ -603,6 +607,7 @@ export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsIt
   // item endpoint's chapters when no session (e.g. a book with no audio).
   const rawChapters = session?.chapters ?? r.media?.chapters ?? []
   const durationSec = session?.duration ?? tracks.reduce((s, tr) => s + tr.durationSec, 0)
+  let fallbackTracks: AbsTrack[] | undefined
   // A very long single-file book: play the server's small parts instead of the
   // one huge file (phones and car browsers stall on its index). Same book
   // timeline, same play session - only the audio source changes.
@@ -614,6 +619,7 @@ export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsIt
       trackIno: inoFromContentUrl(sessionTracks[0]?.contentUrl),
     })
   ) {
+    fallbackTracks = tracks
     tracks = parts.parts.map((p, i) => ({
       ino: `part-${p.index}`,
       index: i + 1,
@@ -652,6 +658,7 @@ export async function getItemDetail(t: AbsTarget, itemId: string): Promise<AbsIt
     durationSec,
     coverUrl: itemCoverUrl(t, r.id, 480),
     tracks,
+    fallbackTracks,
     chapters: rawChapters.map((c) => ({
       id: c.id,
       title: c.title || `Chapter ${c.id + 1}`,

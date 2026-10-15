@@ -63,6 +63,7 @@ function MediaUIValue({ target, children }: { target: AbsTarget; children: React
             narrator: d.narrator,
             coverUrl: d.coverUrl,
             tracks: d.tracks,
+            fallbackTracks: d.fallbackTracks,
             chapters: d.chapters,
             totalDurationSec: d.durationSec,
             startAtSec: Math.max(0, opts?.startAtSec ?? d.progress?.currentTimeSec ?? 0),
