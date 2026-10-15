@@ -58,8 +58,10 @@ interface UsePlayerArgs {
 }
 
 // How long a track may take to deliver its metadata before it counts as failed.
-// Generous: a cold quick-start part is cut on the server on first request.
-const LOAD_TIMEOUT_MS = 25_000
+// Generous: a cold quick-start part is cut on the server on first request, which
+// for a 3-4 GB book on a spinning disk can take a minute. Kept under the 100s
+// a Cloudflare-proxied server allows before it cuts the request off anyway.
+const LOAD_TIMEOUT_MS = 90_000
 
 /** Find the track index covering a global position (clamps to first/last track). */
 function trackIndexForPosition(tracks: AbsTrack[], pos: number): number {

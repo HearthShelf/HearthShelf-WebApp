@@ -66,6 +66,8 @@ export interface NowPlaying {
   /** The original file(s) when `tracks` are the server's quick-start parts.
    *  Playback switches to these if a part fails to load. */
   fallbackTracks?: AbsTrack[]
+  /** Set once a failed part has been retried; the next failure falls back. */
+  partsRetried?: boolean
   chapters: AbsChapter[]
   totalDurationSec: number
   startAtSec: number
@@ -252,14 +254,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [serverId, serverUrl],
   )
 
-  // A quick-start part failed to load (server could not cut it, the box is too
-  // old, a proxy timed out on a cold part, ...). Switch this book to its
-  // original file at the same spot, the way the phone app plays it, instead of
-  // leaving the player stuck. One-way: fallbackTracks is dropped after the swap.
+  // A quick-start part failed to load. The usual cause is a cold part that took
+  // longer to cut than a proxy would wait; the server keeps cutting it, so the
+  // first failure just reloads the parts (a fresh track array re-inits the
+  // player at the same spot). A second failure means parts really don't work
+  // here (server can't cut them, box too old, ...): switch this book to its
+  // original file, the way the phone app plays it, instead of leaving the
+  // player stuck. One-way: fallbackTracks is dropped after the swap.
   const onLoadFailed = useCallback(
     ({ positionSec, wantPlay }: { positionSec: number; wantPlay: boolean }) => {
       setNow((cur) => {
         if (!cur?.fallbackTracks?.length) return cur
+        if (!cur.partsRetried) {
+          return {
+            ...cur,
+            tracks: [...cur.tracks],
+            partsRetried: true,
+            startAtSec: positionSec,
+            autoplay: wantPlay,
+          }
+        }
         return {
           ...cur,
           tracks: cur.fallbackTracks,
