@@ -134,9 +134,16 @@ export function reportPlaybackFailure(info: {
   ] as const) {
     codecs[name] = probe.canPlayType(type) || 'no'
   }
+  // The error and codec support go in tags (short, searchable, shown in issue
+  // lists) as well as extra, so they are readable without opening the event.
   Sentry.captureMessage('Audio could not be played', {
     level: 'warning',
-    tags: { playback_stage: info.stage },
+    tags: {
+      playback_stage: info.stage,
+      media_error: (info.mediaError ?? 'timeout').slice(0, 190),
+      can_aac: codecs['aac'],
+      can_he_aac: codecs['he-aac'],
+    },
     extra: { ...info, codecs, userAgent: navigator.userAgent },
   })
 }
