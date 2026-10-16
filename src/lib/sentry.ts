@@ -9,6 +9,7 @@
  * recording of that is more data than a crash report needs.
  */
 import * as Sentry from '@sentry/react'
+import type { MediaProbe } from './mediaProbe'
 
 const DSN = import.meta.env.VITE_SENTRY_DSN as string | undefined
 
@@ -119,6 +120,8 @@ export function reportPlaybackFailure(info: {
   trackIno: string
   mediaError: string | null
   stage: 'part' | 'part-retry' | 'original'
+  /** What a plain fetch of the same URL received (see lib/mediaProbe). */
+  probe?: MediaProbe
 }): void {
   if (!DSN) return
   const probe = document.createElement('audio')
@@ -143,6 +146,13 @@ export function reportPlaybackFailure(info: {
       media_error: (info.mediaError ?? 'timeout').slice(0, 190),
       can_aac: codecs['aac'],
       can_he_aac: codecs['he-aac'],
+      ...(info.probe
+        ? {
+            probe_status: info.probe.status.slice(0, 190),
+            probe_type: info.probe.contentType.slice(0, 190),
+            probe_boxes: info.probe.boxes.slice(0, 190),
+          }
+        : {}),
     },
     extra: { ...info, codecs, userAgent: navigator.userAgent },
   })

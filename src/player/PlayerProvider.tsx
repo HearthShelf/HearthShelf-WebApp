@@ -37,6 +37,7 @@ import {
 import { recordLocalSession, flushPendingProgress } from '@/player/pendingProgress'
 import { absMediaUrl } from '@/api/absClient'
 import { reportPlaybackFailure } from '@/lib/sentry'
+import { probeMedia } from '@/lib/mediaProbe'
 
 /** Auto-dismiss the player after this long continuously PAUSED, to release the
  *  open ABS session and the tab's audio graph (memory watchdog, not a session
@@ -276,16 +277,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }) => {
       const failed = nowRef.current
       if (failed) {
-        reportPlaybackFailure({
+        const track = failed.tracks[trackIndex]
+        const url = track ? resolveUrl(track) : null
+        const report = {
           itemId: failed.itemId,
-          trackIno: failed.tracks[trackIndex]?.ino ?? '',
+          trackIno: track?.ino ?? '',
           mediaError,
           stage: !failed.fallbackTracks?.length
-            ? 'original'
+            ? ('original' as const)
             : failed.partsRetried
-              ? 'part-retry'
-              : 'part',
-        })
+              ? ('part-retry' as const)
+              : ('part' as const),
+        }
+        // Look at what the same URL actually returns, then report both.
+        if (url) void probeMedia(url).then((probe) => reportPlaybackFailure({ ...report, probe }))
+        else reportPlaybackFailure(report)
       }
       setNow((cur) => {
         if (!cur?.fallbackTracks?.length) return cur
@@ -307,7 +313,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       })
     },
-    [],
+    [resolveUrl],
   )
 
   const player = useAudioPlayer({
