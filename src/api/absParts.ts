@@ -16,6 +16,17 @@ import type { AbsTarget } from './absLibrary'
 const PARTS_TIMEOUT_MS = 8000
 
 /**
+ * True when this browser cannot play xHE-AAC, the newer AAC some audiobooks use
+ * (Linux browsers, the Tesla's among them). The server then converts such books
+ * to plain AAC for us; browsers that can play them keep getting the original,
+ * which sounds better than a conversion.
+ */
+function needsConvert(): boolean {
+  if (typeof document === 'undefined') return false
+  return document.createElement('audio').canPlayType('audio/mp4; codecs="mp4a.40.42"') === ''
+}
+
+/**
  * Ask the server to get one part ready in the background (`?prepare=<index>`),
  * without waiting. Parts are cut on first request; warming the one the listener
  * will resume in while the book page is open means pressing play doesn't wait
@@ -25,7 +36,7 @@ export function prepareBookPart(t: AbsTarget, itemId: string, index: number): vo
   const token = getAbsToken(t.serverId)
   if (!token) return
   void fetch(
-    `${t.serverUrl.replace(/\/$/, '')}/hs/parts/${encodeURIComponent(itemId)}?prepare=${index}`,
+    `${t.serverUrl.replace(/\/$/, '')}/hs/parts/${encodeURIComponent(itemId)}?prepare=${index}${needsConvert() ? '&convert=1' : ''}`,
     { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` } },
   ).catch(() => {})
 }
@@ -37,7 +48,7 @@ export async function getBookParts(t: AbsTarget, itemId: string): Promise<BookPa
   const timer = setTimeout(() => ctrl.abort(), PARTS_TIMEOUT_MS)
   try {
     const res = await fetch(
-      `${t.serverUrl.replace(/\/$/, '')}/hs/parts/${encodeURIComponent(itemId)}`,
+      `${t.serverUrl.replace(/\/$/, '')}/hs/parts/${encodeURIComponent(itemId)}${needsConvert() ? '?convert=1' : ''}`,
       {
         headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
         signal: ctrl.signal,
