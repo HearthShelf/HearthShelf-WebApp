@@ -36,6 +36,7 @@ import {
 } from '@/player/syncState'
 import { recordLocalSession, flushPendingProgress } from '@/player/pendingProgress'
 import { absMediaUrl } from '@/api/absClient'
+import { reportPlaybackFailure } from '@/lib/sentry'
 
 /** Auto-dismiss the player after this long continuously PAUSED, to release the
  *  open ABS session and the tab's audio graph (memory watchdog, not a session
@@ -262,7 +263,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // original file, the way the phone app plays it, instead of leaving the
   // player stuck. One-way: fallbackTracks is dropped after the swap.
   const onLoadFailed = useCallback(
-    ({ positionSec, wantPlay }: { positionSec: number; wantPlay: boolean }) => {
+    ({
+      trackIndex,
+      positionSec,
+      wantPlay,
+      mediaError,
+    }: {
+      trackIndex: number
+      positionSec: number
+      wantPlay: boolean
+      mediaError: string | null
+    }) => {
+      const failed = nowRef.current
+      if (failed) {
+        reportPlaybackFailure({
+          itemId: failed.itemId,
+          trackIno: failed.tracks[trackIndex]?.ino ?? '',
+          mediaError,
+          stage: !failed.fallbackTracks?.length
+            ? 'original'
+            : failed.partsRetried
+              ? 'part-retry'
+              : 'part',
+        })
+      }
       setNow((cur) => {
         if (!cur?.fallbackTracks?.length) return cur
         if (!cur.partsRetried) {

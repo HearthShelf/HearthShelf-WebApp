@@ -54,7 +54,13 @@ interface UsePlayerArgs {
   /** The active track failed: the element errored, or its metadata never
    *  arrived within LOAD_TIMEOUT_MS. Lets the caller swap to another source
    *  (e.g. the original file instead of the server's quick-start parts). */
-  onLoadFailed?: (failure: { trackIndex: number; positionSec: number; wantPlay: boolean }) => void
+  onLoadFailed?: (failure: {
+    trackIndex: number
+    positionSec: number
+    wantPlay: boolean
+    /** The element's MediaError ("code: message"), or null for a timeout. */
+    mediaError: string | null
+  }) => void
 }
 
 // How long a track may take to deliver its metadata before it counts as failed.
@@ -228,6 +234,7 @@ export function useAudioPlayer({
           trackIndex: currentTrackRef.current,
           positionSec: positionRef.current,
           wantPlay: wantPlayRef.current,
+          mediaError: null,
         })
       }, LOAD_TIMEOUT_MS)
     },
@@ -490,10 +497,12 @@ export function useAudioPlayer({
     const onError = (e: Event) => {
       if (isActive(e)) {
         setPlaying(false)
+        const err = (e.currentTarget as HTMLAudioElement).error
         onLoadFailedRef.current?.({
           trackIndex: currentTrackRef.current,
           positionSec: positionRef.current,
           wantPlay: wantPlayRef.current,
+          mediaError: err ? `${err.code}: ${err.message}` : 'unknown',
         })
         return
       }

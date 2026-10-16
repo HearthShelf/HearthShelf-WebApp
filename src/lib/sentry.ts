@@ -109,6 +109,38 @@ export function reportMissingSessionToken(path: string): void {
   })
 }
 
+/**
+ * Report a book or part that the browser could not play. Carries the browser's
+ * own media error and which audio codecs it says it can decode, so a failure on
+ * one device (a car browser, say) can be told apart from a broken file.
+ */
+export function reportPlaybackFailure(info: {
+  itemId: string
+  trackIno: string
+  mediaError: string | null
+  stage: 'part' | 'part-retry' | 'original'
+}): void {
+  if (!DSN) return
+  const probe = document.createElement('audio')
+  const codecs: Record<string, string> = {}
+  for (const [name, type] of [
+    ['aac', 'audio/mp4; codecs="mp4a.40.2"'],
+    ['he-aac', 'audio/mp4; codecs="mp4a.40.5"'],
+    ['xhe-aac', 'audio/mp4; codecs="mp4a.40.42"'],
+    ['ac-3', 'audio/mp4; codecs="ac-3"'],
+    ['ec-3', 'audio/mp4; codecs="ec-3"'],
+    ['opus', 'audio/mp4; codecs="opus"'],
+    ['flac', 'audio/mp4; codecs="flac"'],
+  ] as const) {
+    codecs[name] = probe.canPlayType(type) || 'no'
+  }
+  Sentry.captureMessage('Audio could not be played', {
+    level: 'warning',
+    tags: { playback_stage: info.stage },
+    extra: { ...info, codecs, userAgent: navigator.userAgent },
+  })
+}
+
 /** Tag the current user so an issue can be traced to an account. */
 export function setSentryUser(userId: string | null): void {
   if (!DSN) return
