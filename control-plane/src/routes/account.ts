@@ -39,6 +39,7 @@ import {
   deleteAllDeviceHandlesForUser,
   writeAudit,
 } from '../lib/db'
+import { deleteAllMcpConnectionsForUser } from '../lib/mcpConnections'
 import { uuid } from '../lib/ids'
 
 export const account = new Hono<{ Bindings: Env }>()
@@ -63,6 +64,7 @@ account.post('/account/delete', async (c) => {
     deleteUserPrefs(c.env, user.userId),
     deleteEntitlement(c.env, user.userId),
     deleteAllDeviceHandlesForUser(c.env, user.userId),
+    deleteAllMcpConnectionsForUser(c.env, user.userId),
   ])
 
   // Crash reports used to be purged from our own log store here. That store is

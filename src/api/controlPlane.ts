@@ -506,6 +506,25 @@ export async function withdrawAppServer(id: string, serverId: string): Promise<v
   )
 }
 
+// --- AI assistant connections ------------------------------------------------
+
+export interface AiConnectionSummary {
+  id: string
+  /** Self-reported by the AI client; display it as text, never trust it. */
+  client_name: string | null
+  created_at: number
+  last_used_at: number | null
+}
+
+export async function fetchAiConnections(): Promise<AiConnectionSummary[]> {
+  const data = await request<{ connections: AiConnectionSummary[] }>('/mcp/connections')
+  return data.connections
+}
+
+export async function disconnectAiConnection(id: string): Promise<void> {
+  await request(`/mcp/connections/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
 // --- developer console ------------------------------------------------------
 
 export async function fetchMyApps(): Promise<AppSummary[]> {

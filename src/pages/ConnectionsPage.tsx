@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertCircle, Loader2, Monitor, Store, Trash2 } from 'lucide-react'
+import { AlertCircle, Bot, Loader2, Monitor, Store, Trash2 } from 'lucide-react'
 import {
+  disconnectAiConnection,
+  fetchAiConnections,
   fetchAppInstallations,
   revokeAppInstallation,
   withdrawAppServer,
@@ -108,7 +110,7 @@ export function ConnectionsPage() {
 
       {!data?.length ? (
         <p className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-5 text-sm text-neutral-400">
-          Nothing connected yet. Apps you connect will appear here.
+          No apps connected yet. Apps you connect will appear here.
         </p>
       ) : (
         <ul className="space-y-3">
@@ -190,6 +192,95 @@ export function ConnectionsPage() {
           ))}
         </ul>
       )}
+
+      <AiConnections />
+    </div>
+  )
+}
+
+/**
+ * AI assistants connected through mcp.hearthshelf.com. Unlike the apps above,
+ * their credential lives in the control plane, so a disconnect here is complete
+ * the moment it returns; the assistant notices within a few minutes and asks the
+ * user to reconnect.
+ */
+function AiConnections() {
+  const queryClient = useQueryClient()
+  const [busy, setBusy] = useState<string | null>(null)
+  const [problem, setProblem] = useState<string | null>(null)
+
+  const { data, isError } = useQuery({
+    queryKey: ['ai-connections'],
+    queryFn: fetchAiConnections,
+  })
+
+  if (isError || !data?.length) return null
+
+  const disconnect = async (id: string, name: string) => {
+    if (!confirm(`Disconnect ${name}? It will lose access to your library within a few minutes.`)) {
+      return
+    }
+    setBusy(id)
+    setProblem(null)
+    try {
+      await disconnectAiConnection(id)
+      await queryClient.invalidateQueries({ queryKey: ['ai-connections'] })
+    } catch {
+      setProblem(`Could not disconnect ${name}. Try again in a moment.`)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div className="space-y-3 pt-4">
+      <div>
+        <h2 className="text-lg font-medium">AI assistants</h2>
+        <p className="mt-1 text-sm text-neutral-400">
+          Assistants that can read your library to answer questions about your books. They stay
+          connected until you disconnect them here.
+        </p>
+      </div>
+
+      {problem && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-900/60 bg-amber-950/40 p-3 text-sm text-amber-200">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{problem}</span>
+        </div>
+      )}
+
+      <ul className="space-y-3">
+        {data.map((conn) => {
+          const name = conn.client_name || 'AI assistant'
+          return (
+            <li
+              key={conn.id}
+              className="flex items-start justify-between gap-3 rounded-lg border border-neutral-800 bg-neutral-900/40 p-4"
+            >
+              <div className="min-w-0">
+                <h3 className="truncate font-medium">{name}</h3>
+                <p className="mt-0.5 flex items-center gap-1.5 text-xs text-neutral-400">
+                  <Bot className="h-3.5 w-3.5" />
+                  Read-only · connected {relative(conn.created_at)}
+                  {conn.last_used_at && <span> · last used {relative(conn.last_used_at)}</span>}
+                </p>
+              </div>
+              <button
+                onClick={() => void disconnect(conn.id, name)}
+                disabled={busy === conn.id}
+                aria-label={`Disconnect ${name}`}
+                className="shrink-0 rounded-md border border-neutral-700 px-2.5 py-1.5 text-xs text-neutral-300 hover:border-red-800 hover:text-red-300 disabled:opacity-50"
+              >
+                {busy === conn.id ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
+              </button>
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }

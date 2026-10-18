@@ -202,10 +202,15 @@ servers.get('/servers', async (c) => {
   // Materialize any invites waiting on this email before listing.
   await acceptPendingInvites(c, user)
 
-  const zone = hsDirectZone(c.env)
+  return c.json({ servers: await linkedServersFor(c.env, user.userId) })
+})
+
+/** The user's linked servers as the SPA and the MCP Worker both see them. */
+export async function linkedServersFor(env: Env, userId: string): Promise<LinkedServerDTO[]> {
+  const zone = hsDirectZone(env)
   const [links, defaultId] = await Promise.all([
-    listLinksForUser(c.env, user.userId),
-    getDefaultServer(c.env, user.userId),
+    listLinksForUser(env, userId),
+    getDefaultServer(env, userId),
   ])
   const out: LinkedServerDTO[] = links.map((l) => {
     // The hs.direct fallback host, when this server has an active cert. `url` is
@@ -230,34 +235,48 @@ servers.get('/servers', async (c) => {
       ...(l.server_id === defaultId ? { is_default: true } : {}),
     }
   })
-  return c.json({ servers: out })
-})
+  return out
+}
 
 servers.post('/servers/:id/grant', async (c) => {
   const user = await requireUser(c)
   if (!user) return c.json({ error: 'unauthorized' }, 401)
   if (!user.emailVerified) return c.json({ error: 'email_unverified' }, 403)
 
-  const serverId = c.req.param('id')
-  const link = await getLink(c.env, user.userId, serverId)
-  if (!link) return c.json({ error: 'not_linked' }, 404)
-  const server = await getServer(c.env, serverId)
-  if (!server) return c.json({ error: 'server_unknown' }, 404)
+  const result = await grantFor(c.env, user.userId, user.username, c.req.param('id'))
+  if ('error' in result) return c.json({ error: result.error }, 404)
+  return c.json(result)
+})
 
-  const token = await mintGrant(c.env, {
-    clerkUserId: user.userId,
+/** Mint a short-TTL grant for one of the user's linked servers. */
+export async function grantFor(
+  env: Env,
+  userId: string,
+  username: string,
+  serverId: string,
+): Promise<
+  | { grant: string; server: { id: string; url: string }; expires_in: number }
+  | { error: 'not_linked' | 'server_unknown' }
+> {
+  const link = await getLink(env, userId, serverId)
+  if (!link) return { error: 'not_linked' }
+  const server = await getServer(env, serverId)
+  if (!server) return { error: 'server_unknown' }
+
+  const token = await mintGrant(env, {
+    clerkUserId: userId,
     serverId,
     serverUrl: server.public_url,
     email: link.email,
-    username: user.username,
+    username,
     role: link.role,
   })
-  return c.json({
+  return {
     grant: token,
     server: { id: serverId, url: server.public_url },
-    expires_in: Number(c.env.GRANT_TTL_SECONDS || '300'),
-  })
-})
+    expires_in: Number(env.GRANT_TTL_SECONDS || '300'),
+  }
+}
 
 /**
  * Reset (rotate) a server's server_secret in place - owner-admin only.
@@ -574,7 +593,12 @@ servers.post('/servers/verify-secret', async (c) => {
  * own console without a second call. Idempotent.
  */
 servers.post('/servers/version', async (c) => {
-  let body: { server_id?: string; server_secret?: string; hs_version?: string; abs_version?: string }
+  let body: {
+    server_id?: string
+    server_secret?: string
+    hs_version?: string
+    abs_version?: string
+  }
   try {
     body = await c.req.json()
   } catch {

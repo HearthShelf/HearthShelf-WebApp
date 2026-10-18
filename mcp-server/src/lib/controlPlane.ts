@@ -12,10 +12,10 @@
 import type { Env, LinkedServer, McpProps } from '../types'
 
 /**
- * The user's session token was rejected by the control plane. This is the
- * EXPECTED failure once a captured session token ages out (see McpProps.
- * sessionToken), so callers turn it into a "reconnect HearthShelf" message rather
- * than leaking a raw 401 into a chat transcript.
+ * The control plane no longer honours this connection's credential: the user
+ * disconnected it, deleted their account, or it was pruned. The agent answers by
+ * revoking its own grant, so the AI client's next request gets a real 401 and
+ * asks the user to reconnect.
  */
 export class CpAuthError extends Error {
   constructor(message = 'control_plane_unauthorized') {
@@ -33,7 +33,7 @@ async function cpFetch<T>(env: Env, props: McpProps, path: string, init?: Reques
     res = await fetch(`${base}${path}`, {
       ...init,
       headers: {
-        Authorization: `Bearer ${props.sessionToken}`,
+        Authorization: `Bearer ${props.cpToken}`,
         Accept: 'application/json',
         ...init?.headers,
       },
@@ -46,9 +46,40 @@ async function cpFetch<T>(env: Env, props: McpProps, path: string, init?: Reques
   return (await res.json()) as T
 }
 
+/**
+ * Exchange the approving user's session for this connection's own credential.
+ * Called once, at consent, while the browser session is still fresh.
+ */
+export async function createConnection(
+  env: Env,
+  sessionToken: string,
+  clientName: string | null,
+): Promise<{ id: string; token: string }> {
+  const base = env.CONTROL_PLANE_URL.replace(/\/$/, '')
+  let res: Response
+  try {
+    res = await fetch(`${base}/mcp/connections`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${sessionToken}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ client_name: clientName }),
+    })
+  } catch (err) {
+    throw new CpError(`control_plane_unreachable: ${(err as Error).message}`)
+  }
+  if (res.status === 401 || res.status === 403) throw new CpAuthError()
+  if (!res.ok) throw new CpError(`control_plane_${res.status}`)
+  const data = (await res.json()) as { id?: string; token?: string }
+  if (!data.id || !data.token) throw new CpError('control_plane_bad_response')
+  return { id: data.id, token: data.token }
+}
+
 /** List the servers this identity is linked to. */
 export async function listServers(env: Env, props: McpProps): Promise<LinkedServer[]> {
-  const data = await cpFetch<{ servers?: LinkedServer[] }>(env, props, '/servers')
+  const data = await cpFetch<{ servers?: LinkedServer[] }>(env, props, '/mcp/servers')
   return data.servers ?? []
 }
 
@@ -67,7 +98,7 @@ export async function connectToServer(
   const grantRes = await cpFetch<{ grant: string; server: { id: string; url: string } }>(
     env,
     props,
-    `/servers/${encodeURIComponent(serverId)}/grant`,
+    `/mcp/servers/${encodeURIComponent(serverId)}/grant`,
     { method: 'POST' },
   )
 

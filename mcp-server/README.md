@@ -80,24 +80,31 @@ Claude ──1── POST /mcp (no token)
        ──9── POST /mcp with access token ✓
 ```
 
-The grant's encrypted props carry the Clerk identity. At tool-call time the
-Worker mints a short-TTL grant from the control plane and redeems it at the
-user's box for a per-user ABS token - exactly what the SPA does in
+At `/approve` the Worker exchanges the user's (short-lived) session for a
+**connection credential** from the control plane (`POST /mcp/connections`, see
+`control-plane/src/routes/mcp.ts`). That credential, not the session, goes into
+the grant's encrypted props. It is accepted only by the control plane's
+`/mcp/servers` and `/mcp/servers/:id/grant` routes, and it lasts until the user
+disconnects it on the Connections page.
+
+At tool-call time the Worker uses it to mint a short-TTL grant and redeems that
+at the user's box for a per-user ABS token - exactly what the SPA does in
 `src/lib/connectServer.ts`. **No long-lived ABS credential is stored**; the
 redeemed token is cached in Durable Object memory only, for
-`ABS_TOKEN_TTL_SECONDS` (default 10 min).
+`ABS_TOKEN_TTL_SECONDS` (default 10 min), which is also how long a disconnect can
+take to reach a running session.
 
-### Known limitation: session-token lifetime
+### Staying connected
 
-The Clerk session token captured at authorize time is what authenticates the
-Worker to the control plane later. Clerk session tokens expire, so a connection
-will eventually need re-authorizing; tools surface this as *"Your HearthShelf
-connection has expired. Reconnect the HearthShelf connector..."* rather than a
-raw 401.
+A grant lives 90 days past its last use (`refreshTokenIdleTTL` in
+`src/oauth.ts`), and dynamically registered clients never expire, so a
+connection in regular use never lapses on its own.
 
-Replacing this with a control-plane-issued long-lived MCP credential is the
-tracked follow-up. It needs a new control-plane endpoint, so it was deliberately
-left out of the first cut - see `McpProps.clerkToken` in `src/types.ts`.
+When the control plane refuses the credential (disconnected, account deleted),
+the agent revokes its own OAuth grant. A refusal reported only inside a tool
+result is invisible to the AI client; a revoked grant turns its next request
+and its refresh into real 401s, which is what makes the client prompt the user
+to reconnect.
 
 ## Setup
 
@@ -159,7 +166,8 @@ Claude registers itself, opens the sign-in bounce, and shows the consent screen.
 
 ```
 src/
-  index.ts            OAuthProvider wiring + Worker entry
+  index.ts            Worker entry
+  oauth.ts            OAuthProvider configuration (token lifetimes, endpoints)
   authorize.ts        sign-in bounce, consent screen, grant completion
   mcp.ts              the McpAgent: tool registration + error shaping
   types.ts            Env bindings + the encrypted grant props

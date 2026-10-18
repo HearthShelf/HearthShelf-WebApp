@@ -56,20 +56,17 @@ export interface McpProps extends Record<string, unknown> {
   /** Display username, may be empty. */
   username: string
   /**
-   * The session token captured at authorize time.
-   *
-   * WHY THIS IS HERE: the control plane authenticates `/servers` and
-   * `/servers/:id/grant` with a bearer token, and an MCP tool call happens long
-   * after the browser is gone - there is no live session to borrow. We carry the
-   * token so the Worker can act as the user against the CP.
-   *
-   * The obvious consequence: a session token expires, so this WILL go stale and
-   * tools must surface a re-connect prompt rather than a raw 401. See
-   * lib/controlPlane `CpAuthError`. Replacing this with a CP-issued long-lived
-   * MCP credential is the tracked follow-up; it needs a new control-plane
-   * endpoint, so it is deliberately out of scope for the skeleton.
+   * The control plane's id for this connection. Also stored in the grant's
+   * (plaintext) metadata, which is how the agent finds its own grant to revoke.
    */
-  sessionToken: string
+  connectionId: string
+  /**
+   * The connection credential the control plane issued at consent time
+   * (`hsmcp_...`). It is how the Worker acts as the user once the browser is
+   * gone, and it is accepted only by the control plane's /mcp/* routes. It lasts
+   * until the user disconnects the connection, unlike a session token.
+   */
+  cpToken: string
 }
 
 /** One linked server, as the control plane reports it. */

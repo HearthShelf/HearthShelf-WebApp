@@ -11,25 +11,15 @@
  *
  * The OAuthProvider wraps everything: it serves the metadata documents, gates
  * /mcp on a valid access token, and hands the decrypted grant props to the
- * McpAgent as `this.props`. See ../ARCHITECTURE.md for the trust model.
+ * McpAgent as `this.props`. See ../ARCHITECTURE.md for the trust model, and
+ * src/oauth.ts for the configuration.
  */
 import OAuthProvider from '@cloudflare/workers-oauth-provider'
-import { Hono } from 'hono'
 import type { Env } from './types'
 import { HearthShelfMCP } from './mcp'
-import { authorizeApp } from './authorize'
+import { oauthOptions } from './oauth'
 
 export { HearthShelfMCP }
-
-// Unprotected surface: the sign-in/consent flow plus a liveness probe.
-const defaultApp = new Hono<{ Bindings: Env }>()
-defaultApp.get('/health', (c) => c.json({ ok: true }))
-defaultApp.route('/', authorizeApp)
-defaultApp.get('/', (c) =>
-  c.text(
-    'HearthShelf MCP server. Add it to an MCP client with the URL ' + `${c.env.MCP_ISSUER}/mcp`,
-  ),
-)
 
 // Every token is bound to one canonical resource: the URL MCP clients connect
 // to. It comes from MCP_ISSUER rather than a literal so `wrangler dev` with a
@@ -38,23 +28,7 @@ defaultApp.get('/', (c) =>
 let provider: OAuthProvider<Env> | undefined
 
 function getProvider(env: Env): OAuthProvider<Env> {
-  provider ??= new OAuthProvider<Env>({
-    apiRoute: '/mcp',
-    // McpAgent.serve returns the handler for the Streamable HTTP transport. The
-    // OAuth layer has already validated the token by the time this runs.
-    apiHandler: HearthShelfMCP.serve('/mcp', { binding: 'MCP_OBJECT' }) as never,
-    defaultHandler: defaultApp as never,
-    authorizeEndpoint: '/authorize',
-    tokenEndpoint: '/token',
-    // Dynamic client registration is what lets a user press "Connect" in Claude
-    // without anyone pre-registering a client id. This is the one-click path.
-    clientRegistrationEndpoint: '/register',
-    scopesSupported: ['library:read'],
-    resourceMetadata: {
-      resource: `${env.MCP_ISSUER}/mcp`,
-      scopes_supported: ['library:read'],
-    },
-  })
+  provider ??= new OAuthProvider<Env>(oauthOptions(env))
   return provider
 }
 

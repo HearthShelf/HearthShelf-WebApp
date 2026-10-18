@@ -30,25 +30,7 @@ import {
   findSimilar,
 } from './tools/library'
 import { listDebugSeries, getSeriesReport, getQueueReport } from './tools/debug'
-
-/** Wrap a tool body so failures read as guidance, not as raw HTTP noise. */
-async function safe<T>(fn: () => Promise<T>): Promise<T | { error: string }> {
-  try {
-    return await fn()
-  } catch (err) {
-    if (err instanceof CpAuthError) {
-      return {
-        error:
-          'Your HearthShelf connection has expired. Reconnect the HearthShelf ' +
-          'connector in your AI client settings to continue.',
-      }
-    }
-    if (err instanceof CpError) {
-      return { error: `Could not reach your HearthShelf server: ${err.message}` }
-    }
-    return { error: `Something went wrong: ${(err as Error).message}` }
-  }
-}
+import { oauthApi } from './oauth'
 
 /** Render a tool result as MCP content. */
 function json(value: unknown) {
@@ -77,6 +59,54 @@ export class HearthShelfMCP extends McpAgent<Env, never, McpProps> {
   private abs(): AbsSession {
     if (!this.session) this.session = new AbsSession(this.env, this.identity())
     return this.session
+  }
+
+  /** Wrap a tool body so failures read as guidance, not as raw HTTP noise. */
+  private async safe<T>(fn: () => Promise<T>): Promise<T | { error: string }> {
+    try {
+      return await fn()
+    } catch (err) {
+      if (err instanceof CpAuthError) {
+        await this.disconnect().catch((e) =>
+          console.error('[mcp] could not revoke grant:', (e as Error).message),
+        )
+        return {
+          error:
+            'This HearthShelf connection was disconnected. Reconnect the HearthShelf ' +
+            'connector in your AI client settings to continue.',
+        }
+      }
+      if (err instanceof CpError) {
+        return { error: `Could not reach your HearthShelf server: ${err.message}` }
+      }
+      return { error: `Something went wrong: ${(err as Error).message}` }
+    }
+  }
+
+  /**
+   * Revoke this connection's OAuth grant once the control plane has stopped
+   * honouring it. A refused credential inside a tool result is invisible to the
+   * AI client; a revoked grant makes its next request (and its refresh) fail with
+   * a real 401, which is what makes it ask the user to reconnect.
+   *
+   * The grant is found by the connection id in its metadata. Grants made before
+   * connection credentials existed carry no id, and match each other as a group.
+   */
+  private async disconnect(): Promise<void> {
+    const userId = this.props?.userId
+    if (!userId) return
+    const connectionId = this.props?.connectionId
+    const api = oauthApi(this.env)
+    let cursor: string | undefined
+    do {
+      const page = await api.listUserGrants(userId, { cursor })
+      for (const grant of page.items) {
+        if (grant.metadata?.connectionId === connectionId) {
+          await api.revokeGrant(grant.id, userId)
+        }
+      }
+      cursor = page.cursor
+    } while (cursor)
   }
 
   /**
@@ -113,7 +143,7 @@ export class HearthShelfMCP extends McpAgent<Env, never, McpProps> {
           'Call this first if a later tool reports that multiple servers exist.',
         inputSchema: {},
       },
-      async () => json(await safe(async () => listServers(this.env, this.identity()))),
+      async () => json(await this.safe(async () => listServers(this.env, this.identity()))),
     )
 
     this.server.registerTool(
@@ -126,7 +156,7 @@ export class HearthShelfMCP extends McpAgent<Env, never, McpProps> {
       },
       async ({ server_id }) =>
         json(
-          await safe(async () => {
+          await this.safe(async () => {
             const id = await this.resolveServerId(server_id)
             return getLibraries(this.abs(), id)
           }),
@@ -152,7 +182,7 @@ export class HearthShelfMCP extends McpAgent<Env, never, McpProps> {
       },
       async ({ query, library_id, limit, server_id }) =>
         json(
-          await safe(async () => {
+          await this.safe(async () => {
             const id = await this.resolveServerId(server_id)
             return searchLibrary(this.abs(), id, query, library_id, limit)
           }),
@@ -172,7 +202,7 @@ export class HearthShelfMCP extends McpAgent<Env, never, McpProps> {
       },
       async ({ item_id, server_id }) =>
         json(
-          await safe(async () => {
+          await this.safe(async () => {
             const id = await this.resolveServerId(server_id)
             return getItem(this.abs(), id, item_id)
           }),
@@ -194,7 +224,7 @@ export class HearthShelfMCP extends McpAgent<Env, never, McpProps> {
       },
       async ({ limit, server_id }) =>
         json(
-          await safe(async () => {
+          await this.safe(async () => {
             const id = await this.resolveServerId(server_id)
             return getFinished(this.abs(), id, limit)
           }),
@@ -212,7 +242,7 @@ export class HearthShelfMCP extends McpAgent<Env, never, McpProps> {
       },
       async ({ server_id }) =>
         json(
-          await safe(async () => {
+          await this.safe(async () => {
             const id = await this.resolveServerId(server_id)
             return getInProgress(this.abs(), id)
           }),
@@ -230,7 +260,7 @@ export class HearthShelfMCP extends McpAgent<Env, never, McpProps> {
       },
       async ({ server_id }) =>
         json(
-          await safe(async () => {
+          await this.safe(async () => {
             const id = await this.resolveServerId(server_id)
             return getListeningStats(this.abs(), id)
           }),
@@ -248,7 +278,7 @@ export class HearthShelfMCP extends McpAgent<Env, never, McpProps> {
       },
       async ({ server_id }) =>
         json(
-          await safe(async () => {
+          await this.safe(async () => {
             const id = await this.resolveServerId(server_id)
             return getRecommendations(this.abs(), id)
           }),
@@ -270,7 +300,7 @@ export class HearthShelfMCP extends McpAgent<Env, never, McpProps> {
       },
       async ({ item_id, limit, server_id }) =>
         json(
-          await safe(async () => {
+          await this.safe(async () => {
             const id = await this.resolveServerId(server_id)
             return findSimilar(this.abs(), id, item_id, limit)
           }),
@@ -298,7 +328,7 @@ export class HearthShelfMCP extends McpAgent<Env, never, McpProps> {
       },
       async ({ query, server_id }) =>
         json(
-          await safe(async () => {
+          await this.safe(async () => {
             const id = await this.resolveServerId(server_id)
             return listDebugSeries(this.abs(), id, query)
           }),
@@ -326,7 +356,7 @@ export class HearthShelfMCP extends McpAgent<Env, never, McpProps> {
       },
       async ({ series_id, server_id }) =>
         json(
-          await safe(async () => {
+          await this.safe(async () => {
             const id = await this.resolveServerId(server_id)
             return getSeriesReport(this.abs(), id, series_id)
           }),
@@ -350,7 +380,7 @@ export class HearthShelfMCP extends McpAgent<Env, never, McpProps> {
       },
       async ({ user_id, item_id, server_id }) =>
         json(
-          await safe(async () => {
+          await this.safe(async () => {
             const id = await this.resolveServerId(server_id)
             return getQueueReport(this.abs(), id, user_id, item_id)
           }),

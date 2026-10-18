@@ -9,8 +9,8 @@
  *   2. Bounce the user to the SPA to sign in - the identity they already
  *      have. The SPA posts the session token back to /callback.
  *   3. Show a consent screen naming the client and the exact (read-only) access.
- *   4. On approval, complete the authorization, sealing the identity into
- *      the grant's encrypted props.
+ *   4. On approval, exchange the session for a connection credential from the
+ *      control plane and seal it into the grant's encrypted props.
  *
  * The user never types a token or edits a config file. That is the entire
  * product requirement for "1-click setup for Claude".
@@ -24,6 +24,7 @@ import { Hono } from 'hono'
 import type { AuthRequest } from '@cloudflare/workers-oauth-provider'
 import type { Env, McpProps } from './types'
 import { verifyIdentity, AuthError } from './lib/identity'
+import { createConnection, CpAuthError } from './lib/controlPlane'
 
 export const authorizeApp = new Hono<{ Bindings: Env }>()
 
@@ -159,11 +160,24 @@ authorizeApp.post('/approve', async (c) => {
   }
   if (!identity.emailVerified) return c.text('email_not_verified', 403)
 
+  const clientName = (await c.env.OAUTH_PROVIDER.lookupClient(authReq.clientId))?.clientName ?? null
+
+  // The session token goes no further than this request. The grant carries the
+  // connection's own credential, which outlives the session.
+  let connection
+  try {
+    connection = await createConnection(c.env, sessionToken, clientName)
+  } catch (err) {
+    if (err instanceof CpAuthError) return c.text('unauthorized', 401)
+    return c.text('Could not reach HearthShelf. Please try connecting again.', 502)
+  }
+
   const props: McpProps = {
     userId: identity.userId,
     email: identity.email,
     username: identity.username,
-    sessionToken,
+    connectionId: connection.id,
+    cpToken: connection.token,
   }
 
   const { redirectTo } = await c.env.OAUTH_PROVIDER.completeAuthorization({
@@ -171,7 +185,8 @@ authorizeApp.post('/approve', async (c) => {
     userId: identity.userId,
     metadata: {
       connectedAt: Date.now(),
-      clientName: (await c.env.OAUTH_PROVIDER.lookupClient(authReq.clientId))?.clientName ?? null,
+      clientName,
+      connectionId: connection.id,
     },
     // Read-only surface: one scope, no write scope exists to request.
     scope: ['library:read'],

@@ -9,6 +9,7 @@
  *   POST /servers/:id/grant       mint a short-TTL grant (Clerk)
  *   DELETE /servers/:id           unlink (Clerk)
  *   POST /account/delete          purge all data + delete Clerk identity (Clerk)
+ *   /mcp/*                        AI assistant connections (routes/mcp.ts)
  *   GET  /health                  liveness
  *
  * See ../ARCHITECTURE.md for the trust model and why the control plane is never
@@ -28,6 +29,7 @@ import { admin } from './routes/admin'
 import { accounts } from './routes/accounts'
 import { account } from './routes/account'
 import { apps } from './routes/apps'
+import { mcp } from './routes/mcp'
 import { forwardLog } from './lib/logs'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -69,6 +71,7 @@ app.route('/', account)
 app.route('/', releases)
 app.route('/', telemetry)
 app.route('/', apps)
+app.route('/', mcp)
 
 app.notFound((c) => c.json({ error: 'not_found' }, 404))
 app.onError((err, c) => {
