@@ -146,6 +146,13 @@ export function reportPlaybackFailure(info: {
       media_error: (info.mediaError ?? 'timeout').slice(0, 190),
       can_aac: codecs['aac'],
       can_he_aac: codecs['he-aac'],
+      // xHE-AAC belongs in the tags, not just in extra. It is the codec the
+      // conversion decision turns on (see needsConvert in api/absParts.ts), and
+      // leaving it out of the tag set made the tags actively misleading:
+      // HS-WEBAPP-A read as "can_aac: probably, can_he_aac: probably", which
+      // looks like a codec-is-fine story, while the one value that mattered sat
+      // unread in extra. That cost a wrong first diagnosis.
+      can_xhe_aac: codecs['xhe-aac'],
       ...(info.probe
         ? {
             probe_status: info.probe.status.slice(0, 190),

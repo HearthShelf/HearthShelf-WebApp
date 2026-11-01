@@ -258,11 +258,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   // A quick-start part failed to load. The usual cause is a cold part that took
   // longer to cut than a proxy would wait; the server keeps cutting it, so the
-  // first failure just reloads the parts (a fresh track array re-inits the
-  // player at the same spot). A second failure means parts really don't work
-  // here (server can't cut them, box too old, ...): switch this book to its
-  // original file, the way the phone app plays it, instead of leaving the
-  // player stuck. One-way: fallbackTracks is dropped after the swap.
+  // first failure re-inits the player at the same spot and gives it another go.
+  // A second failure means parts really don't work here (server can't cut them,
+  // box too old, ...): switch this book to its original file, the way the phone
+  // app plays it, instead of leaving the player stuck. One-way: fallbackTracks
+  // is dropped after the swap.
+  //
+  // Note what the first retry does NOT do: `tracks: [...cur.tracks]` is a fresh
+  // ARRAY, not a fresh part LIST. The URLs are identical, so the retry re-reads
+  // the same bytes and cannot pick up a corrected plan from the server. This
+  // comment used to claim it "reloads the parts", which it never did - and that
+  // wording sent the first investigation of HS-WEBAPP-A looking for a stale
+  // cached plan.
+  //
+  // Left as-is deliberately. It is the right behaviour for the cold-part case
+  // this path exists for (the bytes genuinely do appear on a later read), and a
+  // real re-resolve means re-running the resolver in api/absLibrary.ts rather
+  // than calling getBookParts directly. If a wrong plan ever needs correcting
+  // mid-session, that is the change to make.
   const onLoadFailed = useCallback(
     ({
       trackIndex,

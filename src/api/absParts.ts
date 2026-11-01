@@ -23,7 +23,24 @@ const PARTS_TIMEOUT_MS = 8000
  */
 function needsConvert(): boolean {
   if (typeof document === 'undefined') return false
-  return document.createElement('audio').canPlayType('audio/mp4; codecs="mp4a.40.42"') === ''
+  // Only 'probably' counts as support. canPlayType is THREE-valued - '',
+  // 'maybe', 'probably' - and this used to treat everything except '' as
+  // playable, so a browser answering 'maybe' was handed the original xHE-AAC
+  // and rejected it with MEDIA_ERR_SRC_NOT_SUPPORTED.
+  //
+  // Confirmed from GlitchTip HS-WEBAPP-A: none of that event's four part
+  // requests carried convert=1, so this function had returned false on Chrome
+  // for Linux. The server then stream-copied the source - correctly, given it
+  // was never asked to convert - and the player's fallback to the original file
+  // was the same undecodable audio, so the listener had no way out at all.
+  //
+  // 'maybe' means the browser recognizes the container but will not commit to
+  // the codec, which is precisely the case that must convert. An unnecessary
+  // conversion costs a re-encode; trusting a 'maybe' that turns out to be wrong
+  // costs playback entirely.
+  return (
+    document.createElement('audio').canPlayType('audio/mp4; codecs="mp4a.40.42"') !== 'probably'
+  )
 }
 
 /**
