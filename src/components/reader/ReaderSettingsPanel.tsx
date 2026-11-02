@@ -124,7 +124,7 @@ export function ReaderSettingsPanel({ prefs, setPref }: Props) {
         </div>
         <div>
           <div className="rp-sec" style={{ marginTop: 4 }}>
-            Margins
+            Text width
           </div>
           <Seg
             k="width"

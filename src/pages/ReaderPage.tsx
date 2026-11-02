@@ -38,6 +38,18 @@ function describeError(err: unknown): string {
   return 'The file could not be read as an EPUB.'
 }
 
+// A two-page spread needs room for two readable columns; narrower stages show
+// one page.
+const MIN_SPREAD_WIDTH = 900
+// Paged mode's viewer is two text widths plus the gap and outer padding.
+const SPREAD_GUTTER = 160
+// Horizontal swipe distance (px) that turns a page.
+const SWIPE_MIN = 40
+// After a wheel page turn, further wheel events are ignored until the wheel has
+// been quiet this long, so one trackpad flick (with its inertia tail) turns one
+// page rather than ten.
+const WHEEL_QUIET_MS = 220
+
 interface ReaderPageProps {
   // When set, the reader renders as an inline "read along" panel (e.g. beside
   // the desktop player) instead of the full-screen route: a close (X) button,
@@ -66,6 +78,26 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
   const [progress, setProgress] = useState(0)
   const [chapterLabel, setChapterLabel] = useState('')
   const [panel, setPanel] = useState<'settings' | 'chapters' | null>(null)
+  const isPaged = prefs.layout === 'paged'
+
+  // Latest page-turn and key handlers, read by listeners that are attached once
+  // per rendition (inside the content iframe) and so cannot close over state.
+  const turnRef = useRef<(dir: 1 | -1) => void>(() => {})
+  const keyRef = useRef<(e: KeyboardEvent) => void>(() => {})
+
+  // Paged mode: the wheel turns pages instead of scrolling.
+  const wheelRef = useRef({ locked: false, timer: 0 })
+  const onWheel = useCallback((e: WheelEvent) => {
+    const delta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX
+    if (delta === 0) return
+    e.preventDefault()
+    const w = wheelRef.current
+    window.clearTimeout(w.timer)
+    w.timer = window.setTimeout(() => (w.locked = false), WHEEL_QUIET_MS)
+    if (w.locked) return
+    w.locked = true
+    turnRef.current(delta > 0 ? 1 : -1)
+  }, [])
 
   const { data: detail } = useQuery({
     queryKey: ['abs-book-detail', target?.serverId, itemId],
@@ -140,15 +172,47 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
         }
         book = ePub(buf)
         bookRef.current = book
-        const flow = prefs.layout === 'paged' ? 'paginated' : 'scrolled'
+        const paged = prefs.layout === 'paged'
         rendition = book.renderTo(viewer, {
           width: '100%',
           height: '100%',
-          flow,
-          spread: 'none',
+          flow: paged ? 'paginated' : 'scrolled',
+          spread: paged ? 'auto' : 'none',
+          minSpreadWidth: MIN_SPREAD_WIDTH,
           allowScriptedContent: false,
         })
         renditionRef.current = rendition
+
+        // Wheel, swipe and keys over the text land inside the content iframe,
+        // never reaching our own listeners, so attach them to each section's
+        // document as it renders.
+        rendition.hooks.content.register((contents) => {
+          const doc = contents.document
+          doc.addEventListener('keydown', (e) => keyRef.current(e))
+          if (!paged) return
+          doc.addEventListener('wheel', onWheel, { passive: false })
+          let startX = 0
+          let startY = 0
+          doc.addEventListener(
+            'touchstart',
+            (e) => {
+              startX = e.changedTouches[0].clientX
+              startY = e.changedTouches[0].clientY
+            },
+            { passive: true },
+          )
+          doc.addEventListener(
+            'touchend',
+            (e) => {
+              const dx = e.changedTouches[0].clientX - startX
+              const dy = e.changedTouches[0].clientY - startY
+              if (Math.abs(dx) >= SWIPE_MIN && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                turnRef.current(dx < 0 ? 1 : -1)
+              }
+            },
+            { passive: true },
+          )
+        })
 
         const savedCfi = localStorage.getItem(cfiStorageKey(itemId)) || undefined
         rendition
@@ -184,6 +248,9 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
           .then(() => {
             if (cancelled || !book) return
             setToc(book.navigation?.toc ?? [])
+            // The first relocation fires before locations exist and reads 0%.
+            const loc = rendition?.currentLocation()
+            if (loc?.start) onRelocated({ start: loc.start })
           })
           .catch(() => {})
 
@@ -206,8 +273,26 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
       if (item?.label) setChapterLabel(item.label.trim())
     }
 
+    // epub.js only re-lays out on window resize; the stage also changes size
+    // when the sidebar collapses or the text width setting changes.
+    let frame = 0
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        if (cancelled || !rendition || renditionRef.current !== rendition) return
+        try {
+          rendition.resize()
+        } catch {
+          // Not displayed yet - the first display measures the stage itself.
+        }
+      })
+    })
+    observer.observe(viewer)
+
     return () => {
       cancelled = true
+      observer.disconnect()
+      cancelAnimationFrame(frame)
       rendition?.destroy()
       book?.destroy()
       bookRef.current = null
@@ -229,12 +314,25 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
     r.themes.font(READER_FONT_STACKS[prefs.font])
     r.themes.override('line-height', String(READER_LINE_HEIGHTS[prefs.lh]))
     r.themes.override('text-align', prefs.align)
-    r.themes.override('max-width', `${READER_WIDTHS[prefs.width]}px`)
-    r.themes.override('margin', '0 auto')
+    // Scroll: one centered column. epub.js writes the body's margin (0) and
+    // padding (1/12 of the width) inline on every section layout, replacing any
+    // inline value of ours, important or not, so the column used to jump left
+    // and shrink. A stylesheet !important rule outranks those inline writes.
+    // Paged mode sizes the viewer instead: a body max-width breaks its columns.
+    const column: Record<string, Record<string, string>> = isPaged
+      ? {}
+      : {
+          body: {
+            'max-width': `${READER_WIDTHS[prefs.width]}px !important`,
+            margin: '0 auto !important',
+            padding: '0 24px !important',
+          },
+        }
     // Drop-cap on the opening paragraph of each chapter - a quiet print touch.
     // Injected into the rendered EPUB via epub.js's default-theme stylesheet so
     // it lands inside the content iframe (override() can't reach pseudo-elements).
     r.themes.default({
+      ...column,
       'p:first-of-type::first-letter': {
         'font-size': '3.1em',
         'line-height': '0.82',
@@ -243,8 +341,14 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
         'font-weight': '600',
         color: t.ink,
       },
+      // Chapter titles are often links back to the contents page; the
+      // browser's link blue is unreadable on the dark themes.
+      'h1 a, h2 a, h3 a, h4 a, h5 a, h6 a': {
+        color: 'inherit !important',
+        'text-decoration': 'none !important',
+      },
     })
-  }, [prefs.theme, prefs.size, prefs.font, prefs.lh, prefs.align, prefs.width])
+  }, [prefs.theme, prefs.size, prefs.font, prefs.lh, prefs.align, prefs.width, isPaged])
 
   useEffect(() => {
     applyTheme()
@@ -262,22 +366,32 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
     [inline, onClose, navigate],
   )
 
-  // Keyboard: arrows page, Escape closes panel / exits.
+  turnRef.current = (dir) => void (dir > 0 ? next() : prev())
+
+  // Keyboard: arrows page, Escape closes panel / exits. Also fed from inside the
+  // content iframe, which holds focus after the reader clicks the text.
+  keyRef.current = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      if (panel) setPanel(null)
+      else back()
+    } else if (e.key === 'ArrowRight') void next()
+    else if (e.key === 'ArrowLeft') void prev()
+  }
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (panel) setPanel(null)
-        else back()
-      } else if (e.key === 'ArrowRight') void next()
-      else if (e.key === 'ArrowLeft') void prev()
-    }
+    const onKey = (e: KeyboardEvent) => keyRef.current(e)
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [panel, back])
+  }, [])
 
   const setPref = <K extends keyof ReaderPrefs>(k: K, v: ReaderPrefs[K]) => prefs.set(k, v)
 
-  const isPaged = prefs.layout === 'paged'
+  const stageRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const stage = stageRef.current
+    if (!stage || !isPaged) return
+    stage.addEventListener('wheel', onWheel, { passive: false })
+    return () => stage.removeEventListener('wheel', onWheel)
+  }, [isPaged, onWheel])
 
   const rootStyle = {
     ['--rd-bg' as string]: theme.bg,
@@ -389,14 +503,22 @@ export function ReaderPage({ itemId: itemIdProp, inline, onClose }: ReaderPagePr
         </div>
       )}
 
-      <div className="reader-stage" onClick={() => panel && setPanel(null)}>
+      <div ref={stageRef} className="reader-stage" onClick={() => panel && setPanel(null)}>
         {loading && <LoadingSpinner className="reader-loading" label="Opening book..." />}
         {loadError && (
           <div className="reader-loading">
             <ErrorState message={loadError} onRetry={() => navigate(0)} />
           </div>
         )}
-        <div ref={viewerRef} className="reader-viewer" />
+        <div
+          ref={viewerRef}
+          className="reader-viewer"
+          style={
+            isPaged
+              ? { maxWidth: READER_WIDTHS[prefs.width] * 2 + SPREAD_GUTTER, margin: '0 auto' }
+              : undefined
+          }
+        />
         <div className="reader-dim" style={{ opacity: dim }} />
       </div>
 

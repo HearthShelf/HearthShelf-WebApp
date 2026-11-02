@@ -14962,6 +14962,12 @@ select.fld {
   position: absolute;
   inset: 0;
 }
+/* In scroll mode epub.js sizes the iframe to the full stage width, and the
+   vertical scrollbar then pushes it 15px past the edge. Paged mode turns pages
+   with scrollLeft, which still works on an overflow-hidden box. */
+.reader-viewer .epub-container {
+  overflow-x: hidden !important;
+}
 .reader-dim {
   position: absolute;
   inset: 0;

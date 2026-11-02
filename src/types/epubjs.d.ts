@@ -38,7 +38,19 @@ declare module 'epubjs' {
     height?: string | number
     flow?: 'paginated' | 'scrolled' | 'scrolled-doc' | 'scrolled-continuous'
     spread?: 'none' | 'always' | 'auto'
+    // Below this width a spread falls back to a single page.
+    minSpreadWidth?: number
     allowScriptedContent?: boolean
+  }
+
+  // One rendered section's document (inside the content iframe).
+  export interface Contents {
+    document: Document
+    window: Window
+  }
+
+  export interface Hook<T> {
+    register(fn: (arg: T) => void): void
   }
 
   export interface Rendition {
@@ -47,6 +59,10 @@ declare module 'epubjs' {
     next(): Promise<void>
     prev(): Promise<void>
     destroy(): void
+    resize(width?: number | string, height?: number | string): void
+    // Empty until the first section is displayed.
+    currentLocation(): Partial<RelocatedLocation>
+    hooks: { content: Hook<Contents> }
     on(event: 'relocated', handler: (location: RelocatedLocation) => void): void
     on(event: string, handler: (...args: unknown[]) => void): void
   }
