@@ -9,15 +9,9 @@ import {
 } from '@/api/absAdmin'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
-import { formatTimestamp } from '@hearthshelf/core'
+import { fmtBytes, formatTimestamp } from '@hearthshelf/core'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
-
-function fmtBytes(b: number): string {
-  const gb = b / (1024 * 1024 * 1024)
-  if (gb >= 1) return `${gb.toFixed(1)} GB`
-  return `${(b / (1024 * 1024)).toFixed(0)} MB`
-}
 
 function Tile({ icon, num, cap }: { icon: string; num: string; cap: string }) {
   return (

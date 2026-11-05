@@ -31,13 +31,8 @@ import { Icon } from '@/components/common/Icon'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { SelectField } from '@/components/common/SelectField'
+import { fmtBytes } from '@hearthshelf/core'
 
-function fmtBytes(b: number): string {
-  const mb = b / (1024 * 1024)
-  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`
-  if (mb >= 1) return `${mb.toFixed(0)} MB`
-  return `${Math.max(1, Math.round(b / 1024))} KB`
-}
 function fmtDate(ms: number): string {
   if (!ms) return '-'
   return new Date(ms).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })

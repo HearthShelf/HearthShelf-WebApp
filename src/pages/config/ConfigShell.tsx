@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useParams, useNavigate, Navigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { isAdminAccountType } from '@hearthshelf/core'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { getMe } from '@/api/absLibrary'
@@ -77,7 +78,7 @@ function ConfigShellBody({ menuMode = false }: { menuMode?: boolean }) {
     enabled: Boolean(target),
     staleTime: 5 * 60 * 1000,
   })
-  const isAdmin = me?.type === 'admin' || me?.type === 'root'
+  const isAdmin = isAdminAccountType(me?.type)
   const { advanced } = useAdvancedMode()
 
   // On a phone the two-pane layout drills down: the bare /config index shows the

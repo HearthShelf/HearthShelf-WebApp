@@ -12,6 +12,7 @@
 import { absGet, absPost, absPatch, absDelete, absMediaUrl, AbsError } from '@/api/absClient'
 import { progressFraction, type AbsTarget } from '@/api/absLibrary'
 import { getAbsToken } from '@/lib/absTokens'
+import { encodeNamePathParam } from '@hearthshelf/core'
 import type {
   ABSUserPermissions,
   ABSAdminUser,
@@ -789,16 +790,12 @@ export async function getAllGenres(t: AbsTarget): Promise<{ genres: string[] }> 
   return { genres: res.genres ?? [] }
 }
 
-function b64Param(value: string): string {
-  return encodeURIComponent(btoa(unescape(encodeURIComponent(value))))
-}
-
 export async function renameTag(t: AbsTarget, tag: string, newTag: string): Promise<void> {
   await absPost(t, '/api/tags/rename', { tag, newTag })
 }
 
 export async function deleteTag(t: AbsTarget, tag: string): Promise<void> {
-  await absDelete(t, `/api/tags/${b64Param(tag)}`)
+  await absDelete(t, `/api/tags/${encodeNamePathParam(tag)}`)
 }
 
 export async function renameGenre(t: AbsTarget, genre: string, newGenre: string): Promise<void> {
@@ -806,7 +803,7 @@ export async function renameGenre(t: AbsTarget, genre: string, newGenre: string)
 }
 
 export async function deleteGenre(t: AbsTarget, genre: string): Promise<void> {
-  await absDelete(t, `/api/genres/${b64Param(genre)}`)
+  await absDelete(t, `/api/genres/${encodeNamePathParam(genre)}`)
 }
 
 // --- RSS feeds (admin) ------------------------------------------------------
