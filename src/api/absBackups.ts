@@ -31,6 +31,18 @@ function authHeaders(t: AbsTarget): Record<string, string> {
   return { Authorization: `Bearer ${token}` }
 }
 
+const PARTIAL_RESTORE =
+  'The restore stopped partway, so part of your data was replaced. Check your server before you use it.'
+
+async function errorDetail(res: Response): Promise<string> {
+  try {
+    const body = await res.json()
+    return body?.error === 'partial_restore' ? PARTIAL_RESTORE : (body?.detail ?? '')
+  } catch {
+    return ''
+  }
+}
+
 async function hsJson<T>(t: AbsTarget, path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${origin(t)}${path}`, {
     ...options,
@@ -44,13 +56,7 @@ async function hsJson<T>(t: AbsTarget, path: string, options: RequestInit = {}):
     },
   })
   if (!res.ok) {
-    let detail = ''
-    try {
-      detail = (await res.json())?.detail ?? ''
-    } catch {
-      /* ignore */
-    }
-    throw new Error(detail || `HS backups ${res.status}`)
+    throw new Error((await errorDetail(res)) || `HS backups ${res.status}`)
   }
   const text = await res.text()
   return (text ? JSON.parse(text) : undefined) as T
@@ -130,13 +136,7 @@ export async function restoreArchive(
     body: file,
   })
   if (!res.ok) {
-    let detail = ''
-    try {
-      detail = (await res.json())?.detail ?? ''
-    } catch {
-      /* ignore */
-    }
-    throw new Error(detail || `Restore failed (${res.status})`)
+    throw new Error((await errorDetail(res)) || `Restore failed (${res.status})`)
   }
   return res.json()
 }
