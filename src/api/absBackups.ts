@@ -33,11 +33,14 @@ function authHeaders(t: AbsTarget): Record<string, string> {
 
 const PARTIAL_RESTORE =
   'The restore stopped partway, so part of your data was replaced. Check your server before you use it.'
+const UNCERTAIN_RESTORE =
+  'We lost touch with AudiobookShelf during the restore, so your library data may have been replaced. Check your server before you use it.'
 
 async function errorDetail(res: Response): Promise<string> {
   try {
     const body = await res.json()
-    return body?.error === 'partial_restore' ? PARTIAL_RESTORE : (body?.detail ?? '')
+    if (body?.error !== 'partial_restore') return body?.detail ?? ''
+    return body.uncertain ? UNCERTAIN_RESTORE : PARTIAL_RESTORE
   } catch {
     return ''
   }
