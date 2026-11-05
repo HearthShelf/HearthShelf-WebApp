@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useRef, useState, type CSSProperties } from 'react'
 import { checkFolderExists } from '@/api/absAdmin'
 import type { AbsTarget } from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
@@ -32,7 +32,8 @@ interface LibraryCreateModalProps {
 // Create a new ABS library: name, media type, and a single root folder. ABS has
 // a /api/filesystem endpoint behind checkFolderExists, so the folder field gets a
 // live "exists / missing" check (the WebApp talks straight to ABS, no folder-tree
-// browse proxy), but a plain typed path is still accepted on submit.
+// browse proxy). A missing path blocks Create, because ABS silently creates it and a
+// typo would become an empty folder. "unknown" is allowed: web can't always check.
 export function LibraryCreateModal({
   target,
   busy,
@@ -47,20 +48,33 @@ export function LibraryCreateModal({
     'idle' | 'checking' | 'exists' | 'missing' | 'unknown'
   >('idle')
 
+  // Bumped on every edit, so an answer about an older path is dropped.
+  const pathEdits = useRef(0)
+
   const checkPath = async () => {
     const p = fullPath.trim()
     if (!p) {
       setPathState('idle')
-      return
+      return 'idle'
     }
+    const edit = pathEdits.current
     setPathState('checking')
-    setPathState(await checkFolderExists(target, p))
+    const result = await checkFolderExists(target, p)
+    if (edit !== pathEdits.current) return 'idle'
+    setPathState(result)
+    return result
   }
 
-  const canSubmit = Boolean(name.trim() && fullPath.trim()) && !busy
+  const canSubmit =
+    Boolean(name.trim() && fullPath.trim()) &&
+    !busy &&
+    pathState !== 'checking' &&
+    pathState !== 'missing'
 
-  const submit = () => {
+  const submit = async () => {
     if (!canSubmit) return
+    const state = pathState === 'idle' ? await checkPath() : pathState
+    if (state === 'missing' || state === 'idle') return
     onCreate({ name: name.trim(), mediaType, fullPath: fullPath.trim() })
   }
 
@@ -74,7 +88,7 @@ export function LibraryCreateModal({
           <button className="btn-sm btn-ghost" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn-sm btn-green" disabled={!canSubmit} onClick={submit}>
+          <button className="btn-sm btn-green" disabled={!canSubmit} onClick={() => void submit()}>
             <Icon name="add" /> {busy ? 'Creating...' : 'Create library'}
           </button>
         </>
@@ -113,6 +127,7 @@ export function LibraryCreateModal({
             style={{ flex: 1 }}
             value={fullPath}
             onChange={(e) => {
+              pathEdits.current++
               setFullPath(e.target.value)
               setPathState('idle')
             }}
@@ -140,7 +155,7 @@ export function LibraryCreateModal({
         {pathState === 'missing' && (
           <p className="hint" style={{ margin: '4px 2px 0', fontSize: 12, color: '#e8897f' }}>
             <Icon name="error" style={{ verticalAlign: '-3px' }} /> Folder not found on the server.
-            You can still create the library, but it has nothing to scan.
+            Fix the path to create the library.
           </p>
         )}
         {(pathState === 'idle' || pathState === 'checking' || pathState === 'unknown') && (
