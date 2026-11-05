@@ -31,20 +31,17 @@ import { Icon } from '@/components/common/Icon'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { SelectField } from '@/components/common/SelectField'
-import { fmtBytes } from '@hearthshelf/core'
+import {
+  BACKUP_SCHEDULE_PRESETS,
+  fmtBytes,
+  isAbsScheduleOff,
+  isHsScheduleOff,
+} from '@hearthshelf/core'
 
 function fmtDate(ms: number): string {
   if (!ms) return '-'
   return new Date(ms).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 }
-
-const SCHEDULE_PRESETS: { value: string; label: string }[] = [
-  { value: '', label: 'Off - no automatic backups' },
-  { value: '0 1 * * *', label: 'Every day at 1:00 AM' },
-  { value: '30 1 * * *', label: 'Every day at 1:30 AM' },
-  { value: '0 3 * * *', label: 'Every day at 3:00 AM' },
-  { value: '0 1 * * 0', label: 'Every Sunday at 1:00 AM' },
-]
 
 function ScheduleField({
   value,
@@ -55,7 +52,7 @@ function ScheduleField({
   onChange: (cron: string) => void
   locked?: boolean
 }) {
-  const isPreset = SCHEDULE_PRESETS.some((p) => p.value === value)
+  const isPreset = BACKUP_SCHEDULE_PRESETS.some((p) => p.value === value)
   const [custom, setCustom] = useState(!isPreset && value !== '')
   return (
     <div className="field full">
@@ -71,7 +68,7 @@ function ScheduleField({
           }
         }}
         options={[
-          ...SCHEDULE_PRESETS.map((p) => ({ value: p.value, label: p.label })),
+          ...BACKUP_SCHEDULE_PRESETS.map((p) => ({ value: p.value, label: p.label })),
           { value: 'custom', label: 'Custom schedule...' },
         ]}
       />
@@ -137,8 +134,8 @@ export function ConfigBackups() {
   const hsConfig = hs?.config
 
   const absSchedule = settings?.backupSchedule
-  const absScheduleOff = !absSchedule
-  const hsScheduleOff = Boolean(hs) && !hsConfig?.schedule
+  const absScheduleOff = isAbsScheduleOff(absSchedule)
+  const hsScheduleOff = isHsScheduleOff(hs)
 
   const withBusy = async (tag: string, fn: () => Promise<void>, ok?: string) => {
     setBusy(tag)

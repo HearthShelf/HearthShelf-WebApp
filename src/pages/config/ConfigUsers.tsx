@@ -29,7 +29,14 @@ import type { UserFormSubmit } from '@/components/config/UserForm'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
 import { friendlyError } from '@/lib/errorMessages'
-import { fmtSessDate } from '@hearthshelf/core'
+import {
+  bulkSkipsSelf,
+  bulkUserPatch,
+  fmtSessDate,
+  humanUsers,
+  inviteMessage,
+  inviteUrl,
+} from '@hearthshelf/core'
 import { Icon } from '@/components/common/Icon'
 import { Avatar } from '@/components/common/Avatar'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
@@ -45,7 +52,6 @@ import { ErrorState } from '@/components/common/ErrorState'
 // for the invite email (APP_ORIGIN + /invite), so the link an admin shares by
 // hand is the same one the email carries.
 const INVITE_ORIGIN = 'https://app.hearthshelf.com'
-const inviteUrl = (code: string) => `${INVITE_ORIGIN}/invite?token=${encodeURIComponent(code)}`
 
 // Distinguishes the "copied the whole message" tick from the "copied just the
 // code" tick, since both live on the same row and share one copied-state.
@@ -108,22 +114,7 @@ export function ConfigUsers() {
    */
   async function copyInstructions(inv: PendingInvite) {
     if (!inv.code) return
-    // Avoid "my HearthShelf library on HearthShelf" when the server is unnamed.
-    const opener = server?.name
-      ? `You're invited to "${server.name}" on HearthShelf.`
-      : `You're invited to my HearthShelf library.`
-    const text = [
-      opener,
-      '',
-      '1. Install HearthShelf on your phone (App Store or Google Play).',
-      '2. Sign in, then enter this invite code:',
-      '',
-      `   ${inv.code}`,
-      '',
-      `Already have the app open? Just tap: ${inviteUrl(inv.code)}`,
-      '',
-      'The code expires in 14 days.',
-    ].join('\n')
+    const text = inviteMessage({ code: inv.code, serverName: server?.name, origin: INVITE_ORIGIN })
     try {
       await navigator.clipboard.writeText(text)
       setCopiedCode(shareKey(inv))
@@ -251,10 +242,7 @@ export function ConfigUsers() {
 
   const serviceUserIds = useMemo(() => new Set(trackedData?.ids ?? []), [trackedData])
   const allUsers = data?.users ?? []
-  const users = allUsers.filter(
-    (u) =>
-      !serviceUserIds.has(u.id) && !(serviceUsername != null && u.username === serviceUsername),
-  )
+  const users = humanUsers(allUsers, serviceUserIds, serviceUsername)
   const serviceCount = allUsers.length - users.length
   // Disabled admin/root accounts - the trigger for the break-glass recovery card.
   const disabledAdmins = users.filter(
@@ -334,13 +322,8 @@ export function ConfigUsers() {
     setBulkError(null)
     const failed: string[] = []
     for (const u of selectedUsers) {
-      const patch: Parameters<typeof updateUser>[2] = {
-        permissions: values.permissions,
-        isActive: isSelf(u) ? true : values.isActive,
-      }
-      if (u.type !== 'root') patch.type = values.type
       try {
-        await updateUser(target, u.id, patch)
+        await updateUser(target, u.id, bulkUserPatch(u, values, me?.id))
       } catch {
         failed.push(u.username)
       }
@@ -350,7 +333,7 @@ export function ConfigUsers() {
     if (failed.length > 0) {
       setBulkError(`Could not update: ${failed.join(', ')}`)
     } else {
-      const skippedSelf = !values.isActive && selectedUsers.some((u) => isSelf(u))
+      const skippedSelf = bulkSkipsSelf(selectedUsers, values.isActive, me?.id)
       setBulkOpen(false)
       setSelected(new Set())
       show(
@@ -450,7 +433,9 @@ export function ConfigUsers() {
                       }}
                     >
                       Enter this code in the HearthShelf app, or open{' '}
-                      <span style={{ color: 'var(--text)' }}>{inviteUrl(inv.code)}</span>
+                      <span style={{ color: 'var(--text)' }}>
+                        {inviteUrl(INVITE_ORIGIN, inv.code)}
+                      </span>
                     </div>
                   </div>
                 )}

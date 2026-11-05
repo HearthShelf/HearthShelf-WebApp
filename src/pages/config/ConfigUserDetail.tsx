@@ -27,6 +27,7 @@ import {
   formatDuration,
   formatTimestamp,
   computeListeningStats,
+  sessionFinishDiagnostics,
   type ABSListeningSession,
 } from '@hearthshelf/core'
 import { Cover, tintFor } from '@/components/shared/Cover'
@@ -556,16 +557,8 @@ function SessionRow({
 }) {
   const ui = useMediaUI()
   const when = fmtSessDate(s.updatedAt || s.startedAt)
-  // ABS records where the session began (startTime) and the position it last
-  // saved (currentTime). The difference is the stretch this session covered.
-  const leftOff = s.currentTime || 0
-  const startedAtSec = s.startTime || 0
-  // Session-level duration can be 0 on older rows; the progress row is the
-  // better source when it has one.
-  const bookDuration = progress?.duration || s.duration || 0
-  const nearEnd = bookDuration > 0 && bookDuration - leftOff <= 60
-  const zeroDuration = progress != null && progress.duration <= 0
-  const stalledFinish = progress != null && !progress.isFinished && nearEnd
+  const { leftOff, startedAtSec, bookDuration, zeroDuration, stalledFinish } =
+    sessionFinishDiagnostics(s, progress)
 
   return (
     <div className="cfg-line" style={{ flexWrap: 'wrap' }}>

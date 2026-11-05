@@ -5,42 +5,12 @@ import type { ABSAdminUser, ABSUserPermissions, ABSUserType, UserFormValues } fr
 import type { AbsTarget } from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
 import { Modal } from '@/components/common/Modal'
-
-const TYPES: { value: ABSUserType; label: string }[] = [
-  { value: 'user', label: 'User' },
-  { value: 'admin', label: 'Admin' },
-  { value: 'guest', label: 'Guest' },
-]
-
-// The permission toggles we surface, in display order. librariesAccessible /
-// itemTagsSelected are handled separately by the pickers below.
-const PERM_TOGGLES: { key: keyof ABSUserPermissions; label: string }[] = [
-  { key: 'download', label: 'Can Download' },
-  { key: 'update', label: 'Can Update' },
-  { key: 'delete', label: 'Can Delete' },
-  { key: 'upload', label: 'Can Upload' },
-  { key: 'createEreader', label: 'Can Create Ereader' },
-  { key: 'accessExplicitContent', label: 'Can Access Explicit Content' },
-  { key: 'accessAllLibraries', label: 'Can Access All Libraries' },
-  { key: 'accessAllTags', label: 'Can Access All Tags' },
-]
-
-function defaultPermissions(type: ABSUserType): ABSUserPermissions {
-  const elevated = type === 'admin'
-  return {
-    download: true,
-    update: elevated,
-    delete: false,
-    upload: elevated,
-    createEreader: elevated,
-    accessAllLibraries: true,
-    accessAllTags: true,
-    accessExplicitContent: elevated,
-    selectedTagsNotAccessible: false,
-    librariesAccessible: [],
-    itemTagsSelected: [],
-  }
-}
+import {
+  PERM_TOGGLES,
+  USER_TYPE_OPTIONS,
+  defaultPermissions,
+  reseedPermissions,
+} from '@hearthshelf/core'
 
 function Toggle({
   on,
@@ -248,7 +218,7 @@ export function UserFormFields({ formId, target, user, onSubmit }: UserFormField
       <div className="field full">
         <label>Account type</label>
         <div className="seg seg-full">
-          {TYPES.map((t) => (
+          {USER_TYPE_OPTIONS.map((t) => (
             <button
               key={t.value}
               type="button"
@@ -256,14 +226,7 @@ export function UserFormFields({ formId, target, user, onSubmit }: UserFormField
               className={type === t.value ? 'on' : ''}
               onClick={() => {
                 setType(t.value)
-                // Re-seed permission defaults to the new type's baseline, but keep
-                // any library/tag selections the admin already made.
-                setPerms((p) => ({
-                  ...defaultPermissions(t.value),
-                  librariesAccessible: p.librariesAccessible,
-                  itemTagsSelected: p.itemTagsSelected,
-                  selectedTagsNotAccessible: p.selectedTagsNotAccessible,
-                }))
+                setPerms((p) => reseedPermissions(t.value, p))
               }}
             >
               {t.label}

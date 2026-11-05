@@ -9,7 +9,13 @@ import {
 } from '@/api/absAdmin'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useActiveLibrary } from '@/hooks/useActiveLibrary'
-import { fmtBytes, formatTimestamp } from '@hearthshelf/core'
+import {
+  DAY_LABELS,
+  HOUR_LABELS,
+  activityValue,
+  fmtBytes,
+  formatTimestamp,
+} from '@hearthshelf/core'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 
@@ -23,21 +29,6 @@ function Tile({ icon, num, cap }: { icon: string; num: string; cap: string }) {
       <div className="t-cap">{cap}</div>
     </div>
   )
-}
-
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const HOUR_LABELS = Array.from({ length: 24 }, (_, hour) => {
-  if (hour === 0) return '12a'
-  if (hour < 12) return `${hour}a`
-  if (hour === 12) return '12p'
-  return `${hour - 12}p`
-})
-
-function activityValue(seconds: number): string {
-  if (seconds <= 0) return '0'
-  if (seconds < 3600) return `${Math.max(1, Math.round(seconds / 60))}m`
-  const hours = seconds / 3600
-  return `${hours < 10 ? hours.toFixed(1) : Math.round(hours)}h`
 }
 
 function OverallActivity({ data }: { data: HSServerActivity }) {

@@ -24,19 +24,7 @@ import { ServiceAccountHealth } from '@/components/hosted/ServiceAccountHealth'
 import { ConnectivityDiagram } from '@/components/hosted/ConnectivityDiagram'
 import { friendlyError } from '@/lib/errorMessages'
 import { SelectField } from '@/components/common/SelectField'
-
-// "12:34" style mm:ss left until the pairing code expires, or null once gone.
-function timeLeft(expiresAt: string | number, nowMs: number): string | null {
-  // The control plane may report expiry as epoch ms or an ISO-8601 string.
-  const epoch = typeof expiresAt === 'number' ? expiresAt : Date.parse(expiresAt)
-  if (Number.isNaN(epoch)) return null
-  const ms = epoch - nowMs
-  if (ms <= 0) return null
-  const total = Math.floor(ms / 1000)
-  const m = Math.floor(total / 60)
-  const s = total % 60
-  return `${m}:${String(s).padStart(2, '0')}`
-}
+import { pairingTimeLeft } from '@hearthshelf/core'
 
 // Short help for forwarding a port when the box isn't reachable from outside.
 function ReachabilityHelp({ port }: { port: number }) {
@@ -79,7 +67,7 @@ export function ConfigHosted() {
     return () => window.clearInterval(id)
   }, [pairResult])
 
-  const remaining = pairResult ? timeLeft(pairResult.expires_at, nowMs) : null
+  const remaining = pairResult ? pairingTimeLeft(pairResult.expires_at, nowMs) : null
 
   function copyCode() {
     if (!pairResult) return

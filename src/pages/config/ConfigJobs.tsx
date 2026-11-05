@@ -1,47 +1,23 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
+import { getJobs, runJobNow, cancelJob, getRunLogs, jobKeys, type JobSummary } from '@/api/absJobs'
 import {
-  getJobs,
-  runJobNow,
-  cancelJob,
-  getRunLogs,
-  jobKeys,
-  type JobSummary,
-  type JobRun,
-} from '@/api/absJobs'
+  JOB_STATUS_META,
+  fmtJobDuration,
+  fmtJobInterval,
+  fmtJobWhen,
+  type JobStatusTone,
+} from '@hearthshelf/core'
 import { useAdvancedMode } from '@/pages/config/AdvancedMode'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import type { AbsTarget } from '@/api/absLibrary'
 
-const STATUS_META: Record<string, { color: string; label: string }> = {
-  running: { color: '#4f9db0', label: 'Running' },
-  ok: { color: '#5a9c52', label: 'Success' },
-  error: { color: '#d8443a', label: 'Failed' },
-}
-
-function fmtWhen(ms: number | null): string {
-  if (!ms) return 'never'
-  return new Date(ms).toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
-}
-
-function fmtInterval(ms: number): string {
-  const h = ms / 3_600_000
-  if (h % 24 === 0) return h / 24 === 1 ? 'Daily' : `Every ${h / 24} days`
-  return h === 1 ? 'Hourly' : `Every ${h}h`
-}
-
-function fmtDuration(run: JobRun): string {
-  if (!run.finishedAt) return ''
-  const s = Math.round((run.finishedAt - run.startedAt) / 1000)
-  if (s < 60) return `${s}s`
-  return `${Math.floor(s / 60)}m ${s % 60}s`
+const TONE_COLOR: Record<JobStatusTone, string> = {
+  info: '#4f9db0',
+  success: '#5a9c52',
+  danger: '#d8443a',
 }
 
 function RunLogs({ target, runId }: { target: AbsTarget; runId: string }) {
@@ -95,7 +71,7 @@ function JobCard({ target, job }: { target: AbsTarget; job: JobSummary }) {
     onSuccess: () => void qc.invalidateQueries({ queryKey: jobKeys.list(target.serverId) }),
   })
 
-  const meta = run ? STATUS_META[run.status] : null
+  const meta = run ? JOB_STATUS_META[run.status] : null
   const pct =
     running && run && run.itemsTotal > 0
       ? Math.round((run.itemsProcessed / run.itemsTotal) * 100)
@@ -133,17 +109,19 @@ function JobCard({ target, job }: { target: AbsTarget; job: JobSummary }) {
 
       <div className="job-meta">
         <span>
-          <Icon name="schedule" /> {fmtInterval(job.intervalMs)}
+          <Icon name="schedule" /> {fmtJobInterval(job.intervalMs)}
         </span>
         {run && meta && (
-          <span style={{ color: meta.color }}>
+          <span style={{ color: TONE_COLOR[meta.tone] }}>
             <Icon name="circle" fill /> {meta.label}
           </span>
         )}
         <span style={{ color: 'var(--text-muted)' }}>
-          Last run: {fmtWhen(run?.startedAt ?? null)}
+          Last run: {fmtJobWhen(run?.startedAt ?? null)}
         </span>
-        {run?.finishedAt && <span style={{ color: 'var(--text-faint)' }}>{fmtDuration(run)}</span>}
+        {run?.finishedAt && (
+          <span style={{ color: 'var(--text-faint)' }}>{fmtJobDuration(run)}</span>
+        )}
         {pct != null && <span style={{ color: 'var(--text-muted)' }}>{pct}%</span>}
       </div>
 

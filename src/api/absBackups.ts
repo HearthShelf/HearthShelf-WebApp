@@ -6,12 +6,16 @@
  */
 import { getAbsToken } from '@/lib/absTokens'
 import type { AbsTarget } from './absLibrary'
+import { archiveFilename } from '@hearthshelf/core'
 import type {
   HsBackupsResponse,
   HsBackupConfig,
   HsArchiveEstimate,
+  HsRestoreResult,
   ArchiveRestoreMode,
 } from '@hearthshelf/core'
+
+export type { HsRestoreResult }
 
 export const hsBackupKeys = {
   list: (serverId: string) => ['hs-backups', serverId] as const,
@@ -94,12 +98,6 @@ export async function uploadHsBackup(t: AbsTarget, file: File): Promise<void> {
   if (!res.ok) throw new Error(`Upload failed (${res.status})`)
 }
 
-export interface HsRestoreResult {
-  ok: boolean
-  crossServer?: boolean
-  escapeDir?: string
-}
-
 export function restoreHsBackup(t: AbsTarget, id: string): Promise<HsRestoreResult> {
   return hsJson(t, `/hs/backups/${encodeURIComponent(id)}/restore`, { method: 'POST' })
 }
@@ -117,9 +115,8 @@ export async function getArchiveEstimate(t: AbsTarget): Promise<HsArchiveEstimat
 export async function downloadArchive(t: AbsTarget): Promise<{ blob: Blob; filename: string }> {
   const res = await fetch(`${origin(t)}/hs/archive`, { method: 'POST', headers: authHeaders(t) })
   if (!res.ok) throw new Error(`Archive failed (${res.status})`)
-  const disp = res.headers.get('Content-Disposition') || ''
-  const match = disp.match(/filename="([^"]+)"/)
-  return { blob: await res.blob(), filename: match ? match[1] : 'hearthshelf.hsarchive' }
+  const filename = archiveFilename(res.headers.get('Content-Disposition'))
+  return { blob: await res.blob(), filename }
 }
 
 export async function restoreArchive(

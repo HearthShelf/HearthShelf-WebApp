@@ -5,24 +5,13 @@ import type { ABSAdminUser, ABSUserPermissions, ABSUserType } from '@/api/absAdm
 import type { AbsTarget } from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
 import { Modal } from '@/components/common/Modal'
-import { defaultPermissions } from './EditPermissionsModal'
-
-const TYPES: { value: ABSUserType; label: string }[] = [
-  { value: 'user', label: 'User' },
-  { value: 'admin', label: 'Admin' },
-  { value: 'guest', label: 'Guest' },
-]
-
-const PERM_TOGGLES: { key: keyof ABSUserPermissions; label: string }[] = [
-  { key: 'download', label: 'Can Download' },
-  { key: 'update', label: 'Can Update' },
-  { key: 'delete', label: 'Can Delete' },
-  { key: 'upload', label: 'Can Upload' },
-  { key: 'createEreader', label: 'Can Create Ereader' },
-  { key: 'accessExplicitContent', label: 'Can Access Explicit Content' },
-  { key: 'accessAllLibraries', label: 'Can Access All Libraries' },
-  { key: 'accessAllTags', label: 'Can Access All Tags' },
-]
+import {
+  PERM_TOGGLES,
+  USER_TYPE_OPTIONS,
+  defaultPermissions,
+  reseedPermissions,
+  type BulkUserValues,
+} from '@hearthshelf/core'
 
 function Toggle({
   on,
@@ -88,11 +77,7 @@ function MultiSelect({
   )
 }
 
-export interface BulkPermissionsValues {
-  type: ABSUserType
-  isActive: boolean
-  permissions: ABSUserPermissions
-}
+export type BulkPermissionsValues = BulkUserValues
 
 interface BulkPermissionsModalProps {
   target: AbsTarget
@@ -194,19 +179,14 @@ export function BulkPermissionsModal({
       <div className="field full">
         <label>Account type</label>
         <div className="seg seg-full seg-account-type">
-          {TYPES.map((t) => (
+          {USER_TYPE_OPTIONS.map((t) => (
             <button
               key={t.value}
               type="button"
               className={type === t.value ? 'on' : ''}
               onClick={() => {
                 setType(t.value)
-                setPerms((p) => ({
-                  ...defaultPermissions(t.value),
-                  librariesAccessible: p.librariesAccessible,
-                  itemTagsSelected: p.itemTagsSelected,
-                  selectedTagsNotAccessible: p.selectedTagsNotAccessible,
-                }))
+                setPerms((p) => reseedPermissions(t.value, p))
               }}
             >
               {t.label}

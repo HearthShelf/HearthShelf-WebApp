@@ -14,13 +14,7 @@ import {
   type QgAdminConfig,
   type QgAdminConfigPatch,
 } from '@/api/absQuestGiver'
-
-const PROVIDER_LABELS: Record<string, string> = {
-  openai: 'OpenAI (or compatible)',
-  anthropic: 'Anthropic Claude',
-  gemini: 'Google Gemini',
-  copilot: 'GitHub Copilot',
-}
+import { QG_PROVIDER_LABELS } from '@hearthshelf/core'
 
 // Inline marker shown next to a field whose value is pinned by an environment
 // variable (the env value overrides the database, so the field is read-only).
@@ -266,7 +260,7 @@ export function ConfigQuestGiver() {
               { value: '', label: 'None (use heuristic)' },
               ...data.validProviders.map((p) => ({
                 value: p,
-                label: PROVIDER_LABELS[p] ?? p,
+                label: QG_PROVIDER_LABELS[p] ?? p,
               })),
             ]}
           />

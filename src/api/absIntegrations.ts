@@ -27,25 +27,6 @@ export const integrationsKeys = {
   config: (serverId: string) => ['integrations', 'config', serverId] as const,
 }
 
-export function parseRmabLoginTokenInput(value: string): {
-  token: string
-  baseUrl: string | null
-} {
-  const trimmed = value.trim()
-  if (!/^https?:\/\//i.test(trimmed)) return { token: value, baseUrl: null }
-  try {
-    const parsed = new URL(trimmed)
-    const marker = '/auth/token/login'
-    const markerAt = parsed.pathname.indexOf(marker)
-    const token = parsed.searchParams.get('token')?.trim()
-    if (markerAt < 0 || !token) return { token: value, baseUrl: null }
-    const basePath = parsed.pathname.slice(0, markerAt)
-    return { token, baseUrl: `${parsed.origin}${basePath}`.replace(/\/$/, '') }
-  } catch {
-    return { token: value, baseUrl: null }
-  }
-}
-
 function origin(t: AbsTarget): string {
   return t.serverUrl.replace(/\/$/, '')
 }

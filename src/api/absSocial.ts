@@ -15,7 +15,9 @@
  */
 import { getAbsToken } from '@/lib/absTokens'
 import type { AbsTarget } from './absLibrary'
+import { COMMUNITY_CONFIG_FALLBACK, mapCommunityConfig } from '@hearthshelf/core'
 import type {
+  HSCommunityConfig,
   HSLeaderboardEntry,
   HSLeaderboardResponse,
   LeaderboardWindow,
@@ -64,39 +66,7 @@ export const socialKeys = {
  * themselves; `canEdit` is true only for admins (the PUT is admin-only).
  * Reads degrade to a neutral, non-editable default on any failure.
  */
-export interface CommunityConfig {
-  defaultShare: boolean
-  defaultShareListening: boolean
-  notesEnabled: boolean
-  clubsEnabled: boolean
-  canEdit: boolean
-}
-
-const COMMUNITY_CONFIG_FALLBACK: CommunityConfig = {
-  defaultShare: true,
-  defaultShareListening: false,
-  notesEnabled: true,
-  clubsEnabled: true,
-  canEdit: false,
-}
-
-interface RawCommunityConfig {
-  defaultShare?: boolean
-  defaultShareListening?: boolean
-  notesEnabled?: boolean
-  clubsEnabled?: boolean
-  canEdit?: boolean
-}
-
-function mapCommunityConfig(data: RawCommunityConfig): CommunityConfig {
-  return {
-    defaultShare: data.defaultShare ?? true,
-    defaultShareListening: data.defaultShareListening ?? false,
-    notesEnabled: data.notesEnabled ?? true,
-    clubsEnabled: data.clubsEnabled ?? true,
-    canEdit: Boolean(data.canEdit),
-  }
-}
+export type CommunityConfig = HSCommunityConfig
 
 export async function getCommunityConfig(t: AbsTarget): Promise<CommunityConfig> {
   const token = getAbsToken(t.serverId)
@@ -106,7 +76,7 @@ export async function getCommunityConfig(t: AbsTarget): Promise<CommunityConfig>
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     })
     if (!res.ok) return COMMUNITY_CONFIG_FALLBACK
-    return mapCommunityConfig((await res.json()) as RawCommunityConfig)
+    return mapCommunityConfig((await res.json()) as Partial<CommunityConfig>)
   } catch {
     return COMMUNITY_CONFIG_FALLBACK
   }
@@ -135,7 +105,7 @@ export async function setCommunityConfig(
     body: JSON.stringify(patch),
   })
   if (!res.ok) throw new Error(`community-config ${res.status}`)
-  return mapCommunityConfig((await res.json()) as RawCommunityConfig)
+  return mapCommunityConfig((await res.json()) as Partial<CommunityConfig>)
 }
 
 interface RawEntry {

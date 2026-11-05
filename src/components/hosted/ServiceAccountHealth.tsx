@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { Icon } from '@/components/common/Icon'
-import type { HSServiceHealth, HSServiceCredentialOverrideRequest } from '@hearthshelf/core'
+import {
+  serviceCredentialErrorMessage,
+  serviceHealthView,
+  type HSServiceHealth,
+  type HSServiceCredentialOverrideRequest,
+} from '@hearthshelf/core'
 
 // Health + repair panel for the ABS admin credential the box uses to provision
 // invited users. This credential is a durable API key that self-heals when it
@@ -55,47 +60,33 @@ export function ServiceAccountHealth({
   const override = useMutation({
     mutationFn: (b: HSServiceCredentialOverrideRequest) => onOverride(b),
     onSuccess: () => done('Credential updated - invited users can be added again.'),
-    onError: (e: Error) => {
-      const code = e.message
-      if (code === 'bad_service_password') setMsg('That service password did not work.')
-      else if (code === 'token_not_admin') setMsg('That token is not an admin/root token.')
-      else setMsg('Could not update the credential. Check the value and try again.')
-    },
+    onError: (e: Error) => setMsg(serviceCredentialErrorMessage(e.message)),
   })
 
   if (isLoading || !health) return null
 
+  const view = serviceHealthView(health)
+  if (!view) return null
+
   // A valid, healthy credential: a quiet confirmation, nothing to do.
-  if (health.state === 'valid') {
+  if (view.tone === 'ok') {
     return (
       <div className="banner success" style={{ marginTop: 'var(--s4)' }}>
         <Icon name="verified_user" />
-        <div>
-          Service account is healthy - invited users are created automatically
-          {health.username ? ` (as ${health.username})` : ''}.
-        </div>
+        <div>{view.title}</div>
       </div>
     )
   }
 
-  // 'absent' means hosted admin work isn't set up here; show nothing.
-  if (health.state === 'absent') return null
-
-  const stale = health.state === 'stale'
+  const stale = view.tone === 'warn'
 
   return (
     <div className={`banner ${stale ? 'warn' : 'error'}`} style={{ marginTop: 'var(--s4)' }}>
       <Icon name={stale ? 'sync_problem' : 'error'} />
       <div style={{ width: '100%' }}>
-        <div className="sr-t">
-          {stale
-            ? 'Service account needs reconnecting'
-            : 'Service account is broken - invited users cannot be added'}
-        </div>
+        <div className="sr-t">{view.title}</div>
         <div className="sr-d" style={{ marginTop: 4 }}>
-          {stale
-            ? 'The credential HearthShelf uses to create invited accounts has expired. It can be reconnected automatically.'
-            : 'The saved credential no longer works and could not be restored automatically. Reset it, or supply a new one below.'}
+          {view.detail}
         </div>
 
         <div

@@ -15,7 +15,9 @@
 import { getAbsToken } from '@/lib/absTokens'
 import { mintGrant } from '@/api/controlPlane'
 import type { AbsTarget } from './absLibrary'
+import { HostedError } from '@hearthshelf/core'
 import type {
+  HostedLinkedUsersResponse,
   HSMode,
   HSRuntimeInfo,
   HSTelemetryStatus,
@@ -28,35 +30,15 @@ import type {
   HSHostedEmailRelayStatus,
   HSServiceHealth,
   HSServiceCredentialOverrideRequest,
+  InviteResult,
+  PairStatus,
+  PendingInvite,
+  RemoveUserResult,
+  ServerVersions,
 } from '@hearthshelf/core'
 
-export type { HSMode }
-
-// Carries the backend's machine-readable error code + HTTP status so callers can
-// map them to friendly copy. `detail` is an optional technical note (logs only).
-export class HostedError extends Error {
-  code: string
-  status: number
-  detail: string | null
-  constructor(code: string, status: number, detail: string | null) {
-    super(code)
-    this.name = 'HostedError'
-    this.code = code
-    this.status = status
-    this.detail = detail
-  }
-}
-
-/**
- * The box answered, but something beyond it could not be reached: the connect
- * domain's broker is down, its probe could not run, or the box itself dropped
- * off the network. These say nothing about the web app or the user's server settings,
- * and the pages that hit them already explain it in place.
- */
-export function isHostedOutage(err: unknown): boolean {
-  if (!(err instanceof HostedError)) return false
-  return err.code === 'broker_unreachable' || err.code === 'probe_failed' || err.code === 'network'
-}
+export { HostedError, isHostedOutage } from '@hearthshelf/core'
+export type { HSMode, InviteResult, PairStatus, PendingInvite, RemoveUserResult, ServerVersions }
 
 function origin(t: AbsTarget): string {
   return t.serverUrl.replace(/\/$/, '')
@@ -150,13 +132,6 @@ export async function setTelemetryEnabled(
 // may be absent (older box, or a slim ABS with no HS backend), so both are
 // nullable.
 
-export interface ServerVersions {
-  /** audiobookshelf server version, e.g. "2.35.1". */
-  absVersion: string | null
-  /** HearthShelf backend version, e.g. "0.1.0". null if no HS backend. */
-  hsVersion: string | null
-}
-
 export async function getServerVersions(t: AbsTarget): Promise<ServerVersions> {
   const base = origin(t)
   const hs = (await fetch(`${base}/hs/runtime`)
@@ -222,16 +197,6 @@ export function getHsDirectState(t: AbsTarget): Promise<HsDirectState> {
 // --- Pairing -----------------------------------------------------------------
 
 export type PairResult = HSHostedPairResponse
-
-// Kept local: core's HSHostedPairStatusResult is an opaque Record<string,
-// unknown> (control-plane-owned passthrough), but the SPA reads these concrete
-// fields off the poll response. See migration report.
-export interface PairStatus {
-  claimed: boolean
-  expired: boolean
-  name: string | null
-  claimedByEmail: string | null
-}
 
 export function pollPairStatus(t: AbsTarget, code: string): Promise<PairStatus> {
   return hsFetch<PairStatus>(t, '/hs/hosted/pair-status', {
@@ -319,19 +284,6 @@ export function recoverConnectionSecret(
 
 // --- Invites -----------------------------------------------------------------
 
-// Kept local: core's HSHostedInviteResult is an opaque Record<string, unknown>
-// (control-plane-owned passthrough), but callers read these concrete fields off
-// the invite response. See migration report.
-export interface InviteResult {
-  ok: boolean
-  email: string
-  role: 'admin' | 'user'
-  /** The freshly minted invite code, shown to the admin. */
-  code: string
-  /** False if the email couldn't be sent - the admin should read out the code. */
-  emailed: boolean
-}
-
 /** Invite someone by email to this server (forwarded to the control plane). */
 export function inviteFromServer(
   t: AbsTarget,
@@ -342,16 +294,6 @@ export function inviteFromServer(
     method: 'POST',
     body: JSON.stringify({ email, role }),
   })
-}
-
-export interface PendingInvite {
-  id: string
-  email: string
-  role: 'admin' | 'user'
-  /** The XXXX-XXXX code, so an admin can read it out if the email never landed. */
-  code: string | null
-  created_at: number
-  expires_at: number | null
 }
 
 /** Pending invites for this server (forwarded to the control plane). */
@@ -368,18 +310,6 @@ export function revokeInvite(t: AbsTarget, inviteId: string): Promise<{ ok: bool
     method: 'POST',
     body: JSON.stringify({ invite_id: inviteId }),
   })
-}
-
-export interface RemoveUserResult {
-  ok: boolean
-  /** The ABS account is gone. */
-  deleted: boolean
-  /** The hosted-side link is gone too. False when unpaired or the control
-   *  plane couldn't be reached - the user is removed locally but would still
-   *  see this server in their picker. */
-  unlinked: boolean
-  email: string | null
-  invites_revoked?: number
 }
 
 /**
@@ -401,11 +331,9 @@ export function removeUser(
 // The ABS user ids that have signed in via app.hearthshelf.com on this server.
 // Box-local (hosted_user_keys) - no control-plane round trip.
 export async function getLinkedAbsUserIds(t: AbsTarget): Promise<Set<string>> {
-  const res = await hsFetch<{ linked?: { absUserId: string; email: string }[] }>(
-    t,
-    '/hs/hosted/linked-users',
-    { method: 'GET' },
-  )
+  const res = await hsFetch<HostedLinkedUsersResponse>(t, '/hs/hosted/linked-users', {
+    method: 'GET',
+  })
   return new Set((res.linked ?? []).map((l) => l.absUserId))
 }
 

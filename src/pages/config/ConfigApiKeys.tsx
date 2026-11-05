@@ -15,22 +15,18 @@ import {
 import { getMe } from '@/api/absLibrary'
 import { AbsError } from '@/api/absClient'
 import { useActiveServer } from '@/hooks/useActiveServer'
-import { fmtSessDate } from '@hearthshelf/core'
+import {
+  API_KEY_EXPIRY_OPTIONS,
+  apiKeyOwnerName,
+  fmtSessDate,
+  isServiceKey as isKeyOwnedByService,
+} from '@hearthshelf/core'
 import { Icon } from '@/components/common/Icon'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { Modal } from '@/components/common/Modal'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 import { SelectField } from '@/components/common/SelectField'
-
-// Preset expirations offered in the create dialog (seconds). null = never.
-const EXPIRY_OPTIONS: { label: string; seconds: number | null }[] = [
-  { label: 'Never', seconds: null },
-  { label: '7 days', seconds: 7 * 24 * 60 * 60 },
-  { label: '30 days', seconds: 30 * 24 * 60 * 60 },
-  { label: '90 days', seconds: 90 * 24 * 60 * 60 },
-  { label: '1 year', seconds: 365 * 24 * 60 * 60 },
-]
 
 export function ConfigApiKeys() {
   const qc = useQueryClient()
@@ -88,12 +84,11 @@ export function ConfigApiKeys() {
   })
   const serviceUserIds = useMemo(() => new Set(trackedData?.ids ?? []), [trackedData])
 
-  const isServiceKey = (k: ABSApiKey): boolean => serviceUserIds.has(k.userId)
+  const isServiceKey = (k: ABSApiKey): boolean => isKeyOwnedByService(k, serviceUserIds)
   const hiddenServiceCount = allKeys.filter(isServiceKey).length
   const keys = showServiceKeys ? allKeys : allKeys.filter((k) => !isServiceKey(k))
 
-  const ownerName = (k: ABSApiKey): string =>
-    k.user?.username ?? userById.get(k.userId)?.username ?? 'Unknown'
+  const ownerName = (k: ABSApiKey): string => apiKeyOwnerName(k, userById)
 
   if (!target) return <LoadingSpinner className="py-12" label="Connecting..." />
 
@@ -112,7 +107,12 @@ export function ConfigApiKeys() {
     if (!name || !userId) return
     setCreateError(null)
     try {
-      const res = await createApiKey(target, name, userId, EXPIRY_OPTIONS[expiryIdx]?.seconds)
+      const res = await createApiKey(
+        target,
+        name,
+        userId,
+        API_KEY_EXPIRY_OPTIONS[expiryIdx]?.seconds,
+      )
       // Optionally group the owner under Service Accounts. ABS has no machine-user
       // flag, so "service account" is just our tag; applying it here mirrors
       // creating the key as a service account.
@@ -293,7 +293,7 @@ export function ConfigApiKeys() {
             <SelectField
               value={String(expiryIdx)}
               onChange={(next) => setExpiryIdx(Number(next))}
-              options={EXPIRY_OPTIONS.map((o, i) => ({ value: String(i), label: o.label }))}
+              options={API_KEY_EXPIRY_OPTIONS.map((o, i) => ({ value: String(i), label: o.label }))}
             />
           </div>
           {createError && (

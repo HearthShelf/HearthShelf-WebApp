@@ -12,7 +12,12 @@
 import { absGet, absPost, absPatch, absDelete, absMediaUrl, AbsError } from '@/api/absClient'
 import { progressFraction, type AbsTarget } from '@/api/absLibrary'
 import { getAbsToken } from '@/lib/absTokens'
-import { encodeNamePathParam } from '@hearthshelf/core'
+import {
+  encodeNamePathParam,
+  lastSeenByUser,
+  normalizeActivityBuckets,
+  onlineUserIds,
+} from '@hearthshelf/core'
 import type {
   ABSUserPermissions,
   ABSAdminUser,
@@ -28,6 +33,28 @@ import type {
   ABSServerSettings,
   ABSListeningStats,
   ABSListeningSessionsResponse,
+  ABSUserType,
+  UserFormValues,
+  ABSUsersOnlineResponse,
+  ServiceAccountIdsResponse,
+  LibraryFolderInput,
+  LibraryUpdatePayload,
+  MetadataProvider,
+  ABSAdminSession,
+  ABSSessionsResponse,
+  ABSUserMediaProgress,
+  ABSNotificationRule,
+  ABSNotificationSettings,
+  ABSEreaderDevice,
+  ABSEmailSettings,
+  ABSRssFeed,
+  ABSAuthSettings,
+  ABSCustomProvider,
+  ABSServerStatsBucket,
+  ABSServerStats,
+  HSServerActivity,
+  ABSLibraryStatsItem,
+  ABSLibraryStats,
 } from '@hearthshelf/core'
 
 export type {
@@ -42,6 +69,26 @@ export type {
   ABSApiKey,
   ABSApiKeysResponse,
   ABSServerSettings,
+  ABSUserType,
+  UserFormValues,
+  LibraryFolderInput,
+  LibraryUpdatePayload,
+  MetadataProvider,
+  ABSAdminSession,
+  ABSSessionsResponse,
+  ABSUserMediaProgress,
+  ABSNotificationRule,
+  ABSNotificationSettings,
+  ABSEreaderDevice,
+  ABSEmailSettings,
+  ABSRssFeed,
+  ABSAuthSettings,
+  ABSCustomProvider,
+  ABSServerStatsBucket,
+  ABSServerStats,
+  HSServerActivity,
+  ABSLibraryStatsItem,
+  ABSLibraryStats,
 }
 
 // The full admin library shape is core's canonical ABSLibrary.
@@ -60,40 +107,13 @@ export const adminKeys = {
 
 // --- Users ------------------------------------------------------------------
 
-export type ABSUserType = 'admin' | 'user' | 'guest'
-
-// Fields shared by create and edit. permissions is partial - only the toggles we
-// expose are sent; ABS keeps its defaults for the rest. librariesAccessible /
-// itemTagsSelected live inside permissions in the current ABS model.
-export interface UserFormValues {
-  username: string
-  email?: string | null
-  type: ABSUserType
-  isActive: boolean
-  permissions: Partial<ABSUserPermissions>
-}
-
 export function getUsers(t: AbsTarget): Promise<ABSUsersResponse> {
   return absGet<ABSUsersResponse>(t, '/api/users')
 }
 
-// The ids of users who are listening right now. `/api/users/online` returns two
-// signals: `usersOnline` (users with an open ABS websocket) and `openSessions`
-// (active playback sessions, each carrying its userId). App/REST users - which
-// is everyone on HearthShelf - never open the ABS web-client socket, so
-// `usersOnline` is almost always empty for us; an open playback session is the
-// real "online now" signal. We union both, keyed by userId, so the Users table's
-// presence column reflects who is actually active. (`isActive` on the user list
-// is the account-enabled flag, not presence, so it can't be used for this.)
+// The ids of users who are listening right now.
 export async function getOnlineUserIds(t: AbsTarget): Promise<Set<string>> {
-  const res = await absGet<{
-    usersOnline?: { id: string }[]
-    openSessions?: { userId: string }[]
-  }>(t, '/api/users/online')
-  const ids = new Set<string>()
-  for (const u of res.usersOnline ?? []) if (u.id) ids.add(u.id)
-  for (const s of res.openSessions ?? []) if (s.userId) ids.add(s.userId)
-  return ids
+  return onlineUserIds(await absGet<ABSUsersOnlineResponse>(t, '/api/users/online'))
 }
 
 // Create an ABS user. ABS echoes back the created user on `user`. type defaults
@@ -167,24 +187,6 @@ export interface ABSLibrariesAdminResponse {
 export async function getLibrariesAdmin(t: AbsTarget): Promise<ABSLibrariesAdminResponse> {
   const res = await absGet<{ libraries?: ABSAdminLibrary[] }>(t, '/api/libraries')
   return { libraries: res.libraries ?? [] }
-}
-
-// A folder entry in a library update payload. Existing folders keep their id;
-// new folders are sent with just fullPath. ABS treats the array as the complete
-// desired set - any existing folder absent from it is REMOVED along with all its
-// library items (destructive). See LibraryController.update.
-export interface LibraryFolderInput {
-  id?: string
-  fullPath: string
-}
-
-// The editable library fields. All optional - only changed keys are sent.
-export interface LibraryUpdatePayload {
-  name?: string
-  provider?: string
-  icon?: string
-  folders?: LibraryFolderInput[]
-  settings?: Partial<ABSLibrarySettings>
 }
 
 // Create a library pointed at a folder. ABS auto-scans a newly created library,
@@ -274,11 +276,6 @@ export async function removeLibraryMetadata(
 
 // --- Search / metadata providers (library edit modal) -----------------------
 
-export interface MetadataProvider {
-  text: string
-  value: string
-}
-
 export async function getSearchProviders(t: AbsTarget): Promise<{
   providers: {
     books: MetadataProvider[]
@@ -330,29 +327,6 @@ export const adminSectionKeys = {
 
 // --- Listening sessions (all users, admin) ---------------------------------
 // GET /api/sessions?page&itemsPerPage -> { total, numPages, page, itemsPerPage, sessions }
-
-export interface ABSAdminSession {
-  id: string
-  userId: string
-  libraryItemId: string
-  displayTitle: string
-  displayAuthor: string
-  duration: number
-  timeListening: number
-  startTime: number
-  currentTime: number
-  startedAt: number
-  updatedAt: number
-  dayOfWeek: string
-}
-
-export interface ABSSessionsResponse {
-  total: number
-  numPages: number
-  page: number
-  itemsPerPage: number
-  sessions: ABSAdminSession[]
-}
 
 export async function getSessions(
   t: AbsTarget,
@@ -407,23 +381,6 @@ export async function getUserListeningSessions(
 // finishedAt, and the duration it measured progress against (a 0 duration is
 // the usual culprit - the fraction never reaches the finish threshold).
 
-export interface ABSUserMediaProgress {
-  id: string
-  libraryItemId: string
-  episodeId: string | null
-  /** Seconds ABS believes the item runs. 0 means ABS never measured it. */
-  duration: number
-  /** 0..1 fraction complete. */
-  progress: number
-  currentTime: number
-  isFinished: boolean
-  hideFromContinueListening: boolean
-  lastUpdate: number
-  startedAt: number
-  finishedAt: number | null
-  displayTitle?: string
-}
-
 export async function getUserMediaProgress(
   t: AbsTarget,
   userId: string,
@@ -453,25 +410,14 @@ export async function deleteSession(t: AbsTarget, sessionId: string): Promise<vo
   await absDelete(t, `/api/sessions/${sessionId}`)
 }
 
-// A real "last seen" per user, derived from listening sessions. ABS only stamps
-// the user record's `lastSeen` on websocket auth, which HearthShelf/app users
-// (REST-only) never trigger - so that field is null for them and the Users table
-// showed "never". A playback session's `updatedAt` is the true last-activity
-// signal. ABS returns sessions newest-first, so one page of recent sessions
-// covers everyone who's been active lately; we keep the max updatedAt per user.
-// Returns a Map<userId, epochMs>.
+// A real "last seen" per user, from one page of recent sessions (ABS returns them
+// newest-first, so this covers everyone active lately). Map<userId, epochMs>.
 export async function getLastSeenByUser(
   t: AbsTarget,
   sampleSize = 200,
 ): Promise<Map<string, number>> {
   const { sessions } = await getSessions(t, 0, sampleSize)
-  const last = new Map<string, number>()
-  for (const s of sessions) {
-    if (!s.userId) continue
-    const ts = s.updatedAt || s.startedAt || 0
-    if (ts > (last.get(s.userId) ?? 0)) last.set(s.userId, ts)
-  }
-  return last
+  return lastSeenByUser(sessions)
 }
 
 // --- Backups ----------------------------------------------------------------
@@ -601,19 +547,25 @@ async function svcFetch<T>(t: AbsTarget, path: string, options: RequestInit = {}
 }
 
 // The ABS user ids HearthShelf has tagged as service accounts.
-export function getServiceAccountIds(t: AbsTarget): Promise<{ ids: string[] }> {
-  return svcFetch<{ ids: string[] }>(t, '')
+export function getServiceAccountIds(t: AbsTarget): Promise<ServiceAccountIdsResponse> {
+  return svcFetch<ServiceAccountIdsResponse>(t, '')
 }
 
-export function tagServiceAccount(t: AbsTarget, userId: string): Promise<{ ids: string[] }> {
-  return svcFetch<{ ids: string[] }>(t, '', {
+export function tagServiceAccount(
+  t: AbsTarget,
+  userId: string,
+): Promise<ServiceAccountIdsResponse> {
+  return svcFetch<ServiceAccountIdsResponse>(t, '', {
     method: 'POST',
     body: JSON.stringify({ userId }),
   })
 }
 
-export function untagServiceAccount(t: AbsTarget, userId: string): Promise<{ ids: string[] }> {
-  return svcFetch<{ ids: string[] }>(t, `/${encodeURIComponent(userId)}`, {
+export function untagServiceAccount(
+  t: AbsTarget,
+  userId: string,
+): Promise<ServiceAccountIdsResponse> {
+  return svcFetch<ServiceAccountIdsResponse>(t, `/${encodeURIComponent(userId)}`, {
     method: 'DELETE',
   })
 }
@@ -666,20 +618,6 @@ export async function updateServerSettings(
 // GET /api/notifications -> { settings, data }; PATCH /api/notifications for the
 // top-level settings; PATCH /api/notifications/:id to toggle a single rule.
 
-export interface ABSNotificationRule {
-  id: string
-  eventName: string
-  enabled: boolean
-}
-
-export interface ABSNotificationSettings {
-  appriseType: string | null
-  appriseApiUrl: string | null
-  notifications: ABSNotificationRule[]
-  maxFailedAttempts: number
-  notificationDelay: number
-}
-
 export async function getNotifications(
   t: AbsTarget,
 ): Promise<{ settings: ABSNotificationSettings }> {
@@ -715,22 +653,6 @@ export async function updateNotificationRule(
 // --- Email (admin) ----------------------------------------------------------
 // GET/PATCH /api/emails/settings; POST /api/emails/test; POST
 // /api/emails/ereader-devices replaces the full device list.
-
-export interface ABSEreaderDevice {
-  name: string
-  email: string
-}
-
-export interface ABSEmailSettings {
-  host: string | null
-  port: number | null
-  secure: boolean
-  rejectUnauthorized: boolean
-  user: string | null
-  fromAddress: string | null
-  testAddress: string | null
-  ereaderDevices: ABSEreaderDevice[]
-}
 
 export async function getEmailSettings(t: AbsTarget): Promise<{ settings: ABSEmailSettings }> {
   const res = await absGet<{ settings?: Partial<ABSEmailSettings> }>(t, '/api/emails/settings')
@@ -809,14 +731,6 @@ export async function deleteGenre(t: AbsTarget, genre: string): Promise<void> {
 // --- RSS feeds (admin) ------------------------------------------------------
 // GET /api/feeds -> { feeds }; POST /api/feeds/:id/close closes one.
 
-export interface ABSRssFeed {
-  id: string
-  entityType: string
-  entityId: string
-  feedUrl: string
-  meta?: { title?: string }
-}
-
 export async function getRssFeeds(t: AbsTarget): Promise<{ feeds: ABSRssFeed[] }> {
   const res = await absGet<{ feeds?: ABSRssFeed[] }>(t, '/api/feeds')
   return { feeds: res.feeds ?? [] }
@@ -830,16 +744,6 @@ export async function closeRssFeed(t: AbsTarget, feedId: string): Promise<void> 
 // GET/PATCH /api/auth-settings. PATCH iterates over the keys provided and
 // updates each in place, so a partial is safe. authOpenIDClientSecret is
 // write-only (never returned by GET).
-
-export interface ABSAuthSettings {
-  authActiveAuthMethods: string[]
-  authLoginCustomMessage: string | null
-  authOpenIDIssuerURL: string | null
-  authOpenIDClientID: string | null
-  authOpenIDButtonText: string | null
-  authOpenIDAutoLaunch: boolean
-  authOpenIDAutoRegister: boolean
-}
 
 export async function getAuthSettings(t: AbsTarget): Promise<ABSAuthSettings> {
   const res = await absGet<Partial<ABSAuthSettings>>(t, '/api/auth-settings')
@@ -865,12 +769,6 @@ export async function updateAuthSettings(
 // GET /api/custom-metadata-providers. Built-in providers (Audible, Google,
 // iTunes, Open Library) are always available and not listed here.
 
-export interface ABSCustomProvider {
-  id: string
-  name: string
-  url: string
-}
-
 export async function getCustomProviders(
   t: AbsTarget,
 ): Promise<{ providers: ABSCustomProvider[] }> {
@@ -882,18 +780,6 @@ export async function getCustomProviders(
 // GET /api/stats/server (server-wide totals) and
 // GET /api/libraries/:id/stats (per-library breakdown). Admin reads.
 
-export interface ABSServerStatsBucket {
-  numItems: number
-  numAudioFiles: number
-  totalSize: number
-}
-
-export interface ABSServerStats {
-  books: ABSServerStatsBucket
-  podcasts: ABSServerStatsBucket
-  total: ABSServerStatsBucket
-}
-
 const EMPTY_BUCKET: ABSServerStatsBucket = { numItems: 0, numAudioFiles: 0, totalSize: 0 }
 
 export async function getServerStats(t: AbsTarget): Promise<ABSServerStats> {
@@ -903,14 +789,6 @@ export async function getServerStats(t: AbsTarget): Promise<ABSServerStats> {
     podcasts: res.podcasts ?? EMPTY_BUCKET,
     total: res.total ?? EMPTY_BUCKET,
   }
-}
-
-export interface HSServerActivity {
-  available: boolean
-  /** All-time listening seconds by local hour, indices 0-23. */
-  byHour: number[]
-  /** All-time listening seconds by local weekday, Sunday first. */
-  byDay: number[]
 }
 
 // Server-computed anonymous all-user activity. Older/plain ABS targets do not
@@ -933,31 +811,6 @@ export async function getServerActivity(t: AbsTarget): Promise<HSServerActivity 
   } catch {
     return null
   }
-}
-
-function normalizeActivityBuckets(value: number[] | undefined, length: number): number[] {
-  return Array.from({ length }, (_, i) => {
-    const n = Number(value?.[i])
-    return Number.isFinite(n) && n > 0 ? n : 0
-  })
-}
-
-export interface ABSLibraryStatsItem {
-  id: string
-  title: string
-  size?: number
-  duration?: number
-}
-
-export interface ABSLibraryStats {
-  totalItems: number
-  totalAuthors: number
-  totalGenres: number
-  totalSize: number
-  totalDuration: number
-  numAudioTracks: number
-  largestItems: ABSLibraryStatsItem[]
-  longestItems: ABSLibraryStatsItem[]
 }
 
 export async function getLibraryStats(t: AbsTarget, libraryId: string): Promise<ABSLibraryStats> {

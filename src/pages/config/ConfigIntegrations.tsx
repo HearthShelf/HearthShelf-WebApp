@@ -4,36 +4,22 @@ import { getCustomProviders, adminContentKeys } from '@/api/absAdmin'
 import {
   getIntegrationsConfig,
   integrationsKeys,
-  parseRmabLoginTokenInput,
   saveIntegrationsConfig,
   type IntegrationsConfig,
   type IntegrationsConfigPatch,
 } from '@/api/absIntegrations'
-import type { HSAudibleRegion } from '@hearthshelf/core'
+import {
+  AUDIBLE_REGION_LABELS,
+  parseRmabLoginTokenInput,
+  rmabUrlMismatch,
+  type HSAudibleRegion,
+} from '@hearthshelf/core'
 import { useActiveServer } from '@/hooks/useActiveServer'
 import { useToast } from '@/hooks/useToast'
 import { friendlyError } from '@/lib/errorMessages'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { SelectField } from '@/components/common/SelectField'
-
-const REGION_LABELS: Record<string, string> = {
-  us: 'United States',
-  ca: 'Canada',
-  uk: 'United Kingdom',
-  au: 'Australia',
-  in: 'India',
-  de: 'Germany',
-  es: 'Spain',
-  fr: 'France',
-}
-
-function rmabUrlMismatch(baseUrl: string | null, currentUrl: string): string | null {
-  if (!baseUrl || !currentUrl.trim()) return null
-  const normalizedCurrent = currentUrl.trim().replace(/\/$/, '').toLowerCase()
-  if (normalizedCurrent === baseUrl.toLowerCase()) return null
-  return `The login URL is for ${baseUrl}, but Server URL is ${currentUrl.trim()}. Verify that both addresses reach the same ReadMeABook server.`
-}
 
 // Inline marker next to a field pinned by an environment variable (read-only).
 function EnvLockTag() {
@@ -317,7 +303,7 @@ function IntegrationsForm({ config }: { config: IntegrationsConfig }) {
             onChange={(next) => saveRegion(next as HSAudibleRegion)}
             options={config.validRegions.map((r) => ({
               value: r,
-              label: REGION_LABELS[r] ?? r.toUpperCase(),
+              label: AUDIBLE_REGION_LABELS[r] ?? r.toUpperCase(),
             }))}
           />
         </div>

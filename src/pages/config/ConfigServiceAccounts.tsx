@@ -23,7 +23,7 @@ import { getServerRuntime, hostedKeys } from '@/api/absHosted'
 import { AbsError } from '@/api/absClient'
 import type { UserFormSubmit } from '@/components/config/UserForm'
 import { useActiveServer } from '@/hooks/useActiveServer'
-import { fmtSessDate } from '@hearthshelf/core'
+import { accountInitials, fmtSessDate, generatePassword, isServiceAccount } from '@hearthshelf/core'
 import { Icon } from '@/components/common/Icon'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { UserForm } from '@/components/config/UserForm'
@@ -31,25 +31,8 @@ import { Modal } from '@/components/common/Modal'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 
-function initials(name: string): string {
-  return name.slice(0, 2).toUpperCase()
-}
-
-// Generate a strong random password the admin can hand to an app, the way a
-// password manager would. Uses crypto.getRandomValues over an unambiguous
-// alphabet (no look-alike 0/O, 1/l/I) and rejection-samples to avoid modulo bias.
-function generatePassword(length = 20): string {
-  const alphabet = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%^&*-_'
-  const max = Math.floor(256 / alphabet.length) * alphabet.length
-  const out: string[] = []
-  const buf = new Uint8Array(1)
-  while (out.length < length) {
-    crypto.getRandomValues(buf)
-    const byte = buf[0]
-    if (byte !== undefined && byte < max) out.push(alphabet[byte % alphabet.length] as string)
-  }
-  return out.join('')
-}
+// The browser's secure random source, for generated passwords.
+const randomBytes = (count: number) => crypto.getRandomValues(new Uint8Array(count))
 
 // A reveal-once secret block (API token or generated password). The value is
 // shown plainly with select-all so the admin can copy it before dismissing.
@@ -351,9 +334,7 @@ export function ConfigServiceAccounts() {
   // since its id isn't recorded) plus any account an admin tagged here.
   const accounts = useMemo(() => {
     const users = usersData?.users ?? []
-    return users.filter(
-      (u) => (serviceUsername != null && u.username === serviceUsername) || trackedIds.has(u.id),
-    )
+    return users.filter((u) => isServiceAccount(u, trackedIds, serviceUsername))
   }, [usersData, serviceUsername, trackedIds])
 
   const isOwnedRoot = (u: ABSAdminUser) => serviceUsername != null && u.username === serviceUsername
@@ -483,7 +464,7 @@ export function ConfigServiceAccounts() {
                             gap: 10,
                           }}
                         >
-                          <span className="av">{initials(u.username)}</span>
+                          <span className="av">{accountInitials(u.username)}</span>
                           <span style={{ fontWeight: 600 }}>{u.username}</span>
                           <span className="tag-pill admin">
                             {owned ? 'HearthShelf' : 'Service'}
@@ -626,7 +607,7 @@ export function ConfigServiceAccounts() {
                 className="btn-sm btn-ghost"
                 type="button"
                 onClick={() => {
-                  setForm((f) => ({ ...f, password: generatePassword() }))
+                  setForm((f) => ({ ...f, password: generatePassword(randomBytes) }))
                   setShowPw(true)
                 }}
               >

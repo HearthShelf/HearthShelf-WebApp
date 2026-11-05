@@ -1,55 +1,21 @@
 import { useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getSearchProviders, checkFolderExists, adminKeys } from '@/api/absAdmin'
-import type {
-  ABSAdminLibrary,
-  ABSLibrarySettings,
-  LibraryFolderInput,
-  LibraryUpdatePayload,
-} from '@/api/absAdmin'
+import type { ABSAdminLibrary, LibraryFolderInput, LibraryUpdatePayload } from '@/api/absAdmin'
 import type { AbsTarget } from '@/api/absLibrary'
 import { Icon } from '@/components/common/Icon'
 import { Modal } from '@/components/common/Modal'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { SelectField } from '@/components/common/SelectField'
-
-// ABS's library icon names. HearthShelf can't render ABS's icon font, so we map
-// every name to a Material Symbol for display, but the original name round-trips
-// on save so the value stays meaningful to native ABS clients.
-const ICON_OPTIONS: { value: string; symbol: string; label: string }[] = [
-  { value: 'database', symbol: 'database', label: 'Database' },
-  { value: 'audiobookshelf', symbol: 'menu_book', label: 'Audiobookshelf' },
-  { value: 'books-1', symbol: 'auto_stories', label: 'Books 1' },
-  { value: 'books-2', symbol: 'library_books', label: 'Books 2' },
-  { value: 'book-1', symbol: 'book', label: 'Book' },
-  { value: 'microphone-1', symbol: 'mic', label: 'Microphone 1' },
-  { value: 'microphone-3', symbol: 'podcasts', label: 'Microphone 3' },
-  { value: 'radio', symbol: 'radio', label: 'Radio' },
-  { value: 'podcast', symbol: 'podcasts', label: 'Podcast' },
-  { value: 'rss', symbol: 'rss_feed', label: 'RSS' },
-  { value: 'headphones', symbol: 'headphones', label: 'Headphones' },
-  { value: 'music', symbol: 'music_note', label: 'Music' },
-  { value: 'file-picture', symbol: 'image', label: 'Picture' },
-  { value: 'rocket', symbol: 'rocket_launch', label: 'Rocket' },
-  { value: 'power', symbol: 'bolt', label: 'Power' },
-  { value: 'star', symbol: 'star', label: 'Star' },
-  { value: 'heart', symbol: 'favorite', label: 'Heart' },
-]
-
-// Podcast search regions ABS supports (subset matching its dropdown).
-const PODCAST_REGIONS = ['us', 'ca', 'uk', 'au', 'de', 'fr', 'es', 'it', 'jp']
-
-// Metadata precedence sources, in ABS's canonical default order. Labels mirror
-// the ABS scanner tab.
-const METADATA_SOURCES: { id: string; name: string }[] = [
-  { id: 'folderStructure', name: 'Folder structure' },
-  { id: 'audioMetatags', name: 'Audio file meta tags OR ebook metadata' },
-  { id: 'nfoFile', name: 'NFO file' },
-  { id: 'txtFiles', name: 'desc.txt & reader.txt files' },
-  { id: 'opfFile', name: 'OPF file' },
-  { id: 'absMetadata', name: 'Audiobookshelf metadata file' },
-]
-const DEFAULT_PRECEDENCE = METADATA_SOURCES.map((s) => s.id)
+import {
+  DEFAULT_METADATA_PRECEDENCE,
+  LIBRARY_ICON_OPTIONS,
+  METADATA_SOURCES,
+  PODCAST_REGIONS,
+  libraryUpdatePatch,
+  settingsFromLibrary,
+  type LibraryDraftSettings,
+} from '@hearthshelf/core'
 
 const ERR_STYLE: CSSProperties = {
   fontSize: 13,
@@ -112,50 +78,6 @@ function Field({
   )
 }
 
-// One editable settings shape held in component state; mapped to the ABS
-// settings payload on save. markAsFinishedWhen + value collapse the two
-// mutually-exclusive ABS fields into one control.
-interface DraftSettings {
-  squareCovers: boolean
-  enableWatcher: boolean
-  skipAsin: boolean
-  skipIsbn: boolean
-  audiobooksOnly: boolean
-  epubsScripted: boolean
-  hideSingleBookSeries: boolean
-  onlyLaterBooks: boolean
-  podcastSearchRegion: string
-  markAsFinishedWhen: 'timeRemaining' | 'percentComplete'
-  markAsFinishedValue: string
-  autoScanCron: string | null
-  metadataPrecedence: string[]
-}
-
-function settingsFromLibrary(s: ABSLibrarySettings): DraftSettings {
-  const timeRemaining = s.markAsFinishedTimeRemaining
-  const percent = s.markAsFinishedPercentComplete
-  const when: 'timeRemaining' | 'percentComplete' =
-    percent != null && !timeRemaining ? 'percentComplete' : 'timeRemaining'
-  return {
-    squareCovers: s.coverAspectRatio === 1,
-    enableWatcher: !s.disableWatcher,
-    skipAsin: !!s.skipMatchingMediaWithAsin,
-    skipIsbn: !!s.skipMatchingMediaWithIsbn,
-    audiobooksOnly: !!s.audiobooksOnly,
-    epubsScripted: !!s.epubsAllowScriptedContent,
-    hideSingleBookSeries: !!s.hideSingleBookSeries,
-    onlyLaterBooks: !!s.onlyShowLaterBooksInContinueSeries,
-    podcastSearchRegion: s.podcastSearchRegion || 'us',
-    markAsFinishedWhen: when,
-    markAsFinishedValue: String((when === 'timeRemaining' ? timeRemaining : percent) ?? 10),
-    autoScanCron: s.autoScanCronExpression ?? null,
-    metadataPrecedence:
-      s.metadataPrecedence && s.metadataPrecedence.length
-        ? [...s.metadataPrecedence]
-        : [...DEFAULT_PRECEDENCE],
-  }
-}
-
 interface LibraryEditModalProps {
   target: AbsTarget
   library: ABSAdminLibrary
@@ -210,8 +132,8 @@ export function LibraryEditModal({
   const [removeFolderIdx, setRemoveFolderIdx] = useState<number | null>(null)
 
   // --- Settings + Scanner + Schedule (one draft blob) ---
-  const [s, setS] = useState<DraftSettings>(() => settingsFromLibrary(library.settings))
-  const patchS = (p: Partial<DraftSettings>) => setS((cur) => ({ ...cur, ...p }))
+  const [s, setS] = useState<LibraryDraftSettings>(() => settingsFromLibrary(library.settings))
+  const patchS = (p: Partial<LibraryDraftSettings>) => setS((cur) => ({ ...cur, ...p }))
 
   // --- Tools confirms ---
   const [confirmMeta, setConfirmMeta] = useState<'json' | 'abs' | null>(null)
@@ -249,59 +171,10 @@ export function LibraryEditModal({
     patchS({ metadataPrecedence: next })
   }
 
-  const resetPrecedence = () => patchS({ metadataPrecedence: [...DEFAULT_PRECEDENCE] })
+  const resetPrecedence = () => patchS({ metadataPrecedence: [...DEFAULT_METADATA_PRECEDENCE] })
 
   const submit = () => {
-    const patch: LibraryUpdatePayload = {}
-    if (name.trim() && name.trim() !== library.name) patch.name = name.trim()
-    if (provider !== library.provider) patch.provider = provider
-    if (icon !== library.icon) patch.icon = icon
-
-    // Folders: send the whole list only if it changed (by path order/membership).
-    const beforeKey = library.folders.map((f) => f.fullPath).join(',')
-    const afterKey = folders.map((f) => f.fullPath).join(',')
-    if (beforeKey !== afterKey) {
-      patch.folders = folders.map((f) =>
-        f.id ? { id: f.id, fullPath: f.fullPath } : { fullPath: f.fullPath },
-      )
-    }
-
-    // Settings - build the full blob, then diff against the library's settings.
-    const timeRemaining =
-      s.markAsFinishedWhen === 'timeRemaining' ? Number(s.markAsFinishedValue) : null
-    const percentComplete =
-      s.markAsFinishedWhen === 'percentComplete' ? Number(s.markAsFinishedValue) : null
-    const nextSettings: Partial<ABSLibrarySettings> = {
-      coverAspectRatio: s.squareCovers ? 1 : 0,
-      disableWatcher: !s.enableWatcher,
-      autoScanCronExpression: s.autoScanCron,
-      markAsFinishedTimeRemaining: timeRemaining,
-      markAsFinishedPercentComplete: percentComplete,
-    }
-    if (isBook) {
-      nextSettings.skipMatchingMediaWithAsin = s.skipAsin
-      nextSettings.skipMatchingMediaWithIsbn = s.skipIsbn
-      nextSettings.audiobooksOnly = s.audiobooksOnly
-      nextSettings.epubsAllowScriptedContent = s.epubsScripted
-      nextSettings.hideSingleBookSeries = s.hideSingleBookSeries
-      nextSettings.onlyShowLaterBooksInContinueSeries = s.onlyLaterBooks
-      nextSettings.metadataPrecedence = s.metadataPrecedence
-    } else {
-      nextSettings.podcastSearchRegion = s.podcastSearchRegion
-    }
-
-    const changedSettings: Partial<ABSLibrarySettings> = {}
-    const before = library.settings as unknown as Record<string, unknown>
-    for (const [k, v] of Object.entries(nextSettings)) {
-      const prev = before[k]
-      const differs = Array.isArray(v) ? JSON.stringify(v) !== JSON.stringify(prev) : v !== prev
-      if (differs) {
-        ;(changedSettings as Record<string, unknown>)[k] = v
-      }
-    }
-    if (Object.keys(changedSettings).length) patch.settings = changedSettings
-
-    onSave(patch)
+    onSave(libraryUpdatePatch(library, { name, provider, icon, folders, settings: s }))
   }
 
   return (
@@ -348,10 +221,10 @@ export function LibraryEditModal({
                 value={icon}
                 onChange={setIcon}
                 options={[
-                  ...(ICON_OPTIONS.every((o) => o.value !== icon)
+                  ...(LIBRARY_ICON_OPTIONS.every((o) => o.value !== icon)
                     ? [{ value: icon, label: icon }]
                     : []),
-                  ...ICON_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
+                  ...LIBRARY_ICON_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
                 ]}
               />
             </Field>

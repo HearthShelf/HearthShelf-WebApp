@@ -40,6 +40,7 @@ import { StatsPage } from '@/pages/StatsPage'
 import { ConfigStub } from '@/pages/config/ConfigStub'
 import { AdvancedModeProvider, AdvancedToggle, useAdvancedMode } from '@/pages/config/AdvancedMode'
 import { AdminDataSourceProvider } from '@/admin/adminDataSource'
+import { humanUsers } from '@hearthshelf/core'
 
 interface NavEntry {
   id: string
@@ -115,11 +116,9 @@ function ConfigShellBody({ menuMode = false }: { menuMode?: boolean }) {
   })
   const serviceUsername = runtime?.serviceUsername ?? null
   const trackedServiceIdSet = new Set(trackedServiceIds?.ids ?? [])
-  const humanUserCount = usersData?.users.filter(
-    (u) =>
-      !trackedServiceIdSet.has(u.id) &&
-      !(serviceUsername != null && u.username === serviceUsername),
-  ).length
+  const humanUserCount = usersData
+    ? humanUsers(usersData.users, trackedServiceIdSet, serviceUsername).length
+    : undefined
 
   if (!target || meLoading) {
     return <LoadingSpinner className="py-24" label="Loading server settings..." />

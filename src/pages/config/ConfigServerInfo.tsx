@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/useToast'
 import { useAdvancedMode } from '@/pages/config/AdvancedMode'
 import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
+import { SCANNER_TOGGLES } from '@hearthshelf/core'
 
 // General server settings. The server name (the display name this server is
 // known by) is editable here via the HearthShelf backend; scanner + display
@@ -242,43 +243,6 @@ function ServerNameSetting() {
     </div>
   )
 }
-
-const SCANNER_TOGGLES: {
-  key:
-    | 'scannerFindCovers'
-    | 'scannerParseSubtitle'
-    | 'scannerPreferMatchedMetadata'
-    | 'scannerDisableWatcher'
-    | 'storeCoverWithItem'
-  label: string
-  desc: string
-}[] = [
-  {
-    key: 'scannerFindCovers',
-    label: 'Find covers',
-    desc: 'Search for a cover online when an item has none.',
-  },
-  {
-    key: 'scannerParseSubtitle',
-    label: 'Parse subtitles',
-    desc: 'Pull a subtitle from the folder name after a dash.',
-  },
-  {
-    key: 'scannerPreferMatchedMetadata',
-    label: 'Prefer matched metadata',
-    desc: 'Let matched provider data override existing details.',
-  },
-  {
-    key: 'scannerDisableWatcher',
-    label: 'Disable folder watcher',
-    desc: 'Stop scanning automatically when files change on disk.',
-  },
-  {
-    key: 'storeCoverWithItem',
-    label: 'Store covers with item',
-    desc: 'Save the cover alongside the audio files instead of in metadata.',
-  },
-]
 
 function ScannerDisplaySettings() {
   const { target } = useActiveServer()

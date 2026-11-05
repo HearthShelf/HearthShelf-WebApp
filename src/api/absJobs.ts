@@ -6,35 +6,9 @@
  */
 import { getAbsToken } from '@/lib/absTokens'
 import type { AbsTarget } from './absLibrary'
+import type { JobRun, JobSummary, JobLogLine } from '@hearthshelf/core'
 
-export interface JobRun {
-  id: string
-  jobId: string
-  trigger: 'schedule' | 'manual'
-  status: 'running' | 'ok' | 'error'
-  startedAt: number
-  finishedAt: number | null
-  summary: string | null
-  error: string | null
-  itemsProcessed: number
-  itemsTotal: number
-}
-
-export interface JobSummary {
-  id: string
-  name: string
-  description: string
-  intervalMs: number
-  running: boolean
-  lastRun: JobRun | null
-}
-
-export interface JobLogLine {
-  seq: number
-  at: number
-  level: 'info' | 'warn' | 'error'
-  message: string
-}
+export type { JobRun, JobSummary, JobLogLine }
 
 export const jobKeys = {
   list: (serverId: string) => ['jobs', 'list', serverId] as const,
