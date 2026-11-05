@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { Fragment, useState, useEffect, useCallback, useMemo, type MouseEvent } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useUser } from '@/auth/useAuth'
 import { useQuery } from '@tanstack/react-query'
@@ -15,6 +15,16 @@ import { useDiscoverEnabled, useQuestGiverEnabled } from '@/hooks/useQuestGiver'
 import { useNavCollapsed, toggleNavCollapsed } from '@/hooks/useNavCollapsed'
 import { useCarMode } from '@/hooks/useCarMode'
 import { useSettingsStore } from '@/store/settingsStore'
+import { useLongPress } from '@/hooks/useLongPress'
+import { NavContextMenu } from '@/components/layout/NavContextMenu'
+import { NavMoreMenu } from '@/components/layout/NavMoreMenu'
+import {
+  applyHidden,
+  buildNav,
+  type NavEntry,
+  type NavMenuTarget,
+  type NavSection,
+} from '@/components/layout/navMenu'
 
 // Which nav group a path belongs to. Browse surfaces (series, authors, search,
 // item detail) keep Library lit, matching the self-hosted shell.
@@ -48,12 +58,28 @@ function groupForPath(path: string): string {
 }
 
 interface NavItemDef {
-  icon: string
-  label: string
-  to: string
+  entry: NavEntry
   badge?: number | null
   active: boolean
   collapsed: boolean
+  onMenu?: (x: number, y: number) => void
+}
+
+// Right-click and press-and-hold both open the row's menu. Keyboard menu keys
+// report no pointer position, so fall back to the row itself.
+function useNavMenuTrigger(onMenu?: (x: number, y: number) => void) {
+  const press = useLongPress((x, y) => onMenu?.(x, y))
+  if (!onMenu) return {}
+  return {
+    ...press.handlers,
+    onContextMenu(e: MouseEvent<HTMLElement>) {
+      e.preventDefault()
+      press.cancel()
+      if (e.clientX || e.clientY) return onMenu(e.clientX, e.clientY)
+      const rect = e.currentTarget.getBoundingClientRect()
+      onMenu(rect.left + 24, rect.bottom)
+    },
+  }
 }
 
 // Declared at module scope, NOT inside Sidebar. A component defined in the
@@ -61,7 +87,9 @@ interface NavItemDef {
 // nav button instead of reconciling it - which restarts the CSS background
 // transition and made the hover fill flash once a second while audio played
 // (the player's position tick re-renders this whole shell).
-function Item({ icon, label, to, badge, active, collapsed }: NavItemDef) {
+function Item({ entry, badge, active, collapsed, onMenu }: NavItemDef) {
+  const { icon, label, to } = entry
+  const trigger = useNavMenuTrigger(onMenu)
   return (
     // A real <Link> (not a button) so the browser owns the URL: ctrl/cmd-click
     // and middle-click open the destination in a new tab, and hovering shows the
@@ -73,12 +101,37 @@ function Item({ icon, label, to, badge, active, collapsed }: NavItemDef) {
       title={collapsed ? label : undefined}
       aria-label={label}
       aria-current={active ? 'page' : undefined}
+      draggable={false}
+      {...trigger}
     >
       <Icon name={icon} fill={active} />
       <span className="ni-label">{label}</span>
       {badge != null && <span className="ni-badge">{badge}</span>}
     </Link>
   )
+}
+
+function SectionLabel({
+  label,
+  onMenu,
+}: {
+  label: string
+  onMenu?: (x: number, y: number) => void
+}) {
+  const trigger = useNavMenuTrigger(onMenu)
+  return (
+    <div className="nav-label" {...trigger}>
+      {label}
+    </div>
+  )
+}
+
+const SETTINGS_ENTRY: NavEntry = {
+  id: 'settings',
+  icon: 'settings',
+  label: 'Settings',
+  to: '/account',
+  group: 'settings',
 }
 
 function UserMenu() {
@@ -166,13 +219,53 @@ export function Sidebar() {
   // .app.car-shell) - larger icon over a label - for large in-car touchscreens.
   const carMode = useCarMode()
   const setSetting = useSettingsStore((s) => s.set)
-  const showFindGroup = !carMode && (questGiverEnabled || discoverEnabled || rmabEnabled)
+  const hiddenIds = useSettingsStore((s) => s.webNavHidden)
 
   const collapsed = useNavCollapsed()
 
-  // Shared per-render props for every nav item. Spread rather than wrapped in a
-  // component, so the element type stays the module-scope `Item`.
-  const itemProps = { collapsed }
+  const [menu, setMenu] = useState<{ x: number; y: number; target: NavMenuTarget } | null>(null)
+  const closeMenu = useCallback(() => setMenu(null), [])
+
+  // Car mode keeps its short fixed list, so nothing is hidden or customized there.
+  const nav = useMemo(() => {
+    const layout = buildNav({
+      isPodcast,
+      isServerAdmin,
+      questGiverEnabled,
+      discoverEnabled,
+      rmabEnabled,
+      carMode,
+    })
+    return applyHidden(layout, new Set(carMode ? [] : hiddenIds))
+  }, [
+    isPodcast,
+    isServerAdmin,
+    questGiverEnabled,
+    discoverEnabled,
+    rmabEnabled,
+    carMode,
+    hiddenIds,
+  ])
+
+  const hide = (id: string) => setSetting('webNavHidden', [...new Set([...hiddenIds, id])])
+  const show = (id: string) =>
+    setSetting(
+      'webNavHidden',
+      hiddenIds.filter((hidden) => hidden !== id),
+    )
+  const showAll = () => setSetting('webNavHidden', [])
+  const openMenu = (target: NavMenuTarget) =>
+    carMode ? undefined : (x: number, y: number) => setMenu({ x, y, target })
+
+  const renderItem = (entry: NavEntry, section?: NavSection, pinned?: boolean) => (
+    <Item
+      key={entry.id}
+      entry={entry}
+      collapsed={collapsed}
+      active={group === entry.group}
+      onMenu={openMenu({ entry, section, pinned })}
+    />
+  )
 
   return (
     <aside className="sidebar">
@@ -200,172 +293,28 @@ export function Sidebar() {
       </button>
 
       <nav className="nav">
-        <Item {...itemProps} active={group === 'home'} icon="home" label="Home" to="/" />
-        <Item
-          {...itemProps}
-          active={group === 'library'}
-          icon="grid_view"
-          label="Library"
-          to="/library"
-        />
+        {nav.top.map((entry) => renderItem(entry))}
 
-        {isPodcast ? (
-          <>
-            <div className="nav-label">Podcasts</div>
-            <Item
-              {...itemProps}
-              active={group === 'podcasts'}
-              icon="podcasts"
-              label="Latest"
-              to="/podcasts/latest"
-            />
-            {isServerAdmin && (
-              <>
-                <Item
-                  {...itemProps}
-                  active={group === 'podcasts'}
-                  icon="add_circle"
-                  label="Add podcast"
-                  to="/podcasts/add"
-                />
-                <Item
-                  {...itemProps}
-                  active={group === 'podcasts'}
-                  icon="download"
-                  label="Download queue"
-                  to="/podcasts/queue"
-                />
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            <div className="nav-label">Shelves</div>
-            <Item
-              {...itemProps}
-              active={group === 'collections'}
-              icon="folder_special"
-              label="Collections"
-              to="/collections"
-            />
-            <Item
-              {...itemProps}
-              active={group === 'playlists'}
-              icon="queue_music"
-              label="Playlists"
-              to="/playlists"
-            />
-          </>
-        )}
+        {nav.sections.map((section) => (
+          <Fragment key={section.id}>
+            <SectionLabel label={section.label} onMenu={openMenu({ section })} />
+            {section.items.map((entry) => renderItem(entry, section))}
+          </Fragment>
+        ))}
 
-        {showFindGroup && (
-          <>
-            <div className="nav-label">Find</div>
-            {questGiverEnabled && (
-              <Item
-                {...itemProps}
-                active={group === 'questgiver'}
-                icon="favorite"
-                label="QuestGiver"
-                to="/questgiver"
-              />
-            )}
-            {discoverEnabled && (
-              <Item
-                {...itemProps}
-                active={group === 'discover'}
-                icon="explore"
-                label="Discover"
-                to="/discover"
-              />
-            )}
-            {/* Not gated on the request backend: following only notifies, and
-                works on every server. */}
-            <Item
-              {...itemProps}
-              active={group === 'upcoming'}
-              icon="event_upcoming"
-              label="Upcoming"
-              to="/upcoming"
-            />
-            {rmabEnabled && (
-              <Item
-                {...itemProps}
-                active={group === 'requests'}
-                icon="cloud_download"
-                label="Requests"
-                to="/requests"
-              />
-            )}
-          </>
-        )}
-
-        {!carMode && (
-          <>
-            <div className="nav-label">Community</div>
-            <Item
-              {...itemProps}
-              active={group === 'clubs'}
-              icon="groups_3"
-              label="Book clubs"
-              to="/clubs"
-            />
-          </>
-        )}
-
-        {carMode ? (
-          <Item
-            {...itemProps}
-            active={group === 'player'}
-            icon="graphic_eq"
-            label="Now playing"
-            to="/player"
+        {nav.more.length > 0 && (
+          <NavMoreMenu
+            groups={nav.more}
+            activeGroup={group}
+            collapsed={collapsed}
+            onShow={show}
+            onShowAll={showAll}
           />
-        ) : (
-          <>
-            <div className="nav-label">Insights</div>
-            <Item
-              {...itemProps}
-              active={group === 'stats'}
-              icon="insights"
-              label="Stats"
-              to="/stats"
-            />
-            <Item
-              {...itemProps}
-              active={group === 'finished'}
-              icon="check_circle"
-              label="Finished"
-              to="/finished"
-            />
-            <Item
-              {...itemProps}
-              active={group === 'sessions'}
-              icon="history"
-              label="History"
-              to="/sessions"
-            />
-            <Item
-              {...itemProps}
-              active={group === 'player'}
-              icon="graphic_eq"
-              label="Now playing"
-              to="/player"
-            />
-          </>
         )}
 
         <div className="nav-sep" />
-        {!carMode && isServerAdmin && (
-          <Item {...itemProps} active={group === 'config'} icon="dns" label="Server" to="/config" />
-        )}
-        <Item
-          {...itemProps}
-          active={group === 'settings'}
-          icon="settings"
-          label="Settings"
-          to="/account"
-        />
+        {nav.footer.map((entry) => renderItem(entry))}
+        {renderItem(SETTINGS_ENTRY, undefined, true)}
         {carMode && (
           <button
             className="nav-item"
@@ -378,6 +327,18 @@ export function Sidebar() {
           </button>
         )}
       </nav>
+
+      {menu && (
+        <NavContextMenu
+          x={menu.x}
+          y={menu.y}
+          target={menu.target}
+          hasHidden={nav.more.length > 0}
+          onHide={hide}
+          onShowAll={showAll}
+          onClose={closeMenu}
+        />
+      )}
 
       <UserMenu />
     </aside>

@@ -131,6 +131,9 @@ export interface SettingsState {
   shareReadBooks: boolean | null
   shareCurrentlyListening: boolean | null
 
+  // Left-menu rows and sections the user moved into More.
+  webNavHidden: string[]
+
   // Playback
   scrubber: ScrubberScope
   defaultSpeed: number
@@ -278,6 +281,8 @@ export const useSettingsStore = create<SettingsState>()(
 
       shareReadBooks: null,
       shareCurrentlyListening: null,
+
+      webNavHidden: [],
 
       scrubber: 'chapter',
       defaultSpeed: 1,
