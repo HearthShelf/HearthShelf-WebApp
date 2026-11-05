@@ -148,6 +148,7 @@ export function LibraryEditModal({
     setNewFolderState('checking')
     const result = await checkFolderExists(target, p)
     setNewFolderState(result)
+    if (result === 'missing') return
     setFolders((cur) => [...cur, { fullPath: p }])
     setNewFolder('')
     setNewFolderState('idle')
@@ -285,7 +286,10 @@ export function LibraryEditModal({
                   className="fld"
                   placeholder="/audiobooks/new-folder"
                   value={newFolder}
-                  onChange={(e) => setNewFolder(e.target.value)}
+                  onChange={(e) => {
+                    setNewFolder(e.target.value)
+                    setNewFolderState('idle')
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') void addNewFolder()
                   }}
@@ -299,6 +303,11 @@ export function LibraryEditModal({
                   <Icon name="add" /> Add
                 </button>
               </div>
+              {newFolderState === 'missing' && (
+                <p className="hint" style={{ margin: '4px 2px 0', fontSize: 12, color: '#e8897f' }}>
+                  That folder doesn't exist on the server. Check the path and try again.
+                </p>
+              )}
               <p className="hint" style={{ margin: '4px 2px 0', fontSize: 12 }}>
                 Drag to reorder. The folder must exist on the server (inside the container).
                 Removing a folder also removes its items from AudiobookShelf - the files on disk are

@@ -233,8 +233,7 @@ function EmailForm({
             <div className="cl-meta" style={{ flex: 1 }}>
               <div className="cl-t">Managed by HearthShelf</div>
               <div className="cl-d">
-                Email is sending through HearthShelf. Turn off "Send through HearthShelf" above to
-                configure your own SMTP server.
+                Email is sending through HearthShelf, so there is no SMTP server to set up here.
               </div>
             </div>
           </div>
