@@ -31,6 +31,7 @@ import { account } from './routes/account'
 import { apps } from './routes/apps'
 import { mcp } from './routes/mcp'
 import { forwardLog } from './lib/logs'
+import { AuthUnavailableError } from './lib/betterAuth'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -75,6 +76,9 @@ app.route('/', mcp)
 
 app.notFound((c) => c.json({ error: 'not_found' }, 404))
 app.onError((err, c) => {
+  if (err instanceof AuthUnavailableError) {
+    return c.json({ error: 'auth_unavailable', detail: 'sign-in service unavailable' }, 503)
+  }
   console.error('[control-plane] error:', err)
   // Forward the CP's own unhandled errors to the central collector (best-effort).
   c.executionCtx?.waitUntil(

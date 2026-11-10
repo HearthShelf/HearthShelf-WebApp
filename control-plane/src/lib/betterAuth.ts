@@ -35,6 +35,14 @@ interface CachedSession {
 
 const sessionCache = new Map<string, CachedSession>()
 
+/**
+ * The auth service could not answer (down, timed out, 5xx). Deliberately NOT an
+ * AuthError: routes turn AuthError into 401, and a 401 makes the phone sign the
+ * user out. An outage of the auth service must read as "try again later" (503),
+ * never as "your session is gone".
+ */
+export class AuthUnavailableError extends Error {}
+
 /** Shape Better Auth returns from GET /api/auth/get-session. */
 interface BetterAuthSession {
   user?: {
@@ -73,16 +81,17 @@ export async function verifyBetterAuth(env: Env, token: string): Promise<AuthIde
       signal: AbortSignal.timeout(SESSION_FETCH_TIMEOUT_MS),
     })
   } catch (err) {
-    throw new AuthError(`better-auth unreachable: ${(err as Error).message}`)
+    throw new AuthUnavailableError(`better-auth unreachable: ${(err as Error).message}`)
   }
 
+  if (res.status >= 500) throw new AuthUnavailableError(`better-auth failed (${res.status})`)
   if (!res.ok) throw new AuthError(`better-auth rejected session (${res.status})`)
 
   let body: BetterAuthSession | null
   try {
     body = (await res.json()) as BetterAuthSession
   } catch {
-    throw new AuthError('better-auth returned a malformed session')
+    throw new AuthUnavailableError('better-auth returned a malformed session')
   }
 
   const user = body?.user

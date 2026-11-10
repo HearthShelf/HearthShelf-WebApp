@@ -40,10 +40,10 @@ export interface AuthIdentity {
   provider: IdentityProvider
 }
 import { AuthError, verifyClerk } from './clerk'
-import { verifyBetterAuth } from './betterAuth'
+import { verifyBetterAuth, AuthUnavailableError } from './betterAuth'
 import type { Env } from '../types'
 
-export { AuthError }
+export { AuthError, AuthUnavailableError }
 
 /** Which provider to try first. Defaults to Clerk until the cutover flips it. */
 function primaryProvider(env: Env): IdentityProvider {
@@ -100,6 +100,8 @@ export async function verifyIdentity(env: Env, token: string): Promise<AuthIdent
     }
   }
 
+  // An outage beats a rejection: the token may be perfectly good.
+  if (primaryErr instanceof AuthUnavailableError) throw primaryErr
   if (primaryErr instanceof AuthError) throw primaryErr
   if (primaryErr) throw new AuthError(String((primaryErr as Error).message ?? primaryErr))
   throw new AuthError('no identity provider configured')
