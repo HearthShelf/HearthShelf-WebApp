@@ -169,6 +169,25 @@ export async function createAuth(env: Env) {
 
     database: { dialect: new D1Dialect({ database: env.AUTH_DB }), type: 'sqlite' },
 
+    // Sized for a phone that goes offline for weeks (a cruise, a cabin), not a
+    // browser tab. Better Auth's default is 7 days, so a phone back from ten days
+    // away found its session already gone and had to sign in again.
+    //
+    // Still a sliding window: any get-session more than `updateAge` after the
+    // last renewal pushes expiry out to a full `expiresIn` again, and the control
+    // plane resolves every bearer call through get-session, so a phone that is
+    // online at all keeps renewing. Sessions issued under the old 7-day default
+    // are renewed to this length on their next contact.
+    //
+    // What a long window does NOT weaken: revoking a session (the account page's
+    // device list, "sign out of all devices", account deletion) deletes the row,
+    // so the token stops working on its next use whatever its expiry. Sensitive
+    // actions still demand a sign-in within `freshAge` (default 1 day).
+    session: {
+      expiresIn: 60 * 60 * 24 * 60,
+      updateAge: 60 * 60 * 24,
+    },
+
     advanced: {
       // The session cookie has to be readable by the app, which lives on a
       // DIFFERENT SUBDOMAIN (app.hearthshelf.com) from this service
