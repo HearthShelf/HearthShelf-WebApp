@@ -20,7 +20,7 @@
  * Every path keeps the "log in with password" escape hatch that drops the
  * session and forces a fresh sign-in.
  */
-import { useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { authClient } from './client'
 import { useAuth } from './useAuth'
 import {
@@ -40,11 +40,106 @@ export type SwitchOutcome =
       attemptsLeft?: number
     }
 
+/** A signed-in session held in this browser (multi-session), as the switcher shows it. */
+export interface DeviceSession {
+  userId: string
+  label: string
+  imageUrl?: string
+}
+
+type ListedSession = {
+  session: { token: string }
+  user: { id: string; name?: string; username?: string; email?: string; image?: string | null }
+}
+
+async function listSessions(): Promise<ListedSession[]> {
+  const listed = await authClient.multiSession.listDeviceSessions()
+  return (listed?.data ?? []) as ListedSession[]
+}
+
+/**
+ * Every account signed in on this browser. The switcher shows these alongside the
+ * remembered roster: a session can be live without a roster entry (signed in
+ * through "Sign in another user", where only the account being left is
+ * remembered), and hiding a live account made it look signed out.
+ */
+export function useDeviceSessions(): DeviceSession[] {
+  const [sessions, setSessions] = useState<DeviceSession[]>([])
+  useEffect(() => {
+    let alive = true
+    listSessions()
+      .then((list) => {
+        if (!alive) return
+        setSessions(
+          list
+            .filter((s) => s.user?.id)
+            .map((s) => ({
+              userId: s.user.id,
+              label: s.user.username || s.user.name || s.user.email || '?',
+              imageUrl: s.user.image ?? undefined,
+            })),
+        )
+      })
+      .catch(() => {
+        // Best-effort: the remembered roster still renders.
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+  return sessions
+}
+
+/**
+ * The accounts the switcher offers: the remembered roster, plus any account
+ * signed in on this browser that is not on it (no handle, so it switches through
+ * its live session and has no PIN). Excludes whoever is active now.
+ */
+export function useSwitchableAccounts(currentUserId: string | undefined): RememberedAccount[] {
+  const accounts = useRememberedAccounts((s) => s.accounts)
+  const live = useDeviceSessions()
+  return [
+    ...accounts.filter((a) => a.userId !== currentUserId),
+    ...live
+      .filter((s) => s.userId !== currentUserId && !accounts.some((a) => a.userId === s.userId))
+      .map((s) => ({
+        handle: '',
+        userId: s.userId,
+        label: s.label,
+        imageUrl: s.imageUrl,
+        hasPin: false,
+      })),
+  ]
+}
+
 export function useAccountSwitch() {
   const { user, isLoaded, signOut } = useAuth()
   const accounts = useRememberedAccounts((s) => s.accounts)
   const remember = useRememberedAccounts((s) => s.remember)
   const forget = useRememberedAccounts((s) => s.forget)
+
+  /**
+   * Put the signed-in account on this device's roster before leaving it, so it
+   * is still in the menu to switch back to. Best-effort: offline or with the
+   * control plane down the switch still happens, and the live session still
+   * shows through useDeviceSessions.
+   */
+  const rememberCurrent = useCallback(async () => {
+    if (!user || accounts.some((a) => a.userId === user.id)) return
+    const name = user.username || user.firstName || user.primaryEmailAddress?.emailAddress || '?'
+    try {
+      const res = await rememberCurrentUser({ label: name, imageUrl: user.imageUrl ?? undefined })
+      remember({
+        handle: res.handle,
+        userId: user.id,
+        label: res.label,
+        imageUrl: user.imageUrl ?? undefined,
+        hasPin: res.has_pin,
+      })
+    } catch {
+      // See above.
+    }
+  }, [user, accounts, remember])
 
   /**
    * Swap into a remembered account. If it has a PIN, pass the entered `pin`.
@@ -83,13 +178,10 @@ export function useAccountSwitch() {
       }
 
       try {
-        const listed = await authClient.multiSession.listDeviceSessions()
-        const sessions = (listed?.data ?? []) as {
-          session: { token: string }
-          user: { id: string }
-        }[]
-        const match = sessions.find((s) => s.user?.id === account.userId)
+        const match = (await listSessions()).find((s) => s.user?.id === account.userId)
         if (!match) return { ok: false, reason: 'needs_sign_in' }
+
+        await rememberCurrent()
 
         const res = await authClient.multiSession.setActive({ sessionToken: match.session.token })
         if (res?.error) return { ok: false, reason: 'error', message: res.error.message }
@@ -98,7 +190,7 @@ export function useAccountSwitch() {
         return { ok: false, reason: 'error', message: (e as Error).message }
       }
     },
-    [isLoaded, forget],
+    [isLoaded, forget, rememberCurrent],
   )
 
   /**
@@ -122,43 +214,23 @@ export function useAccountSwitch() {
    * the current user first keeps them in the roster with their label and photo.
    */
   const signInAnotherUser = useCallback(async () => {
-    if (user && !accounts.some((a) => a.userId === user.id)) {
-      const name = user.username || user.firstName || user.primaryEmailAddress?.emailAddress || '?'
-      try {
-        const res = await rememberCurrentUser({ label: name, imageUrl: user.imageUrl ?? undefined })
-        remember({
-          handle: res.handle,
-          userId: user.id,
-          label: res.label,
-          imageUrl: user.imageUrl ?? undefined,
-          hasPin: res.has_pin,
-        })
-      } catch {
-        // Best-effort: if remembering fails (offline, CP down), still let them
-        // sign in as someone else - they just will not have a roster entry to
-        // tap back into.
-      }
-    }
+    await rememberCurrent()
     window.location.href = '/sign-in'
-  }, [user, accounts, remember])
+  }, [rememberCurrent])
 
   /** Forget a remembered account (server revoke + local prune + drop its session). */
   const forgetAccount = useCallback(
     async (account: RememberedAccount) => {
       try {
-        await forgetRemembered(account.handle)
+        // A live session with no roster entry has no handle to revoke.
+        if (account.handle) await forgetRemembered(account.handle)
       } finally {
         forget(account.handle)
         // Also drop any live session for that account on this device, or the
         // account would keep appearing in the switcher's own session list after
         // the user asked to forget it.
         try {
-          const listed = await authClient.multiSession.listDeviceSessions()
-          const sessions = (listed?.data ?? []) as {
-            session: { token: string }
-            user: { id: string }
-          }[]
-          const match = sessions.find((s) => s.user?.id === account.userId)
+          const match = (await listSessions()).find((s) => s.user?.id === account.userId)
           if (match) await authClient.multiSession.revoke({ sessionToken: match.session.token })
         } catch {
           // Best-effort - the local roster entry is already gone.

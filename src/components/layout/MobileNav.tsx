@@ -11,7 +11,7 @@ import { ApiError, forgetRemembered } from '@/api/controlPlane'
 import { useAdminMe } from '@/hooks/useAdminMe'
 import { PinEntryOverlay } from '@/components/account/PinEntryOverlay'
 import { useRememberedAccounts, type RememberedAccount } from '@/store/rememberedAccounts'
-import { useAccountSwitch } from '@/auth/useAccountSwitch'
+import { useAccountSwitch, useSwitchableAccounts } from '@/auth/useAccountSwitch'
 import { useSettingsStore } from '@/store/settingsStore'
 
 // Which primary tab (or "more") a path belongs to, so the matching bottom-bar
@@ -99,13 +99,12 @@ function MobileDrawer({
   // see AccountSettings.tsx for why the URL alone won't pick this up.
   const avatarVersion = useSettingsStore((s) => s.meta.useGravatar)
 
-  const remembered = useRememberedAccounts((s) => s.accounts)
   const forgetLocal = useRememberedAccounts((s) => s.forget)
-  const { switchTo, loginWithPassword, signInAnotherUser } = useAccountSwitch()
+  const { switchTo, loginWithPassword, signInAnotherUser, forgetAccount } = useAccountSwitch()
   const [pinFor, setPinFor] = useState<RememberedAccount | null>(null)
   const [forgetFor, setForgetFor] = useState<RememberedAccount | null>(null)
 
-  const others = remembered.filter((a) => a.userId !== user?.id)
+  const others = useSwitchableAccounts(user?.id)
   const doSwitch = async (account: RememberedAccount, pin?: string): Promise<boolean> => {
     const res = await switchTo(account, pin)
     if (res.ok) {
@@ -128,6 +127,11 @@ function MobileDrawer({
       return
     }
     if (!window.confirm(`Forget ${account.label} on this device?`)) return
+    // Not on the roster: forgetting means signing that session out here.
+    if (!account.handle) {
+      void forgetAccount(account)
+      return
+    }
     void forgetRemembered(account.handle).finally(() => forgetLocal(account.handle))
   }
 
@@ -245,7 +249,7 @@ function MobileDrawer({
               {others.map((a) => (
                 <button
                   type="button"
-                  key={a.handle}
+                  key={a.handle || a.userId}
                   className="msheet-row switch-row"
                   onClick={() => (a.hasPin ? setPinFor(a) : void doSwitch(a))}
                 >

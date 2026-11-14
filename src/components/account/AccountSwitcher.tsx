@@ -13,7 +13,7 @@ import { Icon } from '@/components/common/Icon'
 import { Avatar } from '@/components/common/Avatar'
 import { PinEntryOverlay } from '@/components/account/PinEntryOverlay'
 import { useRememberedAccounts, type RememberedAccount } from '@/store/rememberedAccounts'
-import { useAccountSwitch } from '@/auth/useAccountSwitch'
+import { useAccountSwitch, useSwitchableAccounts } from '@/auth/useAccountSwitch'
 import { rememberCurrentUser, forgetRemembered, ApiError } from '@/api/controlPlane'
 
 interface Props {
@@ -29,7 +29,8 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
   const { user } = useUser()
   const accounts = useRememberedAccounts((s) => s.accounts)
   const remember = useRememberedAccounts((s) => s.remember)
-  const { switchTo, loginWithPassword, signInAnotherUser, ready } = useAccountSwitch()
+  const { switchTo, loginWithPassword, signInAnotherUser, forgetAccount, ready } =
+    useAccountSwitch()
 
   // The account whose PIN we're currently collecting (null = pad closed).
   const [pinFor, setPinFor] = useState<RememberedAccount | null>(null)
@@ -40,7 +41,7 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
   const forget = useRememberedAccounts((s) => s.forget)
 
   // Don't offer to swap into whoever is already active.
-  const others = accounts.filter((a) => a.userId !== user?.id)
+  const others = useSwitchableAccounts(user?.id)
   const currentRemembered = accounts.some((a) => a.userId === user?.id)
 
   const name = user?.username || user?.firstName || user?.primaryEmailAddress?.emailAddress || '?'
@@ -102,9 +103,14 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
         return
       }
       if (!window.confirm(`Forget ${account.label} on this device?`)) return
+      // Not on the roster: forgetting means signing that session out here.
+      if (!account.handle) {
+        void forgetAccount(account).then(() => onDone?.())
+        return
+      }
       void forgetRemembered(account.handle).finally(() => forget(account.handle))
     },
-    [forget],
+    [forget, forgetAccount, onDone],
   )
 
   /** Verify the PIN for a forget attempt (does NOT switch accounts). */
@@ -153,7 +159,7 @@ export function AccountSwitcher({ onDone, onNavigate, showAdmin }: Props) {
           <div className="switch-label">Switch account</div>
           {others.map((a) => (
             <button
-              key={a.handle}
+              key={a.handle || a.userId}
               className="switch-row"
               onClick={() => onTapAccount(a)}
               disabled={busy}
