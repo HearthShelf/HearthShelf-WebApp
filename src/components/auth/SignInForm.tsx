@@ -1,6 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { authClient } from '@/auth/client'
 import { rememberBearerToken } from '@/auth/bearerToken'
+import {
+  LinkSignInError,
+  forgetLinkSignIn,
+  pollLinkSignIn,
+  startLinkSignIn,
+  type StartedLinkSignIn,
+} from '@/auth/linkSignIn'
 import { authBreadcrumb } from '@/lib/sentry'
 import {
   AppleIcon,
@@ -16,7 +23,11 @@ import {
  * Methods, in the order offered:
  *   - passkey  - the one we want people using; no password, no code, no mail
  *   - social   - Google / Apple / Discord, carried over from the old provider
- *   - email    - a magic link, or a 6-digit code if the link is awkward
+ *   - email    - a link, or a 6-digit code if the link is awkward. The link
+ *                signs in THIS browser wherever the email is opened: opening
+ *                it shows an approval page, and this screen waits for the
+ *                approval (see auth/linkSignIn.ts). An older auth service
+ *                without that flow gets a plain magic link instead.
  *   - 2FA      - a TOTP step when the account has it switched on
  *
  * Magic link and email codes both depend on mail delivery, so they fail
@@ -27,7 +38,19 @@ import {
  * lands on the SAME HearthShelf account as before the identity-provider change,
  * because those identities were seeded against the original account ids.
  */
-type Step = 'choose' | 'email' | 'magic-sent' | 'otp' | 'two-factor'
+type Step = 'choose' | 'email' | 'magic-sent' | 'link-wait' | 'otp' | 'two-factor'
+
+/** Where a "sign in this device" request stands, as this screen sees it. */
+type LinkState = 'waiting' | 'approved' | 'denied' | 'elsewhere' | 'expired'
+
+const POLL_MS = 2500
+
+function linkErrorMessage(e: LinkSignInError): string {
+  if (e.code === 'too_many_requests')
+    return 'Too many sign-in links asked for. Wait a few minutes, or use a code.'
+  if (e.code === 'invalid_email') return 'That email address does not look right.'
+  return 'We could not send a sign-in link. Try again, or use a code.'
+}
 
 const PROVIDERS = [
   { id: 'google', label: 'Continue with Google', Icon: GoogleIcon, className: '' },
@@ -52,6 +75,52 @@ export function SignInForm({ redirectUrl = '/' }: { redirectUrl?: string }) {
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState<StartedLinkSignIn | null>(null)
+  const [linkState, setLinkState] = useState<LinkState>('waiting')
+
+  // Wait for the email to be approved on whatever device opened it, then
+  // finish the sign-in HERE through Better Auth's own verify URL. That is what
+  // puts the session (and, for "sign in another user", the extra account) in
+  // this browser rather than in the one that read the email.
+  useEffect(() => {
+    if (step !== 'link-wait' || !pending || linkState !== 'waiting') return
+    let stopped = false
+    let misses = 0
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const tick = async () => {
+      if (stopped) return
+      if (Date.now() > pending.expiresAt) return setLinkState('expired')
+      try {
+        const res = await pollLinkSignIn(pending.requestId, pending.pollSecret)
+        if (stopped) return
+        if (res.status === 'approved' && res.url) {
+          forgetLinkSignIn()
+          authBreadcrumb('sign-in accepted', { method: 'Email link (approved)' })
+          setLinkState('approved')
+          window.location.href = res.url
+          return
+        }
+        if (res.status === 'denied' || res.status === 'elsewhere') {
+          forgetLinkSignIn()
+          return setLinkState(res.status)
+        }
+        // "gone" can briefly show while an approval is being recorded, so only
+        // a few in a row mean the request has really ended.
+        if (res.status === 'gone') {
+          misses += 1
+          if (misses >= 3) return setLinkState('expired')
+        } else misses = 0
+      } catch {
+        // A dropped poll (a car going under a bridge) is not an answer; try again.
+      }
+      timer = setTimeout(tick, POLL_MS)
+    }
+    timer = setTimeout(tick, POLL_MS)
+    return () => {
+      stopped = true
+      clearTimeout(timer)
+    }
+  }, [step, pending, linkState])
 
   /**
    * Run an auth call and map its outcome onto the form.
@@ -131,10 +200,27 @@ export function SignInForm({ redirectUrl = '/' }: { redirectUrl?: string }) {
 
   function onMagicLink() {
     if (!email.trim()) return setError('Enter your email first')
+    let next: Step = 'magic-sent'
     return run(
       'Magic link',
-      () => authClient.signIn.magicLink({ email: email.trim(), callbackURL: absoluteReturnUrl }),
-      () => setStep('magic-sent'),
+      async () => {
+        try {
+          const started = await startLinkSignIn(email.trim(), absoluteReturnUrl)
+          if (started) {
+            setPending(started)
+            setLinkState('waiting')
+            next = 'link-wait'
+            return
+          }
+        } catch (e) {
+          if (e instanceof LinkSignInError) return { error: { message: linkErrorMessage(e) } }
+          throw e
+        }
+        // The service does not have the approval flow yet: a plain magic link,
+        // which signs in whichever device opens it.
+        return authClient.signIn.magicLink({ email: email.trim(), callbackURL: absoluteReturnUrl })
+      },
+      () => setStep(next),
     )
   }
 
@@ -247,6 +333,84 @@ export function SignInForm({ redirectUrl = '/' }: { redirectUrl?: string }) {
           <button className="auth-link" onClick={back('email')} disabled={busy}>
             Use a different email
           </button>
+        </>
+      )}
+
+      {step === 'link-wait' && pending && (
+        <>
+          {linkState === 'waiting' && (
+            <>
+              <p className="text-sm text-neutral-300">
+                We sent a link to {email}. Open it on any device, like your phone, and tap Approve.
+                This screen signs in by itself.
+              </p>
+              <div className="flex flex-col items-center gap-1 rounded-xl bg-white/5 px-4 py-4">
+                <span className="text-xs text-neutral-400">Check that this number matches</span>
+                <span
+                  className="font-mono text-4xl font-bold tracking-[0.2em] text-neutral-100"
+                  aria-label={`Match code ${pending.matchCode.split('').join(' ')}`}
+                >
+                  {pending.matchCode}
+                </span>
+              </div>
+              <p className="text-xs text-neutral-500" aria-live="polite">
+                Waiting for approval...
+              </p>
+            </>
+          )}
+          {linkState === 'approved' && (
+            <p className="text-sm text-neutral-300" aria-live="polite">
+              Approved. Signing you in...
+            </p>
+          )}
+          {linkState === 'denied' && (
+            <p className="rounded-md bg-red-500/15 px-3 py-2 text-sm text-red-300" role="alert">
+              That sign-in was declined on the other device.
+            </p>
+          )}
+          {linkState === 'elsewhere' && (
+            <>
+              <p className="text-sm text-neutral-300" role="status">
+                That link was used to sign in on the device that opened it, not this one.
+              </p>
+              <button
+                className="auth-link"
+                onClick={() => (window.location.href = redirectUrl)}
+                disabled={busy}
+              >
+                Signed in here in another tab? Continue
+              </button>
+            </>
+          )}
+          {linkState === 'expired' && (
+            <p className="rounded-md bg-red-500/15 px-3 py-2 text-sm text-red-300" role="alert">
+              That link expired. Send another one to try again.
+            </p>
+          )}
+          {errorBanner}
+          {linkState !== 'waiting' && linkState !== 'approved' && (
+            <button
+              className="auth-btn auth-btn-primary auth-btn-plain"
+              onClick={onMagicLink}
+              disabled={busy}
+            >
+              Send another link
+            </button>
+          )}
+          {linkState !== 'approved' && (
+            <>
+              <button
+                className="auth-btn auth-btn-provider auth-btn-plain"
+                onClick={onSendCode}
+                disabled={busy}
+              >
+                Use a code instead
+              </button>
+              <button className="auth-link" onClick={back('email')} disabled={busy}>
+                Use a different email
+              </button>
+            </>
+          )}
         </>
       )}
 

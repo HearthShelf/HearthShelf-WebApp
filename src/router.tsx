@@ -42,6 +42,7 @@ import { AdminAdminsPage } from '@/pages/admin/AdminAdminsPage'
 import { AdminAppsPage } from '@/pages/admin/AdminAppsPage'
 import { AdminAuditPage } from '@/pages/admin/AdminAuditPage'
 import { SignInPage } from '@/pages/SignInPage'
+import { SignInApprovePage } from '@/pages/SignInApprovePage'
 import { SignUpPage } from '@/pages/SignUpPage'
 import { ErrorPage } from '@/pages/ErrorPage'
 import { CarPlayerHarness } from '@/pages/dev/CarPlayerHarness'
@@ -84,6 +85,9 @@ function PairRedirect() {
 export const router = createBrowserRouter([
   // Public account routes (embedded Clerk components). Splat paths so Clerk can
   // own its multi-step sub-routes (email verification, OAuth callback, etc.).
+  // Where an email sign-in link lands: approves a sign-in on the device that
+  // asked for it. Ahead of the splat below, which would otherwise take it.
+  { path: '/sign-in/approve', element: <SignInApprovePage /> },
   { path: '/sign-in/*', element: <SignInPage /> },
   { path: '/sign-up/*', element: <SignUpPage /> },
 
