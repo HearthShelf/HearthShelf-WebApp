@@ -39,3 +39,4 @@ pnpm-debug.log*
 CLAUDE.local.md
 auth-service/tail.json
 auth-service/.schema*.sql
+__pycache__/
