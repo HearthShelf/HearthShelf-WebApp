@@ -1,7 +1,8 @@
 /**
  * HearthShelf auth service (auth.hearthshelf.com).
  *
- * Better Auth mounted at /api/auth/*, plus a health probe. Everything else
+ * Better Auth mounted at /api/auth/*, the email "sign in this device" flow at
+ * /hs/link-sign-in/*, plus a health probe. Everything else
  * 404s: this Worker is an identity surface, not a general API.
  *
  * CORS is credentialed and the allowlist is PINNED to TRUSTED_ORIGINS - the
@@ -9,6 +10,7 @@
  * would let any site drive a signed-in user's browser against this service.
  */
 import { createAuth } from './auth'
+import { handleLinkSignIn } from './linkSignInRoutes'
 import { describeError, reportError } from './logs'
 import type { Env } from './types'
 
@@ -52,6 +54,15 @@ export default {
       return new Response(JSON.stringify({ ok: true }), {
         headers: { 'Content-Type': 'application/json', ...cors },
       })
+    }
+
+    // "Sign in this device" by email link; see ./linkSignIn.ts.
+    const linkMatch = /^\/hs\/link-sign-in\/([a-z]+)$/.exec(url.pathname)
+    if (linkMatch) {
+      const res = await handleLinkSignIn(req, env, linkMatch[1])
+      const headers = new Headers(res.headers)
+      for (const [k, v] of Object.entries(cors)) headers.set(k, v)
+      return new Response(res.body, { status: res.status, headers })
     }
 
     if (url.pathname.startsWith('/api/auth/')) {

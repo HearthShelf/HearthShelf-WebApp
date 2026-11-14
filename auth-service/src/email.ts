@@ -214,6 +214,47 @@ export const templates = {
     })
   },
 
+  /**
+   * Approve a sign-in on ANOTHER device (a car, a TV, a shared computer).
+   *
+   * Deliberately not a sign-in link: opening it signs nothing in. The page it
+   * opens shows a number to match against the asking screen, so a stranger who
+   * started a request with someone else's address cannot slip it past them.
+   */
+  linkApproval: (url: string, details: SignInDetails): RenderedEmail => {
+    const rows = [
+      ['Device', details.device],
+      ['Location', details.location],
+      ['Time', details.time],
+    ].filter((row): row is [string, string] => Boolean(row[1]))
+    const safeUrl = esc(url)
+    const lead = 'Someone asked to sign in to HearthShelf on another device.'
+    return shell({
+      subject: 'Approve a HearthShelf sign-in',
+      preheader: `${lead} If this was you, open this link and tap Approve.`,
+      title: 'Sign in on another device?',
+      body: `<p style="margin:0;">${lead} If this was you, open this link and tap Approve.</p><p style="margin:12px 0 0;font-size:14px;color:${FAINT};">Only approve if the number on the next page matches the one on the device you are signing in. If you did not ask for this, ignore this email and nothing will happen.</p>`,
+      detail: detailRows({
+        device: details.device,
+        location: details.location,
+        time: details.time,
+      }),
+      action: { label: 'Review this sign-in', url },
+      afterAction: `<p style="margin:0;font-size:12px;line-height:1.5;color:${FAINT};word-break:break-all;">Button not working? Copy this link:<br><a href="${safeUrl}" style="color:${MUTED};text-decoration:underline;text-underline-offset:2px;">${safeUrl}</a></p>`,
+      text: [
+        'Sign in on another device?',
+        '',
+        `${lead} If this was you, open this link and tap Approve:`,
+        url,
+        '',
+        ...rows.map(([label, value]) => `${label}: ${value}`),
+        '',
+        'Only approve if the number on that page matches the one on the device you are signing in.',
+        'If you did not ask for this, ignore this email and nothing will happen.',
+      ].join('\n'),
+    })
+  },
+
   passwordChanged: (securityUrl: string): RenderedEmail =>
     shell({
       subject: 'Your HearthShelf password was changed',

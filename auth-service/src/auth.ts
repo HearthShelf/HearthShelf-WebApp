@@ -71,7 +71,7 @@ function appOrigins(env: Env): string[] {
     .filter(Boolean)
 }
 
-function deviceName(request?: Request): string | undefined {
+export function deviceName(request?: Request): string | undefined {
   const ua = request?.headers.get('user-agent') || ''
   if (!ua) return undefined
   const browser = /Edg\//.test(ua)
@@ -97,7 +97,7 @@ function deviceName(request?: Request): string | undefined {
   return platform ? `${browser} on ${platform}` : browser
 }
 
-function signInDetails(request?: Request): SignInDetails {
+export function signInDetails(request?: Request): SignInDetails {
   const cf = request?.cf as Record<string, unknown> | undefined
   const location = [cf?.city, cf?.region, cf?.country]
     .filter((value): value is string => typeof value === 'string' && Boolean(value))
@@ -141,7 +141,18 @@ function webSafeCallback(url: string, appOrigin: string): string {
   }
 }
 
-export async function createAuth(env: Env) {
+/**
+ * Lets the "sign in this device" flow (./linkSignIn.ts) take a magic link
+ * instead of mailing it. Set only on an auth instance built for that flow's own
+ * server-side call, never on one serving HTTP, so nothing a client sends can
+ * arm it: a public /sign-in/magic-link request always mails as before.
+ */
+export interface MagicLinkCapture {
+  email: string
+  url?: string
+}
+
+export async function createAuth(env: Env, options: { captureMagicLink?: MagicLinkCapture } = {}) {
   // Minted per request from the .p8 when no pre-signed secret is set, so there
   // is no six-month rotation to remember. See ./appleSecret.ts.
   const appleClientSecret = await getAppleClientSecret(env)
@@ -424,6 +435,11 @@ export async function createAuth(env: Env) {
 
       magicLink({
         sendMagicLink: async ({ email, url }) => {
+          const capture = options.captureMagicLink
+          if (capture && !capture.url && capture.email.toLowerCase() === email.toLowerCase()) {
+            capture.url = webSafeCallback(url, appOrigin)
+            return
+          }
           // Rewrite a custom-scheme callback to the web app before the link is
           // sent.
           //
