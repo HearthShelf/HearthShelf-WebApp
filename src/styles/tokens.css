@@ -27,13 +27,7 @@
   font-style: normal;
   font-display: swap;
 }
-@font-face {
-  font-family: 'Material Symbols Rounded';
-  src: url('fonts/MaterialSymbolsRounded.woff2') format('woff2');
-  font-weight: 100 700;
-  font-style: normal;
-  font-display: block;
-}
+/* The icon font is embedded in icon-font.css (generated, see scripts/icon-font). */
 
 /* =====================================================================
    shadcn role tokens — LIGHT (:root)
