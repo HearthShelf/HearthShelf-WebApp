@@ -4,6 +4,8 @@ import { useActiveServer } from '@/hooks/useActiveServer'
 import { useConnectActiveServer } from '@/hooks/useConnectActiveServer'
 import { WebAppMediaUIProvider } from '@/components/shared/WebAppMediaUI'
 import { Button } from '@/components/ui/Button'
+import { useDuplicateWatch } from '@/hooks/useDuplicateWatch'
+import type { AbsTarget } from '@/api/absLibrary'
 
 /**
  * Mounts the shared MediaUI provider for the active server, once, around the
@@ -60,7 +62,18 @@ export function ActiveServerMediaUI({ children }: { children: ReactNode }) {
     return <CenterNote spinner>Connecting to {server?.name ?? 'your library'}...</CenterNote>
   }
 
-  return <WebAppMediaUIProvider target={target}>{children}</WebAppMediaUIProvider>
+  return (
+    <WebAppMediaUIProvider target={target}>
+      <DuplicateWatch target={target} />
+      {children}
+    </WebAppMediaUIProvider>
+  )
+}
+
+/** Hides books the server recorded twice and moves the listener's place. */
+function DuplicateWatch({ target }: { target: AbsTarget }) {
+  useDuplicateWatch(target)
+  return null
 }
 
 function CenterNote({ children, spinner }: { children: ReactNode; spinner?: boolean }) {

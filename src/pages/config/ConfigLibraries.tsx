@@ -19,6 +19,7 @@ import { Icon } from '@/components/common/Icon'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { LibraryEditModal } from '@/components/config/LibraryEditModal'
+import { DuplicateEntriesCard } from '@/components/config/DuplicateEntriesCard'
 import {
   LibraryCreateModal,
   type LibraryCreateValues,
@@ -284,6 +285,11 @@ export function ConfigLibraries() {
           </table>
         </div>
       )}
+
+      <DuplicateEntriesCard
+        target={target}
+        libraryIds={order.filter((l) => l.mediaType !== 'podcast').map((l) => l.id)}
+      />
 
       {editTarget && (
         <LibraryEditModal

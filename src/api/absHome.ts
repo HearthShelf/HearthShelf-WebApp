@@ -13,6 +13,7 @@
  * verified against audiobookshelf 2.35.1 serializers.
  */
 import { absGet } from './absClient'
+import { dedupeForServer } from '@/lib/duplicates'
 import type { AbsTarget, AbsLibraryItem, AbsSeries } from './absLibrary'
 
 // --- raw -> rich item mapping (mirrors absLibrary.mapFullItem, kept local) ----
@@ -36,6 +37,8 @@ interface RawFullItem {
   libraryId?: string
   folderId?: string
   path?: string
+  relPath?: string
+  ino?: string | null
   mediaType?: 'book' | 'podcast'
   addedAt?: number
   updatedAt?: number
@@ -62,6 +65,8 @@ function mapFullItem(r: RawFullItem): AbsLibraryItem {
     libraryId: r.libraryId ?? '',
     folderId: r.folderId ?? '',
     path: r.path ?? '',
+    relPath: r.relPath,
+    ino: r.ino ?? null,
     mediaType: r.mediaType ?? 'book',
     addedAt: r.addedAt ?? 0,
     updatedAt: r.updatedAt ?? 0,
@@ -167,7 +172,10 @@ export async function getHomeShelves(
         id: sh.id,
         label: sh.label,
         type: 'book',
-        items: (sh.entities ?? []).map((e) => mapFullItem(e as RawFullItem)),
+        items: dedupeForServer(
+          t.serverId,
+          (sh.entities ?? []).map((e) => mapFullItem(e as RawFullItem)),
+        ),
       })
     }
   }
@@ -259,7 +267,7 @@ export async function getItemsInProgress(
   libraryId?: string,
 ): Promise<AbsLibraryItem[]> {
   const data = await absGet<ItemsInProgressResponse>(t, '/api/me/items-in-progress')
-  const items = (data.libraryItems ?? []).map(mapFullItem)
+  const items = dedupeForServer(t.serverId, (data.libraryItems ?? []).map(mapFullItem))
   return libraryId ? items.filter((i) => i.libraryId === '' || i.libraryId === libraryId) : items
 }
 
@@ -318,14 +326,17 @@ export async function searchLibraryFull(
     t,
     `/api/libraries/${encodeURIComponent(libraryId)}/search?q=${encodeURIComponent(q)}&limit=${limit}`,
   )
-  const books = (data.book ?? [])
-    .map((e) => e.libraryItem)
-    .filter((i): i is RawFullItem => Boolean(i))
-    .map(mapFullItem)
+  const books = dedupeForServer(
+    t.serverId,
+    (data.book ?? [])
+      .map((e) => e.libraryItem)
+      .filter((i): i is RawFullItem => Boolean(i))
+      .map(mapFullItem),
+  )
   const series: SearchSeriesGroup[] = (data.series ?? []).map((s) => ({
     id: s.series?.id ?? '',
     name: s.series?.name ?? '',
-    books: (s.books ?? []).map(mapFullItem),
+    books: dedupeForServer(t.serverId, (s.books ?? []).map(mapFullItem)),
   }))
   const authors: SearchAuthor[] = (data.authors ?? []).map((a) => ({
     id: a.id ?? '',

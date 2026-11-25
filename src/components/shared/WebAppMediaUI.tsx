@@ -7,6 +7,7 @@ import { ConfirmProvider } from '@/components/shared/ConfirmPrompt'
 import { absMediaUrl } from '@/api/absClient'
 import { getItemDetail, setItemFinished, type AbsTarget } from '@/api/absLibrary'
 import { usePlayer } from '@/player/PlayerProvider'
+import { resolveForServer } from '@/lib/duplicates'
 
 /**
  * WebApp's implementation of the shared MediaUI capabilities, scoped to one
@@ -46,11 +47,13 @@ function MediaUIValue({ target, children }: { target: AbsTarget; children: React
     () => ({
       coverUrl: (itemId, width = 240) =>
         absMediaUrl(target, `/api/items/${encodeURIComponent(itemId)}/cover?width=${width}`),
-      openItem: (itemId) => navigate(`/book/${itemId}`),
+      // A book the server recorded twice opens (and plays) as the copy kept.
+      openItem: (itemId) => navigate(`/book/${resolveForServer(target.serverId, itemId)}`),
       // Fetch the book and start it in the global player (no navigation needed -
       // the docked mini-player surfaces it). Falls back to opening the page if
       // the fetch fails.
-      playItem: async (itemId, opts) => {
+      playItem: async (rawItemId, opts) => {
+        const itemId = resolveForServer(target.serverId, rawItemId)
         const autoplay = opts?.autoplay ?? true
         try {
           const d = await getItemDetail(target, itemId)

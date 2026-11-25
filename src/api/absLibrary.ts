@@ -15,6 +15,7 @@ import {
   AbsError,
 } from './absClient'
 import { getAbsToken } from '@/lib/absTokens'
+import { dedupeForServer } from '@/lib/duplicates'
 import { inoFromContentUrl, partsFitSession, trackIndexForPosition } from '@/lib/bookParts'
 import { getBookParts, prepareBookPart } from './absParts'
 import type {
@@ -110,13 +111,16 @@ export async function getLibraryItems(
     `/api/libraries/${encodeURIComponent(libraryId)}/items?minified=1&limit=${limit}&page=${page}`,
   )
   return {
-    items: (data.results ?? []).map((r) => ({
-      id: r.id,
-      title: r.media?.metadata?.title || 'Untitled',
-      author: r.media?.metadata?.authorName || '',
-      mediaType: r.mediaType,
-      durationSec: r.media?.duration ?? 0,
-    })),
+    items: dedupeForServer(
+      t.serverId,
+      (data.results ?? []).map((r) => ({
+        id: r.id,
+        title: r.media?.metadata?.title || 'Untitled',
+        author: r.media?.metadata?.authorName || '',
+        mediaType: r.mediaType,
+        durationSec: r.media?.duration ?? 0,
+      })),
+    ),
     total: data.total ?? 0,
     page: data.page ?? page,
     limit: data.limit ?? limit,
@@ -169,7 +173,7 @@ export async function getPersonalizedShelves(
   return (raw ?? []).map((s) => ({
     id: s.id,
     label: s.label,
-    items: mapRawItems(s.entities ?? []),
+    items: dedupeForServer(t.serverId, mapRawItems(s.entities ?? [])),
   }))
 }
 
@@ -203,7 +207,7 @@ export async function searchLibrary(
     `/api/libraries/${encodeURIComponent(libraryId)}/search?q=${encodeURIComponent(q)}&limit=${limit}`,
   )
   const entries = [...(data.book ?? []), ...(data.podcast ?? [])]
-  return entries
+  const hits = entries
     .map((e) => e.libraryItem)
     .filter((i): i is RawListItem => Boolean(i))
     .map((r) => ({
@@ -213,6 +217,7 @@ export async function searchLibrary(
       mediaType: r.mediaType,
       durationSec: r.media?.duration ?? 0,
     }))
+  return dedupeForServer(t.serverId, hits)
 }
 
 // --- browse: series / author / collections ---------------------------------
@@ -272,7 +277,7 @@ export async function getAuthor(t: AbsTarget, authorId: string): Promise<AuthorD
     id: data.id,
     name: data.name || 'Unknown author',
     description: data.description || '',
-    items: (data.libraryItems ?? []).map(mapBareItem),
+    items: dedupeForServer(t.serverId, (data.libraryItems ?? []).map(mapBareItem)),
   }
 }
 
@@ -955,14 +960,17 @@ export async function getAllLibraryItems(
     t,
     `/api/libraries/${encodeURIComponent(libraryId)}/items?minified=1&limit=0`,
   )
-  return (data.results ?? []).map((r) => ({
-    id: r.id,
-    title: r.media?.metadata?.title || 'Untitled',
-    author: r.media?.metadata?.authorName || '',
-    mediaType: r.mediaType,
-    durationSec: r.media?.duration ?? 0,
-    narrator: r.media?.metadata?.narratorName || '',
-  }))
+  return dedupeForServer(
+    t.serverId,
+    (data.results ?? []).map((r) => ({
+      id: r.id,
+      title: r.media?.metadata?.title || 'Untitled',
+      author: r.media?.metadata?.authorName || '',
+      mediaType: r.mediaType,
+      durationSec: r.media?.duration ?? 0,
+      narrator: r.media?.metadata?.narratorName || '',
+    })),
+  )
 }
 
 /**
@@ -1020,6 +1028,8 @@ interface RawFullItem {
   libraryId?: string
   folderId?: string
   path?: string
+  relPath?: string
+  ino?: string | null
   mediaType?: 'book' | 'podcast'
   addedAt?: number
   updatedAt?: number
@@ -1046,6 +1056,8 @@ function mapFullItem(r: RawFullItem): AbsLibraryItem {
     libraryId: r.libraryId ?? '',
     folderId: r.folderId ?? '',
     path: r.path ?? '',
+    relPath: r.relPath,
+    ino: r.ino ?? null,
     mediaType: r.mediaType ?? 'book',
     addedAt: r.addedAt ?? 0,
     updatedAt: r.updatedAt ?? 0,
@@ -1095,8 +1107,11 @@ export async function getAllLibraryItemsFull(
     t,
     `/api/libraries/${encodeURIComponent(libraryId)}/items?minified=1&limit=0`,
   )
-  const results = (data.results ?? []).map(mapFullItem)
-  return { results, total: data.total ?? results.length }
+  // Learns duplicate pairs from the whole library (both copies are always in
+  // this list) and hides them, so counts show one book per folder.
+  const all = (data.results ?? []).map(mapFullItem)
+  const results = dedupeForServer(t.serverId, all)
+  return { results, total: (data.total ?? all.length) - (all.length - results.length) }
 }
 
 // --- Series (with book counts + cover items) --------------------------------
@@ -1135,7 +1150,7 @@ export async function getSeries(
     name: s.name ?? '',
     nameIgnorePrefix: s.nameIgnorePrefix ?? s.name ?? '',
     description: s.description ?? null,
-    books: (s.books ?? []).map(mapFullItem),
+    books: dedupeForServer(t.serverId, (s.books ?? []).map(mapFullItem)),
   }))
   return { results, total: data.total ?? results.length }
 }

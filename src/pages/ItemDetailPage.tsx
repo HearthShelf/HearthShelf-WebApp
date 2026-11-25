@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useActiveServer } from '@/hooks/useActiveServer'
@@ -36,6 +36,8 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorState } from '@/components/common/ErrorState'
 import { NotesSection } from '@/components/library/NotesSection'
 import { ClubSection } from '@/components/library/ClubSection'
+import { useDuplicateIndex } from '@/lib/duplicates'
+import { resolveKeeperId } from '@hearthshelf/core'
 
 type DetailTab = 'chapters' | 'tracks' | 'ebook' | 'files' | 'notes'
 
@@ -62,9 +64,20 @@ function formatBytes(bytes: number): string {
  * null by the time this renders) and guard defensively.
  */
 export function ItemDetailPage() {
-  const { itemId } = useParams()
+  const { itemId: routeItemId } = useParams()
   const { target } = useActiveServer()
   const navigate = useNavigate()
+  // A link to a copy the server recorded twice (an old bookmark, a shared link,
+  // continue listening before the place moved) opens the copy being kept.
+  const duplicates = useDuplicateIndex(target?.serverId)
+  const itemId = routeItemId ? resolveKeeperId(duplicates, routeItemId) : routeItemId
+  useEffect(() => {
+    if (itemId && routeItemId && itemId !== routeItemId)
+      navigate(`/book/${itemId}`, { replace: true })
+  }, [itemId, routeItemId, navigate])
+  const duplicateCount = itemId
+    ? Object.values(duplicates).filter((keeper) => keeper === itemId).length
+    : 0
   const player = usePlayer()
   const ui = useMediaUI()
   const progressById = useMediaProgress()
@@ -112,6 +125,7 @@ export function ItemDetailPage() {
   })
   const canEdit = me?.type === 'admin' || me?.type === 'root' || me?.permissions?.update === true
   const canDownload = me?.permissions?.download !== false
+  const isServerAdmin = me?.type === 'admin' || me?.type === 'root'
 
   // Who else finished this book (privacy-filtered server-side). Degrades to
   // an empty, unavailable response on older servers - the chips row hides.
@@ -280,6 +294,21 @@ export function ItemDetailPage() {
         <Icon name="chevron_right" />
         {title}
       </div>
+
+      {isServerAdmin && duplicateCount > 0 && (
+        <div
+          className="cfg-card"
+          style={{ marginBottom: 'var(--s4)', display: 'flex', alignItems: 'center', gap: 10 }}
+        >
+          <Icon name="content_copy" style={{ color: 'var(--accent)' }} />
+          <span style={{ fontSize: 14 }}>
+            Your server listed this book twice. Listeners only see it once.{' '}
+            <Link className="lnk" to="/config/libraries">
+              Clean up duplicates
+            </Link>
+          </span>
+        </div>
+      )}
 
       <div className="detail-top">
         <div className="detail-cover" data-cv={cv}>
