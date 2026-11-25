@@ -11,12 +11,12 @@
  *   GET   /api/search/books?provider&title&author  -> metadata match results
  *   GET   /api/search/covers?provider&title&author -> { results: string[] } cover URLs
  *   POST  /api/items/:id/match           -> apply a provider match to the item
- *   PATCH /api/items/:id/cover { url }    -> set the item cover from an external URL
+ *   POST  /api/items/:id/cover { url }    -> set the item cover from an external URL
  *
  * Cover handling: HS only sets covers from a URL (search result or pasted URL),
- * so the PATCH-with-url path covers both cases - no multipart upload is needed.
+ * so the POST-with-url path covers both cases - no multipart upload is needed.
  */
-import { absGet, absPatch, absPost } from './absClient'
+import { absGet, absPost } from './absClient'
 import type { AbsTarget } from './absLibrary'
 import type { MetadataProvider } from './absAdmin'
 
@@ -88,7 +88,9 @@ export async function matchItem(t: AbsTarget, itemId: string, body: MatchItemBod
   await absPost(t, `/api/items/${itemId}/match`, body)
 }
 
-/** Set the item cover from an external image URL. */
+/** Set the item cover from an external image URL. POST is ABS's upload route,
+ * which downloads a url; PATCH only takes a file path already in the book's
+ * folder and answers 400 "no cover path" for a url. */
 export async function updateItemCover(t: AbsTarget, itemId: string, url: string): Promise<void> {
-  await absPatch(t, `/api/items/${itemId}/cover`, { url })
+  await absPost(t, `/api/items/${itemId}/cover`, { url })
 }

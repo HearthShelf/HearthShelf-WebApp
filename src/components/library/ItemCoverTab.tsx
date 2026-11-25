@@ -30,14 +30,18 @@ export function ItemCoverTab({
   const [searching, setSearching] = useState(false)
   const [applying, setApplying] = useState<string | null>(null)
   const [urlInput, setUrlInput] = useState('')
+  const [error, setError] = useState<string | null>(null)
   // ABS serves the cover from a stable URL, so remount the preview after a
   // change or the browser keeps showing the cached image.
   const [coverNonce, setCoverNonce] = useState(0)
 
   const run = async () => {
     setSearching(true)
+    setError(null)
     try {
       setCovers(await searchCovers(target, provider, title, defaultAuthor))
+    } catch {
+      setError("Couldn't search for covers. Try again.")
     } finally {
       setSearching(false)
     }
@@ -45,6 +49,7 @@ export function ItemCoverTab({
 
   const apply = async (url: string) => {
     setApplying(url)
+    setError(null)
     try {
       await updateItemCover(target, itemId, url)
       await Promise.all([
@@ -53,6 +58,8 @@ export function ItemCoverTab({
       ])
       setCoverNonce((n) => n + 1)
       await onApplied('Cover updated')
+    } catch {
+      setError("Couldn't set that cover. Try another picture or link.")
     } finally {
       setApplying(null)
     }
@@ -115,6 +122,11 @@ export function ItemCoverTab({
           </button>
         </div>
 
+        {error && (
+          <div style={{ fontSize: 13, color: 'var(--danger, #e5484d)', marginBottom: 10 }}>
+            {error}
+          </div>
+        )}
         {searching && <LoadingSpinner className="py-8" label="Searching..." />}
         {covers && covers.length === 0 && <div className="pop-empty">No covers found.</div>}
         {covers && covers.length > 0 && (
