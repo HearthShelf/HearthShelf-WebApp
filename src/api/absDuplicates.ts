@@ -6,7 +6,7 @@
  *
  * Works against stock AudiobookShelf: nothing here needs a HearthShelf server.
  */
-import { absDelete, absGet, absPatch, absPost } from './absClient'
+import { AbsError, absDelete, absGet, absPatch, absPost } from './absClient'
 import type { AbsTarget } from './absLibrary'
 import {
   ABS_ENDPOINTS,
@@ -168,7 +168,22 @@ export async function carryOverOwnProgress(
 export interface CleanupResult {
   removed: number
   kept: DuplicateCleanupPlan['keep']
-  failed: number
+  /** One plain-language reason per entry the server refused to remove. */
+  failed: string[]
+}
+
+/** Why the server refused a delete, in words an admin can act on. */
+function deleteFailureReason(err: unknown): string {
+  if (err instanceof AbsError) {
+    // ABS checks the account's own Delete permission even for admins and root
+    // (LibraryItemController.middleware -> user.canDelete), so this is the
+    // likely one on a server whose admin never turned it on.
+    if (err.status === 403) {
+      return "Your account isn't allowed to remove books. Turn on the Delete permission for your user in the server's user settings, then try again."
+    }
+    return `The server answered ${err.status}${err.message ? ` (${err.message})` : ''}.`
+  }
+  return "Couldn't reach the server."
 }
 
 /**
@@ -190,7 +205,7 @@ export async function cleanUpDuplicates(
 
   const plan = planDuplicateCleanup(groups, listeners)
   let removed = 0
-  let failed = 0
+  const failed: string[] = []
   for (const id of plan.remove) {
     try {
       // NEVER add ?hard=1 here. The duplicate points at the SAME folder as the
@@ -198,8 +213,10 @@ export async function cleanUpDuplicates(
       // removes only the extra database entry.
       await absDelete(t, ABS_ENDPOINTS.itemDelete(id))
       removed++
-    } catch {
-      failed++
+    } catch (err) {
+      // Already gone (another device cleaned up first) is the goal, not a failure.
+      if (err instanceof AbsError && err.status === 404) removed++
+      else failed.push(deleteFailureReason(err))
     }
   }
   return { removed, kept: plan.keep, failed }

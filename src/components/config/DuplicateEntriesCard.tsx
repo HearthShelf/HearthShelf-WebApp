@@ -33,9 +33,11 @@ export function DuplicateEntriesCard({
     queryFn: () => getMe(target),
     staleTime: 10 * 60 * 1000,
   })
-  // ABS admins and root may delete regardless of the per-user flag; checking
-  // other listeners' progress needs admin too, so plain deleters are left out.
+  // Checking other listeners' progress needs admin or root. Removing an entry
+  // ALSO needs the account's own Delete permission: ABS checks user.canDelete
+  // even for admins and root, so an admin without it gets a bare 403.
   const canClean = me?.type === 'admin' || me?.type === 'root'
+  const canDelete = me?.permissions?.delete === true
 
   const groupsKey = ['abs-duplicate-groups', target.serverId, ...libraryIds]
   const { data: groups = [] } = useQuery({
@@ -92,10 +94,17 @@ export function DuplicateEntriesCard({
             ))}
             {groups.length > 8 && <li>and {groups.length - 8} more</li>}
           </ul>
-          <button className="btn-sm btn-accent" disabled={busy} onClick={() => void cleanUp()}>
-            <Icon name={busy ? 'hourglass_empty' : 'auto_fix_high'} />
-            {busy ? 'Cleaning up...' : 'Clean up'}
-          </button>
+          {canDelete ? (
+            <button className="btn-sm btn-accent" disabled={busy} onClick={() => void cleanUp()}>
+              <Icon name={busy ? 'hourglass_empty' : 'auto_fix_high'} />
+              {busy ? 'Cleaning up...' : 'Clean up'}
+            </button>
+          ) : (
+            <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+              To clean up, turn on the Delete permission for your user in the server&apos;s user
+              settings. Even admins need it to remove books.
+            </p>
+          )}
         </>
       )}
       {result && (
@@ -112,12 +121,12 @@ export function DuplicateEntriesCard({
               copy. It moves over the next time they open HearthShelf. Run this again after.
             </p>
           )}
-          {result.failed > 0 && (
+          {result.failed.length > 0 && (
             <p style={{ color: 'var(--text-muted)' }}>
-              {result.failed} could not be removed. Try again in a moment.
+              {result.failed.length} could not be removed. {[...new Set(result.failed)].join(' ')}
             </p>
           )}
-          {result.removed === 0 && result.kept.length === 0 && result.failed === 0 && (
+          {result.removed === 0 && result.kept.length === 0 && result.failed.length === 0 && (
             <p>Nothing left to clean up.</p>
           )}
         </div>
